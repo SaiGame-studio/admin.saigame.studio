@@ -330,10 +330,10 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                 <Card
                                     id={`clone-game-source-card-${game.id}`}
                                     key={game.id}
-                                    className={isSelected ? "border-primary bg-primary/5 shadow-sm" : undefined}
+                                    className={`flex h-full flex-col ${isSelected ? "border-primary bg-primary/5 shadow-sm" : ""}`}
                                 >
                                     <CardHeader id={`clone-game-source-card-header-${game.id}`} className="space-y-3">
-                                        <div id={`clone-game-source-card-title-row-${game.id}`} className="flex items-start justify-between gap-3">
+                                        <div id={`clone-game-source-card-title-row-${game.id}`} className="flex items-start gap-3">
                                             <div id={`clone-game-source-card-title-copy-${game.id}`} className="min-w-0 space-y-1">
                                                 <CardTitle id={`clone-game-source-card-title-${game.id}`} className="text-base">
                                                     <Link id={`clone-game-source-card-link-${game.id}`} href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary">
@@ -343,23 +343,10 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                         <ExternalLink id={`clone-game-source-card-link-icon-${game.id}`} className="h-4 w-4 shrink-0" />
                                                     </Link>
                                                 </CardTitle>
-                                                <CardDescription id={`clone-game-source-card-studio-${game.id}`} className="truncate">
-                                                    {game.studio?.name ?? game.studio_id}
-                                                </CardDescription>
-                                            </div>
-                                            <div id={`clone-game-source-card-visibility-wrap-${game.id}`} className="flex flex-col items-end gap-1 text-right">
-                                                <Badge id={`clone-game-source-card-visibility-${game.id}`} variant={getVisibilityBadgeVariant(game.share_level)}>
-                                                    {visibilityLabel}
-                                                </Badge>
-                                                {visibilityPriceLabel ? (
-                                                    <p id={`clone-game-source-card-visibility-price-${game.id}`} className="text-xs text-muted-foreground">
-                                                        {visibilityPriceLabel}
-                                                    </p>
-                                                ) : null}
                                             </div>
                                         </div>
                                         <div id={`clone-game-source-card-id-row-${game.id}`} className="flex flex-wrap items-center gap-1 text-xs font-mono text-muted-foreground">
-                                            <span id={`clone-game-source-card-id-label-${game.id}`}>{t("cloneGame.sourceGameIdLabel")}</span>
+                                            <span id={`clone-game-source-card-id-label-${game.id}`}>{t("cloneGame.sourceGameIdLabel")}</span>:
                                             <span id={`clone-game-source-card-id-value-${game.id}`} className="break-all">
                                                 {game.id}
                                             </span>
@@ -372,7 +359,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                             />
                                         </div>
                                     </CardHeader>
-                                    <CardContent id={`clone-game-source-card-content-${game.id}`} className="space-y-3">
+                                    <CardContent id={`clone-game-source-card-content-${game.id}`} className="flex-1 space-y-3">
                                         <p id={`clone-game-source-card-description-${game.id}`} className="line-clamp-3 text-sm text-muted-foreground">
                                             {game.description || t("cloneGame.sourceGameNoDescription")}
                                         </p>
@@ -386,13 +373,20 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                             </div>
                                         ) : null}
                                     </CardContent>
-                                    <CardFooter id={`clone-game-source-card-footer-${game.id}`} className="flex flex-wrap gap-2">
-                                        <Button id={`clone-game-source-card-select-btn-${game.id}`} type="button" variant={isSelected ? "default" : "outline"} onClick={() => setSelectedGameId(game.id)}>
+                                    <CardFooter id={`clone-game-source-card-footer-${game.id}`} className="mt-auto flex flex-wrap items-center justify-between gap-2">
+                                        <Button id={`clone-game-source-card-select-btn-${game.id}`} type="button" variant={isSelected ? "default" : "outline"} onClick={() => setSelectedGameId(game.id)} className="self-center">
                                             {isSelected ? t("cloneGame.sourceGameSelected") : t("cloneGame.sourceGameSelect")}
                                         </Button>
-                                        <Button id={`clone-game-source-card-view-btn-${game.id}`} asChild variant="ghost">
-                                            <Link href={`/games/${game.id}`}>{t("common.viewDetails")}</Link>
-                                        </Button>
+                                        <div id={`clone-game-source-card-visibility-wrap-${game.id}`} className="flex items-center gap-2 text-right">
+                                            {visibilityPriceLabel ? (
+                                                <p id={`clone-game-source-card-visibility-price-${game.id}`} className="text-xs text-muted-foreground">
+                                                    {visibilityPriceLabel}
+                                                </p>
+                                            ) : null}
+                                            <Badge id={`clone-game-source-card-visibility-${game.id}`} variant={getVisibilityBadgeVariant(game.share_level)}>
+                                                {visibilityLabel}
+                                            </Badge>
+                                        </div>
                                     </CardFooter>
                                 </Card>
                             );
