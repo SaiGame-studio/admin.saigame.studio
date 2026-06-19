@@ -61,16 +61,6 @@ function getVisibilityPriceLabel(game: Game, t: TranslationFn) {
     return `${game.clone_cost ?? 7} ${t("cloneGame.clonePriceUnit")}`;
 }
 
-function getRangeLabel(offset: number, count: number, total: number) {
-    if (total <= 0 || count <= 0) {
-        return "0 / 0";
-    }
-
-    const start = offset + 1;
-    const end = offset + count;
-    return `${start.toLocaleString("en-US")} - ${end.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`;
-}
-
 export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabProps) {
     const { t } = useTranslation();
     const [searchInput, setSearchInput] = useState("");
@@ -83,8 +73,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const requestSeqRef = useRef(0);
 
     const selectedGame = games.find((game) => game.id === selectedGameId) ?? null;
-    const trimmedSearch = searchInput.trim();
-    const searchMode = trimmedSearch.length > 0 && UUID_PATTERN.test(trimmedSearch) ? "game_id" : "name";
 
     const loadGames = useCallback(
         async (nextOffset: number, rawSearch: string) => {
@@ -156,78 +144,54 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
 
     return (
         <div id="clone-game-source-tab" className="space-y-4">
-            <Card id="clone-game-source-intro-card">
-                <CardHeader id="clone-game-source-intro-header" className="space-y-2">
-                    <CardTitle id="clone-game-source-intro-title" className="text-xl">
-                        {t("cloneGame.sourceGameTitle")}
-                    </CardTitle>
-                    <CardDescription id="clone-game-source-intro-description">
-                        {t("cloneGame.sourceGameSubtitle")}
-                    </CardDescription>
-                    <p id="clone-game-source-target-game" className="text-xs text-muted-foreground">
-                        {t("cloneGame.sourceGameTargetGameLabel")}: <span id="clone-game-source-target-game-name" className="font-medium text-foreground">{targetGameName}</span>
-                    </p>
-                </CardHeader>
-                <CardContent id="clone-game-source-intro-content" className="space-y-4">
-                    <div id="clone-game-source-search-wrap" className="space-y-2">
-                        <Label id="clone-game-source-search-label" htmlFor="clone-game-source-search-input">
-                            {t("cloneGame.sourceGameSearchLabel")}
-                        </Label>
-                        <div id="clone-game-source-search-field" className="relative">
-                            <Search id="clone-game-source-search-icon" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                id="clone-game-source-search-input"
-                                value={searchInput}
-                                onChange={(event) => {
-                                    setSearchInput(event.target.value);
-                                    if (offset !== 0) {
-                                        setOffset(0);
-                                    }
-                                }}
-                                placeholder={t("cloneGame.sourceGameSearchPlaceholder")}
-                                className="pl-9 pr-24"
-                                autoComplete="off"
-                            />
-                            {searchInput ? (
-                                <Button
-                                    id="clone-game-source-clear-search-btn"
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="absolute right-1 top-1/2 h-8 -translate-y-1/2 px-2"
-                                    onClick={handleClearSearch}
-                                >
-                                    <X id="clone-game-source-clear-search-icon" className="h-4 w-4" />
-                                </Button>
-                            ) : null}
-                        </div>
-                        <p id="clone-game-source-search-help" className="text-xs text-muted-foreground">
-                            {searchMode === "game_id" ? t("cloneGame.sourceGameExactLookupHint") : t("cloneGame.sourceGameSearchHint")}
-                        </p>
+            <div id="clone-game-source-search-wrap" className="space-y-2">
+                <Label id="clone-game-source-search-label" htmlFor="clone-game-source-search-input">
+                    {t("cloneGame.sourceGameSearchLabel")}
+                </Label>
+                <div id="clone-game-source-search-row" className="flex flex-wrap items-start gap-2">
+                    <div id="clone-game-source-search-field" className="relative min-w-0 flex-1">
+                        <Search id="clone-game-source-search-icon" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            id="clone-game-source-search-input"
+                            value={searchInput}
+                            onChange={(event) => {
+                                setSearchInput(event.target.value);
+                                if (offset !== 0) {
+                                    setOffset(0);
+                                }
+                            }}
+                            placeholder={t("cloneGame.sourceGameSearchPlaceholder")}
+                            className="pl-9 pr-24"
+                            autoComplete="off"
+                        />
+                        {searchInput ? (
+                            <Button
+                                id="clone-game-source-clear-search-btn"
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-1 top-1/2 h-8 -translate-y-1/2 px-2"
+                                onClick={handleClearSearch}
+                            >
+                                <X id="clone-game-source-clear-search-icon" className="h-4 w-4" />
+                            </Button>
+                        ) : null}
                     </div>
-
-                    <div id="clone-game-source-actions" className="flex flex-wrap items-center gap-2">
-                        <Button
-                            id="clone-game-source-refresh-btn"
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={handleRefresh}
-                            disabled={loading}
-                            aria-label={t("common.refresh")}
-                            title={t("common.refresh")}
-                        >
-                            {loading ? <Loader2 id="clone-game-source-refresh-loading-icon" className="h-4 w-4 animate-spin" /> : <RefreshCw id="clone-game-source-refresh-icon" className="h-4 w-4" />}
-                        </Button>
-                        <Button id="clone-game-source-clear-btn" type="button" variant="ghost" onClick={handleClearSearch} disabled={!searchInput && offset === 0}>
-                            {t("cloneGame.sourceGameClear")}
-                        </Button>
-                        <p id="clone-game-source-count" className="text-sm text-muted-foreground">
-                            {loading ? t("common.loading") : `${t("cloneGame.sourceGameResultsLabel")}: ${getRangeLabel(offset, games.length, total)}`}
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
+                    <Button
+                        id="clone-game-source-refresh-btn"
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={handleRefresh}
+                        disabled={loading}
+                        aria-label={t("common.refresh")}
+                        title={t("common.refresh")}
+                        className="shrink-0"
+                    >
+                        {loading ? <Loader2 id="clone-game-source-refresh-loading-icon" className="h-4 w-4 animate-spin" /> : <RefreshCw id="clone-game-source-refresh-icon" className="h-4 w-4" />}
+                    </Button>
+                </div>
+            </div>
 
             {selectedGame ? (
                 <Card id="clone-game-source-selected-card" className="border-primary/40 bg-primary/5">
@@ -394,7 +358,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                     </div>
 
                     {hasMore ? (
-                        <Card id="clone-game-source-more-card">
+                <Card id="clone-game-source-more-card">
                             <CardContent id="clone-game-source-more-content" className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div id="clone-game-source-more-copy" className="space-y-1">
                                     <p id="clone-game-source-more-title" className="text-sm font-medium">
