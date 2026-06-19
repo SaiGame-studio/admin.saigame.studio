@@ -440,11 +440,12 @@
     "sourceGameDeleteConfirmFallback": "Xóa phiên clone hiện tại?",
     "sourceGameCurrentSessionIdLabel": "Session ID",
     "sourceGameCurrentSessionSourceLabel": "Game nguồn",
+    "sourceGameCurrentSessionSourceNameLabel": "Tên game nguồn",
     "sourceGameCurrentSessionTargetLabel": "Game đích",
     "sourceGameCurrentSessionSameStudioLabel": "Cùng studio",
     "sourceGameCurrentSessionPhaseLabel": "Giai đoạn hiện tại",
     "sourceGameCurrentSessionBatchLabel": "Tiến độ batch",
-    "sourceGameCurrentSessionCostLabel": "Chi phí clone ước tính",
+    "sourceGameCurrentSessionCostLabel": "Chi phí clone",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },

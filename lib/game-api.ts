@@ -10,6 +10,7 @@ export interface CloneableGamesResponse {
 export interface CloneSessionResponse {
     session_id?: string;
     source_game_id?: string;
+    source_game_name?: string;
     target_game_id?: string;
     same_studio?: boolean;
     status?: string;
@@ -40,6 +41,7 @@ export interface CloneSessionLastRunResponse {
 export interface CloneSessionSnapshot {
     session_id?: string;
     source_game_id?: string;
+    source_game_name?: string;
     target_game_id?: string;
     same_studio?: boolean;
     status?: string;

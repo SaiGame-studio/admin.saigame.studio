@@ -440,11 +440,12 @@
     "sourceGameDeleteConfirmFallback": "現在の複製セッションを削除しますか？",
     "sourceGameCurrentSessionIdLabel": "セッション ID",
     "sourceGameCurrentSessionSourceLabel": "複製元ゲーム",
+    "sourceGameCurrentSessionSourceNameLabel": "複製元ゲーム名",
     "sourceGameCurrentSessionTargetLabel": "複製先ゲーム",
     "sourceGameCurrentSessionSameStudioLabel": "同一スタジオ",
     "sourceGameCurrentSessionPhaseLabel": "現在のフェーズ",
     "sourceGameCurrentSessionBatchLabel": "バッチ進捗",
-    "sourceGameCurrentSessionCostLabel": "推定複製コスト",
+    "sourceGameCurrentSessionCostLabel": "複製コスト",
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "sourceGameCurrentSessionProgressLabel": "進捗"
   },

@@ -440,11 +440,12 @@
     "sourceGameDeleteConfirmFallback": "Delete the current clone session?",
     "sourceGameCurrentSessionIdLabel": "Session ID",
     "sourceGameCurrentSessionSourceLabel": "Source game",
+    "sourceGameCurrentSessionSourceNameLabel": "Source game name",
     "sourceGameCurrentSessionTargetLabel": "Target game",
     "sourceGameCurrentSessionSameStudioLabel": "Same studio",
     "sourceGameCurrentSessionPhaseLabel": "Current phase",
     "sourceGameCurrentSessionBatchLabel": "Batch progress",
-    "sourceGameCurrentSessionCostLabel": "Estimated clone cost",
+    "sourceGameCurrentSessionCostLabel": "Clone cost",
     "sourceGameCurrentSessionWarningsLabel": "Warnings",
     "sourceGameCurrentSessionProgressLabel": "Progress"
   },

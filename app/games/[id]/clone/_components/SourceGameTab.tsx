@@ -354,84 +354,89 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                     {currentSession.message || t("cloneGame.sourceGameCurrentSessionActiveDesc")}
                                 </CardDescription>
                             </div>
-                            <Badge
-                                id="clone-game-source-current-session-status-badge"
-                                variant={getCloneSessionBadgeVariant(currentSession.status)}
-                                className="self-start"
-                            >
-                                {formatTechnicalLabel(currentSession.status) || t("common.unknown")}
-                            </Badge>
+                            <div id="clone-game-source-current-session-top-right" className="flex flex-col items-end gap-2 self-start">
+                                <div id="clone-game-source-current-session-session-id-wrap" className="flex items-center gap-1">
+                                    <p
+                                        id="clone-game-source-current-session-session-id-text"
+                                        className="max-w-[220px] truncate font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
+                                    >
+                                        {currentSession.session_id || t("common.unknown")}
+                                    </p>
+                                    {currentSession.session_id ? (
+                                        <CopyButton
+                                            id="clone-game-source-current-session-session-id-copy-btn"
+                                            iconId="clone-game-source-current-session-session-id-copy-icon"
+                                            text={currentSession.session_id}
+                                            size="h-3 w-3"
+                                            className="ml-0"
+                                        />
+                                    ) : null}
+                                </div>
+                                <Badge
+                                    id="clone-game-source-current-session-status-badge"
+                                    variant={getCloneSessionBadgeVariant(currentSession.status)}
+                                >
+                                    {formatTechnicalLabel(currentSession.status) || t("common.unknown")}
+                                </Badge>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent id="clone-game-source-current-session-content" className="space-y-4 text-sm">
-                        <div id="clone-game-source-current-session-meta" className="grid gap-3 md:grid-cols-2">
-                            <div id="clone-game-source-current-session-session-id" className="space-y-1">
-                                <p id="clone-game-source-current-session-session-id-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionIdLabel")}
-                                </p>
-                                <p id="clone-game-source-current-session-session-id-value" className="break-all font-mono text-xs">
-                                    {currentSession.session_id || t("common.unknown")}
-                                </p>
+                        <div id="clone-game-source-current-session-meta" className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.8fr)]">
+                            <div id="clone-game-source-current-session-meta-left" className="space-y-3">
+                                <div id="clone-game-source-current-session-phase" className="space-y-1">
+                                    <p id="clone-game-source-current-session-phase-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                                        {t("cloneGame.sourceGameCurrentSessionPhaseLabel")}
+                                    </p>
+                                    <p id="clone-game-source-current-session-phase-value" className="break-all font-medium">
+                                        {formatTechnicalLabel(currentSession.current_phase) || t("common.unknown")}
+                                    </p>
+                                </div>
+                                <div id="clone-game-source-current-session-source-name" className="space-y-1">
+                                    <p id="clone-game-source-current-session-source-name-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                                        {t("cloneGame.sourceGameCurrentSessionSourceNameLabel")}
+                                    </p>
+                                    <p id="clone-game-source-current-session-source-name-value" className="break-all font-medium">
+                                        {currentSession.source_game_name || t("common.unknown")}
+                                    </p>
+                                </div>
+                                <div id="clone-game-source-current-session-batch" className="space-y-1">
+                                    <p id="clone-game-source-current-session-batch-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                                        {t("cloneGame.sourceGameCurrentSessionBatchLabel")}
+                                    </p>
+                                    <p id="clone-game-source-current-session-batch-value" className="font-medium">
+                                        {currentSession.current_batch_index ?? 0} / {currentSession.batch_size ?? 0}
+                                    </p>
+                                </div>
                             </div>
-                            <div id="clone-game-source-current-session-phase" className="space-y-1">
-                                <p id="clone-game-source-current-session-phase-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionPhaseLabel")}
-                                </p>
-                                <p id="clone-game-source-current-session-phase-value" className="break-all font-medium">
-                                    {formatTechnicalLabel(currentSession.current_phase) || t("common.unknown")}
-                                </p>
-                            </div>
-                            <div id="clone-game-source-current-session-source-id" className="space-y-1">
-                                <p id="clone-game-source-current-session-source-id-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionSourceLabel")}
-                                </p>
-                                <p id="clone-game-source-current-session-source-id-value" className="break-all font-mono text-xs">
-                                    {currentSession.source_game_id || t("common.unknown")}
-                                </p>
-                            </div>
-                            <div id="clone-game-source-current-session-target-id" className="space-y-1">
-                                <p id="clone-game-source-current-session-target-id-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionTargetLabel")}
-                                </p>
-                                <p id="clone-game-source-current-session-target-id-value" className="break-all font-mono text-xs">
-                                    {currentSession.target_game_id || t("common.unknown")}
-                                </p>
-                            </div>
-                            <div id="clone-game-source-current-session-same-studio" className="space-y-1">
-                                <p id="clone-game-source-current-session-same-studio-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionSameStudioLabel")}
-                                </p>
-                                <Badge
-                                    id="clone-game-source-current-session-same-studio-badge"
-                                    variant={getBooleanBadgeVariant(currentSession.same_studio)}
-                                >
-                                    {currentSession.same_studio === undefined
-                                        ? t("common.unknown")
-                                        : currentSession.same_studio
-                                          ? t("common.yes")
-                                          : t("common.no")}
-                                </Badge>
-                            </div>
-                            <div id="clone-game-source-current-session-batch" className="space-y-1 md:col-span-2">
-                                <p id="clone-game-source-current-session-batch-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionBatchLabel")}
-                                </p>
-                                <p id="clone-game-source-current-session-batch-value" className="font-medium">
-                                    {currentSession.current_batch_index ?? 0} / {currentSession.batch_size ?? 0}
-                                </p>
+                            <div id="clone-game-source-current-session-meta-right" className="space-y-3">
+                                <div id="clone-game-source-current-session-same-studio" className="space-y-1">
+                                    <p id="clone-game-source-current-session-same-studio-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                                        {t("cloneGame.sourceGameCurrentSessionSameStudioLabel")}
+                                    </p>
+                                    <Badge
+                                        id="clone-game-source-current-session-same-studio-badge"
+                                        variant={getBooleanBadgeVariant(currentSession.same_studio)}
+                                    >
+                                        {currentSession.same_studio === undefined
+                                            ? t("common.unknown")
+                                            : currentSession.same_studio
+                                              ? t("common.yes")
+                                              : t("common.no")}
+                                    </Badge>
+                                </div>
+                                {currentSessionEstimatedCost ? (
+                                    <div id="clone-game-source-current-session-cost" className="space-y-1">
+                                        <p id="clone-game-source-current-session-cost-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                                            {t("cloneGame.sourceGameCurrentSessionCostLabel")}
+                                        </p>
+                                        <p id="clone-game-source-current-session-cost-value" className="font-medium">
+                                            {currentSessionEstimatedCost.amount ?? 0} {currentSessionEstimatedCost.currency === "sGem" ? "💎 " : ""}{currentSessionEstimatedCost.currency || t("common.unknown")}
+                                        </p>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
-
-                        {currentSessionEstimatedCost ? (
-                            <div id="clone-game-source-current-session-cost" className="space-y-1 border-t pt-4">
-                                <p id="clone-game-source-current-session-cost-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionCostLabel")}
-                                </p>
-                                <p id="clone-game-source-current-session-cost-value" className="font-medium">
-                                    {currentSessionEstimatedCost.amount ?? 0} {currentSessionEstimatedCost.currency || t("common.unknown")}
-                                </p>
-                            </div>
-                        ) : null}
 
                         {currentSessionWarnings.length > 0 ? (
                             <div id="clone-game-source-current-session-warnings" className="space-y-2 border-t pt-4">
