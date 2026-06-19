@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { ApiError } from "@/lib/api-client";
 import { createCloneSession, deleteCurrentCloneSession, getCurrentCloneSession, listCloneableGames, type CloneSessionSnapshot } from "@/lib/game-api";
@@ -144,6 +145,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [startingClone, setStartingClone] = useState(false);
     const [cloneSessionId, setCloneSessionId] = useState<string | null>(null);
     const [cloneSessionError, setCloneSessionError] = useState<string | null>(null);
+    const [activeProgressTab, setActiveProgressTab] = useState<string | null>(null);
     const [startConfirmOpen, setStartConfirmOpen] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const requestSeqRef = useRef(0);
@@ -317,6 +319,15 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const hasCurrentCloneSession = Boolean(currentSession);
 
+    useEffect(() => {
+        if (currentSessionProgressEntries.length === 0) {
+            setActiveProgressTab(null);
+            return;
+        }
+
+        setActiveProgressTab((current) => (current && currentSessionProgressEntries.some(([phaseKey]) => phaseKey === current) ? current : currentSessionProgressEntries[0]?.[0] ?? null));
+    }, [currentSessionProgressEntries]);
+
     return (
         <div id="clone-game-source-tab" className="space-y-4">
             {currentSessionLoading ? (
@@ -465,27 +476,52 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                 <p id="clone-game-source-current-session-progress-label" className="text-xs uppercase tracking-wide text-muted-foreground">
                                     {t("cloneGame.sourceGameCurrentSessionProgressLabel")}
                                 </p>
-                                <div id="clone-game-source-current-session-progress-list" className="grid gap-2 md:grid-cols-2">
-                                    {currentSessionProgressEntries.map(([phaseKey, progress]) => (
-                                        <div
-                                            id={`clone-game-source-current-session-progress-item-${toKebabIdSegment(phaseKey)}`}
+                                <Tabs id="clone-game-source-current-session-progress-tabs" value={activeProgressTab ?? currentSessionProgressEntries[0]?.[0] ?? ""} onValueChange={setActiveProgressTab} className="w-full">
+                                    <div id="clone-game-source-current-session-progress-tabs-scroll" className="overflow-x-auto">
+                                        <TabsList id="clone-game-source-current-session-progress-tabs-list" className="mb-3 inline-flex min-w-max">
+                                            {currentSessionProgressEntries.map(([phaseKey], index) => (
+                                                <TabsTrigger
+                                                    id={`clone-game-source-current-session-progress-tab-trigger-${toKebabIdSegment(phaseKey)}`}
+                                                    key={phaseKey}
+                                                    value={phaseKey}
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <span id={`clone-game-source-current-session-progress-tab-index-${toKebabIdSegment(phaseKey)}`} className="text-xs font-semibold tabular-nums">
+                                                        {index + 1}
+                                                    </span>
+                                                    <span id={`clone-game-source-current-session-progress-tab-label-${toKebabIdSegment(phaseKey)}`} className="whitespace-nowrap">
+                                                        {formatTechnicalLabel(phaseKey)}
+                                                    </span>
+                                                </TabsTrigger>
+                                            ))}
+                                        </TabsList>
+                                    </div>
+                                    {currentSessionProgressEntries.map(([phaseKey, progress], index) => (
+                                        <TabsContent
+                                            id={`clone-game-source-current-session-progress-tab-content-${toKebabIdSegment(phaseKey)}`}
                                             key={phaseKey}
-                                            className="rounded-md border bg-background px-3 py-2"
+                                            value={phaseKey}
+                                            className="mt-0"
                                         >
-                                            <div id={`clone-game-source-current-session-progress-item-header-${toKebabIdSegment(phaseKey)}`} className="flex items-center justify-between gap-2">
-                                                <p id={`clone-game-source-current-session-progress-item-phase-${toKebabIdSegment(phaseKey)}`} className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                    {formatTechnicalLabel(phaseKey)}
+                                            <div
+                                                id={`clone-game-source-current-session-progress-item-${toKebabIdSegment(phaseKey)}`}
+                                                className="rounded-md border bg-background px-3 py-2"
+                                            >
+                                                <div id={`clone-game-source-current-session-progress-item-header-${toKebabIdSegment(phaseKey)}`} className="flex items-center justify-between gap-2">
+                                                    <p id={`clone-game-source-current-session-progress-item-phase-${toKebabIdSegment(phaseKey)}`} className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        {index + 1}. {formatTechnicalLabel(phaseKey)}
+                                                    </p>
+                                                    <Badge id={`clone-game-source-current-session-progress-item-badge-${toKebabIdSegment(phaseKey)}`} variant={progress.completed ? "default" : "outline"}>
+                                                        {progress.completed ? t("common.completed") : t("common.pending")}
+                                                    </Badge>
+                                                </div>
+                                                <p id={`clone-game-source-current-session-progress-item-value-${toKebabIdSegment(phaseKey)}`} className="mt-1 text-sm">
+                                                    {progress.processed ?? 0} / {progress.total ?? 0}
                                                 </p>
-                                                <Badge id={`clone-game-source-current-session-progress-item-badge-${toKebabIdSegment(phaseKey)}`} variant={progress.completed ? "default" : "outline"}>
-                                                    {progress.completed ? t("common.completed") : t("common.pending")}
-                                                </Badge>
                                             </div>
-                                            <p id={`clone-game-source-current-session-progress-item-value-${toKebabIdSegment(phaseKey)}`} className="mt-1 text-sm">
-                                                {progress.processed ?? 0} / {progress.total ?? 0}
-                                            </p>
-                                        </div>
+                                        </TabsContent>
                                     ))}
-                                </div>
+                                </Tabs>
                             </div>
                         ) : null}
                     </CardContent>
