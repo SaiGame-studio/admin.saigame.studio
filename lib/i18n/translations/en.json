@@ -455,6 +455,9 @@
     "sourceGameCurrentSessionItemContainerGridLabel": "Grid size",
     "sourceGameCurrentSessionItemContainerPortableLabel": "Portable",
     "sourceGameCurrentSessionItemContainerInstancedLabel": "Instanced per item",
+    "sourceGameCurrentSessionItemTagsSearchPlaceholder": "Search item tags by label or key...",
+    "sourceGameCurrentSessionItemTagsColorLabel": "Color",
+    "sourceGameCurrentSessionItemTagsUsageLabel": "Item count",
     "sourceGameCurrentSessionWarningsLabel": "Warnings",
     "sourceGameCurrentSessionProgressLabel": "Progress"
   },

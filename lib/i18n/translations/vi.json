@@ -455,6 +455,9 @@
     "sourceGameCurrentSessionItemContainerGridLabel": "Kích thước lưới",
     "sourceGameCurrentSessionItemContainerPortableLabel": "Di động",
     "sourceGameCurrentSessionItemContainerInstancedLabel": "Riêng cho từng vật phẩm",
+    "sourceGameCurrentSessionItemTagsSearchPlaceholder": "Tìm item tag theo nhãn hoặc khóa...",
+    "sourceGameCurrentSessionItemTagsColorLabel": "Màu sắc",
+    "sourceGameCurrentSessionItemTagsUsageLabel": "Số lượng vật phẩm",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },

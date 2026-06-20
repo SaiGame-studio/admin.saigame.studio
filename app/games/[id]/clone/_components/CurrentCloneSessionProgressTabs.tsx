@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionSnapshot } from "@/lib/game-api";
+import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionSnapshot } from "@/lib/game-api";
+import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
 
 type TranslationFn = (key: string) => string;
 
@@ -45,6 +46,18 @@ type CurrentCloneSessionProgressTabsProps = {
     onItemContainersClearSearch: () => void;
     onItemContainersPreviousPage: () => void;
     onItemContainersNextPage: () => void;
+    itemTags: CloneSessionCurrentItemTag[];
+    itemTagsTotal: number;
+    itemTagsOffset: number;
+    itemTagsSearchInput: string;
+    itemTagsSearchName: string;
+    itemTagsLoading: boolean;
+    itemTagsError: string | null;
+    onItemTagsSearchInputChange: (value: string) => void;
+    onItemTagsSearch: () => void;
+    onItemTagsClearSearch: () => void;
+    onItemTagsPreviousPage: () => void;
+    onItemTagsNextPage: () => void;
 };
 
 const ITEMS_PAGE_SIZE = 12;
@@ -261,6 +274,18 @@ export function CurrentCloneSessionProgressTabs({
     onItemContainersClearSearch,
     onItemContainersPreviousPage,
     onItemContainersNextPage,
+    itemTags,
+    itemTagsTotal,
+    itemTagsOffset,
+    itemTagsSearchInput,
+    itemTagsSearchName,
+    itemTagsLoading,
+    itemTagsError,
+    onItemTagsSearchInputChange,
+    onItemTagsSearch,
+    onItemTagsClearSearch,
+    onItemTagsPreviousPage,
+    onItemTagsNextPage,
 }: CurrentCloneSessionProgressTabsProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -625,6 +650,22 @@ export function CurrentCloneSessionProgressTabs({
                                             <CurrentCloneSessionItemContainerList itemContainers={itemContainers} t={t} />
                                         )}
                                     </div>
+                                ) : phaseKey === "item_tags" || phaseKey === "item_tag_definitions" ? (
+                                    <CurrentCloneSessionItemTagsTab
+                                        t={t}
+                                        itemTags={itemTags}
+                                        itemTagsTotal={itemTagsTotal}
+                                        itemTagsOffset={itemTagsOffset}
+                                        itemTagsSearchInput={itemTagsSearchInput}
+                                        itemTagsSearchName={itemTagsSearchName}
+                                        itemTagsLoading={itemTagsLoading}
+                                        itemTagsError={itemTagsError}
+                                        onItemTagsSearchInputChange={onItemTagsSearchInputChange}
+                                        onItemTagsSearch={onItemTagsSearch}
+                                        onItemTagsClearSearch={onItemTagsClearSearch}
+                                        onItemTagsPreviousPage={onItemTagsPreviousPage}
+                                        onItemTagsNextPage={onItemTagsNextPage}
+                                    />
                                 ) : null}
                             </TabsContent>
                         ))}

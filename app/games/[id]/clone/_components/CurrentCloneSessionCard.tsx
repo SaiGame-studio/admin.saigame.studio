@@ -12,8 +12,10 @@ import { ApiError } from "@/lib/api-client";
 import {
     getCurrentCloneSessionItemContainers,
     getCurrentCloneSessionItems,
+    getCurrentCloneSessionItemTags,
     type CloneSessionCurrentItemContainer,
     type CloneSessionCurrentItemDefinition,
+    type CloneSessionCurrentItemTag,
     type CloneSessionSnapshot,
 } from "@/lib/game-api";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
@@ -129,6 +131,18 @@ type CurrentCloneSessionContentProps = {
     onItemContainersClearSearch: () => void;
     onItemContainersPreviousPage: () => void;
     onItemContainersNextPage: () => void;
+    itemTags: CloneSessionCurrentItemTag[];
+    itemTagsTotal: number;
+    itemTagsOffset: number;
+    itemTagsSearchInput: string;
+    itemTagsSearchName: string;
+    itemTagsLoading: boolean;
+    itemTagsError: string | null;
+    onItemTagsSearchInputChange: (value: string) => void;
+    onItemTagsSearch: () => void;
+    onItemTagsClearSearch: () => void;
+    onItemTagsPreviousPage: () => void;
+    onItemTagsNextPage: () => void;
 };
 
 export function CurrentCloneSessionCard({
@@ -158,6 +172,13 @@ export function CurrentCloneSessionCard({
     const [itemContainersSearchName, setItemContainersSearchName] = useState("");
     const [itemContainersLoading, setItemContainersLoading] = useState(false);
     const [itemContainersError, setItemContainersError] = useState<string | null>(null);
+    const [itemTags, setItemTags] = useState<CloneSessionCurrentItemTag[]>([]);
+    const [itemTagsTotal, setItemTagsTotal] = useState(0);
+    const [itemTagsOffset, setItemTagsOffset] = useState(0);
+    const [itemTagsSearchInput, setItemTagsSearchInput] = useState("");
+    const [itemTagsSearchName, setItemTagsSearchName] = useState("");
+    const [itemTagsLoading, setItemTagsLoading] = useState(false);
+    const [itemTagsError, setItemTagsError] = useState<string | null>(null);
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
     const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
@@ -165,6 +186,7 @@ export function CurrentCloneSessionCard({
     const activeProgressTab = currentSessionProgressEntries.some(([phaseKey]) => phaseKey === searchProgressTab)
         ? searchProgressTab
         : currentSessionProgressEntries[0]?.[0] ?? null;
+    const isItemTagsTab = activeProgressTab === "item_tags" || activeProgressTab === "item_tag_definitions";
 
     useEffect(() => {
         if (currentSessionProgressEntries.length === 0) {
@@ -272,6 +294,57 @@ export function CurrentCloneSessionCard({
         };
     }, [activeProgressTab, currentSession, itemContainersOffset, itemContainersSearchName, targetGameId, t]);
 
+    useEffect(() => {
+        if (!currentSession || !isItemTagsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadItemTags = async () => {
+            setItemTagsLoading(true);
+            setItemTagsError(null);
+
+            try {
+                const response = await getCurrentCloneSessionItemTags(targetGameId, {
+                    name: itemTagsSearchName || undefined,
+                    limit: ITEMS_PAGE_SIZE,
+                    offset: itemTagsOffset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextItemTags = Array.isArray(response.item_tags)
+                    ? response.item_tags
+                    : Array.isArray(response.tags)
+                        ? response.tags
+                        : [];
+                setItemTags(nextItemTags);
+                setItemTagsTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                setItemTags([]);
+                setItemTagsTotal(0);
+                setItemTagsError(getCloneSessionErrorMessage(error, t));
+            } finally {
+                if (!cancelled) {
+                    setItemTagsLoading(false);
+                }
+            }
+        };
+
+        void loadItemTags();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeProgressTab, currentSession, itemTagsOffset, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
+
     const handleSearchItems = () => {
         setItemsOffset(0);
         setItemsSearchName(itemsSearchInput.trim());
@@ -308,6 +381,25 @@ export function CurrentCloneSessionCard({
 
     const handleNextItemContainersPage = () => {
         setItemContainersOffset((current) => current + ITEMS_PAGE_SIZE);
+    };
+
+    const handleSearchItemTags = () => {
+        setItemTagsOffset(0);
+        setItemTagsSearchName(itemTagsSearchInput.trim());
+    };
+
+    const handleClearItemTagsSearch = () => {
+        setItemTagsSearchInput("");
+        setItemTagsSearchName("");
+        setItemTagsOffset(0);
+    };
+
+    const handlePreviousItemTagsPage = () => {
+        setItemTagsOffset((current) => Math.max(0, current - ITEMS_PAGE_SIZE));
+    };
+
+    const handleNextItemTagsPage = () => {
+        setItemTagsOffset((current) => current + ITEMS_PAGE_SIZE);
     };
 
     if (currentSessionLoading) {
@@ -364,6 +456,18 @@ export function CurrentCloneSessionCard({
         onItemContainersClearSearch: handleClearItemContainersSearch,
         onItemContainersPreviousPage: handlePreviousItemContainersPage,
         onItemContainersNextPage: handleNextItemContainersPage,
+        itemTags,
+        itemTagsTotal,
+        itemTagsOffset,
+        itemTagsSearchInput,
+        itemTagsSearchName,
+        itemTagsLoading,
+        itemTagsError,
+        onItemTagsSearchInputChange: setItemTagsSearchInput,
+        onItemTagsSearch: handleSearchItemTags,
+        onItemTagsClearSearch: handleClearItemTagsSearch,
+        onItemTagsPreviousPage: handlePreviousItemTagsPage,
+        onItemTagsNextPage: handleNextItemTagsPage,
     };
 
     return (

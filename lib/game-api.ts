@@ -96,6 +96,27 @@ export interface CloneSessionCurrentItemContainersResponse {
     item_containers?: CloneSessionCurrentItemContainer[];
 }
 
+export interface CloneSessionCurrentItemTag {
+    id: string;
+    game_id: string;
+    tag_key: string;
+    label: string;
+    color?: string;
+    item_count?: number;
+}
+
+export interface CloneSessionCurrentItemTagsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    item_tags?: CloneSessionCurrentItemTag[];
+    tags?: CloneSessionCurrentItemTag[];
+}
+
 export interface CloneSessionCurrentItemsParams {
     name?: string;
     limit?: number;
@@ -103,6 +124,12 @@ export interface CloneSessionCurrentItemsParams {
 }
 
 export interface CloneSessionCurrentItemContainersParams {
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface CloneSessionCurrentItemTagsParams {
     name?: string;
     limit?: number;
     offset?: number;
@@ -298,6 +325,25 @@ export async function getCurrentCloneSessionItemContainers(gameId: string, param
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/item-containers${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionItemTags(gameId: string, params?: CloneSessionCurrentItemTagsParams): Promise<CloneSessionCurrentItemTagsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/item-tags${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {
