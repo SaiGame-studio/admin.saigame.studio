@@ -10,6 +10,14 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+
+  .conv-panel-content-font-scale {
+    font-size: inherit;
+  }
+
+  .conv-panel-content-font-scale * {
+    font-size: inherit !important;
+  }
 }
 
 @layer base {

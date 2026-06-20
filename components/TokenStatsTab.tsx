@@ -1,7 +1,6 @@
 "use client";
 import { useState, useCallback } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { getLLMTokenStats, getAllUsersAdmin, type AdminUser, type LLMTokenStatsBucket, type LLMTokenStatsFilterMode, type LLMTokenStatsPeriod, type LLMTokenStatsResult, } from "@/lib/admin-api";
+import { getLLMTokenStats, getAllUsersAdmin, type AdminUser, type LLMTokenStatsFilterMode, type LLMTokenStatsPeriod, type LLMTokenStatsResult, } from "@/lib/admin-api";
 import { getGame } from "@/lib/game-api";
 import { fetchStudio } from "@/lib/studio-api";
 import type { Game } from "@/types/game";
@@ -16,162 +15,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig, } from "@/components/ui/chart";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { TokenStatsResultTabs } from "@/components/token-stats-result-tabs";
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const tokenStatsChartConfig: ChartConfig = {
-    input: { label: "Input", color: "hsl(var(--chart-1))" },
-    output: { label: "Output", color: "hsl(var(--chart-2))" },
-};
-// ---------------------------------------------------------------------------
-// Helper: format bucket label
-// ---------------------------------------------------------------------------
-function formatBucketLabel(isoDate: string, period: LLMTokenStatsPeriod): string {
-    const d = new Date(isoDate);
-    if (isNaN(d.getTime()))
-        return isoDate;
-    if (period === "hourly") {
-        return d.toLocaleString("en-GB", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    }
-    if (period === "daily")
-        return d.toLocaleDateString("en-GB");
-    if (period === "weekly") {
-        const jan1 = new Date(d.getFullYear(), 0, 1);
-        const week = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
-        return `W${week} ${d.getFullYear()}`;
-    }
-    if (period === "monthly") {
-        return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
-    }
-    return isoDate;
-}
-// ---------------------------------------------------------------------------
-// Summary cards
-// ---------------------------------------------------------------------------
-function SummaryCards({ result, t, }: {
-    result: LLMTokenStatsResult;
-    t: ReturnType<typeof useTranslation>["t"];
-}) {
-    return (<div id="token-stats-summary-cards" className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <Card id="token-stats-summary-input">
-        <CardContent className="pt-4">
-          <p id="token-stats-summary-input-label" className="text-xs text-muted-foreground uppercase tracking-wide">
-            {t("tokenStats.inputTokens")}
-          </p>
-          <p id="token-stats-summary-input-value" className="text-2xl font-bold">
-            {result.total_input_tokens.toLocaleString()}
-          </p>
-        </CardContent>
-      </Card>
-      <Card id="token-stats-summary-output">
-        <CardContent className="pt-4">
-          <p id="token-stats-summary-output-label" className="text-xs text-muted-foreground uppercase tracking-wide">
-            {t("tokenStats.outputTokens")}
-          </p>
-          <p id="token-stats-summary-output-value" className="text-2xl font-bold">
-            {result.total_output_tokens.toLocaleString()}
-          </p>
-        </CardContent>
-      </Card>
-      <Card id="token-stats-summary-total">
-        <CardContent className="pt-4">
-          <p id="token-stats-summary-total-label" className="text-xs text-muted-foreground uppercase tracking-wide">
-            {t("tokenStats.totalTokens")}
-          </p>
-          <p id="token-stats-summary-total-value" className="text-2xl font-bold">
-            {result.total_tokens.toLocaleString()}
-          </p>
-        </CardContent>
-      </Card>
-    </div>);
-}
-// ---------------------------------------------------------------------------
-// Chart
-// ---------------------------------------------------------------------------
-function TokenStatsChart({ buckets, period, t, }: {
-    buckets: LLMTokenStatsBucket[];
-    period: LLMTokenStatsPeriod;
-    t: ReturnType<typeof useTranslation>["t"];
-}) {
-    const chartData = [...buckets].reverse().map((b) => ({
-        label: formatBucketLabel(b.label, period),
-        input: b.input_tokens,
-        output: b.output_tokens,
-    }));
-    return (<Card id="token-stats-chart-card">
-      <CardHeader id="token-stats-chart-header">
-        <CardTitle id="token-stats-chart-title" className="text-base">
-          {t("tokenStats.chartTitle")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent id="token-stats-chart-content">
-        <ChartContainer id="token-stats-chart-container" config={tokenStatsChartConfig} className="h-[320px] w-full">
-          <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-            <CartesianGrid vertical={false}/>
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 11 }}/>
-            <YAxis tickLine={false} axisLine={false} tickMargin={8}/>
-            <ChartTooltip content={<ChartTooltipContent />}/>
-            <ChartLegend content={<ChartLegendContent />}/>
-            <Bar dataKey="input" fill="var(--color-input)" radius={[4, 4, 0, 0]}/>
-            <Bar dataKey="output" fill="var(--color-output)" radius={[4, 4, 0, 0]}/>
-          </BarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>);
-}
-// ---------------------------------------------------------------------------
-// Table
-// ---------------------------------------------------------------------------
-function TokenStatsTable({ buckets, period, t, }: {
-    buckets: LLMTokenStatsBucket[];
-    period: LLMTokenStatsPeriod;
-    t: ReturnType<typeof useTranslation>["t"];
-}) {
-    return (<Card id="token-stats-table-card">
-      <CardHeader id="token-stats-table-header">
-        <CardTitle id="token-stats-table-title" className="text-base">
-          {t("tokenStats.tableTitle")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent id="token-stats-table-content">
-        <Table id="token-stats-table">
-          <TableHeader id="token-stats-table-head">
-            <TableRow id="token-stats-table-head-row">
-              <TableHead id="token-stats-col-bucket">{t("tokenStats.colBucket")}</TableHead>
-              <TableHead id="token-stats-col-input" className="text-right">{t("tokenStats.colInput")}</TableHead>
-              <TableHead id="token-stats-col-output" className="text-right">{t("tokenStats.colOutput")}</TableHead>
-              <TableHead id="token-stats-col-total" className="text-right">{t("tokenStats.colTotal")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody id="token-stats-table-body">
-            {buckets.map((b, idx) => (<TableRow id={`token-stats-row-${idx}`} key={b.label}>
-                <TableCell id={`token-stats-row-${idx}-bucket`} className="font-mono text-xs">
-                  {formatBucketLabel(b.label, period)}
-                </TableCell>
-                <TableCell id={`token-stats-row-${idx}-input`} className="text-right">
-                  {b.input_tokens.toLocaleString()}
-                </TableCell>
-                <TableCell id={`token-stats-row-${idx}-output`} className="text-right">
-                  {b.output_tokens.toLocaleString()}
-                </TableCell>
-                <TableCell id={`token-stats-row-${idx}-total`} className="text-right font-medium">
-                  {b.total_tokens.toLocaleString()}
-                </TableCell>
-              </TableRow>))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>);
-}
 // ---------------------------------------------------------------------------
 // Entity detail types
 // ---------------------------------------------------------------------------
@@ -342,17 +191,25 @@ export function TokenStatsTab() {
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<LLMTokenStatsResult | null>(null);
     const [entityDetail, setEntityDetail] = useState<EntityDetailState | null>(null);
+    const showIdInput = filterMode !== "all";
+    const handleQuickSearch = useCallback((mode: LLMTokenStatsFilterMode, id: string) => {
+        setFilterMode(mode);
+        setIdValue(id);
+        setResult(null);
+        setError(null);
+        setEntityDetail(null);
+    }, []);
     const handleSearch = useCallback(async () => {
         const trimmedId = idValue.trim();
         if (!period) {
             setError(t("tokenStats.errorMissingPeriod"));
             return;
         }
-        if (!trimmedId) {
+        if (showIdInput && !trimmedId) {
             setError(t("tokenStats.errorMissingFilter"));
             return;
         }
-        if (!UUID_REGEX.test(trimmedId)) {
+        if (showIdInput && !UUID_REGEX.test(trimmedId)) {
             setError(t("tokenStats.errorInvalidUUID"));
             return;
         }
@@ -361,9 +218,13 @@ export function TokenStatsTab() {
         setEntityDetail(null);
         setLoading(true);
         try {
+            const statsId = showIdInput ? trimmedId : undefined;
             const [statsResult, entityResult] = await Promise.allSettled([
-                getLLMTokenStats(period, filterMode, trimmedId),
+                getLLMTokenStats(period, filterMode, statsId),
                 (async (): Promise<EntityDetailState | null> => {
+                    if (filterMode === "all") {
+                        return null;
+                    }
                     if (filterMode === "user_id") {
                         const res = await getAllUsersAdmin({ id: trimmedId, page_size: 1 });
                         if (res.users.length > 0)
@@ -394,7 +255,7 @@ export function TokenStatsTab() {
         finally {
             setLoading(false);
         }
-    }, [period, filterMode, idValue, t]);
+    }, [period, filterMode, idValue, showIdInput, t]);
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter")
             handleSearch();
@@ -413,35 +274,45 @@ export function TokenStatsTab() {
       {/* Filter bar */}
       <Card id="token-stats-filter-card">
         <CardContent id="token-stats-filter-content" className="pt-6">
-          <div id="token-stats-filter-row" className="flex flex-col sm:flex-row gap-6 items-start sm:items-end">
+          <div id="token-stats-filter-row" className="flex flex-col sm:flex-row gap-6 items-start sm:items-start">
             {/* Filter mode */}
             <div id="token-stats-filter-mode-group" className="space-y-2">
               <Label id="token-stats-filter-mode-label" className="text-xs font-medium uppercase tracking-wide">
                 {t("tokenStats.filterMode")}
               </Label>
-              <RadioGroup id="token-stats-filter-mode-radio" value={filterMode} onValueChange={(v) => {
+              <RadioGroup id="token-stats-filter-mode-radio" value={filterMode} onValueChange={(v: string) => {
             setFilterMode(v as LLMTokenStatsFilterMode);
             setResult(null);
             setError(null);
             setEntityDetail(null);
-        }} className="flex gap-4">
-                <div id="token-stats-filter-mode-studio" className="flex items-center gap-1.5">
-                  <RadioGroupItem id="token-stats-radio-studio" value="studio_id"/>
-                  <Label id="token-stats-radio-studio-label" htmlFor="token-stats-radio-studio">
-                    {t("tokenStats.filterStudio")}
-                  </Label>
+        }} className="flex flex-col gap-2">
+                <div id="token-stats-filter-mode-row-1" className="flex flex-wrap items-center gap-4">
+                  <div id="token-stats-filter-mode-all" className="flex items-center gap-1.5">
+                    <RadioGroupItem id="token-stats-radio-all" value="all"/>
+                    <Label id="token-stats-radio-all-label" htmlFor="token-stats-radio-all">
+                      {t("tokenStats.filterAll")}
+                    </Label>
+                  </div>
+                  <div id="token-stats-filter-mode-studio" className="flex items-center gap-1.5">
+                    <RadioGroupItem id="token-stats-radio-studio" value="studio_id"/>
+                    <Label id="token-stats-radio-studio-label" htmlFor="token-stats-radio-studio">
+                      {t("tokenStats.filterStudio")}
+                    </Label>
+                  </div>
                 </div>
-                <div id="token-stats-filter-mode-game" className="flex items-center gap-1.5">
-                  <RadioGroupItem id="token-stats-radio-game" value="game_id"/>
-                  <Label id="token-stats-radio-game-label" htmlFor="token-stats-radio-game">
-                    {t("tokenStats.filterGame")}
-                  </Label>
-                </div>
-                <div id="token-stats-filter-mode-user" className="flex items-center gap-1.5">
-                  <RadioGroupItem id="token-stats-radio-user" value="user_id"/>
-                  <Label id="token-stats-radio-user-label" htmlFor="token-stats-radio-user">
-                    {t("tokenStats.filterUser")}
-                  </Label>
+                <div id="token-stats-filter-mode-row-2" className="flex flex-wrap items-center gap-4">
+                  <div id="token-stats-filter-mode-game" className="flex items-center gap-1.5">
+                    <RadioGroupItem id="token-stats-radio-game" value="game_id"/>
+                    <Label id="token-stats-radio-game-label" htmlFor="token-stats-radio-game">
+                      {t("tokenStats.filterGame")}
+                    </Label>
+                  </div>
+                  <div id="token-stats-filter-mode-user" className="flex items-center gap-1.5">
+                    <RadioGroupItem id="token-stats-radio-user" value="user_id"/>
+                    <Label id="token-stats-radio-user-label" htmlFor="token-stats-radio-user">
+                      {t("tokenStats.filterUser")}
+                    </Label>
+                  </div>
                 </div>
               </RadioGroup>
             </div>
@@ -451,7 +322,7 @@ export function TokenStatsTab() {
               <Label id="token-stats-period-label" className="text-xs font-medium uppercase tracking-wide">
                 {t("tokenStats.period")}
               </Label>
-              <Select value={period} onValueChange={(v) => {
+              <Select value={period} onValueChange={(v: string) => {
             setPeriod(v as LLMTokenStatsPeriod);
             setResult(null);
             setError(null);
@@ -477,21 +348,32 @@ export function TokenStatsTab() {
             </div>
 
             {/* UUID input + search */}
-            <div id="token-stats-id-group" className="flex-1 space-y-2">
+            {showIdInput ? (<div id="token-stats-id-group" className="flex-1 space-y-2">
               <Label id="token-stats-id-label" className="text-xs font-medium uppercase tracking-wide">
                 ID
               </Label>
               <div id="token-stats-id-row" className="flex gap-2">
-                <Input id="token-stats-id-input" placeholder={t("tokenStats.idPlaceholder")} value={idValue} onChange={(e) => {
+                <Input id="token-stats-id-input" placeholder={t("tokenStats.idPlaceholder")} value={idValue} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             setIdValue(e.target.value);
             setError(null);
             setEntityDetail(null);
         }} onKeyDown={handleKeyDown} className="font-mono text-sm"/>
-                <Button id="token-stats-search-btn" onClick={handleSearch} disabled={loading} className="flex items-center gap-1.5 shrink-0">
-                  {loading ? (<Loader2 id="token-stats-search-spinner" className="h-4 w-4 animate-spin"/>) : (<Search id="token-stats-search-icon" className="h-4 w-4"/>)}
-                  {t("tokenStats.searchBtn")}
-                </Button>
               </div>
+            </div>) : (<div id="token-stats-scope-group" className="flex-1 space-y-2">
+              <Label id="token-stats-scope-label" className="text-xs font-medium uppercase tracking-wide">
+                {t("tokenStats.scope")}
+              </Label>
+              <div id="token-stats-scope-all-wrap" className="flex h-10 items-center rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-3">
+                <span id="token-stats-scope-all-text" className="text-sm text-muted-foreground">
+                  {t("tokenStats.scopeAll")}
+                </span>
+              </div>
+            </div>)}
+            <div id="token-stats-search-actions" className="flex self-end pt-0 sm:pt-0">
+              <Button id="token-stats-search-btn" onClick={handleSearch} disabled={loading} className="flex items-center gap-1.5 shrink-0">
+                {loading ? (<Loader2 id="token-stats-search-spinner" className="h-4 w-4 animate-spin"/>) : (<Search id="token-stats-search-icon" className="h-4 w-4"/>)}
+                {t("tokenStats.searchBtn")}
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -518,16 +400,7 @@ export function TokenStatsTab() {
       {/* Results */}
       {!loading && result && (<div id="token-stats-results-root" className="space-y-6">
           {entityDetail && (<EntityDetailCard detail={entityDetail} t={t}/>)}
-          <SummaryCards result={result} t={t}/>
-
-          {result.buckets.length === 0 ? (<Card id="token-stats-no-data-card">
-              <CardContent id="token-stats-no-data-content" className="pt-4 text-muted-foreground text-sm">
-                {t("tokenStats.noData")}
-              </CardContent>
-            </Card>) : (<>
-              <TokenStatsChart buckets={result.buckets} period={result.period} t={t}/>
-              <TokenStatsTable buckets={result.buckets} period={result.period} t={t}/>
-            </>)}
+          <TokenStatsResultTabs result={result} t={t} onQuickSearch={handleQuickSearch}/>
         </div>)}
     </div>);
 }

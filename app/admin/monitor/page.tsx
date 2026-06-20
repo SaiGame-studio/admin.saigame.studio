@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCapabilities } from "@/hooks/use-capabilities";
 import { Activity, RefreshCw, CheckCircle2, XCircle, Clock, Server, Database, MessageSquare, Send, Loader2, CalendarDays, MailX, ShieldCheck, Users, ChevronDown, ChevronRight, TrendingUp, Search, Globe, MapPin, BadgeCheck, ChevronLeft, Brush, Gamepad2, ExternalLink, BotMessageSquare, Plus, Pencil, Eye, Lock, } from "lucide-react";
 import { getWorkersStatus, WorkersStatusResult, Worker, WorkerState, triggerWorker, triggerSystemMonitorNotify, triggerPlatformReport, triggerReportBackfill, getAllUsersAdmin, AdminUser, getAllStudiosAdmin, getAllGamesAdmin, AdminStudio, AdminGame, listEmailBlacklist, updateEmailBlacklistStatus, addEmailToBlacklist, EmailBlacklistEntry, getCCUOverview, CCUOverviewResult, CCUGameEntry, updateUserActiveStatus, updateGameActiveStatus, listDefaultSystemPrompts, createDefaultSystemPrompt, updateDefaultSystemPrompt, SystemPrompt, SystemPromptType, SystemPromptProvider, CreateSystemPromptBody, UpdateSystemPromptBody, } from "@/lib/admin-api";
-import { listRequestTypes } from "@/lib/llm-conversation-api";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog";
@@ -30,6 +29,7 @@ import { AdminStudioLimitsDialog } from "@/components/AdminStudioLimitsDialog";
 import { AdminGameLimitsDialog } from "@/components/AdminGameLimitsDialog";
 import { LLMTokenQuotaDialog } from "@/components/LLMTokenQuotaDialog";
 import { TokenStatsTab } from "@/components/TokenStatsTab";
+import { AdminSystemPromptsList } from "./AdminSystemPromptsList";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig, } from "@/components/ui/chart";
 // ---------------------------------------------------------------------------
@@ -2573,7 +2573,7 @@ function MonitorTabs() {
           <GrowthChartTab />
         </TabsContent>
         <TabsContent value="sysprompts" className="mt-0">
-          <SystemPromptsTab />
+          <AdminSystemPromptsList />
         </TabsContent>
         <TabsContent value="tokenstats" className="mt-0">
           <TokenStatsTab />

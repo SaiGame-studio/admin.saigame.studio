@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Bot, ExternalLink, Hammer, Loader2, PackagePlus, X } from 'lucide-react';
+import { Bot, Hammer, Loader2, PackagePlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -11,18 +10,21 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, } 
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/lib/i18n/use-translation';
 import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage-utils';
-import { listConversations, getConversation, updateConversation, archiveConversation, unarchiveConversation, deleteConversation, createRecordsFromConversation, listRequestTypes, linkConversationContent, listConversationContent, unlinkConversationContent, getGameLLMTokenBalance, type GameLLMTokenBalance, } from '@/lib/llm-conversation-api';
+import { listConversations, getConversation, updateConversation, archiveConversation, unarchiveConversation, deleteConversation, createRecordsFromConversation, linkConversationContent, listConversationContent, unlinkConversationContent, getGameLLMTokenBalance, type GameLLMTokenBalance, } from '@/lib/llm-conversation-api';
 import { useChatPipeline, ChatTurn } from '@/hooks/use-chat-pipeline';
-import type { Conversation, RequestType, ConversationContentLink } from '@/types/llm-conversation';
+import type { Conversation, ConversationContentLink } from '@/types/llm-conversation';
 import { useConvPanelResize } from '@/hooks/use-conv-panel-resize';
-import { LS_PANEL_OPEN, LS_PANEL_MINIMIZED, LS_ARCHIVED_COLLAPSED, lsActiveConv, lsConvHistory, lsLoreLinks, lsItemLinks, lsPresetLinks, lsContainerLinks, lsGachaPackLinks, lsEquipmentSlotLinks, lsCraftingRecipeLinks, lsLoreTitles, lsItemNames, lsEntityLinks, lsEntityNames, lsContainerNames, lsGachaPackNames, lsEquipmentSlotNames, lsCraftingRecipeNames, lsEntityPoolLinks, lsEntityPoolNames, lsEntityPoolKeys, lsQuestLinks, lsQuestNames, lsQuestCodes, lsConvTokenUsage, lsPendingCraftingRecipeCreate, lsPendingCraftingRecipeEdit, lsPendingGachaCreate, lsPendingGachaEdit, lsPendingEquipmentSlotCreate, lsPendingEquipmentSlotEdit, lsPendingEntityDefinitionCreate, lsPendingEntityPoolCreate, lsPendingEntityPoolEdit, lsPendingQuestCreate, lsPendingQuestEdit, lsTagApplied, lsItemTagCreated, parseLoreResponse, parseGeneratedItemsResponse, parseGeneratedEntityDefinitionsResponse, parseGeneratedPresetsResponse, parseGeneratedContainersResponse, parseGeneratedGachaPacksResponse, parseGeneratedEquipmentSlotsResponse, parseGeneratedCraftingRecipesResponse, parseGeneratedEntityPoolsResponse, extractGameId, } from './conversation-panel-utils';
+import { LS_PANEL_OPEN, LS_PANEL_MINIMIZED, LS_ARCHIVED_COLLAPSED, LS_TITLE_FONT_SIZE, LS_SCROLL_MODE, lsActiveConv, lsConvHistory, lsLoreLinks, lsItemLinks, lsPresetLinks, lsContainerLinks, lsGachaPackLinks, lsEquipmentSlotLinks, lsCraftingRecipeLinks, lsLoreTitles, lsItemNames, lsEntityLinks, lsEntityNames, lsContainerNames, lsGachaPackNames, lsEquipmentSlotNames, lsCraftingRecipeNames, lsEntityPoolLinks, lsEntityPoolNames, lsEntityPoolKeys, lsQuestLinks, lsQuestNames, lsQuestCodes, lsConvTokenUsage, lsPendingCraftingRecipeCreate, lsPendingCraftingRecipeEdit, lsPendingGachaCreate, lsPendingGachaEdit, lsPendingEquipmentSlotCreate, lsPendingEquipmentSlotEdit, lsPendingEntityDefinitionCreate, lsPendingEntityPoolCreate, lsPendingEntityPoolEdit, lsPendingQuestCreate, lsPendingQuestEdit, lsTagApplied, lsItemTagCreated, parseLoreResponse, parseGeneratedItemsResponse, parseGeneratedEntityDefinitionsResponse, parseGeneratedPresetsResponse, parseGeneratedContainersResponse, parseGeneratedGachaPacksResponse, parseGeneratedEquipmentSlotsResponse, parseGeneratedCraftingRecipesResponse, parseGeneratedEntityPoolsResponse, extractGameId, } from './conversation-panel-utils';
 import { ConversationSidebar } from './ConversationSidebar';
 import { ConversationHeader } from './ConversationHeader';
 import { ConversationChatHistory } from './ConversationChatHistory';
 import { ConversationLinkedContent } from './ConversationLinkedContent';
 import { ConversationInputArea } from './ConversationInputArea';
 import { ConversationDialogs } from './ConversationDialogs';
+import { QuestCodeConflictDialog } from './conversation-panel-parts/QuestCodeConflictDialog';
 import type { LoreDraftForm } from './ConversationDialogs';
+import { buildCheckoutSummary, findLatestCheckoutSourceTurnId } from './conversation-token-balance-utils';
+import { useConversationRequestTypes } from './use-conversation-request-types';
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api';
 import type { LoreEntry } from '@/types/lore';
 import { CreateItemDefinitionDialog, type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog';
@@ -68,6 +70,7 @@ export function LLMConversationPanel() {
     const [isMinimized, setIsMinimized] = useState(() => safeGetItem(LS_PANEL_MINIMIZED) === 'true');
     // Token balance
     const [tokenBalance, setTokenBalance] = useState<GameLLMTokenBalance | null>(null);
+    const latestTokenBalanceRef = useRef<GameLLMTokenBalance | null>(null);
     // Sidebar state — two separate lists
     const [activeConvs, setActiveConvs] = useState<Conversation[]>([]);
     const [isLoadingActive, setIsLoadingActive] = useState(false);
@@ -84,6 +87,12 @@ export function LLMConversationPanel() {
     const [editingGoal, setEditingGoal] = useState(false);
     const [editTitleValue, setEditTitleValue] = useState('');
     const [editGoalValue, setEditGoalValue] = useState('');
+    const [titleFontSize, setTitleFontSize] = useState(() => {
+        const saved = safeGetItem(LS_TITLE_FONT_SIZE);
+        const parsed = saved ? Number(saved) : NaN;
+        return Number.isFinite(parsed) ? Math.min(25, Math.max(12, parsed)) : 14;
+    });
+    const [scrollMode, setScrollMode] = useState<'stick' | 'follow'>(() => safeGetItem(LS_SCROLL_MODE) === 'follow' ? 'follow' : 'stick');
     // Message input
     const [message, setMessage] = useState('');
     // When we create a conversation ourselves in handleSend, skip loadConversation in the useEffect
@@ -93,13 +102,12 @@ export function LLMConversationPanel() {
     // into a different conversation's localStorage key when switching.
     const chatHistoryConvIdRef = useRef<string | null>(null);
     // Chat pipeline — sequential: createConversation (REST) → streamDetectIntent (SSE)
-    const { isRunning: isStreaming, chatHistory, send: runPipeline, retryResponse, clearHistory, loadHistory, removeTurn } = useChatPipeline();
+    const { isRunning: isStreaming, chatHistory, send: runPipeline, retryResponse, clearHistory, loadHistory, removeTurn, appendCheckout } = useChatPipeline();
     // Request type selector
-    const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
-    const [selectedRequestType, setSelectedRequestType] = useState<string>('auto');
-    // When selectedRequestType was resolved by auto-detection, stores the detected key so
-    // the trigger can display "Auto - [label]" instead of just the label.
-    const [autoDetectedType, setAutoDetectedType] = useState<string | null>(null);
+    const { requestTypes, selectedRequestType, setSelectedRequestType, autoDetectedType, setAutoDetectedType } = useConversationRequestTypes({
+        t,
+        onError: (message) => toast({ title: message, variant: 'destructive' }),
+    });
     // Archive/delete dialogs
     const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
     // Create records
@@ -264,29 +272,33 @@ export function LLMConversationPanel() {
         turnId: string;
         responseIdx: number;
         equipmentSlotIdx: number;
-    } | null>(null);
+        } | null>(null);
     const [isApplyingEquipmentSlotConflict, setIsApplyingEquipmentSlotConflict] = useState(false);
     // Resize state via hook
     const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize();
-    useEffect(() => { safeSetItem(LS_ARCHIVED_COLLAPSED, String(isArchivedCollapsed)); }, [isArchivedCollapsed]);
-    // ---------------------------------------------------------------------------
-    // Fetch request types once on mount
-    // ---------------------------------------------------------------------------
     useEffect(() => {
-        listRequestTypes()
-            .then((keys) => {
-            const auto: RequestType = { key: 'auto', label: t('llmConversation.requestTypes.auto') };
-            const mapped: RequestType[] = keys.map((k) => ({
-                key: k,
-                label: t(`llmConversation.requestTypes.${k}`) || k,
-            }));
-            setRequestTypes([auto, ...mapped]);
-        })
-            .catch(() => {
-            toast({ title: t('llmConversation.errorLoadRequestTypes'), variant: 'destructive' });
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        latestTokenBalanceRef.current = tokenBalance;
+    }, [tokenBalance]);
+    async function refreshTokenBalance(targetGameId: string, recordCheckout: boolean) {
+        const checkoutTurnId = recordCheckout ? findLatestCheckoutSourceTurnId(chatHistory) : null;
+        const balanceBeforeFetch = latestTokenBalanceRef.current;
+        try {
+            const balance = await getGameLLMTokenBalance(targetGameId);
+            latestTokenBalanceRef.current = balance;
+            setTokenBalance(balance);
+            if (recordCheckout && checkoutTurnId) {
+                const checkout = buildCheckoutSummary(balanceBeforeFetch, balance);
+                if (checkout)
+                    appendCheckout(checkoutTurnId, checkout);
+            }
+        }
+        catch {
+            // silently ignore
+        }
+    }
+    useEffect(() => { safeSetItem(LS_ARCHIVED_COLLAPSED, String(isArchivedCollapsed)); }, [isArchivedCollapsed]);
+    useEffect(() => { safeSetItem(LS_TITLE_FONT_SIZE, String(titleFontSize)); }, [titleFontSize]);
+    useEffect(() => { safeSetItem(LS_SCROLL_MODE, scrollMode); }, [scrollMode]);
     // ---------------------------------------------------------------------------
     // After auto-detection completes, update the display label only.
     // selectedRequestType stays 'auto' so every send re-runs detect-intent.
@@ -578,7 +590,7 @@ export function LLMConversationPanel() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
     // ---------------------------------------------------------------------------
-    // Load active conversation when activeConvId changes
+    // Load active conversation only when the panel is visible.
     // ---------------------------------------------------------------------------
     useEffect(() => {
         activeConvIdRef.current = activeConvId;
@@ -618,6 +630,9 @@ export function LLMConversationPanel() {
         }
         safeSetItem(lsActiveConv(gameId), activeConvId);
         window.dispatchEvent(new Event('ss:conv-state-changed'));
+        if (!isOpen) {
+            return;
+        }
         // Skip re-fetching when the conversation was just created by handleSend
         if (justCreatedConvIdRef.current === activeConvId) {
             justCreatedConvIdRef.current = null;
@@ -782,7 +797,7 @@ export function LLMConversationPanel() {
         loadConversation(gameId, activeConvId);
         loadLinkedContent(gameId, activeConvId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeConvId, gameId]);
+    }, [activeConvId, gameId, isOpen]);
     // Listen for externally created conversations (e.g. from lore link button)
     useEffect(() => {
         function handleExternalConvCreated(e: Event) {
@@ -1188,7 +1203,7 @@ export function LLMConversationPanel() {
     function loadBothLists(gId: string) {
         loadActiveConvs(gId);
         loadArchivedConvs(gId);
-        getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => { });
+        void refreshTokenBalance(gId, false);
     }
     useEffect(() => {
         const handler = (e: Event) => {
@@ -1200,7 +1215,7 @@ export function LLMConversationPanel() {
             }>).detail;
             if (detail?.gameId !== gId)
                 return;
-            getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => { });
+            void refreshTokenBalance(gId, false);
         };
         window.addEventListener('llm-tokens:refresh', handler);
         return () => window.removeEventListener('llm-tokens:refresh', handler);
@@ -1209,10 +1224,10 @@ export function LLMConversationPanel() {
     const prevIsStreamingRef = useRef(false);
     useEffect(() => {
         if (prevIsStreamingRef.current && !isStreaming && gameId) {
-            getGameLLMTokenBalance(gameId).then(setTokenBalance).catch(() => { });
+            void refreshTokenBalance(gameId, true);
         }
         prevIsStreamingRef.current = isStreaming;
-    }, [isStreaming, gameId]);
+    }, [isStreaming, gameId, chatHistory]);
     async function loadConversation(gId: string, convId: string) {
         setIsLoadingConv(true);
         try {
@@ -1562,6 +1577,19 @@ export function LLMConversationPanel() {
         catch {
             toast({ title: t('llmConversation.errorArchive'), variant: 'destructive' });
         }
+    }
+    async function handleCreateNewConversation() {
+        if (isStreaming)
+            return;
+        setActiveConvId(null);
+        setActiveConv(null);
+        setMessage('');
+        setEditingTitle(false);
+        setEditingGoal(false);
+        setEditTitleValue('');
+        setEditGoalValue('');
+        clearHistory();
+        chatHistoryConvIdRef.current = null;
     }
     async function handleUnarchive(conv: Conversation) {
         if (!gameId)
@@ -2809,17 +2837,6 @@ export function LLMConversationPanel() {
         setQuestCodeConflictPending(null);
         openQuestDefinitionCreate({ ...questDefinition, code_name: nextCode }, turnId, responseIdx, questDefinitionIdx);
     }
-    useEffect(() => {
-        if (questCodeConflictOpen && questCodeConflictExisting?.code_name) {
-            setNewQuestCodeInput(`${questCodeConflictExisting.code_name}_2`);
-        }
-        else if (!questCodeConflictOpen) {
-            setNewQuestCodeInput('');
-        }
-    }, [questCodeConflictOpen, questCodeConflictExisting?.code_name]);
-    const questCodeConflictDescription = questCodeConflictExisting
-        ? t('llmConversation.questCodeConflictDesc').replace('{code}', questCodeConflictExisting.code_name ?? '')
-        : '';
     async function handleOpenItemDefinitionReview(item: Record<string, unknown>, turnId: string, responseIdx: number, itemIdx: number) {
         const name = typeof item.name === 'string' ? item.name : '';
         const rarity = typeof item.rarity === 'string' ? item.rarity : 'common';
@@ -3017,12 +3034,12 @@ export function LLMConversationPanel() {
               </div>) : isLoadingConv && !isStreaming ? (<div id="conv-panel-loading-state" className="flex flex-1 items-center justify-center">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>
               </div>) : (<>
-                {activeConv && (<ConversationHeader activeConv={activeConv} activeConvId={activeConvId} chatHistory={chatHistory} editingTitle={editingTitle} setEditingTitle={setEditingTitle} editTitleValue={editTitleValue} setEditTitleValue={setEditTitleValue} onSaveTitle={handleSaveTitle} onBack={() => { setActiveConvId(null); setActiveConv(null); }} onClose={() => setIsOpen(false)} onArchive={handleArchive} onDelete={(conv) => setDeleteTarget(conv)} onOpenDetail={() => setDetailOpen(true)} t={t}/>)}
+                {activeConv && (<ConversationHeader activeConv={activeConv} activeConvId={activeConvId} chatHistory={chatHistory} editingTitle={editingTitle} setEditingTitle={setEditingTitle} editTitleValue={editTitleValue} setEditTitleValue={setEditTitleValue} onSaveTitle={handleSaveTitle} onNewConversation={handleCreateNewConversation} onBack={() => { setActiveConvId(null); setActiveConv(null); }} onClose={() => setIsOpen(false)} onArchive={handleArchive} onDelete={(conv) => setDeleteTarget(conv)} onOpenDetail={() => setDetailOpen(true)} scrollMode={scrollMode} onScrollModeChange={setScrollMode} titleFontSize={titleFontSize} onIncreaseTitleFontSize={() => setTitleFontSize((v) => Math.min(25, v + 1))} onDecreaseTitleFontSize={() => setTitleFontSize((v) => Math.max(12, v - 1))} t={t}/>)}
 
-                <ConversationChatHistory chatHistory={chatHistory} isStreaming={isStreaming} gameId={gameId} activeConvId={activeConvId} savedLoreIds={savedLoreIds} loreEntryTitles={loreEntryTitles} savedItemDefinitionIds={savedItemDefinitionIds} savedEntityDefinitionIds={savedEntityDefinitionIds} savedPresetDefinitionIds={savedPresetDefinitionIds} savedContainerDefinitionIds={savedContainerDefinitionIds} savedGachaPackIds={savedGachaPackIds} savedEquipmentSlotIds={savedEquipmentSlotIds} savedCraftingRecipeIds={savedCraftingRecipeIds} savedEntityPoolIds={savedEntityPoolIds} savedQuestDefinitionIds={savedQuestDefinitionIds} craftingRecipeNames={craftingRecipeNames} entityPoolNames={entityPoolNames} questDefinitionNames={questDefinitionNames} premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null} onRetry={handleRetry} onRetryResponse={handleRetryResponse} onOpenLoreReview={handleOpenLoreReview} onSaveItemDefinition={handleOpenItemDefinitionReview} onSaveEntityDefinition={handleSaveEntityDefinition} onSavePresetDefinition={handleSavePresetDefinition} onSaveContainerDefinition={handleSaveContainerDefinition} onSaveGachaPack={handleSaveGachaPack} onSaveEquipmentSlot={fireOpenCreateEquipmentSlot} onSaveCraftingRecipe={handleSaveCraftingRecipe} onSaveEntityPool={handleSaveEntityPool} onSaveQuestDefinition={handleSaveQuestDefinition} onBuyTokens={handleBuyTokens} onApplyTagSuggestion={handleApplyTagSuggestion} onRemoveGameTag={handleRemoveGameTag} onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion} onDeleteItemTagFromSuggestion={handleDeleteItemTagFromSuggestion} appliedTagsPerResponse={appliedTagsPerResponse} createdItemTagsPerResponse={createdItemTagsPerResponse} t={t}/>
+                <ConversationChatHistory chatHistory={chatHistory} isStreaming={isStreaming} gameId={gameId} activeConvId={activeConvId} savedLoreIds={savedLoreIds} loreEntryTitles={loreEntryTitles} savedItemDefinitionIds={savedItemDefinitionIds} savedEntityDefinitionIds={savedEntityDefinitionIds} savedPresetDefinitionIds={savedPresetDefinitionIds} savedContainerDefinitionIds={savedContainerDefinitionIds} savedGachaPackIds={savedGachaPackIds} savedEquipmentSlotIds={savedEquipmentSlotIds} savedCraftingRecipeIds={savedCraftingRecipeIds} savedEntityPoolIds={savedEntityPoolIds} savedQuestDefinitionIds={savedQuestDefinitionIds} craftingRecipeNames={craftingRecipeNames} entityPoolNames={entityPoolNames} questDefinitionNames={questDefinitionNames} contentFontSize={titleFontSize} premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null} onRetry={handleRetry} onRetryResponse={handleRetryResponse} onOpenLoreReview={handleOpenLoreReview} onSaveItemDefinition={handleOpenItemDefinitionReview} onSaveEntityDefinition={handleSaveEntityDefinition} onSavePresetDefinition={handleSavePresetDefinition} onSaveContainerDefinition={handleSaveContainerDefinition} onSaveGachaPack={handleSaveGachaPack} onSaveEquipmentSlot={fireOpenCreateEquipmentSlot} onSaveCraftingRecipe={handleSaveCraftingRecipe} onSaveEntityPool={handleSaveEntityPool} onSaveQuestDefinition={handleSaveQuestDefinition} onBuyTokens={handleBuyTokens} onApplyTagSuggestion={handleApplyTagSuggestion} onRemoveGameTag={handleRemoveGameTag} onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion} onDeleteItemTagFromSuggestion={handleDeleteItemTagFromSuggestion} appliedTagsPerResponse={appliedTagsPerResponse} createdItemTagsPerResponse={createdItemTagsPerResponse} scrollMode={scrollMode} onScrollModeChange={setScrollMode} t={t}/>
               </>)}
 
-            {activeConvId && (linkedContent.length > 0 || isLoadingLinkedContent) && (<ConversationLinkedContent gameId={gameId} linkedContent={linkedContent} isLoadingLinkedContent={isLoadingLinkedContent} unlinkingId={unlinkingId} loreEntryTitles={loreEntryTitles} itemDefinitionNames={itemDefinitionNames} entityDefinitionNames={entityDefinitionNames} containerDefinitionNames={containerDefinitionNames} presetDefinitionNames={presetDefinitionNames} gachaPackNames={gachaPackNames} entityPoolNames={entityPoolNames} entityPoolKeys={entityPoolKeys} questDefinitionNames={questDefinitionNames} craftingRecipeNames={craftingRecipeNames} onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId); }} t={t}/>)}
+            {activeConvId && (linkedContent.length > 0 || isLoadingLinkedContent) && (<ConversationLinkedContent gameId={gameId} contentFontSize={titleFontSize} linkedContent={linkedContent} isLoadingLinkedContent={isLoadingLinkedContent} unlinkingId={unlinkingId} loreEntryTitles={loreEntryTitles} itemDefinitionNames={itemDefinitionNames} entityDefinitionNames={entityDefinitionNames} containerDefinitionNames={containerDefinitionNames} presetDefinitionNames={presetDefinitionNames} gachaPackNames={gachaPackNames} entityPoolNames={entityPoolNames} entityPoolKeys={entityPoolKeys} questDefinitionNames={questDefinitionNames} craftingRecipeNames={craftingRecipeNames} onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId); }} t={t}/>)}
 
             <ConversationInputArea message={message} setMessage={setMessage} isStreaming={isStreaming} requestTypes={requestTypes} selectedRequestType={selectedRequestType} setSelectedRequestType={setSelectedRequestType} autoDetectedType={autoDetectedType} setAutoDetectedType={setAutoDetectedType} onSend={handleSend} t={t}/>
           </div>
@@ -3112,51 +3129,24 @@ export function LLMConversationPanel() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={questCodeConflictOpen} onOpenChange={(open) => {
-            if (!open) {
-                setQuestCodeConflictOpen(false);
-                setQuestCodeConflictExisting(null);
-                setQuestCodeConflictPending(null);
-            }
-        }}>
-        <DialogContent id="quest-code-conflict-dialog-root">
-          <DialogHeader id="quest-code-conflict-dialog-header">
-            <DialogTitle id="quest-code-conflict-dialog-title">{t('llmConversation.questCodeConflictTitle')}</DialogTitle>
-            <DialogDescription id="quest-code-conflict-dialog-desc">
-              {questCodeConflictDescription}
-            </DialogDescription>
-          </DialogHeader>
-
-          {questCodeConflictExisting && (<Link id="quest-code-conflict-existing-link" href={`/games/${gameId}/quests?editQuestId=${questCodeConflictExisting.id}&noconvpanel=1`} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
-              <Hammer id="quest-code-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground"/>
-              <span id="quest-code-conflict-existing-link-name" className="flex-1 truncate">{questCodeConflictExisting.name}</span>
-              <code id="quest-code-conflict-existing-link-code" className="text-xs bg-muted-foreground/20 px-1 rounded">{questCodeConflictExisting.code_name ?? ''}</code>
-              <ExternalLink id="quest-code-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground"/>
-            </Link>)}
-
-          <Button id="quest-code-conflict-update-btn" type="button" onClick={handleQuestCodeConflictUpdate} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black" disabled={!questCodeConflictExisting || !questCodeConflictPending}>
-            <Hammer id="quest-code-conflict-update-icon" className="h-4 w-4"/>
-            {t('llmConversation.questCodeConflictUpdate')}
-          </Button>
-
-          <div id="quest-code-conflict-divider" className="relative flex items-center gap-2">
-            <div id="quest-code-conflict-divider-left" className="flex-1 border-t border-border"/>
-            <span id="quest-code-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
-            <div id="quest-code-conflict-divider-right" className="flex-1 border-t border-border"/>
-          </div>
-
-          <div id="quest-code-conflict-save-new-section" className="space-y-2">
-            <Label id="quest-code-conflict-new-code-label" htmlFor="quest-code-conflict-new-code-input" className="text-xs text-muted-foreground">
-              {t('llmConversation.questCodeConflictNewCodeLabel')}
-            </Label>
-            <Input id="quest-code-conflict-new-code-input" value={newQuestCodeInput} onChange={(e) => setNewQuestCodeInput(e.target.value)} className="font-mono"/>
-            <Button id="quest-code-conflict-save-new-btn" type="button" onClick={() => handleQuestCodeConflictSaveNew(newQuestCodeInput)} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black" disabled={!questCodeConflictPending}>
-              <PackagePlus id="quest-code-conflict-save-new-icon" className="h-4 w-4"/>
-              {t('llmConversation.questCodeConflictSaveNew')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <QuestCodeConflictDialog
+        open={questCodeConflictOpen}
+        gameId={gameId}
+        existing={questCodeConflictExisting}
+        pending={questCodeConflictPending}
+        newCodeInput={newQuestCodeInput}
+        onNewCodeInputChange={setNewQuestCodeInput}
+        onUpdate={handleQuestCodeConflictUpdate}
+        onSaveNew={handleQuestCodeConflictSaveNew}
+        onOpenChange={(open) => {
+          if (!open) {
+            setQuestCodeConflictOpen(false);
+            setQuestCodeConflictExisting(null);
+            setQuestCodeConflictPending(null);
+          }
+        }}
+        t={t}
+      />
 
       <ConversationDialogs detailOpen={detailOpen} setDetailOpen={setDetailOpen} chatHistory={chatHistory} activeConv={activeConv} convGeneratedItems={convGeneratedItems} deleteTarget={deleteTarget} setDeleteTarget={setDeleteTarget} onDelete={handleDelete} createRecordsConfirmOpen={createRecordsConfirmOpen} setCreateRecordsConfirmOpen={setCreateRecordsConfirmOpen} isCreatingRecords={isCreatingRecords} onCreateRecords={handleCreateRecords} gameId={gameId} loreDraftReviewOpen={loreDraftReviewOpen} setLoreDraftReviewOpen={setLoreDraftReviewOpen} loreDraftForm={loreDraftForm} setLoreDraftForm={setLoreDraftForm} isCreatingLoreRecords={isCreatingLoreRecords} onCreateLoreRecords={handleCreateLoreRecords} itemDefReviewOpen={itemDefReviewOpen} setItemDefReviewOpen={setItemDefReviewOpen} itemInitialValues={itemInitialValues} onItemDefCreated={handleItemDefCreated} entityDefinitionConflictOpen={entityDefinitionConflictOpen} setEntityDefinitionConflictOpen={setEntityDefinitionConflictOpen} entityDefinitionConflictExisting={entityDefinitionConflictExisting} entityDefinitionConflictReviewOpen={entityDefinitionConflictReviewOpen} setEntityDefinitionConflictReviewOpen={setEntityDefinitionConflictReviewOpen} entityDefinitionConflictReviewData={entityDefinitionConflictReviewData} isApplyingEntityDefinitionConflict={isApplyingEntityDefinitionConflict} onEntityDefinitionConflictUpdate={handleEntityDefinitionConflictUpdate} onEntityDefinitionConflictReview={openEntityDefinitionConflictReview} onEntityDefinitionConflictSaveNew={handleEntityDefinitionConflictSaveNew} entityPoolConflictOpen={entityPoolConflictOpen} setEntityPoolConflictOpen={setEntityPoolConflictOpen} entityPoolConflictExisting={entityPoolConflictExisting} entityPoolConflictReviewOpen={entityPoolConflictReviewOpen} setEntityPoolConflictReviewOpen={setEntityPoolConflictReviewOpen} entityPoolConflictReviewData={entityPoolConflictReviewData} isApplyingEntityPoolConflict={isApplyingEntityPoolConflict} onEntityPoolConflictUpdate={handleEntityPoolConflictUpdate} onEntityPoolConflictReview={() => handleEntityPoolConflictUpdate()} onEntityPoolConflictSaveNew={handleEntityPoolConflictSaveNew} itemCodeConflictOpen={itemCodeConflictOpen} setItemCodeConflictOpen={setItemCodeConflictOpen} itemCodeConflictExisting={itemCodeConflictExisting} onItemCodeConflictUpdate={handleItemCodeConflictUpdate} onItemCodeConflictSaveNew={handleItemCodeConflictSaveNew} presetCodeConflictOpen={presetCodeConflictOpen} setPresetCodeConflictOpen={setPresetCodeConflictOpen} presetCodeConflictExisting={presetCodeConflictExisting} isApplyingPresetConflict={isApplyingPresetConflict} onPresetCodeConflictUpdate={handlePresetCodeConflictUpdate} onPresetCodeConflictSaveNew={handlePresetCodeConflictSaveNew} containerNameConflictOpen={containerNameConflictOpen} setContainerNameConflictOpen={setContainerNameConflictOpen} containerNameConflictExisting={containerNameConflictExisting} onContainerNameConflictUpdate={handleContainerNameConflictUpdate} onContainerNameConflictCreateNew={handleContainerNameConflictCreateNew} gachaPackCodeConflictOpen={gachaPackCodeConflictOpen} setGachaPackCodeConflictOpen={setGachaPackCodeConflictOpen} gachaPackCodeConflictExisting={gachaPackCodeConflictExisting} isApplyingGachaPackConflict={isApplyingGachaPackConflict} onGachaPackCodeConflictUpdate={handleGachaPackCodeConflictUpdate} onGachaPackCodeConflictCreateNew={handleGachaPackCodeConflictCreateNew} equipmentSlotKeyConflictOpen={equipmentSlotKeyConflictOpen} setEquipmentSlotKeyConflictOpen={setEquipmentSlotKeyConflictOpen} equipmentSlotKeyConflictExisting={equipmentSlotKeyConflictExisting} isApplyingEquipmentSlotConflict={isApplyingEquipmentSlotConflict} onEquipmentSlotKeyConflictUpdate={handleEquipmentSlotKeyConflictUpdate} onEquipmentSlotKeyConflictCreateNew={handleEquipmentSlotKeyConflictCreateNew} t={t}/>
       {itemCodeConflictExisting && itemCodeConflictInitialValues && (<CreateItemDefinitionDialog open={itemCodeConflictEditOpen} gameId={gameId} mode="edit" itemId={itemCodeConflictExisting.id} initialValues={itemCodeConflictInitialValues} onCreated={() => { }} onUpdated={handleItemCodeConflictEditApplied} onClose={() => setItemCodeConflictEditOpen(false)} initialCategory={itemCodeConflictInitialValues.category}/>)}

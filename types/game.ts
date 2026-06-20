@@ -35,6 +35,9 @@ export interface Game {
     slug: string;
     description?: string;
     game_type: string;
+    share_level?: "private" | "protected" | "public";
+    clone_cost?: number;
+    is_cloned_game?: boolean;
     tags?: string[];
     config: {
         max_players: number;

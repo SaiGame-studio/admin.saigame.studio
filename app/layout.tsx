@@ -11,7 +11,7 @@ import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { Toaster } from "@/components/ui/toaster";
 import { GoogleAuthProvider } from "@/components/google-auth-provider";
 import { PageTitleUpdater } from "@/components/page-title-updater";
-import { LLMConversationPanel } from "@/components/llm-conversations/ConversationPanel";
+import { LLMConversationPanelGate } from "@/components/llm-conversations/ConversationPanelGate";
 export const metadata: Metadata = {
     title: {
         default: SITE_NAME,
@@ -68,7 +68,7 @@ export default function RootLayout({ children, }: {
                 <ProtectedLayout>{children}</ProtectedLayout>
                 <Toaster />
                 <PageTitleUpdater />
-                <LLMConversationPanel />
+                <LLMConversationPanelGate />
               </LanguageProvider>
             </AuthProvider>
           </GoogleAuthProvider>

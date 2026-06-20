@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Gamepad2, Loader2, RefreshCw, Zap } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, Gamepad2, Loader2, RefreshCw, Zap } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LLMTokenPurchaseDialog } from "@/components/LLMTokenPurchaseDialog";
@@ -152,9 +153,17 @@ export function BuyLLMTokenTab() {
                                 <p className="line-clamp-2 text-sm text-muted-foreground">
                                     {game.description || t("payment.buyTokenForThisGame")}
                                 </p>
-                                <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-                                    <span>{t("payment.selectGameTitle")}</span>
-                                    <span>{t("llmTokenPurchase.triggerLabel")}</span>
+                                <div id={`buy-token-game-card-footer-${game.id}`} className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                                    <span id={`buy-token-game-card-footer-label-${game.id}`}>{t("payment.selectGameTitle")}</span>
+                                    <Link
+                                        id={`buy-token-game-detail-link-${game.id}`}
+                                        href={`/games/${game.id}`}
+                                        className="inline-flex items-center gap-1 font-medium text-primary transition-colors hover:text-primary/80"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <span id={`buy-token-game-detail-link-text-${game.id}`}>{t("payment.viewGameDetail")}</span>
+                                        <ExternalLink id={`buy-token-game-detail-link-icon-${game.id}`} className="h-3.5 w-3.5" aria-hidden="true"/>
+                                    </Link>
                                 </div>
                             </CardContent>
                         </Card>
