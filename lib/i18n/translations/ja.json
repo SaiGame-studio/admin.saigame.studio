@@ -447,6 +447,10 @@
     "sourceGameCurrentSessionBatchLabel": "バッチ進捗",
     "sourceGameCurrentSessionCostLabel": "複製コスト",
     "sourceGameCurrentSessionItemCategoryLabel": "カテゴリ",
+    "sourceGameCurrentSessionItemSearchLabel": "アイテム定義を検索",
+    "sourceGameCurrentSessionItemSearchPlaceholder": "名前でアイテム定義を検索...",
+    "sourceGameCurrentSessionItemSearchHint": "アイテム名で検索します。",
+    "sourceGameCurrentSessionItemSearchClear": "検索をクリア",
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "sourceGameCurrentSessionProgressLabel": "進捗"
   },

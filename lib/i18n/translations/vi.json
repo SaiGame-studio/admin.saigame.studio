@@ -447,6 +447,10 @@
     "sourceGameCurrentSessionBatchLabel": "Tiến độ batch",
     "sourceGameCurrentSessionCostLabel": "Chi phí clone",
     "sourceGameCurrentSessionItemCategoryLabel": "Danh mục",
+    "sourceGameCurrentSessionItemSearchLabel": "Tìm định nghĩa vật phẩm",
+    "sourceGameCurrentSessionItemSearchPlaceholder": "Tìm định nghĩa vật phẩm theo tên...",
+    "sourceGameCurrentSessionItemSearchHint": "Tìm theo tên vật phẩm.",
+    "sourceGameCurrentSessionItemSearchClear": "Xóa tìm kiếm",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },

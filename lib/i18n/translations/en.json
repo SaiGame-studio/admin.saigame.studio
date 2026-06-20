@@ -447,6 +447,10 @@
     "sourceGameCurrentSessionBatchLabel": "Batch progress",
     "sourceGameCurrentSessionCostLabel": "Clone cost",
     "sourceGameCurrentSessionItemCategoryLabel": "Category",
+    "sourceGameCurrentSessionItemSearchLabel": "Search item definitions",
+    "sourceGameCurrentSessionItemSearchPlaceholder": "Search item definitions by name...",
+    "sourceGameCurrentSessionItemSearchHint": "Search by item name.",
+    "sourceGameCurrentSessionItemSearchClear": "Clear search",
     "sourceGameCurrentSessionWarningsLabel": "Warnings",
     "sourceGameCurrentSessionProgressLabel": "Progress"
   },

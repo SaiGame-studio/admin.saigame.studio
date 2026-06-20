@@ -67,8 +67,16 @@ export interface CloneSessionCurrentItemsResponse {
     source_game_id?: string;
     source_game_name?: string;
     target_game_id?: string;
+    limit?: number;
+    offset?: number;
     total?: number;
     items?: CloneSessionCurrentItemDefinition[];
+}
+
+export interface CloneSessionCurrentItemsParams {
+    name?: string;
+    limit?: number;
+    offset?: number;
 }
 
 export interface ListCloneableGamesParams {
@@ -225,8 +233,23 @@ export async function getCurrentCloneSession(gameId: string): Promise<CloneSessi
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current`, { suppressToast: true });
 }
 
-export async function getCurrentCloneSessionItems(gameId: string): Promise<CloneSessionCurrentItemsResponse> {
-    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/items`, { suppressToast: true });
+export async function getCurrentCloneSessionItems(gameId: string, params?: CloneSessionCurrentItemsParams): Promise<CloneSessionCurrentItemsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/items${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {

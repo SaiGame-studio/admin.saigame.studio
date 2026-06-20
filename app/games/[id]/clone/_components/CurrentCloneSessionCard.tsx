@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/CopyButton";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/lib/i18n/use-translation";
@@ -17,6 +18,7 @@ import {
 } from "@/lib/game-api";
 
 type TranslationFn = (key: string) => string;
+const ITEMS_PAGE_SIZE = 12;
 
 type CurrentCloneSessionCardProps = {
     targetGameId: string;
@@ -170,6 +172,22 @@ function CurrentCloneSessionItemList({ items, t }: { items: CloneSessionCurrentI
     );
 }
 
+function formatItemsRange(start: number, end: number, total: number) {
+    if (total <= 0) {
+        return "0 / 0";
+    }
+
+    return `${start.toLocaleString("en-US")} - ${end.toLocaleString("en-US")}/${total.toLocaleString("en-US")}`;
+}
+
+function formatItemsPage(currentPage: number, totalPages: number) {
+    if (totalPages <= 0) {
+        return "0/0";
+    }
+
+    return `${currentPage.toLocaleString("en-US")}/${totalPages.toLocaleString("en-US")}`;
+}
+
 export function CurrentCloneSessionCard({
     targetGameId,
     currentSession,
@@ -183,11 +201,20 @@ export function CurrentCloneSessionCard({
     const [activeProgressTab, setActiveProgressTab] = useState<string | null>(null);
     const [items, setItems] = useState<CloneSessionCurrentItemDefinition[]>([]);
     const [itemsTotal, setItemsTotal] = useState(0);
+    const [itemsOffset, setItemsOffset] = useState(0);
+    const [itemsSearchInput, setItemsSearchInput] = useState("");
+    const [itemsSearchName, setItemsSearchName] = useState("");
     const [itemsLoading, setItemsLoading] = useState(false);
     const [itemsError, setItemsError] = useState<string | null>(null);
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
     const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
+    const currentItemsCurrentPage = itemsTotal > 0 ? Math.floor(itemsOffset / ITEMS_PAGE_SIZE) + 1 : 0;
+    const currentItemsTotalPages = itemsTotal > 0 ? Math.ceil(itemsTotal / ITEMS_PAGE_SIZE) : 0;
+    const currentItemsStart = itemsTotal > 0 ? itemsOffset + 1 : 0;
+    const currentItemsEnd = itemsTotal > 0 ? Math.min(itemsOffset + ITEMS_PAGE_SIZE, itemsTotal) : 0;
+    const hasPreviousItemsPage = itemsOffset > 0;
+    const hasNextItemsPage = itemsOffset + ITEMS_PAGE_SIZE < itemsTotal;
 
     useEffect(() => {
         if (currentSessionProgressEntries.length === 0) {
@@ -210,7 +237,12 @@ export function CurrentCloneSessionCard({
             setItemsError(null);
 
             try {
-                const response = await getCurrentCloneSessionItems(targetGameId);
+                const response = await getCurrentCloneSessionItems(targetGameId, {
+                    name: itemsSearchName || undefined,
+                    limit: ITEMS_PAGE_SIZE,
+                    offset: itemsOffset,
+                });
+
                 if (cancelled) {
                     return;
                 }
@@ -237,7 +269,26 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, targetGameId, t]);
+    }, [activeProgressTab, currentSession, itemsOffset, itemsSearchName, targetGameId, t]);
+
+    const handleSearchItems = () => {
+        setItemsOffset(0);
+        setItemsSearchName(itemsSearchInput.trim());
+    };
+
+    const handleClearItemsSearch = () => {
+        setItemsSearchInput("");
+        setItemsSearchName("");
+        setItemsOffset(0);
+    };
+
+    const handlePreviousItemsPage = () => {
+        setItemsOffset((current) => Math.max(0, current - ITEMS_PAGE_SIZE));
+    };
+
+    const handleNextItemsPage = () => {
+        setItemsOffset((current) => current + ITEMS_PAGE_SIZE);
+    };
 
     if (currentSessionLoading) {
         return <CurrentCloneSessionLoadingCard />;
@@ -432,13 +483,106 @@ export function CurrentCloneSessionCard({
 
                                     {phaseKey === "item_definitions" ? (
                                         <div id="clone-game-source-current-session-item-definitions-section" className="space-y-3">
-                                            <div id="clone-game-source-current-session-item-definitions-summary" className="flex flex-wrap items-center justify-between gap-2">
-                                                <p id="clone-game-source-current-session-item-definitions-summary-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                                    {t("game.items")}
+                                            <div id="clone-game-source-current-session-item-definitions-controls" className="space-y-2 rounded-md border bg-background px-2 py-2">
+                                                <div id="clone-game-source-current-session-item-definitions-search-row" className="flex flex-col gap-2 md:flex-row md:items-end">
+                                                    <div id="clone-game-source-current-session-item-definitions-search-field" className="flex-1 space-y-1">
+                                                        <p id="clone-game-source-current-session-item-definitions-search-label" className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                                            {t("cloneGame.sourceGameCurrentSessionItemSearchLabel")}
+                                                        </p>
+                                                        <div id="clone-game-source-current-session-item-definitions-search-input-wrap" className="relative">
+                                                            <Search id="clone-game-source-current-session-item-definitions-search-icon" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                                            <Input
+                                                                id="clone-game-source-current-session-item-definitions-search-input"
+                                                                value={itemsSearchInput}
+                                                                onChange={(event) => setItemsSearchInput(event.target.value)}
+                                                                onKeyDown={(event) => {
+                                                                    if (event.key === "Enter") {
+                                                                        event.preventDefault();
+                                                                        handleSearchItems();
+                                                                    }
+                                                                }}
+                                                                placeholder={t("cloneGame.sourceGameCurrentSessionItemSearchPlaceholder")}
+                                                                className="h-8 pl-8 pr-20 text-xs"
+                                                                autoComplete="off"
+                                                            />
+                                                            {itemsSearchInput || itemsSearchName ? (
+                                                                <Button
+                                                                    id="clone-game-source-current-session-item-definitions-clear-search-btn"
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="absolute right-1 top-1/2 h-7 -translate-y-1/2 px-1.5"
+                                                                    onClick={handleClearItemsSearch}
+                                                                >
+                                                                    <X id="clone-game-source-current-session-item-definitions-clear-search-icon" className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                    <div id="clone-game-source-current-session-item-definitions-search-actions" className="flex flex-wrap gap-1.5">
+                                                        <Button
+                                                            id="clone-game-source-current-session-item-definitions-search-btn"
+                                                            type="button"
+                                                            onClick={handleSearchItems}
+                                                            disabled={itemsLoading}
+                                                            size="sm"
+                                                            className="h-8 px-2.5 text-xs"
+                                                        >
+                                                            {t("common.search")}
+                                                        </Button>
+                                                        <Button
+                                                            id="clone-game-source-current-session-item-definitions-search-reset-btn"
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={handleClearItemsSearch}
+                                                            disabled={itemsLoading || (!itemsSearchInput && !itemsSearchName && itemsOffset === 0)}
+                                                            size="sm"
+                                                            className="h-8 px-2.5 text-xs"
+                                                        >
+                                                            {t("cloneGame.sourceGameCurrentSessionItemSearchClear")}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+
+                                            <div id="clone-game-source-current-session-item-definitions-pagination" className="flex items-center justify-end gap-2">
+                                                <p id="clone-game-source-current-session-item-definitions-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
+                                                    {formatItemsRange(currentItemsStart, currentItemsEnd, itemsTotal)}
                                                 </p>
-                                                <p id="clone-game-source-current-session-item-definitions-summary-value" className="text-xs text-muted-foreground">
-                                                    {itemsTotal.toLocaleString("en-US")} {t("game.items")}
-                                                </p>
+                                                <div id="clone-game-source-current-session-item-definitions-pagination-actions" className="flex items-center gap-1">
+                                                    <Button
+                                                        id="clone-game-source-current-session-item-definitions-pagination-prev"
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={handlePreviousItemsPage}
+                                                        disabled={!hasPreviousItemsPage || itemsLoading}
+                                                        className="h-7 w-7 p-0"
+                                                    >
+                                                        <ChevronLeft id="clone-game-source-current-session-item-definitions-pagination-prev-icon" className="h-3.5 w-3.5" />
+                                                        <span id="clone-game-source-current-session-item-definitions-pagination-prev-label" className="sr-only">
+                                                            {t("common.previous")}
+                                                        </span>
+                                                    </Button>
+                                                    <p id="clone-game-source-current-session-item-definitions-pagination-page" className="min-w-8 text-center text-[10px] text-muted-foreground tabular-nums">
+                                                        {formatItemsPage(currentItemsCurrentPage, currentItemsTotalPages)}
+                                                    </p>
+                                                    <Button
+                                                        id="clone-game-source-current-session-item-definitions-pagination-next"
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={handleNextItemsPage}
+                                                        disabled={!hasNextItemsPage || itemsLoading}
+                                                        className="h-7 w-7 p-0"
+                                                    >
+                                                        <ChevronRight id="clone-game-source-current-session-item-definitions-pagination-next-icon" className="h-3.5 w-3.5" />
+                                                        <span id="clone-game-source-current-session-item-definitions-pagination-next-label" className="sr-only">
+                                                            {t("common.next")}
+                                                        </span>
+                                                    </Button>
+                                                </div>
                                             </div>
 
                                             {itemsLoading ? (
