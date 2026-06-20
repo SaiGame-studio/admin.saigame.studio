@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
@@ -261,6 +262,9 @@ export function CurrentCloneSessionProgressTabs({
     onItemContainersPreviousPage,
     onItemContainersNextPage,
 }: CurrentCloneSessionProgressTabsProps) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const currentItemsCurrentPage = itemsTotal > 0 ? Math.floor(itemsOffset / ITEMS_PAGE_SIZE) + 1 : 0;
     const currentItemsTotalPages = itemsTotal > 0 ? Math.ceil(itemsTotal / ITEMS_PAGE_SIZE) : 0;
     const currentItemsStart = itemsTotal > 0 ? itemsOffset + 1 : 0;
@@ -273,6 +277,17 @@ export function CurrentCloneSessionProgressTabs({
     const currentItemContainersEnd = itemContainersTotal > 0 ? Math.min(itemContainersOffset + ITEMS_PAGE_SIZE, itemContainersTotal) : 0;
     const hasPreviousItemContainersPage = itemContainersOffset > 0;
     const hasNextItemContainersPage = itemContainersOffset + ITEMS_PAGE_SIZE < itemContainersTotal;
+    const buildProgressTabHref = (phaseKey: string) => {
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", phaseKey);
+        return `${pathname}?${nextParams.toString()}`;
+    };
+    const handleProgressTabChange = (value: string) => {
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", value);
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+        onActiveProgressTabChange(value);
+    };
 
     return (
         <CardContent id="clone-game-source-current-session-content" className="space-y-4 text-sm">
@@ -359,7 +374,7 @@ export function CurrentCloneSessionProgressTabs({
                     <p id="clone-game-source-current-session-progress-label" className="text-xs uppercase tracking-wide text-muted-foreground">
                         {t("cloneGame.sourceGameCurrentSessionProgressLabel")}
                     </p>
-                    <Tabs id="clone-game-source-current-session-progress-tabs" value={activeProgressTab ?? currentSessionProgressEntries[0]?.[0] ?? ""} onValueChange={onActiveProgressTabChange} className="w-full">
+                    <Tabs id="clone-game-source-current-session-progress-tabs" value={activeProgressTab ?? currentSessionProgressEntries[0]?.[0] ?? ""} onValueChange={handleProgressTabChange} className="w-full">
                         <div id="clone-game-source-current-session-progress-tabs-scroll" className="overflow-x-auto">
                             <TabsList id="clone-game-source-current-session-progress-tabs-list" className="mb-3 inline-flex min-w-max">
                                 {currentSessionProgressEntries.map(([phaseKey], index) => (
@@ -367,6 +382,7 @@ export function CurrentCloneSessionProgressTabs({
                                         id={`clone-game-source-current-session-progress-tab-trigger-${toKebabIdSegment(phaseKey)}`}
                                         key={phaseKey}
                                         value={phaseKey}
+                                        href={buildProgressTabHref(phaseKey)}
                                         className="flex items-center gap-2"
                                     >
                                         <span id={`clone-game-source-current-session-progress-tab-index-${toKebabIdSegment(phaseKey)}`} className="text-xs font-semibold tabular-nums">

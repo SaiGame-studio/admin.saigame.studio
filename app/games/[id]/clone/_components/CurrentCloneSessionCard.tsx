@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -140,7 +141,9 @@ export function CurrentCloneSessionCard({
     onDelete,
 }: CurrentCloneSessionCardProps) {
     const { t } = useTranslation();
-    const [activeProgressTab, setActiveProgressTab] = useState<string | null>(null);
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const [items, setItems] = useState<CloneSessionCurrentItemDefinition[]>([]);
     const [itemsTotal, setItemsTotal] = useState(0);
     const [itemsOffset, setItemsOffset] = useState(0);
@@ -158,15 +161,24 @@ export function CurrentCloneSessionCard({
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
     const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
+    const searchProgressTab = searchParams.get("subTab");
+    const activeProgressTab = currentSessionProgressEntries.some(([phaseKey]) => phaseKey === searchProgressTab)
+        ? searchProgressTab
+        : currentSessionProgressEntries[0]?.[0] ?? null;
 
     useEffect(() => {
         if (currentSessionProgressEntries.length === 0) {
-            setActiveProgressTab(null);
             return;
         }
 
-        setActiveProgressTab((current) => (current && currentSessionProgressEntries.some(([phaseKey]) => phaseKey === current) ? current : currentSessionProgressEntries[0]?.[0] ?? null));
-    }, [currentSessionProgressEntries]);
+        if (searchProgressTab && currentSessionProgressEntries.some(([phaseKey]) => phaseKey === searchProgressTab)) {
+            return;
+        }
+
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", currentSessionProgressEntries[0]?.[0] ?? "");
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    }, [currentSessionProgressEntries, pathname, router, searchParams, searchProgressTab]);
 
     useEffect(() => {
         if (!currentSession || activeProgressTab !== "item_definitions") {
@@ -326,7 +338,7 @@ export function CurrentCloneSessionCard({
         t,
         currentSession,
         activeProgressTab,
-        onActiveProgressTabChange: setActiveProgressTab,
+        onActiveProgressTabChange: () => {},
         currentSessionProgressEntries,
         currentSessionEstimatedCost,
         currentSessionWarnings,

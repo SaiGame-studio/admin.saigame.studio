@@ -69,7 +69,14 @@ export default function GameClonePage() {
   }, [gameId, t]);
 
   const updateTab = (nextTab: string) => {
-    router.replace(`/games/${gameId}/clone?tab=${nextTab}`, { scroll: false });
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("tab", nextTab);
+    router.replace(`/games/${gameId}/clone?${nextParams.toString()}`, { scroll: false });
+  };
+  const buildTabHref = (nextTab: string) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("tab", nextTab);
+    return `/games/${gameId}/clone?${nextParams.toString()}`;
   };
 
   const handleShareLevelChange = async (nextShareLevel: Game["share_level"]) => {
@@ -246,10 +253,10 @@ export default function GameClonePage() {
 
       <Tabs id="clone-game-tabs" value={activeTab} onValueChange={updateTab} className="space-y-4">
         <TabsList id="clone-game-tabs-list">
-          <TabsTrigger id="clone-game-tab-trigger-clone-setting" value="clone-setting">
+          <TabsTrigger id="clone-game-tab-trigger-clone-setting" value="clone-setting" href={buildTabHref("clone-setting")}>
             {t("cloneGame.tabCloneSetting")}
           </TabsTrigger>
-          <TabsTrigger id="clone-game-tab-trigger-from-another-game" value="from-another-game">
+          <TabsTrigger id="clone-game-tab-trigger-from-another-game" value="from-another-game" href={buildTabHref("from-another-game")}>
             {t("cloneGame.tabFromAnotherGame")}
           </TabsTrigger>
         </TabsList>
