@@ -451,6 +451,10 @@
     "sourceGameCurrentSessionItemSearchPlaceholder": "名前でアイテム定義を検索...",
     "sourceGameCurrentSessionItemSearchHint": "アイテム名で検索します。",
     "sourceGameCurrentSessionItemSearchClear": "検索をクリア",
+    "sourceGameCurrentSessionItemContainerSearchPlaceholder": "名前でアイテムコンテナを検索...",
+    "sourceGameCurrentSessionItemContainerGridLabel": "グリッドサイズ",
+    "sourceGameCurrentSessionItemContainerPortableLabel": "持ち運び可",
+    "sourceGameCurrentSessionItemContainerInstancedLabel": "アイテムごとに個別",
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "sourceGameCurrentSessionProgressLabel": "進捗"
   },

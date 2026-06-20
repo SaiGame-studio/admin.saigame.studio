@@ -451,6 +451,10 @@
     "sourceGameCurrentSessionItemSearchPlaceholder": "Search item definitions by name...",
     "sourceGameCurrentSessionItemSearchHint": "Search by item name.",
     "sourceGameCurrentSessionItemSearchClear": "Clear search",
+    "sourceGameCurrentSessionItemContainerSearchPlaceholder": "Search item containers by name...",
+    "sourceGameCurrentSessionItemContainerGridLabel": "Grid size",
+    "sourceGameCurrentSessionItemContainerPortableLabel": "Portable",
+    "sourceGameCurrentSessionItemContainerInstancedLabel": "Instanced per item",
     "sourceGameCurrentSessionWarningsLabel": "Warnings",
     "sourceGameCurrentSessionProgressLabel": "Progress"
   },

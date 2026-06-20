@@ -73,7 +73,36 @@ export interface CloneSessionCurrentItemsResponse {
     items?: CloneSessionCurrentItemDefinition[];
 }
 
+export interface CloneSessionCurrentItemContainer {
+    id: string;
+    game_id: string;
+    code_name: string;
+    name: string;
+    container_type: string;
+    grid_cols: number;
+    grid_rows: number;
+    is_portable: boolean;
+    instanced_per_item: boolean;
+}
+
+export interface CloneSessionCurrentItemContainersResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    item_containers?: CloneSessionCurrentItemContainer[];
+}
+
 export interface CloneSessionCurrentItemsParams {
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface CloneSessionCurrentItemContainersParams {
     name?: string;
     limit?: number;
     offset?: number;
@@ -250,6 +279,25 @@ export async function getCurrentCloneSessionItems(gameId: string, params?: Clone
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/items${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionItemContainers(gameId: string, params?: CloneSessionCurrentItemContainersParams): Promise<CloneSessionCurrentItemContainersResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/item-containers${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {

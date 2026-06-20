@@ -451,6 +451,10 @@
     "sourceGameCurrentSessionItemSearchPlaceholder": "Tìm định nghĩa vật phẩm theo tên...",
     "sourceGameCurrentSessionItemSearchHint": "Tìm theo tên vật phẩm.",
     "sourceGameCurrentSessionItemSearchClear": "Xóa tìm kiếm",
+    "sourceGameCurrentSessionItemContainerSearchPlaceholder": "Tìm container vật phẩm theo tên...",
+    "sourceGameCurrentSessionItemContainerGridLabel": "Kích thước lưới",
+    "sourceGameCurrentSessionItemContainerPortableLabel": "Di động",
+    "sourceGameCurrentSessionItemContainerInstancedLabel": "Riêng cho từng vật phẩm",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },
