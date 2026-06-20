@@ -483,12 +483,9 @@ export function CurrentCloneSessionCard({
 
                                     {phaseKey === "item_definitions" ? (
                                         <div id="clone-game-source-current-session-item-definitions-section" className="space-y-3">
-                                            <div id="clone-game-source-current-session-item-definitions-controls" className="space-y-2 rounded-md border bg-background px-2 py-2">
-                                                <div id="clone-game-source-current-session-item-definitions-search-row" className="flex flex-col gap-2 md:flex-row md:items-end">
-                                                    <div id="clone-game-source-current-session-item-definitions-search-field" className="flex-1 space-y-1">
-                                                        <p id="clone-game-source-current-session-item-definitions-search-label" className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                                            {t("cloneGame.sourceGameCurrentSessionItemSearchLabel")}
-                                                        </p>
+                                            <div id="clone-game-source-current-session-item-definitions-controls" className="space-y-2">
+                                                <div id="clone-game-source-current-session-item-definitions-search-row" className="flex flex-wrap items-center gap-2">
+                                                    <div id="clone-game-source-current-session-item-definitions-search-field" className="w-full md:w-1/2">
                                                         <div id="clone-game-source-current-session-item-definitions-search-input-wrap" className="relative">
                                                             <Search id="clone-game-source-current-session-item-definitions-search-icon" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                                                             <Input
@@ -507,83 +504,68 @@ export function CurrentCloneSessionCard({
                                                             />
                                                             {itemsSearchInput || itemsSearchName ? (
                                                                 <Button
-                                                                    id="clone-game-source-current-session-item-definitions-clear-search-btn"
+                                                                    id="clone-game-source-current-session-item-definitions-clear-search-inline-btn"
                                                                     type="button"
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     className="absolute right-1 top-1/2 h-7 -translate-y-1/2 px-1.5"
                                                                     onClick={handleClearItemsSearch}
                                                                 >
-                                                                    <X id="clone-game-source-current-session-item-definitions-clear-search-icon" className="h-3.5 w-3.5" />
+                                                                    <X id="clone-game-source-current-session-item-definitions-clear-search-inline-icon" className="h-3.5 w-3.5" />
                                                                 </Button>
                                                             ) : null}
                                                         </div>
                                                     </div>
-                                                    <div id="clone-game-source-current-session-item-definitions-search-actions" className="flex flex-wrap gap-1.5">
-                                                        <Button
-                                                            id="clone-game-source-current-session-item-definitions-search-btn"
-                                                            type="button"
-                                                            onClick={handleSearchItems}
-                                                            disabled={itemsLoading}
-                                                            size="sm"
-                                                            className="h-8 px-2.5 text-xs"
-                                                        >
-                                                            {t("common.search")}
-                                                        </Button>
-                                                        <Button
-                                                            id="clone-game-source-current-session-item-definitions-search-reset-btn"
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={handleClearItemsSearch}
-                                                            disabled={itemsLoading || (!itemsSearchInput && !itemsSearchName && itemsOffset === 0)}
-                                                            size="sm"
-                                                            className="h-8 px-2.5 text-xs"
-                                                        >
-                                                            {t("cloneGame.sourceGameCurrentSessionItemSearchClear")}
-                                                        </Button>
+                                                    <Button
+                                                        id="clone-game-source-current-session-item-definitions-search-btn"
+                                                        type="button"
+                                                        onClick={handleSearchItems}
+                                                        disabled={itemsLoading}
+                                                        size="sm"
+                                                        className="h-8 px-2.5 text-xs"
+                                                    >
+                                                        {t("common.search")}
+                                                    </Button>
+                                                <div id="clone-game-source-current-session-item-definitions-pagination" className="ml-auto flex items-center gap-2">
+                                                    <div id="clone-game-source-current-session-item-definitions-pagination-actions" className="flex items-center gap-1">
+                                                            <Button
+                                                                id="clone-game-source-current-session-item-definitions-pagination-prev"
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={handlePreviousItemsPage}
+                                                                disabled={!hasPreviousItemsPage || itemsLoading}
+                                                                className="h-7 w-7 p-0"
+                                                            >
+                                                                <ChevronLeft id="clone-game-source-current-session-item-definitions-pagination-prev-icon" className="h-3.5 w-3.5" />
+                                                                <span id="clone-game-source-current-session-item-definitions-pagination-prev-label" className="sr-only">
+                                                                    {t("common.previous")}
+                                                                </span>
+                                                            </Button>
+                                                            <p id="clone-game-source-current-session-item-definitions-pagination-page" className="min-w-8 text-center text-[10px] text-muted-foreground tabular-nums">
+                                                                {formatItemsPage(currentItemsCurrentPage, currentItemsTotalPages)}
+                                                            </p>
+                                                            <Button
+                                                                id="clone-game-source-current-session-item-definitions-pagination-next"
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={handleNextItemsPage}
+                                                                disabled={!hasNextItemsPage || itemsLoading}
+                                                                className="h-7 w-7 p-0"
+                                                            >
+                                                                <ChevronRight id="clone-game-source-current-session-item-definitions-pagination-next-icon" className="h-3.5 w-3.5" />
+                                                                <span id="clone-game-source-current-session-item-definitions-pagination-next-label" className="sr-only">
+                                                                    {t("common.next")}
+                                                                </span>
+                                                            </Button>
+                                                        </div>
+                                                        <p id="clone-game-source-current-session-item-definitions-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
+                                                            {formatItemsRange(currentItemsStart, currentItemsEnd, itemsTotal)}
+                                                        </p>
                                                     </div>
-                                                </div>
-
                                             </div>
-
-                                            <div id="clone-game-source-current-session-item-definitions-pagination" className="flex items-center justify-end gap-2">
-                                                <p id="clone-game-source-current-session-item-definitions-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
-                                                    {formatItemsRange(currentItemsStart, currentItemsEnd, itemsTotal)}
-                                                </p>
-                                                <div id="clone-game-source-current-session-item-definitions-pagination-actions" className="flex items-center gap-1">
-                                                    <Button
-                                                        id="clone-game-source-current-session-item-definitions-pagination-prev"
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={handlePreviousItemsPage}
-                                                        disabled={!hasPreviousItemsPage || itemsLoading}
-                                                        className="h-7 w-7 p-0"
-                                                    >
-                                                        <ChevronLeft id="clone-game-source-current-session-item-definitions-pagination-prev-icon" className="h-3.5 w-3.5" />
-                                                        <span id="clone-game-source-current-session-item-definitions-pagination-prev-label" className="sr-only">
-                                                            {t("common.previous")}
-                                                        </span>
-                                                    </Button>
-                                                    <p id="clone-game-source-current-session-item-definitions-pagination-page" className="min-w-8 text-center text-[10px] text-muted-foreground tabular-nums">
-                                                        {formatItemsPage(currentItemsCurrentPage, currentItemsTotalPages)}
-                                                    </p>
-                                                    <Button
-                                                        id="clone-game-source-current-session-item-definitions-pagination-next"
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={handleNextItemsPage}
-                                                        disabled={!hasNextItemsPage || itemsLoading}
-                                                        className="h-7 w-7 p-0"
-                                                    >
-                                                        <ChevronRight id="clone-game-source-current-session-item-definitions-pagination-next-icon" className="h-3.5 w-3.5" />
-                                                        <span id="clone-game-source-current-session-item-definitions-pagination-next-label" className="sr-only">
-                                                            {t("common.next")}
-                                                        </span>
-                                                    </Button>
-                                                </div>
-                                            </div>
+                                        </div>
 
                                             {itemsLoading ? (
                                                 <div id="clone-game-source-current-session-item-definitions-loading" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
