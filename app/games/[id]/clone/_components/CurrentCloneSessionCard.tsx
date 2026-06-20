@@ -475,36 +475,20 @@ export function CurrentCloneSessionCard({
                                 >
                                     <div
                                         id={`clone-game-source-current-session-progress-item-${toKebabIdSegment(phaseKey)}`}
-                                        className={phaseKey === "item_definitions" ? "space-y-2" : "rounded-md border bg-background px-3 py-2"}
+                                        className="space-y-1"
                                     >
-                                        {phaseKey !== "item_definitions" ? (
-                                            <div id={`clone-game-source-current-session-progress-item-header-${toKebabIdSegment(phaseKey)}`} className="flex items-center justify-between gap-2">
-                                                <p id={`clone-game-source-current-session-progress-item-phase-${toKebabIdSegment(phaseKey)}`} className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                    {index + 1}. {formatTechnicalLabel(phaseKey)}
+                                        <div id={`clone-game-source-current-session-progress-item-bar-wrap-${toKebabIdSegment(phaseKey)}`} className="relative">
+                                            <Progress
+                                                id={`clone-game-source-current-session-progress-item-bar-${toKebabIdSegment(phaseKey)}`}
+                                                value={getProgressValue(progress.processed, progress.total)}
+                                                className="h-4"
+                                            />
+                                            <div id={`clone-game-source-current-session-progress-item-bar-overlay-${toKebabIdSegment(phaseKey)}`} className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                <p id={`clone-game-source-current-session-progress-item-bar-text-${toKebabIdSegment(phaseKey)}`} className="text-[10px] font-medium text-foreground">
+                                                    {progress.processed ?? 0}/{progress.total ?? 0} ({Math.round(getProgressValue(progress.processed, progress.total))}%)
                                                 </p>
-                                                <Badge id={`clone-game-source-current-session-progress-item-badge-${toKebabIdSegment(phaseKey)}`} variant={progress.completed ? "default" : "outline"}>
-                                                    {progress.completed ? t("common.completed") : t("common.pending")}
-                                                </Badge>
                                             </div>
-                                        ) : null}
-                                        {phaseKey === "item_definitions" ? (
-                                            <div id={`clone-game-source-current-session-progress-item-bar-wrap-${toKebabIdSegment(phaseKey)}`} className="relative">
-                                                <Progress
-                                                    id={`clone-game-source-current-session-progress-item-bar-${toKebabIdSegment(phaseKey)}`}
-                                                    value={getProgressValue(progress.processed, progress.total)}
-                                                    className="h-5"
-                                                />
-                                                <div id={`clone-game-source-current-session-progress-item-bar-overlay-${toKebabIdSegment(phaseKey)}`} className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                                    <p id={`clone-game-source-current-session-progress-item-bar-text-${toKebabIdSegment(phaseKey)}`} className="text-[10px] font-medium text-foreground">
-                                                        {progress.processed ?? 0}/{progress.total ?? 0} ({Math.round(getProgressValue(progress.processed, progress.total))}%)
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <p id={`clone-game-source-current-session-progress-item-value-${toKebabIdSegment(phaseKey)}`} className="mt-1 text-sm">
-                                                {progress.processed ?? 0} / {progress.total ?? 0}
-                                            </p>
-                                        )}
+                                        </div>
                                     </div>
 
                                     {phaseKey === "item_definitions" ? (
