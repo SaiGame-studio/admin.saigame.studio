@@ -88,6 +88,10 @@ function formatTechnicalLabel(value?: string) {
         .join(" ");
 }
 
+function isSGemCurrency(value?: string) {
+    return value?.trim().toLowerCase() === "sgem";
+}
+
 function toKebabIdSegment(value?: string) {
     if (!value) {
         return "unknown";
@@ -255,7 +259,23 @@ export function CurrentCloneSessionProgressTabs({
                                 {t("cloneGame.sourceGameCurrentSessionCostLabel")}
                             </p>
                             <p id="clone-game-source-current-session-cost-value" className="font-medium">
-                                {currentSessionEstimatedCost.amount ?? 0} {currentSessionEstimatedCost.currency || t("common.unknown")}
+                                <span id="clone-game-source-current-session-cost-amount">
+                                    {currentSessionEstimatedCost.amount ?? 0}
+                                </span>{" "}
+                                {isSGemCurrency(currentSessionEstimatedCost.currency) ? (
+                                    <span id="clone-game-source-current-session-cost-currency" className="inline-flex items-center gap-1">
+                                        <span id="clone-game-source-current-session-cost-currency-icon" aria-hidden="true">
+                                            {"\u{1F48E}"}
+                                        </span>
+                                        <span id="clone-game-source-current-session-cost-currency-text">
+                                            {currentSessionEstimatedCost.currency}
+                                        </span>
+                                    </span>
+                                ) : (
+                                    <span id="clone-game-source-current-session-cost-currency">
+                                        {currentSessionEstimatedCost.currency || t("common.unknown")}
+                                    </span>
+                                )}
                             </p>
                         </div>
                     ) : null}
