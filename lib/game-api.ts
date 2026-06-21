@@ -1,5 +1,6 @@
 import type { Game } from "@/types/game";
 import type { Team } from "@/types/team";
+import type { QuestDefinition } from "@/lib/quest-api";
 import { api } from "@/lib/api-client";
 
 export interface CloneableGamesResponse {
@@ -117,6 +118,20 @@ export interface CloneSessionCurrentItemTagsResponse {
     tags?: CloneSessionCurrentItemTag[];
 }
 
+export type CloneSessionCurrentQuestDefinition = QuestDefinition;
+
+export interface CloneSessionCurrentQuestsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    quests?: CloneSessionCurrentQuestDefinition[];
+    quest_definitions?: CloneSessionCurrentQuestDefinition[];
+}
+
 export interface CloneSessionCurrentItemsParams {
     name?: string;
     limit?: number;
@@ -130,6 +145,12 @@ export interface CloneSessionCurrentItemContainersParams {
 }
 
 export interface CloneSessionCurrentItemTagsParams {
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface CloneSessionCurrentQuestsParams {
     name?: string;
     limit?: number;
     offset?: number;
@@ -344,6 +365,25 @@ export async function getCurrentCloneSessionItemTags(gameId: string, params?: Cl
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/item-tags${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionQuests(gameId: string, params?: CloneSessionCurrentQuestsParams): Promise<CloneSessionCurrentQuestsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/quests${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {

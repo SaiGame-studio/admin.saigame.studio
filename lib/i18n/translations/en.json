@@ -458,6 +458,11 @@
     "sourceGameCurrentSessionItemTagsSearchPlaceholder": "Search item tags by label or key...",
     "sourceGameCurrentSessionItemTagsColorLabel": "Color",
     "sourceGameCurrentSessionItemTagsUsageLabel": "Item count",
+    "sourceGameCurrentSessionQuestSearchPlaceholder": "Search quests by name...",
+    "sourceGameCurrentSessionQuestStatusLabel": "Status",
+    "sourceGameCurrentSessionQuestSortOrderLabel": "Sort order",
+    "sourceGameCurrentSessionQuestRewardsLabel": "Rewards",
+    "sourceGameCurrentSessionQuestDescriptionLabel": "Description",
     "sourceGameCurrentSessionWarningsLabel": "Warnings",
     "sourceGameCurrentSessionProgressLabel": "Progress"
   },

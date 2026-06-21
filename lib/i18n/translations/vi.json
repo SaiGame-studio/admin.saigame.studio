@@ -458,6 +458,11 @@
     "sourceGameCurrentSessionItemTagsSearchPlaceholder": "Tìm item tag theo nhãn hoặc khóa...",
     "sourceGameCurrentSessionItemTagsColorLabel": "Màu sắc",
     "sourceGameCurrentSessionItemTagsUsageLabel": "Số lượng vật phẩm",
+    "sourceGameCurrentSessionQuestSearchPlaceholder": "Tìm quest theo tên...",
+    "sourceGameCurrentSessionQuestStatusLabel": "Trạng thái",
+    "sourceGameCurrentSessionQuestSortOrderLabel": "Thứ tự sắp xếp",
+    "sourceGameCurrentSessionQuestRewardsLabel": "Phần thưởng",
+    "sourceGameCurrentSessionQuestDescriptionLabel": "Mô tả",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },

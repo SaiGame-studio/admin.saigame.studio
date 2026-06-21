@@ -13,9 +13,11 @@ import {
     getCurrentCloneSessionItemContainers,
     getCurrentCloneSessionItems,
     getCurrentCloneSessionItemTags,
+    getCurrentCloneSessionQuests,
     type CloneSessionCurrentItemContainer,
     type CloneSessionCurrentItemDefinition,
     type CloneSessionCurrentItemTag,
+    type CloneSessionCurrentQuestDefinition,
     type CloneSessionSnapshot,
 } from "@/lib/game-api";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
@@ -60,14 +62,6 @@ function getCloneSessionBadgeVariant(status?: string) {
     }
 
     return "outline" as const;
-}
-
-function getBooleanBadgeVariant(value?: boolean) {
-    if (value === undefined) {
-        return "outline" as const;
-    }
-
-    return value ? "default" as const : "secondary" as const;
 }
 
 function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
@@ -143,6 +137,18 @@ type CurrentCloneSessionContentProps = {
     onItemTagsClearSearch: () => void;
     onItemTagsPreviousPage: () => void;
     onItemTagsNextPage: () => void;
+    quests: CloneSessionCurrentQuestDefinition[];
+    questsTotal: number;
+    questsOffset: number;
+    questsSearchInput: string;
+    questsSearchName: string;
+    questsLoading: boolean;
+    questsError: string | null;
+    onQuestsSearchInputChange: (value: string) => void;
+    onQuestsSearch: () => void;
+    onQuestsClearSearch: () => void;
+    onQuestsPreviousPage: () => void;
+    onQuestsNextPage: () => void;
 };
 
 export function CurrentCloneSessionCard({
@@ -179,6 +185,13 @@ export function CurrentCloneSessionCard({
     const [itemTagsSearchName, setItemTagsSearchName] = useState("");
     const [itemTagsLoading, setItemTagsLoading] = useState(false);
     const [itemTagsError, setItemTagsError] = useState<string | null>(null);
+    const [quests, setQuests] = useState<CloneSessionCurrentQuestDefinition[]>([]);
+    const [questsTotal, setQuestsTotal] = useState(0);
+    const [questsOffset, setQuestsOffset] = useState(0);
+    const [questsSearchInput, setQuestsSearchInput] = useState("");
+    const [questsSearchName, setQuestsSearchName] = useState("");
+    const [questsLoading, setQuestsLoading] = useState(false);
+    const [questsError, setQuestsError] = useState<string | null>(null);
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
     const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
@@ -187,6 +200,7 @@ export function CurrentCloneSessionCard({
         ? searchProgressTab
         : currentSessionProgressEntries[0]?.[0] ?? null;
     const isItemTagsTab = activeProgressTab === "item_tags" || activeProgressTab === "item_tag_definitions";
+    const isQuestDefinitionsTab = activeProgressTab === "quest_definitions";
 
     useEffect(() => {
         if (currentSessionProgressEntries.length === 0) {
@@ -345,6 +359,57 @@ export function CurrentCloneSessionCard({
         };
     }, [activeProgressTab, currentSession, itemTagsOffset, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
 
+    useEffect(() => {
+        if (!currentSession || !isQuestDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadQuests = async () => {
+            setQuestsLoading(true);
+            setQuestsError(null);
+
+            try {
+                const response = await getCurrentCloneSessionQuests(targetGameId, {
+                    name: questsSearchName || undefined,
+                    limit: ITEMS_PAGE_SIZE,
+                    offset: questsOffset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextQuests = Array.isArray(response.quests)
+                    ? response.quests
+                    : Array.isArray(response.quest_definitions)
+                        ? response.quest_definitions
+                        : [];
+                setQuests(nextQuests);
+                setQuestsTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                setQuests([]);
+                setQuestsTotal(0);
+                setQuestsError(getCloneSessionErrorMessage(error, t));
+            } finally {
+                if (!cancelled) {
+                    setQuestsLoading(false);
+                }
+            }
+        };
+
+        void loadQuests();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeProgressTab, currentSession, isQuestDefinitionsTab, questsOffset, questsSearchName, targetGameId, t]);
+
     const handleSearchItems = () => {
         setItemsOffset(0);
         setItemsSearchName(itemsSearchInput.trim());
@@ -400,6 +465,25 @@ export function CurrentCloneSessionCard({
 
     const handleNextItemTagsPage = () => {
         setItemTagsOffset((current) => current + ITEMS_PAGE_SIZE);
+    };
+
+    const handleSearchQuests = () => {
+        setQuestsOffset(0);
+        setQuestsSearchName(questsSearchInput.trim());
+    };
+
+    const handleClearQuestsSearch = () => {
+        setQuestsSearchInput("");
+        setQuestsSearchName("");
+        setQuestsOffset(0);
+    };
+
+    const handlePreviousQuestsPage = () => {
+        setQuestsOffset((current) => Math.max(0, current - ITEMS_PAGE_SIZE));
+    };
+
+    const handleNextQuestsPage = () => {
+        setQuestsOffset((current) => current + ITEMS_PAGE_SIZE);
     };
 
     if (currentSessionLoading) {
@@ -468,6 +552,18 @@ export function CurrentCloneSessionCard({
         onItemTagsClearSearch: handleClearItemTagsSearch,
         onItemTagsPreviousPage: handlePreviousItemTagsPage,
         onItemTagsNextPage: handleNextItemTagsPage,
+        quests,
+        questsTotal,
+        questsOffset,
+        questsSearchInput,
+        questsSearchName,
+        questsLoading,
+        questsError,
+        onQuestsSearchInputChange: setQuestsSearchInput,
+        onQuestsSearch: handleSearchQuests,
+        onQuestsClearSearch: handleClearQuestsSearch,
+        onQuestsPreviousPage: handlePreviousQuestsPage,
+        onQuestsNextPage: handleNextQuestsPage,
     };
 
     return (
