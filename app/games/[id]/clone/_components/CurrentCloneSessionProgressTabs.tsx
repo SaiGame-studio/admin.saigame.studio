@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentQuestDefinition, CloneSessionSnapshot } from "@/lib/game-api";
+import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot } from "@/lib/game-api";
 import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } from "./CurrentCloneSessionLists";
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
+import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
 
 type TranslationFn = (key: string) => string;
 
@@ -72,6 +73,18 @@ type CurrentCloneSessionProgressTabsProps = {
     onQuestsClearSearch: () => void;
     onQuestsPreviousPage: () => void;
     onQuestsNextPage: () => void;
+    shopDefinitions: CloneSessionCurrentShopDefinition[];
+    shopDefinitionsTotal: number;
+    shopDefinitionsOffset: number;
+    shopDefinitionsSearchInput: string;
+    shopDefinitionsSearchName: string;
+    shopDefinitionsLoading: boolean;
+    shopDefinitionsError: string | null;
+    onShopDefinitionsSearchInputChange: (value: string) => void;
+    onShopDefinitionsSearch: () => void;
+    onShopDefinitionsClearSearch: () => void;
+    onShopDefinitionsPreviousPage: () => void;
+    onShopDefinitionsNextPage: () => void;
 };
 
 const ITEMS_PAGE_SIZE = 12;
@@ -180,6 +193,18 @@ export function CurrentCloneSessionProgressTabs({
     onQuestsClearSearch,
     onQuestsPreviousPage,
     onQuestsNextPage,
+    shopDefinitions,
+    shopDefinitionsTotal,
+    shopDefinitionsOffset,
+    shopDefinitionsSearchInput,
+    shopDefinitionsSearchName,
+    shopDefinitionsLoading,
+    shopDefinitionsError,
+    onShopDefinitionsSearchInputChange,
+    onShopDefinitionsSearch,
+    onShopDefinitionsClearSearch,
+    onShopDefinitionsPreviousPage,
+    onShopDefinitionsNextPage,
 }: CurrentCloneSessionProgressTabsProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -591,6 +616,22 @@ export function CurrentCloneSessionProgressTabs({
                                         onQuestsClearSearch={onQuestsClearSearch}
                                         onQuestsPreviousPage={onQuestsPreviousPage}
                                         onQuestsNextPage={onQuestsNextPage}
+                                    />
+                                ) : phaseKey === "shop_definitions" ? (
+                                    <CurrentCloneSessionShopDefinitionsTab
+                                        t={t}
+                                        shopDefinitions={shopDefinitions}
+                                        shopDefinitionsTotal={shopDefinitionsTotal}
+                                        shopDefinitionsOffset={shopDefinitionsOffset}
+                                        shopDefinitionsSearchInput={shopDefinitionsSearchInput}
+                                        shopDefinitionsSearchName={shopDefinitionsSearchName}
+                                        shopDefinitionsLoading={shopDefinitionsLoading}
+                                        shopDefinitionsError={shopDefinitionsError}
+                                        onShopDefinitionsSearchInputChange={onShopDefinitionsSearchInputChange}
+                                        onShopDefinitionsSearch={onShopDefinitionsSearch}
+                                        onShopDefinitionsClearSearch={onShopDefinitionsClearSearch}
+                                        onShopDefinitionsPreviousPage={onShopDefinitionsPreviousPage}
+                                        onShopDefinitionsNextPage={onShopDefinitionsNextPage}
                                     />
                                 ) : null}
                             </TabsContent>

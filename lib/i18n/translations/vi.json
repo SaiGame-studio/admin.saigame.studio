@@ -463,6 +463,10 @@
     "sourceGameCurrentSessionQuestSortOrderLabel": "Thứ tự sắp xếp",
     "sourceGameCurrentSessionQuestRewardsLabel": "Phần thưởng",
     "sourceGameCurrentSessionQuestDescriptionLabel": "Mô tả",
+    "sourceGameCurrentSessionShopSearchPlaceholder": "Tìm định nghĩa cửa hàng theo tên...",
+    "sourceGameCurrentSessionShopStatusLabel": "Trạng thái",
+    "sourceGameCurrentSessionShopItemsLabel": "Vật phẩm",
+    "sourceGameCurrentSessionShopDescriptionLabel": "Mô tả",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },

@@ -120,6 +120,19 @@ export interface CloneSessionCurrentItemTagsResponse {
 
 export type CloneSessionCurrentQuestDefinition = QuestDefinition;
 
+export interface CloneSessionCurrentShopDefinition {
+    id: string;
+    game_id: string;
+    shop_key: string;
+    name: string;
+    description: string;
+    shop_type: string;
+    is_active: boolean;
+    item_count?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface CloneSessionCurrentQuestsResponse {
     session_id?: string;
     source_game_id?: string;
@@ -130,6 +143,18 @@ export interface CloneSessionCurrentQuestsResponse {
     total?: number;
     quests?: CloneSessionCurrentQuestDefinition[];
     quest_definitions?: CloneSessionCurrentQuestDefinition[];
+}
+
+export interface CloneSessionCurrentShopDefinitionsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    shop_definitions?: CloneSessionCurrentShopDefinition[];
+    shops?: CloneSessionCurrentShopDefinition[];
 }
 
 export interface CloneSessionCurrentItemsParams {
@@ -151,6 +176,12 @@ export interface CloneSessionCurrentItemTagsParams {
 }
 
 export interface CloneSessionCurrentQuestsParams {
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface CloneSessionCurrentShopDefinitionsParams {
     name?: string;
     limit?: number;
     offset?: number;
@@ -384,6 +415,25 @@ export async function getCurrentCloneSessionQuests(gameId: string, params?: Clon
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/quests${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionShopDefinitions(gameId: string, params?: CloneSessionCurrentShopDefinitionsParams): Promise<CloneSessionCurrentShopDefinitionsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/shop-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {

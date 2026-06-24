@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
@@ -13,14 +13,13 @@ import {
     getCurrentCloneSessionItemContainers,
     getCurrentCloneSessionItems,
     getCurrentCloneSessionItemTags,
-    getCurrentCloneSessionQuests,
     type CloneSessionCurrentItemContainer,
     type CloneSessionCurrentItemDefinition,
     type CloneSessionCurrentItemTag,
-    type CloneSessionCurrentQuestDefinition,
     type CloneSessionSnapshot,
 } from "@/lib/game-api";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
+import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
 
 type TranslationFn = (key: string) => string;
 
@@ -137,7 +136,7 @@ type CurrentCloneSessionContentProps = {
     onItemTagsClearSearch: () => void;
     onItemTagsPreviousPage: () => void;
     onItemTagsNextPage: () => void;
-    quests: CloneSessionCurrentQuestDefinition[];
+    quests: ReturnType<typeof useCurrentCloneSessionDefinitions>["questsState"]["items"];
     questsTotal: number;
     questsOffset: number;
     questsSearchInput: string;
@@ -149,6 +148,18 @@ type CurrentCloneSessionContentProps = {
     onQuestsClearSearch: () => void;
     onQuestsPreviousPage: () => void;
     onQuestsNextPage: () => void;
+    shopDefinitions: ReturnType<typeof useCurrentCloneSessionDefinitions>["shopDefinitionsState"]["items"];
+    shopDefinitionsTotal: number;
+    shopDefinitionsOffset: number;
+    shopDefinitionsSearchInput: string;
+    shopDefinitionsSearchName: string;
+    shopDefinitionsLoading: boolean;
+    shopDefinitionsError: string | null;
+    onShopDefinitionsSearchInputChange: (value: string) => void;
+    onShopDefinitionsSearch: () => void;
+    onShopDefinitionsClearSearch: () => void;
+    onShopDefinitionsPreviousPage: () => void;
+    onShopDefinitionsNextPage: () => void;
 };
 
 export function CurrentCloneSessionCard({
@@ -185,13 +196,6 @@ export function CurrentCloneSessionCard({
     const [itemTagsSearchName, setItemTagsSearchName] = useState("");
     const [itemTagsLoading, setItemTagsLoading] = useState(false);
     const [itemTagsError, setItemTagsError] = useState<string | null>(null);
-    const [quests, setQuests] = useState<CloneSessionCurrentQuestDefinition[]>([]);
-    const [questsTotal, setQuestsTotal] = useState(0);
-    const [questsOffset, setQuestsOffset] = useState(0);
-    const [questsSearchInput, setQuestsSearchInput] = useState("");
-    const [questsSearchName, setQuestsSearchName] = useState("");
-    const [questsLoading, setQuestsLoading] = useState(false);
-    const [questsError, setQuestsError] = useState<string | null>(null);
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
     const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
@@ -201,6 +205,8 @@ export function CurrentCloneSessionCard({
         : currentSessionProgressEntries[0]?.[0] ?? null;
     const isItemTagsTab = activeProgressTab === "item_tags" || activeProgressTab === "item_tag_definitions";
     const isQuestDefinitionsTab = activeProgressTab === "quest_definitions";
+    const isShopDefinitionsTab = activeProgressTab === "shop_definitions";
+    const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
 
     useEffect(() => {
         if (currentSessionProgressEntries.length === 0) {
@@ -359,56 +365,16 @@ export function CurrentCloneSessionCard({
         };
     }, [activeProgressTab, currentSession, itemTagsOffset, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
 
-    useEffect(() => {
-        if (!currentSession || !isQuestDefinitionsTab) {
-            return;
-        }
-
-        let cancelled = false;
-
-        const loadQuests = async () => {
-            setQuestsLoading(true);
-            setQuestsError(null);
-
-            try {
-                const response = await getCurrentCloneSessionQuests(targetGameId, {
-                    name: questsSearchName || undefined,
-                    limit: ITEMS_PAGE_SIZE,
-                    offset: questsOffset,
-                });
-
-                if (cancelled) {
-                    return;
-                }
-
-                const nextQuests = Array.isArray(response.quests)
-                    ? response.quests
-                    : Array.isArray(response.quest_definitions)
-                        ? response.quest_definitions
-                        : [];
-                setQuests(nextQuests);
-                setQuestsTotal(Number(response.total ?? 0));
-            } catch (error) {
-                if (cancelled) {
-                    return;
-                }
-
-                setQuests([]);
-                setQuestsTotal(0);
-                setQuestsError(getCloneSessionErrorMessage(error, t));
-            } finally {
-                if (!cancelled) {
-                    setQuestsLoading(false);
-                }
-            }
-        };
-
-        void loadQuests();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [activeProgressTab, currentSession, isQuestDefinitionsTab, questsOffset, questsSearchName, targetGameId, t]);
+    const {
+        questsState,
+        shopDefinitionsState,
+    } = useCurrentCloneSessionDefinitions({
+        currentSession,
+        targetGameId,
+        isQuestDefinitionsTab,
+        isShopDefinitionsTab,
+        formatError: formatCloneSessionError,
+    });
 
     const handleSearchItems = () => {
         setItemsOffset(0);
@@ -467,25 +433,6 @@ export function CurrentCloneSessionCard({
         setItemTagsOffset((current) => current + ITEMS_PAGE_SIZE);
     };
 
-    const handleSearchQuests = () => {
-        setQuestsOffset(0);
-        setQuestsSearchName(questsSearchInput.trim());
-    };
-
-    const handleClearQuestsSearch = () => {
-        setQuestsSearchInput("");
-        setQuestsSearchName("");
-        setQuestsOffset(0);
-    };
-
-    const handlePreviousQuestsPage = () => {
-        setQuestsOffset((current) => Math.max(0, current - ITEMS_PAGE_SIZE));
-    };
-
-    const handleNextQuestsPage = () => {
-        setQuestsOffset((current) => current + ITEMS_PAGE_SIZE);
-    };
-
     if (currentSessionLoading) {
         return <CurrentCloneSessionLoadingCard />;
     }
@@ -533,6 +480,8 @@ export function CurrentCloneSessionCard({
         itemContainers,
         itemContainersTotal,
         itemContainersOffset,
+        itemContainersSearchInput,
+        itemContainersSearchName,
         itemContainersLoading,
         itemContainersError,
         onItemContainersSearchInputChange: setItemContainersSearchInput,
@@ -552,18 +501,30 @@ export function CurrentCloneSessionCard({
         onItemTagsClearSearch: handleClearItemTagsSearch,
         onItemTagsPreviousPage: handlePreviousItemTagsPage,
         onItemTagsNextPage: handleNextItemTagsPage,
-        quests,
-        questsTotal,
-        questsOffset,
-        questsSearchInput,
-        questsSearchName,
-        questsLoading,
-        questsError,
-        onQuestsSearchInputChange: setQuestsSearchInput,
-        onQuestsSearch: handleSearchQuests,
-        onQuestsClearSearch: handleClearQuestsSearch,
-        onQuestsPreviousPage: handlePreviousQuestsPage,
-        onQuestsNextPage: handleNextQuestsPage,
+        quests: questsState.items,
+        questsTotal: questsState.total,
+        questsOffset: questsState.offset,
+        questsSearchInput: questsState.searchInput,
+        questsSearchName: questsState.searchName,
+        questsLoading: questsState.loading,
+        questsError: questsState.error,
+        onQuestsSearchInputChange: questsState.onSearchInputChange,
+        onQuestsSearch: questsState.onSearch,
+        onQuestsClearSearch: questsState.onClearSearch,
+        onQuestsPreviousPage: questsState.onPreviousPage,
+        onQuestsNextPage: questsState.onNextPage,
+        shopDefinitions: shopDefinitionsState.items,
+        shopDefinitionsTotal: shopDefinitionsState.total,
+        shopDefinitionsOffset: shopDefinitionsState.offset,
+        shopDefinitionsSearchInput: shopDefinitionsState.searchInput,
+        shopDefinitionsSearchName: shopDefinitionsState.searchName,
+        shopDefinitionsLoading: shopDefinitionsState.loading,
+        shopDefinitionsError: shopDefinitionsState.error,
+        onShopDefinitionsSearchInputChange: shopDefinitionsState.onSearchInputChange,
+        onShopDefinitionsSearch: shopDefinitionsState.onSearch,
+        onShopDefinitionsClearSearch: shopDefinitionsState.onClearSearch,
+        onShopDefinitionsPreviousPage: shopDefinitionsState.onPreviousPage,
+        onShopDefinitionsNextPage: shopDefinitionsState.onNextPage,
     };
 
     return (
