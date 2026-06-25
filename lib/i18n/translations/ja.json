@@ -455,6 +455,10 @@
     "sourceGameCurrentSessionItemContainerGridLabel": "グリッドサイズ",
     "sourceGameCurrentSessionItemContainerPortableLabel": "持ち運び可",
     "sourceGameCurrentSessionItemContainerInstancedLabel": "アイテムごとに個別",
+    "sourceGameCurrentSessionShopSearchPlaceholder": "名前でショップ定義を検索...",
+    "sourceGameCurrentSessionShopStatusLabel": "状態",
+    "sourceGameCurrentSessionShopItemsLabel": "アイテム",
+    "sourceGameCurrentSessionShopDescriptionLabel": "説明",
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "sourceGameCurrentSessionProgressLabel": "進捗"
   },

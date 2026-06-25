@@ -38,6 +38,8 @@ export interface Game {
     share_level?: "private" | "protected" | "public";
     clone_cost?: number;
     is_cloned_game?: boolean;
+    same_studio?: boolean;
+    is_my_game?: boolean;
     tags?: string[];
     config: {
         max_players: number;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
@@ -19,6 +19,7 @@ import {
     type CloneSessionSnapshot,
 } from "@/lib/game-api";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
+import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
 
 type TranslationFn = (key: string) => string;
 
@@ -60,14 +61,6 @@ function getCloneSessionBadgeVariant(status?: string) {
     }
 
     return "outline" as const;
-}
-
-function getBooleanBadgeVariant(value?: boolean) {
-    if (value === undefined) {
-        return "outline" as const;
-    }
-
-    return value ? "default" as const : "secondary" as const;
 }
 
 function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
@@ -143,6 +136,30 @@ type CurrentCloneSessionContentProps = {
     onItemTagsClearSearch: () => void;
     onItemTagsPreviousPage: () => void;
     onItemTagsNextPage: () => void;
+    quests: ReturnType<typeof useCurrentCloneSessionDefinitions>["questsState"]["items"];
+    questsTotal: number;
+    questsOffset: number;
+    questsSearchInput: string;
+    questsSearchName: string;
+    questsLoading: boolean;
+    questsError: string | null;
+    onQuestsSearchInputChange: (value: string) => void;
+    onQuestsSearch: () => void;
+    onQuestsClearSearch: () => void;
+    onQuestsPreviousPage: () => void;
+    onQuestsNextPage: () => void;
+    shopDefinitions: ReturnType<typeof useCurrentCloneSessionDefinitions>["shopDefinitionsState"]["items"];
+    shopDefinitionsTotal: number;
+    shopDefinitionsOffset: number;
+    shopDefinitionsSearchInput: string;
+    shopDefinitionsSearchName: string;
+    shopDefinitionsLoading: boolean;
+    shopDefinitionsError: string | null;
+    onShopDefinitionsSearchInputChange: (value: string) => void;
+    onShopDefinitionsSearch: () => void;
+    onShopDefinitionsClearSearch: () => void;
+    onShopDefinitionsPreviousPage: () => void;
+    onShopDefinitionsNextPage: () => void;
 };
 
 export function CurrentCloneSessionCard({
@@ -187,6 +204,9 @@ export function CurrentCloneSessionCard({
         ? searchProgressTab
         : currentSessionProgressEntries[0]?.[0] ?? null;
     const isItemTagsTab = activeProgressTab === "item_tags" || activeProgressTab === "item_tag_definitions";
+    const isQuestDefinitionsTab = activeProgressTab === "quest_definitions";
+    const isShopDefinitionsTab = activeProgressTab === "shop_definitions";
+    const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
 
     useEffect(() => {
         if (currentSessionProgressEntries.length === 0) {
@@ -345,6 +365,17 @@ export function CurrentCloneSessionCard({
         };
     }, [activeProgressTab, currentSession, itemTagsOffset, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
 
+    const {
+        questsState,
+        shopDefinitionsState,
+    } = useCurrentCloneSessionDefinitions({
+        currentSession,
+        targetGameId,
+        isQuestDefinitionsTab,
+        isShopDefinitionsTab,
+        formatError: formatCloneSessionError,
+    });
+
     const handleSearchItems = () => {
         setItemsOffset(0);
         setItemsSearchName(itemsSearchInput.trim());
@@ -449,6 +480,8 @@ export function CurrentCloneSessionCard({
         itemContainers,
         itemContainersTotal,
         itemContainersOffset,
+        itemContainersSearchInput,
+        itemContainersSearchName,
         itemContainersLoading,
         itemContainersError,
         onItemContainersSearchInputChange: setItemContainersSearchInput,
@@ -468,6 +501,30 @@ export function CurrentCloneSessionCard({
         onItemTagsClearSearch: handleClearItemTagsSearch,
         onItemTagsPreviousPage: handlePreviousItemTagsPage,
         onItemTagsNextPage: handleNextItemTagsPage,
+        quests: questsState.items,
+        questsTotal: questsState.total,
+        questsOffset: questsState.offset,
+        questsSearchInput: questsState.searchInput,
+        questsSearchName: questsState.searchName,
+        questsLoading: questsState.loading,
+        questsError: questsState.error,
+        onQuestsSearchInputChange: questsState.onSearchInputChange,
+        onQuestsSearch: questsState.onSearch,
+        onQuestsClearSearch: questsState.onClearSearch,
+        onQuestsPreviousPage: questsState.onPreviousPage,
+        onQuestsNextPage: questsState.onNextPage,
+        shopDefinitions: shopDefinitionsState.items,
+        shopDefinitionsTotal: shopDefinitionsState.total,
+        shopDefinitionsOffset: shopDefinitionsState.offset,
+        shopDefinitionsSearchInput: shopDefinitionsState.searchInput,
+        shopDefinitionsSearchName: shopDefinitionsState.searchName,
+        shopDefinitionsLoading: shopDefinitionsState.loading,
+        shopDefinitionsError: shopDefinitionsState.error,
+        onShopDefinitionsSearchInputChange: shopDefinitionsState.onSearchInputChange,
+        onShopDefinitionsSearch: shopDefinitionsState.onSearch,
+        onShopDefinitionsClearSearch: shopDefinitionsState.onClearSearch,
+        onShopDefinitionsPreviousPage: shopDefinitionsState.onPreviousPage,
+        onShopDefinitionsNextPage: shopDefinitionsState.onNextPage,
     };
 
     return (

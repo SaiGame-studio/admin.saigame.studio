@@ -1,5 +1,6 @@
 import type { Game } from "@/types/game";
 import type { Team } from "@/types/team";
+import type { QuestDefinition } from "@/lib/quest-api";
 import { api } from "@/lib/api-client";
 
 export interface CloneableGamesResponse {
@@ -117,6 +118,45 @@ export interface CloneSessionCurrentItemTagsResponse {
     tags?: CloneSessionCurrentItemTag[];
 }
 
+export type CloneSessionCurrentQuestDefinition = QuestDefinition;
+
+export interface CloneSessionCurrentShopDefinition {
+    id: string;
+    game_id: string;
+    shop_key: string;
+    name: string;
+    description: string;
+    shop_type: string;
+    is_active: boolean;
+    item_count?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface CloneSessionCurrentQuestsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    quests?: CloneSessionCurrentQuestDefinition[];
+    quest_definitions?: CloneSessionCurrentQuestDefinition[];
+}
+
+export interface CloneSessionCurrentShopDefinitionsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    shop_definitions?: CloneSessionCurrentShopDefinition[];
+    shops?: CloneSessionCurrentShopDefinition[];
+}
+
 export interface CloneSessionCurrentItemsParams {
     name?: string;
     limit?: number;
@@ -130,6 +170,18 @@ export interface CloneSessionCurrentItemContainersParams {
 }
 
 export interface CloneSessionCurrentItemTagsParams {
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface CloneSessionCurrentQuestsParams {
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface CloneSessionCurrentShopDefinitionsParams {
     name?: string;
     limit?: number;
     offset?: number;
@@ -222,10 +274,16 @@ export async function listCloneableGames(params: ListCloneableGamesParams): Prom
 }
 
 export async function createCloneSession(targetGameId: string, sourceGameId: string, name: string): Promise<CloneSessionResponse> {
-    return await api.post(`/api/v1/games/${targetGameId}/clone-sessions`, {
+    const response = await api.post(`/api/v1/games/${targetGameId}/clone-sessions`, {
         name,
         source_game_id: sourceGameId,
     }, { suppressToast: true });
+
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sgem-wallet:refresh"));
+    }
+
+    return response;
 }
 // Lấy tất cả item profiles của 1 game
 export async function fetchGameItemProfiles(gameId: string, params?: Record<string, string>): Promise<any[]> {
@@ -344,6 +402,44 @@ export async function getCurrentCloneSessionItemTags(gameId: string, params?: Cl
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/item-tags${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionQuests(gameId: string, params?: CloneSessionCurrentQuestsParams): Promise<CloneSessionCurrentQuestsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/quests${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionShopDefinitions(gameId: string, params?: CloneSessionCurrentShopDefinitionsParams): Promise<CloneSessionCurrentShopDefinitionsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/shop-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {
