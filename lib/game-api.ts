@@ -274,10 +274,16 @@ export async function listCloneableGames(params: ListCloneableGamesParams): Prom
 }
 
 export async function createCloneSession(targetGameId: string, sourceGameId: string, name: string): Promise<CloneSessionResponse> {
-    return await api.post(`/api/v1/games/${targetGameId}/clone-sessions`, {
+    const response = await api.post(`/api/v1/games/${targetGameId}/clone-sessions`, {
         name,
         source_game_id: sourceGameId,
     }, { suppressToast: true });
+
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sgem-wallet:refresh"));
+    }
+
+    return response;
 }
 // Lấy tất cả item profiles của 1 game
 export async function fetchGameItemProfiles(gameId: string, params?: Record<string, string>): Promise<any[]> {
