@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Loader2, RefreshCw, Search, X } from "lucide-react";
+import { Building2, ExternalLink, Loader2, RefreshCw, Search, User, X } from "lucide-react";
 import { CopyButton } from "@/components/CopyButton";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -11,9 +11,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useTranslation } from "@/lib/i18n/use-translation";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { createCloneSession, deleteCurrentCloneSession, getCurrentCloneSession, listCloneableGames, type CloneSessionSnapshot } from "@/lib/game-api";
+import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Game } from "@/types/game";
 import { useToast } from "@/hooks/use-toast";
 import { CurrentCloneSessionCard } from "./CurrentCloneSessionCard";
@@ -64,6 +66,14 @@ function getVisibilityPriceLabel(game: Game, t: TranslationFn) {
     return `${game.clone_cost ?? 7} ${t("cloneGame.clonePriceUnit")}`;
 }
 
+function getRequiredCloneCost(game: Game | null) {
+    if (!game) {
+        return 0;
+    }
+
+    return game.share_level === "public" ? game.clone_cost ?? 7 : 0;
+}
+
 function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
     const rawMessage = error instanceof ApiError
         ? (error.data?.message || error.data?.error || error.message)
@@ -78,6 +88,73 @@ function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
     }
 
     return rawMessage || t("common.error");
+}
+
+type SourceGameIndicatorsProps = {
+    game: Game;
+    compact?: boolean;
+};
+
+function SourceGameIndicators({ game, compact = false }: SourceGameIndicatorsProps) {
+    const { t } = useTranslation();
+
+    if (!game.same_studio && !game.is_my_game) {
+        return null;
+    }
+
+    const iconClassName = compact ? "h-3.5 w-3.5" : "h-4 w-4";
+
+    return (
+        <TooltipProvider delayDuration={150}>
+            <div
+                id={`clone-game-source-indicators-${game.id}`}
+                className={`flex flex-wrap items-center gap-2 text-muted-foreground ${compact ? "text-xs" : "text-sm"}`}
+            >
+                {game.same_studio ? (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span
+                                id={`clone-game-source-indicator-same-studio-${game.id}`}
+                                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-2 py-1"
+                            >
+                                <Building2
+                                    id={`clone-game-source-indicator-same-studio-icon-${game.id}`}
+                                    className={iconClassName}
+                                />
+                                <span id={`clone-game-source-indicator-same-studio-label-${game.id}`}>
+                                    {t("cloneGame.sourceGameSameStudio")}
+                                </span>
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent id={`clone-game-source-indicator-same-studio-tooltip-${game.id}`} side="top">
+                            {t("cloneGame.sourceGameSameStudioTooltip")}
+                        </TooltipContent>
+                    </Tooltip>
+                ) : null}
+                {game.is_my_game ? (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span
+                                id={`clone-game-source-indicator-my-game-${game.id}`}
+                                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-2 py-1"
+                            >
+                                <User
+                                    id={`clone-game-source-indicator-my-game-icon-${game.id}`}
+                                    className={iconClassName}
+                                />
+                                <span id={`clone-game-source-indicator-my-game-label-${game.id}`}>
+                                    {t("cloneGame.sourceGameMyGame")}
+                                </span>
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent id={`clone-game-source-indicator-my-game-tooltip-${game.id}`} side="top">
+                            {t("cloneGame.sourceGameMyGameTooltip")}
+                        </TooltipContent>
+                    </Tooltip>
+                ) : null}
+            </div>
+        </TooltipProvider>
+    );
 }
 
 export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabProps) {
@@ -97,12 +174,16 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [startingClone, setStartingClone] = useState(false);
     const [cloneSessionId, setCloneSessionId] = useState<string | null>(null);
     const [cloneSessionError, setCloneSessionError] = useState<string | null>(null);
+    const [sgemBalance, setSgemBalance] = useState<number | null>(null);
     const [startConfirmOpen, setStartConfirmOpen] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const requestSeqRef = useRef(0);
 
     const selectedGame = games.find((game) => game.id === selectedGameId) ?? null;
     const hasCurrentCloneSession = Boolean(currentSession);
+    const requiredCloneCost = getRequiredCloneCost(selectedGame);
+    const hasEnoughSgem = sgemBalance === null || sgemBalance >= requiredCloneCost;
+    const shouldShowBuyMoreSgem = Boolean(selectedGame) && requiredCloneCost > 0 && sgemBalance !== null && !hasEnoughSgem;
 
     const loadGames = useCallback(
         async (nextOffset: number, rawSearch: string) => {
@@ -148,6 +229,15 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         [targetGameId, t],
     );
 
+    const loadSgemWallet = useCallback(async () => {
+        try {
+            const data = await api.get("/api/v1/me/sgem-wallet");
+            setSgemBalance(typeof data?.balance === "number" ? data.balance : null);
+        } catch {
+            setSgemBalance(null);
+        }
+    }, []);
+
     const loadCurrentSession = useCallback(async () => {
         setCurrentSessionLoading(true);
         setCurrentSessionError(null);
@@ -180,6 +270,19 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     useEffect(() => {
         void loadCurrentSession();
     }, [loadCurrentSession]);
+
+    useEffect(() => {
+        void loadSgemWallet();
+    }, [loadSgemWallet]);
+
+    useEffect(() => {
+        const handler = () => {
+            void loadSgemWallet();
+        };
+
+        window.addEventListener("sgem-wallet:refresh", handler);
+        return () => window.removeEventListener("sgem-wallet:refresh", handler);
+    }, [loadSgemWallet]);
 
     useEffect(() => {
         setCloneSessionId(null);
@@ -345,15 +448,29 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                         <CardTitle id="clone-game-source-selected-title" className="text-sm uppercase tracking-wide text-muted-foreground">
                             {t("cloneGame.sourceGameSelected")}
                         </CardTitle>
-                        <Button
-                            id="clone-game-source-start-clone-progress-btn"
-                            type="button"
-                            onClick={() => setStartConfirmOpen(true)}
-                            disabled={startingClone}
-                            className="absolute right-4 top-4"
-                        >
-                            {startingClone ? t("common.loading") : t("cloneGame.sourceGameStartCloneProgress")}
-                        </Button>
+                        <div id="clone-game-source-start-actions" className="absolute right-4 top-4 flex flex-col items-end gap-1">
+                            <Button
+                                id="clone-game-source-start-clone-progress-btn"
+                                type="button"
+                                onClick={() => setStartConfirmOpen(true)}
+                                disabled={startingClone || shouldShowBuyMoreSgem}
+                            >
+                                {startingClone ? t("common.loading") : t("cloneGame.sourceGameStartCloneProgress")}
+                            </Button>
+                            {shouldShowBuyMoreSgem ? (
+                                <Button
+                                    id="clone-game-source-buy-more-sgem-btn"
+                                    type="button"
+                                    variant="link"
+                                    className="h-auto px-0 py-0 text-xs"
+                                    asChild
+                                >
+                                    <Link id="clone-game-source-buy-more-sgem-link" href="/payment?tab=buy-sgem">
+                                        {t("llmTokenPurchase.buyMoreSGem")}
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </div>
                         <div id="clone-game-source-selected-copy" className="flex flex-col gap-2">
                             <div id="clone-game-source-selected-title-row" className="flex flex-wrap items-center gap-2">
                                 <span id="clone-game-source-selected-name" className="text-base font-semibold">
@@ -363,6 +480,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                     {getVisibilityLabel(selectedGame, t)}
                                 </Badge>
                             </div>
+                            <SourceGameIndicators game={selectedGame} compact />
                             {getVisibilityPriceLabel(selectedGame, t) ? (
                                 <p id="clone-game-source-selected-price" className="text-xs text-muted-foreground">
                                     {getVisibilityPriceLabel(selectedGame, t)}
@@ -531,6 +649,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                         {t("cloneGame.sourceGameYourGame")}
                                                     </Badge>
                                                 ) : null}
+                                                <SourceGameIndicators game={game} compact />
                                             </div>
                                         </div>
                                         <div id={`clone-game-source-card-id-row-${game.id}`} className="flex flex-wrap items-center gap-1 text-xs font-mono text-muted-foreground">
