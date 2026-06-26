@@ -71,58 +71,75 @@ function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurre
     }
 
     return (
-        <div id="clone-game-source-current-session-quests-list" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {quests.map((quest) => (
-                <div id={`clone-game-source-current-session-quest-${quest.id}`} key={quest.id} className="rounded-md border bg-background px-3 py-2">
-                    <div id={`clone-game-source-current-session-quest-header-${quest.id}`} className="space-y-1">
-                        <div id={`clone-game-source-current-session-quest-title-row-${quest.id}`} className="flex items-start justify-between gap-2">
-                            <p id={`clone-game-source-current-session-quest-name-${quest.id}`} className="font-medium">
-                                {quest.name}
-                            </p>
-                            <Badge id={`clone-game-source-current-session-quest-type-${quest.id}`} variant={getQuestTypeBadgeVariant(quest.quest_type)}>
-                                {quest.quest_type || t("common.unknown")}
-                            </Badge>
-                        </div>
-                        <p id={`clone-game-source-current-session-quest-code-${quest.id}`} className="font-mono text-xs text-muted-foreground">
-                            {quest.code_name || t("common.unknown")}
-                        </p>
-                    </div>
-                    <div id={`clone-game-source-current-session-quest-meta-${quest.id}`} className="mt-3 grid gap-2 text-xs text-muted-foreground">
-                        <div id={`clone-game-source-current-session-quest-status-${quest.id}`} className="flex items-center justify-between gap-2">
-                            <span id={`clone-game-source-current-session-quest-status-label-${quest.id}`} className="uppercase tracking-wide">
-                                {t("cloneGame.sourceGameCurrentSessionQuestStatusLabel")}
-                            </span>
-                            <span id={`clone-game-source-current-session-quest-status-value-${quest.id}`} className="text-foreground">
-                                {quest.is_active ? t("common.active") : t("common.inactive")}
-                            </span>
-                        </div>
-                        <div id={`clone-game-source-current-session-quest-sort-${quest.id}`} className="flex items-center justify-between gap-2">
-                            <span id={`clone-game-source-current-session-quest-sort-label-${quest.id}`} className="uppercase tracking-wide">
-                                {t("cloneGame.sourceGameCurrentSessionQuestSortOrderLabel")}
-                            </span>
-                            <span id={`clone-game-source-current-session-quest-sort-value-${quest.id}`} className="text-foreground">
-                                {typeof quest.sort_order === "number" ? quest.sort_order.toLocaleString("en-US") : t("common.unknown")}
-                            </span>
-                        </div>
-                        <div id={`clone-game-source-current-session-quest-rewards-${quest.id}`} className="flex items-center justify-between gap-2">
-                            <span id={`clone-game-source-current-session-quest-rewards-label-${quest.id}`} className="uppercase tracking-wide">
-                                {t("cloneGame.sourceGameCurrentSessionQuestRewardsLabel")}
-                            </span>
-                            <span id={`clone-game-source-current-session-quest-rewards-value-${quest.id}`} className="text-foreground">
-                                {(quest.rewards ?? []).length.toLocaleString("en-US")}
-                            </span>
-                        </div>
-                        <div id={`clone-game-source-current-session-quest-description-${quest.id}`} className="space-y-1">
-                            <span id={`clone-game-source-current-session-quest-description-label-${quest.id}`} className="uppercase tracking-wide">
-                                {t("cloneGame.sourceGameCurrentSessionQuestDescriptionLabel")}
-                            </span>
-                            <p id={`clone-game-source-current-session-quest-description-value-${quest.id}`} className="text-foreground">
-                                {quest.description || t("common.unknown")}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            ))}
+        <div id="clone-game-source-current-session-quests-table-wrap" className="overflow-x-auto rounded-md border bg-background">
+            <table id="clone-game-source-current-session-quests-table" className="w-full caption-bottom text-sm">
+                <thead id="clone-game-source-current-session-quests-table-head" className="border-b bg-muted/40">
+                    <tr id="clone-game-source-current-session-quests-table-head-row">
+                        <th id="clone-game-source-current-session-quests-table-name-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionNameLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-quests-table-code-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionCodeLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-quests-table-type-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionQuestTypeLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-quests-table-status-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionQuestStatusLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-quests-table-sort-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionQuestSortOrderLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-quests-table-rewards-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionQuestRewardsLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-quests-table-description-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionQuestDescriptionLabel")}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="clone-game-source-current-session-quests-table-body">
+                    {quests.map((quest) => (
+                        <tr id={`clone-game-source-current-session-quest-row-${quest.id}`} key={quest.id} className="border-b transition-colors last:border-0 hover:bg-muted/40">
+                            <td id={`clone-game-source-current-session-quest-name-cell-${quest.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-quest-name-${quest.id}`} className="font-medium">
+                                    {quest.name}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-quest-code-cell-${quest.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-quest-code-${quest.id}`} className="font-mono text-xs text-muted-foreground">
+                                    {quest.code_name || t("common.unknown")}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-quest-type-cell-${quest.id}`} className="px-3 py-2 align-middle">
+                                <Badge id={`clone-game-source-current-session-quest-type-${quest.id}`} variant={getQuestTypeBadgeVariant(quest.quest_type)}>
+                                    {quest.quest_type || t("common.unknown")}
+                                </Badge>
+                            </td>
+                            <td id={`clone-game-source-current-session-quest-status-cell-${quest.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-quest-status-value-${quest.id}`}>
+                                    {quest.is_active ? t("common.active") : t("common.inactive")}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-quest-sort-cell-${quest.id}`} className="px-3 py-2 text-right align-middle tabular-nums">
+                                <span id={`clone-game-source-current-session-quest-sort-value-${quest.id}`}>
+                                    {typeof quest.sort_order === "number" ? quest.sort_order.toLocaleString("en-US") : t("common.unknown")}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-quest-rewards-cell-${quest.id}`} className="px-3 py-2 text-right align-middle tabular-nums">
+                                <span id={`clone-game-source-current-session-quest-rewards-value-${quest.id}`}>
+                                    {(quest.rewards ?? []).length.toLocaleString("en-US")}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-quest-description-cell-${quest.id}`} className="max-w-[320px] px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-quest-description-value-${quest.id}`} className="line-clamp-2 text-muted-foreground">
+                                    {quest.description || t("common.unknown")}
+                                </span>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
@@ -236,12 +253,21 @@ export function CurrentCloneSessionQuestsTab({
             </div>
 
             {questsLoading ? (
-                <div id="clone-game-source-current-session-quests-loading" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div id="clone-game-source-current-session-quests-loading" className="overflow-x-auto rounded-md border bg-background">
+                    <div id="clone-game-source-current-session-quests-loading-header" className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.7fr_1.8fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                        {Array.from({ length: 7 }).map((_, index) => (
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-head-${index}`} key={`clone-game-source-current-session-quest-skeleton-head-${index}`} className="h-4 w-20" />
+                        ))}
+                    </div>
                     {Array.from({ length: 3 }).map((_, index) => (
-                        <div id={`clone-game-source-current-session-quest-skeleton-${index}`} key={`clone-game-source-current-session-quest-skeleton-${index}`} className="rounded-md border bg-background px-3 py-2">
-                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-title-${index}`} className="h-4 w-2/3" />
-                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-code-${index}`} className="mt-2 h-3 w-1/2" />
-                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-meta-${index}`} className="mt-3 h-3 w-3/4" />
+                        <div id={`clone-game-source-current-session-quest-skeleton-row-${index}`} key={`clone-game-source-current-session-quest-skeleton-row-${index}`} className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.7fr_1.8fr] gap-3 border-b px-3 py-3 last:border-0">
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-name-${index}`} className="h-4 w-2/3" />
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-code-${index}`} className="h-4 w-3/4" />
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-type-${index}`} className="h-4 w-16" />
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-status-${index}`} className="h-4 w-14" />
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-sort-${index}`} className="ml-auto h-4 w-10" />
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-rewards-${index}`} className="ml-auto h-4 w-10" />
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-description-${index}`} className="h-4 w-3/4" />
                         </div>
                     ))}
                 </div>

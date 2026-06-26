@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { ApiError } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 import {
     getCurrentCloneSessionItemContainers,
     getCurrentCloneSessionItems,
@@ -47,20 +47,39 @@ function formatTechnicalLabel(value?: string) {
         .join(" ");
 }
 
-function getCloneSessionBadgeVariant(status?: string) {
-    if (status === "running" || status === "created") {
-        return "default" as const;
+function getCloneSessionStatusStyle(status?: string) {
+    if (status === "running") {
+        return {
+            pill: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+            dot: "bg-sky-500",
+        };
+    }
+
+    if (status === "created") {
+        return {
+            pill: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+            dot: "bg-amber-500",
+        };
     }
 
     if (status === "blocked" || status === "failed") {
-        return "destructive" as const;
+        return {
+            pill: "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300",
+            dot: "bg-red-500",
+        };
     }
 
     if (status === "completed") {
-        return "secondary" as const;
+        return {
+            pill: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+            dot: "bg-emerald-500",
+        };
     }
 
-    return "outline" as const;
+    return {
+        pill: "border-muted-foreground/20 bg-muted/60 text-muted-foreground",
+        dot: "bg-muted-foreground",
+    };
 }
 
 function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
@@ -526,6 +545,7 @@ export function CurrentCloneSessionCard({
         onShopDefinitionsPreviousPage: shopDefinitionsState.onPreviousPage,
         onShopDefinitionsNextPage: shopDefinitionsState.onNextPage,
     };
+    const currentSessionStatusStyle = getCloneSessionStatusStyle(currentSession.status);
 
     return (
         <Card id="clone-game-source-current-session-card" className="border-primary/40 bg-primary/5">
@@ -554,9 +574,19 @@ export function CurrentCloneSessionCard({
                                 />
                             ) : null}
                         </div>
-                        <Badge id="clone-game-source-current-session-status-badge" variant={getCloneSessionBadgeVariant(currentSession.status)}>
+                        <span
+                            id="clone-game-source-current-session-status-badge"
+                            className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium leading-none",
+                                currentSessionStatusStyle.pill,
+                            )}
+                        >
+                            <span
+                                id="clone-game-source-current-session-status-indicator"
+                                className={cn("h-1.5 w-1.5 rounded-full", currentSessionStatusStyle.dot)}
+                            />
                             {formatTechnicalLabel(currentSession.status) || t("common.unknown")}
-                        </Badge>
+                        </span>
                     </div>
                 </div>
             </CardHeader>
