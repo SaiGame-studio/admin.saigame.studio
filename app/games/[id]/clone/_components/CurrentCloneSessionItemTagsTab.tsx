@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,45 +60,54 @@ function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessio
     }
 
     return (
-        <div id="clone-game-source-current-session-item-tags-list" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {itemTags.map((itemTag) => (
-                <div id={`clone-game-source-current-session-item-tag-${itemTag.id}`} key={itemTag.id} className="rounded-md border bg-background px-3 py-2">
-                    <div id={`clone-game-source-current-session-item-tag-header-${itemTag.id}`} className="space-y-1">
-                        <div id={`clone-game-source-current-session-item-tag-title-row-${itemTag.id}`} className="flex items-start justify-between gap-2">
-                            <p id={`clone-game-source-current-session-item-tag-label-${itemTag.id}`} className="font-medium">
-                                {itemTag.label}
-                            </p>
-                            <Badge id={`clone-game-source-current-session-item-tag-count-${itemTag.id}`} variant="secondary">
-                                {typeof itemTag.item_count === "number" ? itemTag.item_count.toLocaleString("en-US") : t("common.unknown")}
-                            </Badge>
-                        </div>
-                        <p id={`clone-game-source-current-session-item-tag-key-${itemTag.id}`} className="font-mono text-xs text-muted-foreground">
-                            {itemTag.tag_key}
-                        </p>
-                    </div>
-                    <div id={`clone-game-source-current-session-item-tag-meta-${itemTag.id}`} className="mt-3 grid gap-2 text-xs text-muted-foreground">
-                        <div id={`clone-game-source-current-session-item-tag-color-${itemTag.id}`} className="flex items-center justify-between gap-2">
-                            <span id={`clone-game-source-current-session-item-tag-color-label-${itemTag.id}`} className="uppercase tracking-wide">
-                                {t("cloneGame.sourceGameCurrentSessionItemTagsColorLabel")}
-                            </span>
-                            <span id={`clone-game-source-current-session-item-tag-color-value-${itemTag.id}`} className="flex items-center gap-2 text-foreground">
-                                <span id={`clone-game-source-current-session-item-tag-color-swatch-${itemTag.id}`} className="h-3 w-3 rounded-full border border-border" style={getTagColorStyle(itemTag.color)} />
-                                <span id={`clone-game-source-current-session-item-tag-color-text-${itemTag.id}`}>
-                                    {itemTag.color || t("common.unknown")}
+        <div id="clone-game-source-current-session-item-tags-table-wrap" className="overflow-x-auto rounded-md border bg-background">
+            <table id="clone-game-source-current-session-item-tags-table" className="w-full caption-bottom text-sm">
+                <thead id="clone-game-source-current-session-item-tags-table-head" className="border-b bg-muted/40">
+                    <tr id="clone-game-source-current-session-item-tags-table-head-row">
+                        <th id="clone-game-source-current-session-item-tags-table-label-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionItemTagsLabelLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-item-tags-table-key-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionItemTagsKeyLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-item-tags-table-color-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionItemTagsColorLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-item-tags-table-usage-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionItemTagsUsageLabel")}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="clone-game-source-current-session-item-tags-table-body">
+                    {itemTags.map((itemTag) => (
+                        <tr id={`clone-game-source-current-session-item-tag-row-${itemTag.id}`} key={itemTag.id} className="border-b transition-colors last:border-0 hover:bg-muted/40">
+                            <td id={`clone-game-source-current-session-item-tag-label-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-item-tag-label-${itemTag.id}`} className="font-medium">
+                                    {itemTag.label}
                                 </span>
-                            </span>
-                        </div>
-                        <div id={`clone-game-source-current-session-item-tag-usage-${itemTag.id}`} className="flex items-center justify-between gap-2">
-                            <span id={`clone-game-source-current-session-item-tag-usage-label-${itemTag.id}`} className="uppercase tracking-wide">
-                                {t("cloneGame.sourceGameCurrentSessionItemTagsUsageLabel")}
-                            </span>
-                            <span id={`clone-game-source-current-session-item-tag-usage-value-${itemTag.id}`} className="text-foreground">
-                                {typeof itemTag.item_count === "number" ? itemTag.item_count.toLocaleString("en-US") : t("common.unknown")}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            ))}
+                            </td>
+                            <td id={`clone-game-source-current-session-item-tag-key-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-item-tag-key-${itemTag.id}`} className="font-mono text-xs text-muted-foreground">
+                                    {itemTag.tag_key}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-item-tag-color-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-item-tag-color-value-${itemTag.id}`} className="inline-flex items-center gap-2">
+                                    <span id={`clone-game-source-current-session-item-tag-color-swatch-${itemTag.id}`} className="h-3 w-3 rounded-full border border-border" style={getTagColorStyle(itemTag.color)} />
+                                    <span id={`clone-game-source-current-session-item-tag-color-text-${itemTag.id}`} className="font-mono text-xs text-muted-foreground">
+                                        {itemTag.color || t("common.unknown")}
+                                    </span>
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-item-tag-usage-cell-${itemTag.id}`} className="px-3 py-2 text-right align-middle tabular-nums">
+                                <span id={`clone-game-source-current-session-item-tag-usage-value-${itemTag.id}`}>
+                                    {typeof itemTag.item_count === "number" ? itemTag.item_count.toLocaleString("en-US") : t("common.unknown")}
+                                </span>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
@@ -213,12 +221,18 @@ export function CurrentCloneSessionItemTagsTab({
             </div>
 
             {itemTagsLoading ? (
-                <div id="clone-game-source-current-session-item-tags-loading" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div id="clone-game-source-current-session-item-tags-loading" className="overflow-x-auto rounded-md border bg-background">
+                    <div id="clone-game-source-current-session-item-tags-loading-header" className="grid min-w-[640px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-head-${index}`} key={`clone-game-source-current-session-item-tag-skeleton-head-${index}`} className="h-4 w-20" />
+                        ))}
+                    </div>
                     {Array.from({ length: 3 }).map((_, index) => (
-                        <div id={`clone-game-source-current-session-item-tag-skeleton-${index}`} key={`clone-game-source-current-session-item-tag-skeleton-${index}`} className="rounded-md border bg-background px-3 py-2">
-                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-title-${index}`} className="h-4 w-2/3" />
-                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-key-${index}`} className="mt-2 h-3 w-1/2" />
-                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-meta-${index}`} className="mt-3 h-3 w-3/4" />
+                        <div id={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} key={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} className="grid min-w-[640px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr] gap-3 border-b px-3 py-3 last:border-0">
+                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-label-${index}`} className="h-4 w-2/3" />
+                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-key-${index}`} className="h-4 w-3/4" />
+                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-color-${index}`} className="h-4 w-20" />
+                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-count-${index}`} className="ml-auto h-4 w-12" />
                         </div>
                     ))}
                 </div>

@@ -73,50 +73,67 @@ function CurrentCloneSessionShopDefinitionList({
     }
 
     return (
-        <div id="clone-game-source-current-session-shop-definitions-list" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {shopDefinitions.map((shop) => (
-                <div id={`clone-game-source-current-session-shop-definition-${shop.id}`} key={shop.id} className="rounded-md border bg-background px-3 py-2">
-                    <div id={`clone-game-source-current-session-shop-definition-header-${shop.id}`} className="space-y-1">
-                        <div id={`clone-game-source-current-session-shop-definition-title-row-${shop.id}`} className="flex items-start justify-between gap-2">
-                            <p id={`clone-game-source-current-session-shop-definition-name-${shop.id}`} className="font-medium">
-                                {shop.name}
-                            </p>
-                            <Badge id={`clone-game-source-current-session-shop-definition-type-${shop.id}`} variant={getShopTypeBadgeVariant(shop.shop_type)}>
-                                {shop.shop_type || t("common.unknown")}
-                            </Badge>
-                        </div>
-                        <p id={`clone-game-source-current-session-shop-definition-key-${shop.id}`} className="font-mono text-xs text-muted-foreground">
-                            {shop.shop_key || t("common.unknown")}
-                        </p>
-                    </div>
-                    <div id={`clone-game-source-current-session-shop-definition-meta-${shop.id}`} className="mt-3 grid gap-2 text-xs text-muted-foreground">
-                        <div id={`clone-game-source-current-session-shop-definition-status-${shop.id}`} className="flex items-center justify-between gap-2">
-                            <span id={`clone-game-source-current-session-shop-definition-status-label-${shop.id}`} className="uppercase tracking-wide">
-                                {t("cloneGame.sourceGameCurrentSessionShopStatusLabel")}
-                            </span>
-                            <span id={`clone-game-source-current-session-shop-definition-status-value-${shop.id}`} className="text-foreground">
-                                {shop.is_active ? t("common.active") : t("common.inactive")}
-                            </span>
-                        </div>
-                        <div id={`clone-game-source-current-session-shop-definition-items-${shop.id}`} className="flex items-center justify-between gap-2">
-                            <span id={`clone-game-source-current-session-shop-definition-items-label-${shop.id}`} className="uppercase tracking-wide">
-                                {t("cloneGame.sourceGameCurrentSessionShopItemsLabel")}
-                            </span>
-                            <span id={`clone-game-source-current-session-shop-definition-items-value-${shop.id}`} className="text-foreground">
-                                {typeof shop.item_count === "number" ? shop.item_count.toLocaleString("en-US") : t("common.unknown")}
-                            </span>
-                        </div>
-                        <div id={`clone-game-source-current-session-shop-definition-description-${shop.id}`} className="space-y-1">
-                            <span id={`clone-game-source-current-session-shop-definition-description-label-${shop.id}`} className="uppercase tracking-wide">
-                                {t("cloneGame.sourceGameCurrentSessionShopDescriptionLabel")}
-                            </span>
-                            <p id={`clone-game-source-current-session-shop-definition-description-value-${shop.id}`} className="text-foreground">
-                                {shop.description || t("common.unknown")}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            ))}
+        <div id="clone-game-source-current-session-shop-definitions-table-wrap" className="overflow-x-auto rounded-md border bg-background">
+            <table id="clone-game-source-current-session-shop-definitions-table" className="w-full caption-bottom text-sm">
+                <thead id="clone-game-source-current-session-shop-definitions-table-head" className="border-b bg-muted/40">
+                    <tr id="clone-game-source-current-session-shop-definitions-table-head-row">
+                        <th id="clone-game-source-current-session-shop-definitions-table-name-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionNameLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-shop-definitions-table-key-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionShopKeyLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-shop-definitions-table-type-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionShopTypeLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-shop-definitions-table-status-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionShopStatusLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-shop-definitions-table-items-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionShopItemsLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-shop-definitions-table-description-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionShopDescriptionLabel")}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="clone-game-source-current-session-shop-definitions-table-body">
+                    {shopDefinitions.map((shop) => (
+                        <tr id={`clone-game-source-current-session-shop-definition-row-${shop.id}`} key={shop.id} className="border-b transition-colors last:border-0 hover:bg-muted/40">
+                            <td id={`clone-game-source-current-session-shop-definition-name-cell-${shop.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-shop-definition-name-${shop.id}`} className="font-medium">
+                                    {shop.name}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-shop-definition-key-cell-${shop.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-shop-definition-key-${shop.id}`} className="font-mono text-xs text-muted-foreground">
+                                    {shop.shop_key || t("common.unknown")}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-shop-definition-type-cell-${shop.id}`} className="px-3 py-2 align-middle">
+                                <Badge id={`clone-game-source-current-session-shop-definition-type-${shop.id}`} variant={getShopTypeBadgeVariant(shop.shop_type)}>
+                                    {shop.shop_type || t("common.unknown")}
+                                </Badge>
+                            </td>
+                            <td id={`clone-game-source-current-session-shop-definition-status-cell-${shop.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-shop-definition-status-value-${shop.id}`}>
+                                    {shop.is_active ? t("common.active") : t("common.inactive")}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-shop-definition-items-cell-${shop.id}`} className="px-3 py-2 text-right align-middle tabular-nums">
+                                <span id={`clone-game-source-current-session-shop-definition-items-value-${shop.id}`}>
+                                    {typeof shop.item_count === "number" ? shop.item_count.toLocaleString("en-US") : t("common.unknown")}
+                                </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-shop-definition-description-cell-${shop.id}`} className="max-w-[320px] px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-shop-definition-description-value-${shop.id}`} className="line-clamp-2 text-muted-foreground">
+                                    {shop.description || t("common.unknown")}
+                                </span>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
@@ -230,12 +247,20 @@ export function CurrentCloneSessionShopDefinitionsTab({
             </div>
 
             {shopDefinitionsLoading ? (
-                <div id="clone-game-source-current-session-shop-definitions-loading" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div id="clone-game-source-current-session-shop-definitions-loading" className="overflow-x-auto rounded-md border bg-background">
+                    <div id="clone-game-source-current-session-shop-definitions-loading-header" className="grid min-w-[860px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_1.8fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-head-${index}`} key={`clone-game-source-current-session-shop-definition-skeleton-head-${index}`} className="h-4 w-20" />
+                        ))}
+                    </div>
                     {Array.from({ length: 3 }).map((_, index) => (
-                        <div id={`clone-game-source-current-session-shop-definition-skeleton-${index}`} key={`clone-game-source-current-session-shop-definition-skeleton-${index}`} className="rounded-md border bg-background px-3 py-2">
-                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-title-${index}`} className="h-4 w-2/3" />
-                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-key-${index}`} className="mt-2 h-3 w-1/2" />
-                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-meta-${index}`} className="mt-3 h-3 w-3/4" />
+                        <div id={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} key={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} className="grid min-w-[860px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_1.8fr] gap-3 border-b px-3 py-3 last:border-0">
+                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-name-${index}`} className="h-4 w-2/3" />
+                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-key-${index}`} className="h-4 w-3/4" />
+                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-type-${index}`} className="h-4 w-16" />
+                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-status-${index}`} className="h-4 w-14" />
+                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-items-${index}`} className="ml-auto h-4 w-10" />
+                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-description-${index}`} className="h-4 w-3/4" />
                         </div>
                     ))}
                 </div>
