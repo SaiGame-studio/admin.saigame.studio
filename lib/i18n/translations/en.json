@@ -490,6 +490,7 @@
       "sourceGameCurrentSessionShopStatusLabel": "Status",
       "sourceGameCurrentSessionShopItemsLabel": "Items",
       "sourceGameCurrentSessionShopDescriptionLabel": "Description",
+      "sourceGameCurrentSessionConflictsLabel": "Conflicts",
       "sourceGameCurrentSessionWarningsLabel": "Warnings",
       "sourceGameCurrentSessionProgressLabel": "Progress"
     },

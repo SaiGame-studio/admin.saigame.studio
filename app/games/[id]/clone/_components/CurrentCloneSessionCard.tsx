@@ -14,6 +14,7 @@ import {
     getCurrentCloneSessionItems,
     getCurrentCloneSessionItemTags,
     runCloneSession,
+    type CloneSessionConflict,
     type CloneSessionCurrentItemContainer,
     type CloneSessionCurrentItemDefinition,
     type CloneSessionCurrentItemTag,
@@ -99,6 +100,21 @@ function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
     return rawMessage || t("common.error");
 }
 
+function getConflictProgressTab(conflict: CloneSessionConflict) {
+    const hint = `${conflict.phase ?? ""} ${conflict.definition_type ?? ""} ${conflict.field ?? ""}`.toLowerCase();
+    if (hint.includes("container")) return "item_container_definitions";
+    if (hint.includes("tag")) return "item_tags";
+    if (hint.includes("quest")) return "quest_definitions";
+    if (hint.includes("shop")) return "shop_definitions";
+    return "item_definitions";
+}
+
+function normalizeProgressTab(tab: string, entries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>) {
+    if (entries.some(([phaseKey]) => phaseKey === tab)) return tab;
+    if (tab === "item_tags" && entries.some(([phaseKey]) => phaseKey === "item_tag_definitions")) return "item_tag_definitions";
+    return entries[0]?.[0] ?? tab;
+}
+
 function CurrentCloneSessionLoadingCard() {
     return (
         <Card id="clone-game-source-current-session-loading-card" className="border-primary/30">
@@ -122,6 +138,8 @@ type CurrentCloneSessionContentProps = {
     currentSessionProgressEntries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>;
     currentSessionEstimatedCost?: { currency?: string; amount?: number };
     currentSessionWarnings: Array<{ field?: string; message?: string }>;
+    currentSessionConflicts: CloneSessionConflict[];
+    onConflictClick: (conflict: CloneSessionConflict) => void;
     items: CloneSessionCurrentItemDefinition[];
     itemsTotal: number;
     itemsOffset: number;
@@ -221,6 +239,7 @@ export function CurrentCloneSessionCard({
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
     const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
+    const currentSessionConflicts = currentSession?.last_run_response?.conflicts ?? [];
     const searchProgressTab = searchParams.get("subTab");
     const activeProgressTab = currentSessionProgressEntries.some(([phaseKey]) => phaseKey === searchProgressTab)
         ? searchProgressTab
@@ -473,6 +492,32 @@ export function CurrentCloneSessionCard({
         }
     };
 
+    const handleConflictClick = (conflict: CloneSessionConflict) => {
+        const nextTab = normalizeProgressTab(getConflictProgressTab(conflict), currentSessionProgressEntries);
+        const searchValue = (conflict.target_definition_id || conflict.value || "").trim();
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", nextTab);
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+        if (!searchValue) return;
+        if (nextTab === "item_definitions") {
+            setItemsSearchInput(searchValue);
+            setItemsSearchName(searchValue);
+            setItemsOffset(0);
+        } else if (nextTab === "item_container_definitions") {
+            setItemContainersSearchInput(searchValue);
+            setItemContainersSearchName(searchValue);
+            setItemContainersOffset(0);
+        } else if (nextTab === "item_tags" || nextTab === "item_tag_definitions") {
+            setItemTagsSearchInput(searchValue);
+            setItemTagsSearchName(searchValue);
+            setItemTagsOffset(0);
+        } else if (nextTab === "quest_definitions") {
+            questsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "shop_definitions") {
+            shopDefinitionsState.onApplySearchValue(searchValue);
+        }
+    };
+
     if (currentSessionLoading) {
         return <CurrentCloneSessionLoadingCard />;
     }
@@ -505,6 +550,8 @@ export function CurrentCloneSessionCard({
         currentSessionProgressEntries,
         currentSessionEstimatedCost,
         currentSessionWarnings,
+        currentSessionConflicts,
+        onConflictClick: handleConflictClick,
         items,
         itemsTotal,
         itemsOffset,

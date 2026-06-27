@@ -490,6 +490,7 @@
     "sourceGameCurrentSessionShopStatusLabel": "Trạng thái",
     "sourceGameCurrentSessionShopItemsLabel": "Vật phẩm",
     "sourceGameCurrentSessionShopDescriptionLabel": "Mô tả",
+    "sourceGameCurrentSessionConflictsLabel": "Xung đột",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },

@@ -490,6 +490,7 @@
     "sourceGameCurrentSessionShopStatusLabel": "状態",
     "sourceGameCurrentSessionShopItemsLabel": "アイテム",
     "sourceGameCurrentSessionShopDescriptionLabel": "説明",
+    "sourceGameCurrentSessionConflictsLabel": "競合",
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "sourceGameCurrentSessionProgressLabel": "進捗"
   },

@@ -20,6 +20,7 @@ type CloneSessionPagedState<TItem> = {
     loading: boolean;
     error: string | null;
     onSearchInputChange: (value: string) => void;
+    onApplySearchValue: (value: string) => void;
     onSearch: () => void;
     onClearSearch: () => void;
     onPreviousPage: () => void;
@@ -71,6 +72,12 @@ function toPagedResult<TItem>(state: ReturnType<typeof useCloneSessionPagedState
         loading: state.loading,
         error: state.error,
         onSearchInputChange: state.setSearchInput,
+        onApplySearchValue: (value: string) => {
+            const nextValue = value.trim();
+            state.setSearchInput(nextValue);
+            state.setSearchName(nextValue);
+            state.setOffset(0);
+        },
         onSearch: () => {
             state.setOffset(0);
             state.setSearchName(state.searchInput.trim());

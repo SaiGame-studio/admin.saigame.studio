@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot } from "@/lib/game-api";
+import type { CloneSessionConflict, CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot } from "@/lib/game-api";
+import { CurrentCloneSessionAlerts } from "./CurrentCloneSessionAlerts";
 import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } from "./CurrentCloneSessionLists";
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
@@ -25,6 +26,8 @@ type CurrentCloneSessionProgressTabsProps = {
     currentSessionProgressEntries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>;
     currentSessionEstimatedCost?: { currency?: string; amount?: number };
     currentSessionWarnings: Array<{ field?: string; message?: string }>;
+    currentSessionConflicts: CloneSessionConflict[];
+    onConflictClick: (conflict: CloneSessionConflict) => void;
     items: CloneSessionCurrentItemDefinition[];
     itemsTotal: number;
     itemsOffset: number;
@@ -163,6 +166,8 @@ export function CurrentCloneSessionProgressTabs({
     currentSessionProgressEntries,
     currentSessionEstimatedCost,
     currentSessionWarnings,
+    currentSessionConflicts,
+    onConflictClick,
     items,
     itemsTotal,
     itemsOffset,
@@ -325,27 +330,12 @@ export function CurrentCloneSessionProgressTabs({
                 </div>
             </div>
 
-            {currentSessionWarnings.length > 0 ? (
-                <div id="clone-game-source-current-session-warnings" className="space-y-2 border-t pt-4">
-                    <p id="clone-game-source-current-session-warnings-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {t("cloneGame.sourceGameCurrentSessionWarningsLabel")}
-                    </p>
-                    <div id="clone-game-source-current-session-warnings-list" className="space-y-2">
-                        {currentSessionWarnings.map((warning, index) => (
-                            <div
-                                id={`clone-game-source-current-session-warning-${toKebabIdSegment(warning.field)}-${index}`}
-                                key={`${warning.field ?? "warning"}-${index}`}
-                                className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
-                            >
-                                <p id={`clone-game-source-current-session-warning-field-${toKebabIdSegment(warning.field)}-${index}`} className="font-medium text-foreground">
-                                    {formatTechnicalLabel(warning.field) || t("common.unknown")}
-                                </p>
-                                <p id={`clone-game-source-current-session-warning-message-${toKebabIdSegment(warning.field)}-${index}`}>{warning.message || t("common.unknown")}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ) : null}
+            <CurrentCloneSessionAlerts
+                t={t}
+                warnings={currentSessionWarnings}
+                conflicts={currentSessionConflicts}
+                onConflictClick={onConflictClick}
+            />
 
             {currentSessionProgressEntries.length > 0 ? (
                 <div id="clone-game-source-current-session-progress" className="space-y-2 border-t pt-4">

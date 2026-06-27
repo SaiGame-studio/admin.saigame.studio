@@ -29,6 +29,15 @@ export interface CloneSessionWarning {
     message?: string;
 }
 
+export interface CloneSessionConflict {
+    field?: string;
+    value?: string;
+    target_definition_id?: string;
+    phase?: string;
+    definition_type?: string;
+    message?: string;
+}
+
 export interface CloneSessionEstimatedCost {
     currency?: string;
     amount?: number;
@@ -36,6 +45,7 @@ export interface CloneSessionEstimatedCost {
 
 export interface CloneSessionLastRunResponse {
     warnings?: CloneSessionWarning[];
+    conflicts?: CloneSessionConflict[];
     estimated_clone_cost?: CloneSessionEstimatedCost;
 }
 
