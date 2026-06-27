@@ -216,7 +216,12 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     }, [loadSgemWallet]);
 
     useEffect(() => {
-        const handler = () => {
+        const handler = (event: Event) => {
+            const detail = event instanceof CustomEvent ? event.detail : null;
+            if (detail?.skipSourceGameWalletRefresh) {
+                return;
+            }
+
             void loadSgemWallet();
         };
 

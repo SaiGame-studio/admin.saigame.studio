@@ -295,7 +295,9 @@ export async function createCloneSession(targetGameId: string, sourceGameId: str
     }, { suppressToast: true });
 
     if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("sgem-wallet:refresh"));
+        window.dispatchEvent(new CustomEvent("sgem-wallet:refresh", {
+            detail: { skipSourceGameWalletRefresh: true },
+        }));
     }
 
     return response;
@@ -360,6 +362,10 @@ export async function getAllGameTags(): Promise<string[]> {
 
 export async function getCurrentCloneSession(gameId: string): Promise<CloneSessionSnapshot> {
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current`, { suppressToast: true });
+}
+
+export async function runCloneSession(sessionId: string): Promise<CloneSessionSnapshot> {
+    return await api.post(`/api/v1/game-clone-sessions/${sessionId}/run`, undefined, { suppressToast: true });
 }
 
 export async function getCurrentCloneSessionItems(gameId: string, params?: CloneSessionCurrentItemsParams): Promise<CloneSessionCurrentItemsResponse> {

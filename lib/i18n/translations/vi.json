@@ -439,6 +439,7 @@
     "sourceGameCurrentSessionLoadError": "Không thể tải phiên clone hiện tại.",
     "sourceGameCurrentSessionDeleted": "Đã xóa phiên clone hiện tại.",
     "sourceGameCurrentSessionDeleteFailed": "Không thể xóa phiên clone hiện tại.",
+    "sourceGameCurrentSessionRun": "Start Clone",
     "sourceGameStartConfirmTitle": "Bắt đầu clone progress?",
     "sourceGameStartConfirmDesc": "Việc này sẽ bắt đầu clone \"{name}\" vào \"{target}\".",
     "sourceGameStartConfirmFallback": "Bắt đầu clone progress cho game đã chọn?",

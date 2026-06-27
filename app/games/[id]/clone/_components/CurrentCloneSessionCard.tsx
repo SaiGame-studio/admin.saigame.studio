@@ -13,6 +13,7 @@ import {
     getCurrentCloneSessionItemContainers,
     getCurrentCloneSessionItems,
     getCurrentCloneSessionItemTags,
+    runCloneSession,
     type CloneSessionCurrentItemContainer,
     type CloneSessionCurrentItemDefinition,
     type CloneSessionCurrentItemTag,
@@ -215,6 +216,8 @@ export function CurrentCloneSessionCard({
     const [itemTagsSearchName, setItemTagsSearchName] = useState("");
     const [itemTagsLoading, setItemTagsLoading] = useState(false);
     const [itemTagsError, setItemTagsError] = useState<string | null>(null);
+    const [runningCloneSession, setRunningCloneSession] = useState(false);
+    const [runCloneSessionError, setRunCloneSessionError] = useState<string | null>(null);
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
     const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
@@ -452,6 +455,24 @@ export function CurrentCloneSessionCard({
         setItemTagsOffset((current) => current + ITEMS_PAGE_SIZE);
     };
 
+    const handleRunCloneSession = async () => {
+        if (!currentSession?.session_id || runningCloneSession) {
+            return;
+        }
+
+        setRunningCloneSession(true);
+        setRunCloneSessionError(null);
+
+        try {
+            await runCloneSession(currentSession.session_id);
+            onRetry();
+        } catch (error) {
+            setRunCloneSessionError(getCloneSessionErrorMessage(error, t));
+        } finally {
+            setRunningCloneSession(false);
+        }
+    };
+
     if (currentSessionLoading) {
         return <CurrentCloneSessionLoadingCard />;
     }
@@ -593,20 +614,38 @@ export function CurrentCloneSessionCard({
 
             <CurrentCloneSessionProgressTabs {...contentProps} />
 
-            <CardFooter id="clone-game-source-current-session-footer" className="flex flex-wrap items-center justify-end gap-2">
-                <Button
-                    id="clone-game-source-current-session-delete-btn"
-                    type="button"
-                    variant="destructive"
-                    onClick={onDelete}
-                    disabled={deletingCurrentSession}
-                >
-                    {deletingCurrentSession ? <Loader2 id="clone-game-source-current-session-delete-loading-icon" className="h-4 w-4 animate-spin" /> : null}
-                    {deletingCurrentSession ? t("common.loading") : t("common.delete")}
-                </Button>
-                <Button id="clone-game-source-current-session-refresh-btn" type="button" variant="outline" onClick={onRetry}>
-                    {t("common.refresh")}
-                </Button>
+            <CardFooter id="clone-game-source-current-session-footer" className="flex flex-wrap items-center justify-between gap-2">
+                <div id="clone-game-source-current-session-footer-left" className="flex flex-wrap items-center gap-2">
+                    <Button
+                        id="clone-game-source-current-session-delete-btn"
+                        type="button"
+                        variant="destructive"
+                        onClick={onDelete}
+                        disabled={deletingCurrentSession}
+                    >
+                        {deletingCurrentSession ? <Loader2 id="clone-game-source-current-session-delete-loading-icon" className="h-4 w-4 animate-spin" /> : null}
+                        {deletingCurrentSession ? t("common.loading") : t("common.delete")}
+                    </Button>
+                    {runCloneSessionError ? (
+                        <p id="clone-game-source-current-session-run-error" className="text-sm text-destructive">
+                            {runCloneSessionError}
+                        </p>
+                    ) : null}
+                </div>
+                <div id="clone-game-source-current-session-footer-right" className="flex flex-wrap items-center gap-2">
+                    <Button
+                        id="clone-game-source-current-session-run-btn"
+                        type="button"
+                        onClick={() => void handleRunCloneSession()}
+                        disabled={!currentSession.session_id || runningCloneSession || deletingCurrentSession}
+                    >
+                        {runningCloneSession ? <Loader2 id="clone-game-source-current-session-run-loading-icon" className="h-4 w-4 animate-spin" /> : null}
+                        {runningCloneSession ? t("common.loading") : t("cloneGame.sourceGameCurrentSessionRun")}
+                    </Button>
+                    <Button id="clone-game-source-current-session-refresh-btn" type="button" variant="outline" onClick={onRetry}>
+                        {t("common.refresh")}
+                    </Button>
+                </div>
             </CardFooter>
         </Card>
     );

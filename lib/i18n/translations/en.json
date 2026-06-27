@@ -439,6 +439,7 @@
     "sourceGameCurrentSessionLoadError": "Failed to load the current clone session.",
     "sourceGameCurrentSessionDeleted": "Current clone session deleted.",
     "sourceGameCurrentSessionDeleteFailed": "Failed to delete the current clone session.",
+    "sourceGameCurrentSessionRun": "Start Clone",
     "sourceGameStartConfirmTitle": "Start clone progress?",
     "sourceGameStartConfirmDesc": "This will start cloning \"{name}\" into \"{target}\".",
     "sourceGameStartConfirmFallback": "Start clone progress for the selected game?",
