@@ -492,7 +492,7 @@ export function CurrentCloneSessionProgressTabs({
                                                 {itemsError}
                                             </div>
                                         ) : (
-                                            <CurrentCloneSessionItemList items={items} t={t} />
+                                            <CurrentCloneSessionItemList items={items} sessionId={currentSession.session_id} t={t} />
                                         )}
                                     </div>
                                 ) : phaseKey === "item_container_definitions" ? (
@@ -604,13 +604,14 @@ export function CurrentCloneSessionProgressTabs({
                                                 {itemContainersError}
                                             </div>
                                         ) : (
-                                            <CurrentCloneSessionItemContainerList itemContainers={itemContainers} t={t} />
+                                            <CurrentCloneSessionItemContainerList itemContainers={itemContainers} sessionId={currentSession.session_id} t={t} />
                                         )}
                                     </div>
                                 ) : phaseKey === "item_tags" || phaseKey === "item_tag_definitions" ? (
                                     <CurrentCloneSessionItemTagsTab
                                         t={t}
                                         itemTags={itemTags}
+                                        sessionId={currentSession.session_id}
                                         itemTagsTotal={itemTagsTotal}
                                         itemTagsOffset={itemTagsOffset}
                                         itemTagsSearchInput={itemTagsSearchInput}
@@ -627,6 +628,7 @@ export function CurrentCloneSessionProgressTabs({
                                     <CurrentCloneSessionQuestsTab
                                         t={t}
                                         quests={quests}
+                                        sessionId={currentSession.session_id}
                                         questsTotal={questsTotal}
                                         questsOffset={questsOffset}
                                         questsSearchInput={questsSearchInput}
@@ -643,6 +645,7 @@ export function CurrentCloneSessionProgressTabs({
                                     <CurrentCloneSessionShopDefinitionsTab
                                         t={t}
                                         shopDefinitions={shopDefinitions}
+                                        sessionId={currentSession.session_id}
                                         shopDefinitionsTotal={shopDefinitionsTotal}
                                         shopDefinitionsOffset={shopDefinitionsOffset}
                                         shopDefinitionsSearchInput={shopDefinitionsSearchInput}

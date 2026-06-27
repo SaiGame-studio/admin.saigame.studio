@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CloneSessionCurrentItemTag } from "@/lib/game-api";
+import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 
 type TranslationFn = (key: string) => string;
 
 type CurrentCloneSessionItemTagsTabProps = {
     t: TranslationFn;
     itemTags: CloneSessionCurrentItemTag[];
+    sessionId?: string;
     itemTagsTotal: number;
     itemTagsOffset: number;
     itemTagsSearchInput: string;
@@ -50,7 +52,11 @@ function getTagColorStyle(color?: string) {
     return { backgroundColor: color };
 }
 
-function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessionCurrentItemTag[]; t: TranslationFn; }) {
+function isIgnored(value: { ignored?: boolean; is_ignored?: boolean }) {
+    return Boolean(value.ignored ?? value.is_ignored);
+}
+
+function CurrentCloneSessionItemTagList({ itemTags, sessionId, t }: { itemTags: CloneSessionCurrentItemTag[]; sessionId?: string; t: TranslationFn; }) {
     if (itemTags.length === 0) {
         return (
             <div id="clone-game-source-current-session-item-tags-empty" className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -75,6 +81,9 @@ function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessio
                         </th>
                         <th id="clone-game-source-current-session-item-tags-table-usage-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionItemTagsUsageLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-item-tags-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
                     </tr>
                 </thead>
@@ -104,6 +113,9 @@ function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessio
                                     {typeof itemTag.item_count === "number" ? itemTag.item_count.toLocaleString("en-US") : t("common.unknown")}
                                 </span>
                             </td>
+                            <td id={`clone-game-source-current-session-item-tag-ignore-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-item-tag-ignore-${itemTag.id}`} sessionId={sessionId} contentType="item_tag" sourceId={itemTag.id} initialIgnored={isIgnored(itemTag)} t={t} />
+                            </td>
                         </tr>
                     ))}
                 </tbody>
@@ -115,6 +127,7 @@ function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessio
 export function CurrentCloneSessionItemTagsTab({
     t,
     itemTags,
+    sessionId,
     itemTagsTotal,
     itemTagsOffset,
     itemTagsSearchInput,
@@ -241,7 +254,7 @@ export function CurrentCloneSessionItemTagsTab({
                     {itemTagsError}
                 </div>
             ) : (
-                <CurrentCloneSessionItemTagList itemTags={itemTags} t={t} />
+                <CurrentCloneSessionItemTagList itemTags={itemTags} sessionId={sessionId} t={t} />
             )}
         </div>
     );

@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition } from "@/lib/game-api";
+import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 
 type TranslationFn = (key: string) => string;
 
@@ -41,7 +42,11 @@ function getContainerTypeBadgeVariant(containerType?: string) {
     return "outline" as const;
 }
 
-export function CurrentCloneSessionItemList({ items, t }: { items: CloneSessionCurrentItemDefinition[]; t: TranslationFn; }) {
+function isIgnored(value: { ignored?: boolean; is_ignored?: boolean }) {
+    return Boolean(value.ignored ?? value.is_ignored);
+}
+
+export function CurrentCloneSessionItemList({ items, sessionId, t }: { items: CloneSessionCurrentItemDefinition[]; sessionId?: string; t: TranslationFn; }) {
     if (items.length === 0) {
         return (
             <div id="clone-game-source-current-session-items-empty" className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -66,6 +71,9 @@ export function CurrentCloneSessionItemList({ items, t }: { items: CloneSessionC
                         </th>
                         <th id="clone-game-source-current-session-items-table-category-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionItemCategoryLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-items-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
                     </tr>
                 </thead>
@@ -92,6 +100,9 @@ export function CurrentCloneSessionItemList({ items, t }: { items: CloneSessionC
                                     {item.category || t("common.unknown")}
                                 </span>
                             </td>
+                            <td id={`clone-game-source-current-session-item-ignore-cell-${item.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-item-ignore-${item.id}`} sessionId={sessionId} contentType="item_definition" sourceId={item.id} initialIgnored={isIgnored(item)} t={t} />
+                            </td>
                         </tr>
                     ))}
                 </tbody>
@@ -100,7 +111,7 @@ export function CurrentCloneSessionItemList({ items, t }: { items: CloneSessionC
     );
 }
 
-export function CurrentCloneSessionItemContainerList({ itemContainers, t }: { itemContainers: CloneSessionCurrentItemContainer[]; t: TranslationFn; }) {
+export function CurrentCloneSessionItemContainerList({ itemContainers, sessionId, t }: { itemContainers: CloneSessionCurrentItemContainer[]; sessionId?: string; t: TranslationFn; }) {
     if (itemContainers.length === 0) {
         return (
             <div id="clone-game-source-current-session-item-containers-empty" className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -131,6 +142,9 @@ export function CurrentCloneSessionItemContainerList({ itemContainers, t }: { it
                         </th>
                         <th id="clone-game-source-current-session-item-containers-table-instanced-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionItemContainerInstancedLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-item-containers-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
                     </tr>
                 </thead>
@@ -166,6 +180,9 @@ export function CurrentCloneSessionItemContainerList({ itemContainers, t }: { it
                                 <span id={`clone-game-source-current-session-item-container-instanced-value-${container.id}`}>
                                     {container.instanced_per_item ? t("common.yes") : t("common.no")}
                                 </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-item-container-ignore-cell-${container.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-item-container-ignore-${container.id}`} sessionId={sessionId} contentType="item_container_definition" sourceId={container.id} initialIgnored={isIgnored(container)} t={t} />
                             </td>
                         </tr>
                     ))}

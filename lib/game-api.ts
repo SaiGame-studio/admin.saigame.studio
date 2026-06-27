@@ -72,6 +72,8 @@ export interface CloneSessionCurrentItemDefinition {
     name: string;
     category?: string;
     rarity?: string;
+    ignored?: boolean;
+    is_ignored?: boolean;
 }
 
 export interface CloneSessionCurrentItemsResponse {
@@ -95,6 +97,8 @@ export interface CloneSessionCurrentItemContainer {
     grid_rows: number;
     is_portable: boolean;
     instanced_per_item: boolean;
+    ignored?: boolean;
+    is_ignored?: boolean;
 }
 
 export interface CloneSessionCurrentItemContainersResponse {
@@ -115,6 +119,8 @@ export interface CloneSessionCurrentItemTag {
     label: string;
     color?: string;
     item_count?: number;
+    ignored?: boolean;
+    is_ignored?: boolean;
 }
 
 export interface CloneSessionCurrentItemTagsResponse {
@@ -129,7 +135,10 @@ export interface CloneSessionCurrentItemTagsResponse {
     tags?: CloneSessionCurrentItemTag[];
 }
 
-export type CloneSessionCurrentQuestDefinition = QuestDefinition;
+export type CloneSessionCurrentQuestDefinition = QuestDefinition & {
+    ignored?: boolean;
+    is_ignored?: boolean;
+};
 
 export interface CloneSessionCurrentShopDefinition {
     id: string;
@@ -140,6 +149,8 @@ export interface CloneSessionCurrentShopDefinition {
     shop_type: string;
     is_active: boolean;
     item_count?: number;
+    ignored?: boolean;
+    is_ignored?: boolean;
     created_at?: string;
     updated_at?: string;
 }
@@ -202,6 +213,13 @@ export interface CloneSessionCurrentShopDefinitionsParams {
     limit?: number;
     offset?: number;
 }
+
+export type CloneSessionIgnoreContentType =
+    | "item_definition"
+    | "item_container_definition"
+    | "item_tag"
+    | "quest_definition"
+    | "shop_definition";
 
 export interface ListCloneableGamesParams {
     targetGameId: string;
@@ -382,6 +400,20 @@ export async function getCurrentCloneSession(gameId: string): Promise<CloneSessi
 
 export async function runCloneSession(sessionId: string): Promise<CloneSessionSnapshot> {
     return await api.post(`/api/v1/game-clone-sessions/${sessionId}/run`, undefined, { suppressToast: true });
+}
+
+export async function ignoreCloneSessionContent(sessionId: string, contentType: CloneSessionIgnoreContentType, sourceId: string): Promise<void> {
+    await api.post(`/api/v1/game-clone-sessions/${sessionId}/ignore`, {
+        content_type: contentType,
+        source_id: sourceId,
+    }, { suppressToast: true });
+}
+
+export async function unignoreCloneSessionContent(sessionId: string, contentType: CloneSessionIgnoreContentType, sourceId: string): Promise<void> {
+    await api.post(`/api/v1/game-clone-sessions/${sessionId}/unignore`, {
+        content_type: contentType,
+        source_id: sourceId,
+    }, { suppressToast: true });
 }
 
 export async function getCurrentCloneSessionItems(gameId: string, params?: CloneSessionCurrentItemsParams): Promise<CloneSessionCurrentItemsResponse> {

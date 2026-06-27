@@ -34,7 +34,7 @@ type CurrentCloneSessionCardProps = {
     currentSessionLoading: boolean;
     currentSessionError: string | null;
     deletingCurrentSession: boolean;
-    onRetry: () => void;
+    onRetry: () => Promise<void>;
     onDelete: () => void;
 };
 
@@ -481,7 +481,7 @@ export function CurrentCloneSessionCard({
 
         try {
             await runCloneSession(currentSession.session_id);
-            onRetry();
+            await onRetry();
         } catch (error) {
             setRunCloneSessionError(getCloneSessionErrorMessage(error, t));
         } finally {
@@ -531,7 +531,7 @@ export function CurrentCloneSessionCard({
                     <CardDescription id="clone-game-source-current-session-error-description">{currentSessionError}</CardDescription>
                 </CardHeader>
                 <CardFooter id="clone-game-source-current-session-error-footer" className="flex flex-wrap gap-2">
-                    <Button id="clone-game-source-current-session-error-retry-btn" type="button" variant="outline" onClick={onRetry}>
+                    <Button id="clone-game-source-current-session-error-retry-btn" type="button" variant="outline" onClick={() => void onRetry()}>
                         {t("common.retry")}
                     </Button>
                 </CardFooter>
@@ -690,7 +690,7 @@ export function CurrentCloneSessionCard({
                         {runningCloneSession ? <Loader2 id="clone-game-source-current-session-run-loading-icon" className="h-4 w-4 animate-spin" /> : null}
                         {runningCloneSession ? t("common.loading") : t("cloneGame.sourceGameCurrentSessionRun")}
                     </Button>
-                    <Button id="clone-game-source-current-session-refresh-btn" type="button" variant="outline" onClick={onRetry}>
+                    <Button id="clone-game-source-current-session-refresh-btn" type="button" variant="outline" onClick={() => void onRetry()}>
                         {t("common.refresh")}
                     </Button>
                 </div>

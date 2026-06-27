@@ -239,9 +239,8 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         setOffset(0);
     };
 
-    const handleRefresh = () => {
-        void loadGames(offset, searchInput);
-        void loadCurrentSession();
+    const handleRefresh = async () => {
+        await Promise.all([loadGames(offset, searchInput), loadCurrentSession()]);
     };
 
     const handleLoadMore = () => {
@@ -528,7 +527,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                             type="button"
                             variant="outline"
                             size="icon"
-                            onClick={handleRefresh}
+                            onClick={() => void handleRefresh()}
                             disabled={loading}
                             aria-label={t("common.refresh")}
                             title={t("common.refresh")}
@@ -563,7 +562,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                         <CardDescription id="clone-game-source-error-description">{error}</CardDescription>
                     </CardHeader>
                     <CardFooter id="clone-game-source-error-footer" className="flex flex-wrap gap-2">
-                        <Button id="clone-game-source-error-retry-btn" variant="outline" onClick={handleRefresh}>
+                        <Button id="clone-game-source-error-retry-btn" variant="outline" onClick={() => void handleRefresh()}>
                             {t("common.retry")}
                         </Button>
                     </CardFooter>

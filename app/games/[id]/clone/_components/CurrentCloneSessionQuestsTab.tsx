@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CloneSessionCurrentQuestDefinition } from "@/lib/game-api";
+import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 
 type TranslationFn = (key: string) => string;
 
 type CurrentCloneSessionQuestsTabProps = {
     t: TranslationFn;
     quests: CloneSessionCurrentQuestDefinition[];
+    sessionId?: string;
     questsTotal: number;
     questsOffset: number;
     questsSearchInput: string;
@@ -61,7 +63,11 @@ function getQuestTypeBadgeVariant(questType?: string) {
     return "outline" as const;
 }
 
-function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurrentQuestDefinition[]; t: TranslationFn; }) {
+function isIgnored(value: CloneSessionCurrentQuestDefinition) {
+    return Boolean(value.ignored ?? value.is_ignored);
+}
+
+function CurrentCloneSessionQuestList({ quests, sessionId, t }: { quests: CloneSessionCurrentQuestDefinition[]; sessionId?: string; t: TranslationFn; }) {
     if (quests.length === 0) {
         return (
             <div id="clone-game-source-current-session-quests-empty" className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -95,6 +101,9 @@ function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurre
                         </th>
                         <th id="clone-game-source-current-session-quests-table-description-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionQuestDescriptionLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-quests-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
                     </tr>
                 </thead>
@@ -136,6 +145,9 @@ function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurre
                                     {quest.description || t("common.unknown")}
                                 </span>
                             </td>
+                            <td id={`clone-game-source-current-session-quest-ignore-cell-${quest.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-quest-ignore-${quest.id}`} sessionId={sessionId} contentType="quest_definition" sourceId={quest.id} initialIgnored={isIgnored(quest)} t={t} />
+                            </td>
                         </tr>
                     ))}
                 </tbody>
@@ -147,6 +159,7 @@ function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurre
 export function CurrentCloneSessionQuestsTab({
     t,
     quests,
+    sessionId,
     questsTotal,
     questsOffset,
     questsSearchInput,
@@ -276,7 +289,7 @@ export function CurrentCloneSessionQuestsTab({
                     {questsError}
                 </div>
             ) : (
-                <CurrentCloneSessionQuestList quests={quests} t={t} />
+                <CurrentCloneSessionQuestList quests={quests} sessionId={sessionId} t={t} />
             )}
         </div>
     );

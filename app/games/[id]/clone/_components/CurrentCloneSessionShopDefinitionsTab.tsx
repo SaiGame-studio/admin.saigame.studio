@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CloneSessionCurrentShopDefinition } from "@/lib/game-api";
+import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 
 type TranslationFn = (key: string) => string;
 
 type CurrentCloneSessionShopDefinitionsTabProps = {
     t: TranslationFn;
     shopDefinitions: CloneSessionCurrentShopDefinition[];
+    sessionId?: string;
     shopDefinitionsTotal: number;
     shopDefinitionsOffset: number;
     shopDefinitionsSearchInput: string;
@@ -57,11 +59,17 @@ function getShopTypeBadgeVariant(shopType?: string) {
     return "outline" as const;
 }
 
+function isIgnored(value: { ignored?: boolean; is_ignored?: boolean }) {
+    return Boolean(value.ignored ?? value.is_ignored);
+}
+
 function CurrentCloneSessionShopDefinitionList({
     shopDefinitions,
+    sessionId,
     t,
 }: {
     shopDefinitions: CloneSessionCurrentShopDefinition[];
+    sessionId?: string;
     t: TranslationFn;
 }) {
     if (shopDefinitions.length === 0) {
@@ -94,6 +102,9 @@ function CurrentCloneSessionShopDefinitionList({
                         </th>
                         <th id="clone-game-source-current-session-shop-definitions-table-description-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionShopDescriptionLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-shop-definitions-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
                     </tr>
                 </thead>
@@ -130,6 +141,9 @@ function CurrentCloneSessionShopDefinitionList({
                                     {shop.description || t("common.unknown")}
                                 </span>
                             </td>
+                            <td id={`clone-game-source-current-session-shop-definition-ignore-cell-${shop.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-shop-definition-ignore-${shop.id}`} sessionId={sessionId} contentType="shop_definition" sourceId={shop.id} initialIgnored={isIgnored(shop)} t={t} />
+                            </td>
                         </tr>
                     ))}
                 </tbody>
@@ -141,6 +155,7 @@ function CurrentCloneSessionShopDefinitionList({
 export function CurrentCloneSessionShopDefinitionsTab({
     t,
     shopDefinitions,
+    sessionId,
     shopDefinitionsTotal,
     shopDefinitionsOffset,
     shopDefinitionsSearchInput,
@@ -269,7 +284,7 @@ export function CurrentCloneSessionShopDefinitionsTab({
                     {shopDefinitionsError}
                 </div>
             ) : (
-                <CurrentCloneSessionShopDefinitionList shopDefinitions={shopDefinitions} t={t} />
+                <CurrentCloneSessionShopDefinitionList shopDefinitions={shopDefinitions} sessionId={sessionId} t={t} />
             )}
         </div>
     );

@@ -490,6 +490,7 @@
       "sourceGameCurrentSessionShopStatusLabel": "Status",
       "sourceGameCurrentSessionShopItemsLabel": "Items",
       "sourceGameCurrentSessionShopDescriptionLabel": "Description",
+      "sourceGameCurrentSessionIgnoreLabel": "Ignore",
       "sourceGameCurrentSessionConflictsLabel": "Conflicts",
       "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
       "sourceGameCurrentSessionWarningsLabel": "Warnings",
