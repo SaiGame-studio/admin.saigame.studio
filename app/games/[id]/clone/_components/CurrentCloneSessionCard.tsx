@@ -21,6 +21,7 @@ import {
     type CloneSessionSnapshot,
 } from "@/lib/game-api";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
+import { getConflictProgressTab, getConflictSearchId, normalizeProgressTab } from "./cloneSessionConflictNavigation";
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
 
 type TranslationFn = (key: string) => string;
@@ -98,21 +99,6 @@ function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
     }
 
     return rawMessage || t("common.error");
-}
-
-function getConflictProgressTab(conflict: CloneSessionConflict) {
-    const hint = `${conflict.phase ?? ""} ${conflict.definition_type ?? ""} ${conflict.field ?? ""}`.toLowerCase();
-    if (hint.includes("container")) return "item_container_definitions";
-    if (hint.includes("tag")) return "item_tags";
-    if (hint.includes("quest")) return "quest_definitions";
-    if (hint.includes("shop")) return "shop_definitions";
-    return "item_definitions";
-}
-
-function normalizeProgressTab(tab: string, entries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>) {
-    if (entries.some(([phaseKey]) => phaseKey === tab)) return tab;
-    if (tab === "item_tags" && entries.some(([phaseKey]) => phaseKey === "item_tag_definitions")) return "item_tag_definitions";
-    return entries[0]?.[0] ?? tab;
 }
 
 function CurrentCloneSessionLoadingCard() {
@@ -217,6 +203,7 @@ export function CurrentCloneSessionCard({
     const [itemsTotal, setItemsTotal] = useState(0);
     const [itemsOffset, setItemsOffset] = useState(0);
     const [itemsSearchInput, setItemsSearchInput] = useState("");
+    const [itemsSearchId, setItemsSearchId] = useState("");
     const [itemsSearchName, setItemsSearchName] = useState("");
     const [itemsLoading, setItemsLoading] = useState(false);
     const [itemsError, setItemsError] = useState<string | null>(null);
@@ -224,6 +211,7 @@ export function CurrentCloneSessionCard({
     const [itemContainersTotal, setItemContainersTotal] = useState(0);
     const [itemContainersOffset, setItemContainersOffset] = useState(0);
     const [itemContainersSearchInput, setItemContainersSearchInput] = useState("");
+    const [itemContainersSearchId, setItemContainersSearchId] = useState("");
     const [itemContainersSearchName, setItemContainersSearchName] = useState("");
     const [itemContainersLoading, setItemContainersLoading] = useState(false);
     const [itemContainersError, setItemContainersError] = useState<string | null>(null);
@@ -231,6 +219,7 @@ export function CurrentCloneSessionCard({
     const [itemTagsTotal, setItemTagsTotal] = useState(0);
     const [itemTagsOffset, setItemTagsOffset] = useState(0);
     const [itemTagsSearchInput, setItemTagsSearchInput] = useState("");
+    const [itemTagsSearchId, setItemTagsSearchId] = useState("");
     const [itemTagsSearchName, setItemTagsSearchName] = useState("");
     const [itemTagsLoading, setItemTagsLoading] = useState(false);
     const [itemTagsError, setItemTagsError] = useState<string | null>(null);
@@ -276,7 +265,8 @@ export function CurrentCloneSessionCard({
 
             try {
                 const response = await getCurrentCloneSessionItems(targetGameId, {
-                    name: itemsSearchName || undefined,
+                    id: itemsSearchId || undefined,
+                    name: itemsSearchId ? undefined : itemsSearchName || undefined,
                     limit: ITEMS_PAGE_SIZE,
                     offset: itemsOffset,
                 });
@@ -307,7 +297,7 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, itemsOffset, itemsSearchName, targetGameId, t]);
+    }, [activeProgressTab, currentSession, itemsOffset, itemsSearchId, itemsSearchName, targetGameId, t]);
 
     useEffect(() => {
         if (!currentSession || activeProgressTab !== "item_container_definitions") {
@@ -322,7 +312,8 @@ export function CurrentCloneSessionCard({
 
             try {
                 const response = await getCurrentCloneSessionItemContainers(targetGameId, {
-                    name: itemContainersSearchName || undefined,
+                    id: itemContainersSearchId || undefined,
+                    name: itemContainersSearchId ? undefined : itemContainersSearchName || undefined,
                     limit: ITEMS_PAGE_SIZE,
                     offset: itemContainersOffset,
                 });
@@ -353,7 +344,7 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, itemContainersOffset, itemContainersSearchName, targetGameId, t]);
+    }, [activeProgressTab, currentSession, itemContainersOffset, itemContainersSearchId, itemContainersSearchName, targetGameId, t]);
 
     useEffect(() => {
         if (!currentSession || !isItemTagsTab) {
@@ -368,7 +359,8 @@ export function CurrentCloneSessionCard({
 
             try {
                 const response = await getCurrentCloneSessionItemTags(targetGameId, {
-                    name: itemTagsSearchName || undefined,
+                    id: itemTagsSearchId || undefined,
+                    name: itemTagsSearchId ? undefined : itemTagsSearchName || undefined,
                     limit: ITEMS_PAGE_SIZE,
                     offset: itemTagsOffset,
                 });
@@ -404,7 +396,7 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, itemTagsOffset, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
+    }, [activeProgressTab, currentSession, itemTagsOffset, itemTagsSearchId, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
 
     const {
         questsState,
@@ -419,11 +411,13 @@ export function CurrentCloneSessionCard({
 
     const handleSearchItems = () => {
         setItemsOffset(0);
+        setItemsSearchId("");
         setItemsSearchName(itemsSearchInput.trim());
     };
 
     const handleClearItemsSearch = () => {
         setItemsSearchInput("");
+        setItemsSearchId("");
         setItemsSearchName("");
         setItemsOffset(0);
     };
@@ -435,14 +429,15 @@ export function CurrentCloneSessionCard({
     const handleNextItemsPage = () => {
         setItemsOffset((current) => current + ITEMS_PAGE_SIZE);
     };
-
     const handleSearchItemContainers = () => {
         setItemContainersOffset(0);
+        setItemContainersSearchId("");
         setItemContainersSearchName(itemContainersSearchInput.trim());
     };
 
     const handleClearItemContainersSearch = () => {
         setItemContainersSearchInput("");
+        setItemContainersSearchId("");
         setItemContainersSearchName("");
         setItemContainersOffset(0);
     };
@@ -457,11 +452,13 @@ export function CurrentCloneSessionCard({
 
     const handleSearchItemTags = () => {
         setItemTagsOffset(0);
+        setItemTagsSearchId("");
         setItemTagsSearchName(itemTagsSearchInput.trim());
     };
 
     const handleClearItemTagsSearch = () => {
         setItemTagsSearchInput("");
+        setItemTagsSearchId("");
         setItemTagsSearchName("");
         setItemTagsOffset(0);
     };
@@ -494,22 +491,26 @@ export function CurrentCloneSessionCard({
 
     const handleConflictClick = (conflict: CloneSessionConflict) => {
         const nextTab = normalizeProgressTab(getConflictProgressTab(conflict), currentSessionProgressEntries);
-        const searchValue = (conflict.target_definition_id || conflict.value || "").trim();
+        const searchValue = getConflictSearchId(conflict, nextTab);
         const nextParams = new URLSearchParams(searchParams.toString());
         nextParams.set("subTab", nextTab);
         router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
-        if (!searchValue) return;
+        if (!searchValue) return setRunCloneSessionError(t("cloneGame.sourceGameCurrentSessionConflictMissingItemDefinitionId"));
+        setRunCloneSessionError(null);
         if (nextTab === "item_definitions") {
             setItemsSearchInput(searchValue);
-            setItemsSearchName(searchValue);
+            setItemsSearchId(searchValue);
+            setItemsSearchName("");
             setItemsOffset(0);
         } else if (nextTab === "item_container_definitions") {
             setItemContainersSearchInput(searchValue);
-            setItemContainersSearchName(searchValue);
+            setItemContainersSearchId(searchValue);
+            setItemContainersSearchName("");
             setItemContainersOffset(0);
         } else if (nextTab === "item_tags" || nextTab === "item_tag_definitions") {
             setItemTagsSearchInput(searchValue);
-            setItemTagsSearchName(searchValue);
+            setItemTagsSearchId(searchValue);
+            setItemTagsSearchName("");
             setItemTagsOffset(0);
         } else if (nextTab === "quest_definitions") {
             questsState.onApplySearchValue(searchValue);

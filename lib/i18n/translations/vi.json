@@ -491,6 +491,7 @@
     "sourceGameCurrentSessionShopItemsLabel": "Vật phẩm",
     "sourceGameCurrentSessionShopDescriptionLabel": "Mô tả",
     "sourceGameCurrentSessionConflictsLabel": "Xung đột",
+    "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict thiếu source_item_definitions_id.",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },

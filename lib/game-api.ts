@@ -32,6 +32,7 @@ export interface CloneSessionWarning {
 export interface CloneSessionConflict {
     field?: string;
     value?: string;
+    source_item_definitions_id?: string;
     target_definition_id?: string;
     phase?: string;
     definition_type?: string;
@@ -168,30 +169,35 @@ export interface CloneSessionCurrentShopDefinitionsResponse {
 }
 
 export interface CloneSessionCurrentItemsParams {
+    id?: string;
     name?: string;
     limit?: number;
     offset?: number;
 }
 
 export interface CloneSessionCurrentItemContainersParams {
+    id?: string;
     name?: string;
     limit?: number;
     offset?: number;
 }
 
 export interface CloneSessionCurrentItemTagsParams {
+    id?: string;
     name?: string;
     limit?: number;
     offset?: number;
 }
 
 export interface CloneSessionCurrentQuestsParams {
+    id?: string;
     name?: string;
     limit?: number;
     offset?: number;
 }
 
 export interface CloneSessionCurrentShopDefinitionsParams {
+    id?: string;
     name?: string;
     limit?: number;
     offset?: number;
@@ -381,6 +387,10 @@ export async function runCloneSession(sessionId: string): Promise<CloneSessionSn
 export async function getCurrentCloneSessionItems(gameId: string, params?: CloneSessionCurrentItemsParams): Promise<CloneSessionCurrentItemsResponse> {
     const searchParams = new URLSearchParams();
 
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
     if (params?.name) {
         searchParams.set("name", params.name);
     }
@@ -399,6 +409,10 @@ export async function getCurrentCloneSessionItems(gameId: string, params?: Clone
 
 export async function getCurrentCloneSessionItemContainers(gameId: string, params?: CloneSessionCurrentItemContainersParams): Promise<CloneSessionCurrentItemContainersResponse> {
     const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
 
     if (params?.name) {
         searchParams.set("name", params.name);
@@ -419,6 +433,10 @@ export async function getCurrentCloneSessionItemContainers(gameId: string, param
 export async function getCurrentCloneSessionItemTags(gameId: string, params?: CloneSessionCurrentItemTagsParams): Promise<CloneSessionCurrentItemTagsResponse> {
     const searchParams = new URLSearchParams();
 
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
     if (params?.name) {
         searchParams.set("name", params.name);
     }
@@ -438,6 +456,10 @@ export async function getCurrentCloneSessionItemTags(gameId: string, params?: Cl
 export async function getCurrentCloneSessionQuests(gameId: string, params?: CloneSessionCurrentQuestsParams): Promise<CloneSessionCurrentQuestsResponse> {
     const searchParams = new URLSearchParams();
 
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
     if (params?.name) {
         searchParams.set("name", params.name);
     }
@@ -456,6 +478,10 @@ export async function getCurrentCloneSessionQuests(gameId: string, params?: Clon
 
 export async function getCurrentCloneSessionShopDefinitions(gameId: string, params?: CloneSessionCurrentShopDefinitionsParams): Promise<CloneSessionCurrentShopDefinitionsResponse> {
     const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
 
     if (params?.name) {
         searchParams.set("name", params.name);

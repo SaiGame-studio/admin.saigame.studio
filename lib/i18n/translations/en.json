@@ -491,6 +491,7 @@
       "sourceGameCurrentSessionShopItemsLabel": "Items",
       "sourceGameCurrentSessionShopDescriptionLabel": "Description",
       "sourceGameCurrentSessionConflictsLabel": "Conflicts",
+      "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
       "sourceGameCurrentSessionWarningsLabel": "Warnings",
       "sourceGameCurrentSessionProgressLabel": "Progress"
     },

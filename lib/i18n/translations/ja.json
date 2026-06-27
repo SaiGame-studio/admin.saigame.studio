@@ -491,6 +491,7 @@
     "sourceGameCurrentSessionShopItemsLabel": "アイテム",
     "sourceGameCurrentSessionShopDescriptionLabel": "説明",
     "sourceGameCurrentSessionConflictsLabel": "競合",
+    "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "sourceGameCurrentSessionProgressLabel": "進捗"
   },

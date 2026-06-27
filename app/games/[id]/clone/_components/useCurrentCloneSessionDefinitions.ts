@@ -16,6 +16,7 @@ type CloneSessionPagedState<TItem> = {
     total: number;
     offset: number;
     searchInput: string;
+    searchId: string;
     searchName: string;
     loading: boolean;
     error: string | null;
@@ -40,6 +41,7 @@ function useCloneSessionPagedState<TItem>() {
     const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
     const [searchInput, setSearchInput] = useState("");
+    const [searchId, setSearchId] = useState("");
     const [searchName, setSearchName] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,8 @@ function useCloneSessionPagedState<TItem>() {
         setOffset,
         searchInput,
         setSearchInput,
+        searchId,
+        setSearchId,
         searchName,
         setSearchName,
         loading,
@@ -68,6 +72,7 @@ function toPagedResult<TItem>(state: ReturnType<typeof useCloneSessionPagedState
         total: state.total,
         offset: state.offset,
         searchInput: state.searchInput,
+        searchId: state.searchId,
         searchName: state.searchName,
         loading: state.loading,
         error: state.error,
@@ -75,15 +80,18 @@ function toPagedResult<TItem>(state: ReturnType<typeof useCloneSessionPagedState
         onApplySearchValue: (value: string) => {
             const nextValue = value.trim();
             state.setSearchInput(nextValue);
-            state.setSearchName(nextValue);
+            state.setSearchId(nextValue);
+            state.setSearchName("");
             state.setOffset(0);
         },
         onSearch: () => {
             state.setOffset(0);
+            state.setSearchId("");
             state.setSearchName(state.searchInput.trim());
         },
         onClearSearch: () => {
             state.setSearchInput("");
+            state.setSearchId("");
             state.setSearchName("");
             state.setOffset(0);
         },
@@ -119,7 +127,8 @@ export function useCurrentCloneSessionDefinitions({
 
             try {
                 const response = await getCurrentCloneSessionQuests(targetGameId, {
-                    name: questsState.searchName || undefined,
+                    id: questsState.searchId || undefined,
+                    name: questsState.searchId ? undefined : questsState.searchName || undefined,
                     limit: CLONE_SESSION_PAGE_SIZE,
                     offset: questsState.offset,
                 });
@@ -156,7 +165,7 @@ export function useCurrentCloneSessionDefinitions({
         return () => {
             cancelled = true;
         };
-    }, [currentSession, formatError, isQuestDefinitionsTab, questsState.offset, questsState.searchName, targetGameId]);
+    }, [currentSession, formatError, isQuestDefinitionsTab, questsState.offset, questsState.searchId, questsState.searchName, targetGameId]);
 
     useEffect(() => {
         if (!currentSession || !isShopDefinitionsTab) {
@@ -171,7 +180,8 @@ export function useCurrentCloneSessionDefinitions({
 
             try {
                 const response = await getCurrentCloneSessionShopDefinitions(targetGameId, {
-                    name: shopDefinitionsState.searchName || undefined,
+                    id: shopDefinitionsState.searchId || undefined,
+                    name: shopDefinitionsState.searchId ? undefined : shopDefinitionsState.searchName || undefined,
                     limit: CLONE_SESSION_PAGE_SIZE,
                     offset: shopDefinitionsState.offset,
                 });
@@ -208,7 +218,7 @@ export function useCurrentCloneSessionDefinitions({
         return () => {
             cancelled = true;
         };
-    }, [currentSession, formatError, isShopDefinitionsTab, shopDefinitionsState.offset, shopDefinitionsState.searchName, targetGameId]);
+    }, [currentSession, formatError, isShopDefinitionsTab, shopDefinitionsState.offset, shopDefinitionsState.searchId, shopDefinitionsState.searchName, targetGameId]);
 
     return {
         questsState: toPagedResult(questsState),
