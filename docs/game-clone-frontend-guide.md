@@ -38,6 +38,7 @@ Recommended UI screens:
 Game visibility and clone pricing are driven by the source game payload:
 - `share_level` tells the UI whether the game is `private`, `protected`, or `public`
 - `clone_cost` is the clone price displayed for `public` games
+- `is_purchased` tells the UI whether the current user has already purchased a public clone source
 
 Current backend behavior:
 - `protected` games are cloneable only inside the same studio
@@ -66,13 +67,16 @@ The create route is game-scoped. The other routes use the session ID directly.
 
 ### Request
 
-`GET /api/v1/games/{game_id}/cloneable?name={optional}&game_id={optional}&limit={optional}&offset={optional}`
+`GET /api/v1/games/{game_id}/cloneable?name={optional}&game_id={optional}&limit={optional}&offset={optional}&same_studio={optional}&is_my_game={optional}&is_purchased={optional}`
 
 Query parameters:
 - `name` is an optional partial search on game name
 - `game_id` is an optional exact source-game filter
 - `limit` and `offset` are optional pagination parameters
 - `limit` defaults to `100` and is capped at `100`
+- `same_studio` is an optional boolean filter
+- `is_my_game` is an optional boolean filter
+- `is_purchased` is an optional boolean filter
 
 The list includes:
 - public games from any studio
@@ -95,6 +99,9 @@ Example:
       "is_active": true,
       "share_level": "public",
       "clone_cost": 7,
+      "same_studio": false,
+      "is_my_game": false,
+      "is_purchased": true,
       "is_cloned_game": false,
       "limits": {
         "max_items": 1000,

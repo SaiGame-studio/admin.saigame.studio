@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Building2, ExternalLink, Loader2, RefreshCw, Search, User, X } from "lucide-react";
+import { Loader2, RefreshCw, Search, X } from "lucide-react";
 import { CopyButton } from "@/components/CopyButton";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api-client";
 import { api } from "@/lib/api-client";
 import { createCloneSession, deleteCurrentCloneSession, getCurrentCloneSession, listCloneableGames, type CloneSessionSnapshot } from "@/lib/game-api";
@@ -19,6 +18,8 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Game } from "@/types/game";
 import { useToast } from "@/hooks/use-toast";
 import { CurrentCloneSessionCard } from "./CurrentCloneSessionCard";
+import { SourceGameFilters } from "./SourceGameFilters";
+import { SourceGameIndicators } from "./SourceGameIndicators";
 
 const PAGE_SIZE = 12;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -90,73 +91,6 @@ function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
     return rawMessage || t("common.error");
 }
 
-type SourceGameIndicatorsProps = {
-    game: Game;
-    compact?: boolean;
-};
-
-function SourceGameIndicators({ game, compact = false }: SourceGameIndicatorsProps) {
-    const { t } = useTranslation();
-
-    if (!game.same_studio && !game.is_my_game) {
-        return null;
-    }
-
-    const iconClassName = compact ? "h-3.5 w-3.5" : "h-4 w-4";
-
-    return (
-        <TooltipProvider delayDuration={150}>
-            <div
-                id={`clone-game-source-indicators-${game.id}`}
-                className={`flex flex-wrap items-center gap-2 text-muted-foreground ${compact ? "text-xs" : "text-sm"}`}
-            >
-                {game.same_studio ? (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span
-                                id={`clone-game-source-indicator-same-studio-${game.id}`}
-                                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-2 py-1"
-                            >
-                                <Building2
-                                    id={`clone-game-source-indicator-same-studio-icon-${game.id}`}
-                                    className={iconClassName}
-                                />
-                                <span id={`clone-game-source-indicator-same-studio-label-${game.id}`}>
-                                    {t("cloneGame.sourceGameSameStudio")}
-                                </span>
-                            </span>
-                        </TooltipTrigger>
-                        <TooltipContent id={`clone-game-source-indicator-same-studio-tooltip-${game.id}`} side="top">
-                            {t("cloneGame.sourceGameSameStudioTooltip")}
-                        </TooltipContent>
-                    </Tooltip>
-                ) : null}
-                {game.is_my_game ? (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span
-                                id={`clone-game-source-indicator-my-game-${game.id}`}
-                                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-2 py-1"
-                            >
-                                <User
-                                    id={`clone-game-source-indicator-my-game-icon-${game.id}`}
-                                    className={iconClassName}
-                                />
-                                <span id={`clone-game-source-indicator-my-game-label-${game.id}`}>
-                                    {t("cloneGame.sourceGameMyGame")}
-                                </span>
-                            </span>
-                        </TooltipTrigger>
-                        <TooltipContent id={`clone-game-source-indicator-my-game-tooltip-${game.id}`} side="top">
-                            {t("cloneGame.sourceGameMyGameTooltip")}
-                        </TooltipContent>
-                    </Tooltip>
-                ) : null}
-            </div>
-        </TooltipProvider>
-    );
-}
-
 export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabProps) {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -175,6 +109,9 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [cloneSessionId, setCloneSessionId] = useState<string | null>(null);
     const [cloneSessionError, setCloneSessionError] = useState<string | null>(null);
     const [sgemBalance, setSgemBalance] = useState<number | null>(null);
+    const [sameStudioFilter, setSameStudioFilter] = useState(false);
+    const [myGamesFilter, setMyGamesFilter] = useState(false);
+    const [isPurchasedFilter, setIsPurchasedFilter] = useState(false);
     const [startConfirmOpen, setStartConfirmOpen] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const requestSeqRef = useRef(0);
@@ -200,6 +137,9 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                     offset: nextOffset,
                     name: isUuidLookup ? undefined : query || undefined,
                     gameId: isUuidLookup ? query : undefined,
+                    sameStudio: sameStudioFilter ? true : undefined,
+                    isMyGame: myGamesFilter ? true : undefined,
+                    isPurchased: isPurchasedFilter ? true : undefined,
                 });
 
                 if (requestId !== requestSeqRef.current) {
@@ -226,7 +166,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                 setLoading(false);
             }
         },
-        [targetGameId, t],
+        [targetGameId, t, sameStudioFilter, myGamesFilter, isPurchasedFilter],
     );
 
     const loadSgemWallet = useCallback(async () => {
@@ -301,6 +241,21 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
 
     const handleLoadMore = () => {
         setOffset((current) => current + PAGE_SIZE);
+    };
+
+    const handleSameStudioFilterChange = (value: boolean) => {
+        setSameStudioFilter(value);
+        setOffset(0);
+    };
+
+    const handleMyGamesFilterChange = (value: boolean) => {
+        setMyGamesFilter(value);
+        setOffset(0);
+    };
+
+    const handleIsPurchasedFilterChange = (value: boolean) => {
+        setIsPurchasedFilter(value);
+        setOffset(0);
     };
 
     const handleStartCloneProgress = async () => {
@@ -480,7 +435,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                     {getVisibilityLabel(selectedGame, t)}
                                 </Badge>
                             </div>
-                            <SourceGameIndicators game={selectedGame} compact />
                             {getVisibilityPriceLabel(selectedGame, t) ? (
                                 <p id="clone-game-source-selected-price" className="text-xs text-muted-foreground">
                                     {getVisibilityPriceLabel(selectedGame, t)}
@@ -501,8 +455,11 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent id="clone-game-source-selected-content" className="text-sm text-muted-foreground">
-                        {selectedGame.description || t("cloneGame.sourceGameNoDescription")}
+                    <CardContent id="clone-game-source-selected-content" className="space-y-2 text-sm text-muted-foreground">
+                        <p id="clone-game-source-selected-description">
+                            {selectedGame.description || t("cloneGame.sourceGameNoDescription")}
+                        </p>
+                        <SourceGameIndicators game={selectedGame} scope="selected" compact />
                     </CardContent>
                     {cloneSessionError ? (
                         <div id="clone-game-source-selected-error" className="px-6 pb-2 text-sm text-destructive">
@@ -553,6 +510,14 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                 </Button>
                             ) : null}
                         </div>
+                        <SourceGameFilters
+                            sameStudio={sameStudioFilter}
+                            myGames={myGamesFilter}
+                            isPurchased={isPurchasedFilter}
+                            onSameStudioChange={handleSameStudioFilterChange}
+                            onMyGamesChange={handleMyGamesFilterChange}
+                            onIsPurchasedChange={handleIsPurchasedFilterChange}
+                        />
                         <Button
                             id="clone-game-source-refresh-btn"
                             type="button"
@@ -637,19 +602,15 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                         <div id={`clone-game-source-card-title-row-${game.id}`} className="flex items-start gap-3">
                                             <div id={`clone-game-source-card-title-copy-${game.id}`} className="min-w-0 space-y-1">
                                                 <CardTitle id={`clone-game-source-card-title-${game.id}`} className="text-base">
-                                                    <Link id={`clone-game-source-card-link-${game.id}`} href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary">
-                                                        <span id={`clone-game-source-card-name-${game.id}`} className="truncate">
-                                                            {game.name}
-                                                        </span>
-                                                        <ExternalLink id={`clone-game-source-card-link-icon-${game.id}`} className="h-4 w-4 shrink-0" />
-                                                    </Link>
+                                                    <span id={`clone-game-source-card-name-${game.id}`} className="block truncate">
+                                                        {game.name}
+                                                    </span>
                                                 </CardTitle>
                                                 {isCurrentGame ? (
                                                     <Badge id={`clone-game-source-card-current-badge-${game.id}`} variant="outline">
                                                         {t("cloneGame.sourceGameYourGame")}
                                                     </Badge>
                                                 ) : null}
-                                                <SourceGameIndicators game={game} compact />
                                             </div>
                                         </div>
                                         <div id={`clone-game-source-card-id-row-${game.id}`} className="flex flex-wrap items-center gap-1 text-xs font-mono text-muted-foreground">
@@ -670,6 +631,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                         <p id={`clone-game-source-card-description-${game.id}`} className="line-clamp-3 text-sm text-muted-foreground">
                                             {game.description || t("cloneGame.sourceGameNoDescription")}
                                         </p>
+                                        <SourceGameIndicators game={game} scope="card" compact />
                                         {Array.isArray(game.tags) && game.tags.length > 0 ? (
                                             <div id={`clone-game-source-card-tags-${game.id}`} className="flex flex-wrap gap-1.5">
                                                 {game.tags.slice(0, 4).map((tag) => (

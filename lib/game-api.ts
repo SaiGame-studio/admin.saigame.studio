@@ -192,6 +192,9 @@ export interface ListCloneableGamesParams {
     name?: string;
     gameId?: string;
     offset?: number;
+    sameStudio?: boolean;
+    isMyGame?: boolean;
+    isPurchased?: boolean;
 }
 // Get all games for a specific studio
 export async function getStudioGames(studioId: string, limit: number = 50, offset: number = 0): Promise<Game[]> {
@@ -263,6 +266,18 @@ export async function listCloneableGames(params: ListCloneableGamesParams): Prom
 
     if (params.gameId) {
         searchParams.set("game_id", params.gameId);
+    }
+
+    if (typeof params.sameStudio === "boolean") {
+        searchParams.set("same_studio", String(params.sameStudio));
+    }
+
+    if (typeof params.isMyGame === "boolean") {
+        searchParams.set("is_my_game", String(params.isMyGame));
+    }
+
+    if (typeof params.isPurchased === "boolean") {
+        searchParams.set("is_purchased", String(params.isPurchased));
     }
 
     const data = await api.get(`/api/v1/games/${params.targetGameId}/cloneable?${searchParams.toString()}`);

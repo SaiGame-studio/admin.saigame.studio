@@ -40,6 +40,7 @@ export interface Game {
     is_cloned_game?: boolean;
     same_studio?: boolean;
     is_my_game?: boolean;
+    is_purchased?: boolean;
     tags?: string[];
     config: {
         max_players: number;
