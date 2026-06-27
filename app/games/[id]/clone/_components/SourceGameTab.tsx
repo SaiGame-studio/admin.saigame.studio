@@ -106,7 +106,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [deletingCurrentSession, setDeletingCurrentSession] = useState(false);
     const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
     const [startingClone, setStartingClone] = useState(false);
-    const [cloneSessionId, setCloneSessionId] = useState<string | null>(null);
     const [cloneSessionError, setCloneSessionError] = useState<string | null>(null);
     const [sgemBalance, setSgemBalance] = useState<number | null>(null);
     const [sameStudioFilter, setSameStudioFilter] = useState(false);
@@ -230,7 +229,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     }, [loadSgemWallet]);
 
     useEffect(() => {
-        setCloneSessionId(null);
         setCloneSessionError(null);
     }, [selectedGameId]);
 
@@ -271,8 +269,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         setCloneSessionError(null);
 
         try {
-            const response = await createCloneSession(targetGameId, selectedGame.id, `${selectedGame.name} -> ${targetGameName}`);
-            setCloneSessionId(response.session_id ?? null);
+            await createCloneSession(targetGameId, selectedGame.id, `${selectedGame.name} -> ${targetGameName}`);
             void loadCurrentSession();
             toast({
                 title: t("common.saved"),
@@ -300,7 +297,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         setDeletingCurrentSession(true);
         try {
             await deleteCurrentCloneSession(targetGameId);
-            setCloneSessionId(null);
             await loadCurrentSession();
             toast({
                 title: t("common.deleted"),
@@ -400,85 +396,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-
-            {!hasCurrentCloneSession && selectedGame ? (
-                <Card id="clone-game-source-selected-card" className="border-primary/40 bg-primary/5">
-                    <CardHeader id="clone-game-source-selected-header" className="relative space-y-2 pr-36">
-                        <CardTitle id="clone-game-source-selected-title" className="text-sm uppercase tracking-wide text-muted-foreground">
-                            {t("cloneGame.sourceGameSelected")}
-                        </CardTitle>
-                        <div id="clone-game-source-start-actions" className="absolute right-4 top-4 flex flex-col items-end gap-1">
-                            <Button
-                                id="clone-game-source-start-clone-progress-btn"
-                                type="button"
-                                onClick={() => setStartConfirmOpen(true)}
-                                disabled={startingClone || shouldShowBuyMoreSgem}
-                            >
-                                {startingClone ? t("common.loading") : t("cloneGame.sourceGameStartCloneProgress")}
-                            </Button>
-                            {shouldShowBuyMoreSgem ? (
-                                <Button
-                                    id="clone-game-source-buy-more-sgem-btn"
-                                    type="button"
-                                    variant="link"
-                                    className="h-auto px-0 py-0 text-xs"
-                                    asChild
-                                >
-                                    <Link id="clone-game-source-buy-more-sgem-link" href="/payment?tab=buy-sgem">
-                                        {t("llmTokenPurchase.buyMoreSGem")}
-                                    </Link>
-                                </Button>
-                            ) : null}
-                        </div>
-                        <div id="clone-game-source-selected-copy" className="flex flex-col gap-2">
-                            <div id="clone-game-source-selected-title-row" className="flex flex-wrap items-center gap-2">
-                                <span id="clone-game-source-selected-name" className="text-base font-semibold">
-                                    {selectedGame.name}
-                                </span>
-                                <Badge id="clone-game-source-selected-badge" variant={getVisibilityBadgeVariant(selectedGame.share_level)}>
-                                    {getVisibilityLabel(selectedGame, t)}
-                                </Badge>
-                            </div>
-                            {getVisibilityPriceLabel(selectedGame, t) ? (
-                                <p id="clone-game-source-selected-price" className="text-xs text-muted-foreground">
-                                    {getVisibilityPriceLabel(selectedGame, t)}
-                                </p>
-                            ) : null}
-                            <div id="clone-game-source-selected-id-row" className="flex flex-wrap items-center gap-1 text-xs font-mono text-muted-foreground">
-                                <span id="clone-game-source-selected-id-label">{t("cloneGame.sourceGameIdLabel")}</span>:
-                                <span id="clone-game-source-selected-id-value" className="break-all">
-                                    {selectedGame.id}
-                                </span>
-                                <CopyButton
-                                    id={`clone-game-source-selected-copy-id-btn-${selectedGame.id}`}
-                                    iconId={`clone-game-source-selected-copy-id-icon-${selectedGame.id}`}
-                                    text={selectedGame.id}
-                                    size="h-3 w-3"
-                                    className="ml-0"
-                                />
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent id="clone-game-source-selected-content" className="space-y-2 text-sm text-muted-foreground">
-                        <p id="clone-game-source-selected-description">
-                            {selectedGame.description || t("cloneGame.sourceGameNoDescription")}
-                        </p>
-                        <SourceGameIndicators game={selectedGame} scope="selected" compact />
-                    </CardContent>
-                    {cloneSessionError ? (
-                        <div id="clone-game-source-selected-error" className="px-6 pb-2 text-sm text-destructive">
-                            {cloneSessionError}
-                        </div>
-                    ) : null}
-                    <CardFooter id="clone-game-source-selected-footer" className="flex flex-wrap items-center justify-end gap-2">
-                        {cloneSessionId ? (
-                            <span id="clone-game-source-selected-session" className="text-xs text-muted-foreground">
-                                {cloneSessionId}
-                            </span>
-                        ) : null}
-                    </CardFooter>
-                </Card>
-            ) : null}
 
             {!hasCurrentCloneSession ? (
                 <div id="clone-game-source-search-wrap" className="space-y-2">
@@ -647,16 +564,46 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                         ) : null}
                                     </CardContent>
                                     <CardFooter id={`clone-game-source-card-footer-${game.id}`} className="mt-auto flex flex-wrap items-center justify-between gap-2">
-                                        <Button
-                                            id={`clone-game-source-card-select-btn-${game.id}`}
-                                            type="button"
-                                            variant={isSelected ? "default" : "outline"}
-                                            onClick={() => setSelectedGameId(game.id)}
-                                            className="self-center"
-                                            disabled={isCurrentGame}
-                                        >
-                                            {isCurrentGame ? t("cloneGame.sourceGameYourGame") : isSelected ? t("cloneGame.sourceGameSelected") : t("cloneGame.sourceGameSelect")}
-                                        </Button>
+                                        <div id={`clone-game-source-card-actions-${game.id}`} className="flex flex-wrap items-center gap-2">
+                                            {isSelected ? (
+                                                <Badge id={`clone-game-source-card-selected-status-${game.id}`} variant="secondary">
+                                                    {t("cloneGame.sourceGameSelected")}
+                                                </Badge>
+                                            ) : (
+                                                <Button
+                                                    id={`clone-game-source-card-select-btn-${game.id}`}
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => setSelectedGameId(game.id)}
+                                                    className="self-center"
+                                                    disabled={isCurrentGame}
+                                                >
+                                                    {isCurrentGame ? t("cloneGame.sourceGameYourGame") : t("cloneGame.sourceGameSelect")}
+                                                </Button>
+                                            )}
+                                            {isSelected ? (
+                                                <Button
+                                                    id={`clone-game-source-card-confirm-btn-${game.id}`}
+                                                    type="button"
+                                                    onClick={() => setStartConfirmOpen(true)}
+                                                    disabled={startingClone || shouldShowBuyMoreSgem}
+                                                >
+                                                    {startingClone ? t("common.loading") : t("common.confirm")}
+                                                </Button>
+                                            ) : null}
+                                            {isSelected && shouldShowBuyMoreSgem ? (
+                                                <Button id={`clone-game-source-card-buy-more-sgem-btn-${game.id}`} type="button" variant="link" className="h-auto px-0 py-0 text-xs" asChild>
+                                                    <Link id={`clone-game-source-card-buy-more-sgem-link-${game.id}`} href="/payment?tab=buy-sgem">
+                                                        {t("llmTokenPurchase.buyMoreSGem")}
+                                                    </Link>
+                                                </Button>
+                                            ) : null}
+                                            {isSelected && cloneSessionError ? (
+                                                <p id={`clone-game-source-card-error-${game.id}`} className="basis-full text-xs text-destructive">
+                                                    {cloneSessionError}
+                                                </p>
+                                            ) : null}
+                                        </div>
                                         <div id={`clone-game-source-card-visibility-wrap-${game.id}`} className="flex items-center gap-2 text-right">
                                             {visibilityPriceLabel ? (
                                                 <p id={`clone-game-source-card-visibility-price-${game.id}`} className="text-xs text-muted-foreground">
