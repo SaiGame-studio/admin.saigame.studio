@@ -45,16 +45,25 @@ function getVisibilityLabel(game: Game, t: TranslationFn) {
     return t("cloneGame.private");
 }
 
-function getVisibilityBadgeVariant(shareLevel?: Game["share_level"]) {
+function getVisibilityStatusStyle(shareLevel?: Game["share_level"]) {
     if (shareLevel === "public") {
-        return "default" as const;
+        return {
+            pill: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+            dot: "bg-emerald-500",
+        };
     }
 
     if (shareLevel === "protected") {
-        return "secondary" as const;
+        return {
+            pill: "border-amber-500/30 bg-amber-500/10 text-amber-700",
+            dot: "bg-amber-500",
+        };
     }
 
-    return "outline" as const;
+    return {
+        pill: "border-slate-500/30 bg-slate-500/10 text-slate-700",
+        dot: "bg-slate-500",
+    };
 }
 
 function getVisibilityPriceLabel(game: Game, t: TranslationFn) {
@@ -509,9 +518,9 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                     <div id="clone-game-source-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {games.map((game) => {
                             const isSelected = selectedGameId === game.id;
-                            const isCurrentGame = game.id === targetGameId;
                             const visibilityLabel = getVisibilityLabel(game, t);
                             const visibilityPriceLabel = getVisibilityPriceLabel(game, t);
+                            const visibilityStatusStyle = getVisibilityStatusStyle(game.share_level);
 
                             return (
                                 <Card
@@ -568,12 +577,10 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                 <Button
                                                     id={`clone-game-source-card-select-btn-${game.id}`}
                                                     type="button"
-                                                    variant="outline"
                                                     onClick={() => setSelectedGameId(game.id)}
                                                     className="self-center"
-                                                    disabled={isCurrentGame}
                                                 >
-                                                    {isCurrentGame ? t("cloneGame.sourceGameYourGame") : t("cloneGame.sourceGameSelect")}
+                                                    {t("cloneGame.sourceGameSelect")}
                                                 </Button>
                                             )}
                                             {isSelected ? (
@@ -605,9 +612,16 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                     {visibilityPriceLabel}
                                                 </p>
                                             ) : null}
-                                            <Badge id={`clone-game-source-card-visibility-${game.id}`} variant={getVisibilityBadgeVariant(game.share_level)}>
+                                            <span
+                                                id={`clone-game-source-card-visibility-${game.id}`}
+                                                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium leading-none ${visibilityStatusStyle.pill}`}
+                                            >
+                                                <span
+                                                    id={`clone-game-source-card-visibility-dot-${game.id}`}
+                                                    className={`h-1.5 w-1.5 rounded-full ${visibilityStatusStyle.dot}`}
+                                                />
                                                 {visibilityLabel}
-                                            </Badge>
+                                            </span>
                                         </div>
                                     </CardFooter>
                                 </Card>
