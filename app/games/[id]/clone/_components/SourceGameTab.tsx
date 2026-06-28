@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, RefreshCw, Search, X } from "lucide-react";
@@ -23,6 +24,7 @@ import { SourceGameIndicators } from "./SourceGameIndicators";
 
 const PAGE_SIZE = 12;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const GEM_UNIT_TOKEN = "__SGEM_UNIT__";
 
 type SourceGameTabProps = {
     targetGameId: string;
@@ -30,6 +32,13 @@ type SourceGameTabProps = {
 };
 
 type TranslationFn = (key: string) => string;
+type StartConfirmBillingDetails = {
+    items: Array<{
+        id: string;
+        text: string;
+        containsGemUnit?: boolean;
+    }>;
+};
 
 function getVisibilityLabel(game: Game, t: TranslationFn) {
     const shareLevel = game.share_level ?? "private";
@@ -84,6 +93,97 @@ function getRequiredCloneCost(game: Game | null) {
     return game.share_level === "public" ? game.clone_cost ?? 7 : 0;
 }
 
+function getStartConfirmBillingDetails(game: Game, t: TranslationFn): StartConfirmBillingDetails {
+    const requiredCloneCost = getRequiredCloneCost(game);
+
+    if (!game.is_my_game && !game.same_studio && requiredCloneCost > 0) {
+        return {
+            items: [
+                {
+                    id: "charged-amount",
+                    text: t("cloneGame.sourceGameStartConfirmChargedAmount")
+                        .replace("{amount}", `${requiredCloneCost} ${t("cloneGame.clonePriceUnit")}`),
+                },
+                {
+                    id: "charged-not-my-game",
+                    text: t("cloneGame.sourceGameStartConfirmChargedNotMyGame"),
+                },
+                {
+                    id: "charged-not-same-studio",
+                    text: t("cloneGame.sourceGameStartConfirmChargedNotSameStudio"),
+                },
+            ],
+        };
+    }
+
+    if (game.is_my_game) {
+        return {
+            items: [
+                {
+                    id: "free-no-deduction",
+                    text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", GEM_UNIT_TOKEN),
+                    containsGemUnit: true,
+                },
+                {
+                    id: "free-reason-my-game",
+                    text: t("cloneGame.sourceGameStartConfirmFreeReasonMyGame"),
+                },
+            ],
+        };
+    }
+
+    if (game.same_studio) {
+        return {
+            items: [
+                {
+                    id: "free-no-deduction",
+                    text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", GEM_UNIT_TOKEN),
+                    containsGemUnit: true,
+                },
+                {
+                    id: "free-reason-same-studio",
+                    text: t("cloneGame.sourceGameStartConfirmFreeReasonSameStudio"),
+                },
+            ],
+        };
+    }
+
+    return {
+        items: [
+            {
+                id: "free-no-deduction",
+                text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", GEM_UNIT_TOKEN),
+                containsGemUnit: true,
+            },
+            {
+                id: "free-reason-no-fee",
+                text: t("cloneGame.sourceGameStartConfirmFreeReasonNoFee"),
+            },
+        ],
+    };
+}
+
+function renderBillingItemText(item: StartConfirmBillingDetails["items"][number]): ReactNode {
+    if (!item.containsGemUnit) {
+        return item.text;
+    }
+
+    const [before, after] = item.text.split(GEM_UNIT_TOKEN);
+
+    return (
+        <>
+            {before}
+            <span id={`clone-game-source-start-confirm-gem-unit-${item.id}`} className="inline-flex items-baseline gap-1">
+                <span id={`clone-game-source-start-confirm-gem-unit-icon-${item.id}`}>💎</span>
+                <span id={`clone-game-source-start-confirm-gem-unit-text-${item.id}`}>
+                    sGem
+                </span>
+            </span>
+            {after}
+        </>
+    );
+}
+
 function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
     const rawMessage = error instanceof ApiError
         ? (error.data?.message || error.data?.error || error.message)
@@ -129,6 +229,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const requiredCloneCost = getRequiredCloneCost(selectedGame);
     const hasEnoughSgem = sgemBalance === null || sgemBalance >= requiredCloneCost;
     const shouldShowBuyMoreSgem = Boolean(selectedGame) && requiredCloneCost > 0 && sgemBalance !== null && !hasEnoughSgem;
+    const startConfirmBillingDetails = selectedGame ? getStartConfirmBillingDetails(selectedGame, t) : null;
 
     const loadGames = useCallback(
         async (nextOffset: number, rawSearch: string) => {
@@ -355,11 +456,29 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                             {t("cloneGame.sourceGameStartConfirmTitle")}
                         </AlertDialogTitle>
                         <AlertDialogDescription id="clone-game-source-start-confirm-description">
-                            {selectedGame
-                                ? t("cloneGame.sourceGameStartConfirmDesc")
-                                      .replace("{name}", selectedGame.name)
-                                      .replace("{target}", targetGameName)
-                                : t("cloneGame.sourceGameStartConfirmFallback")}
+                            {selectedGame ? (
+                                <div id="clone-game-source-start-confirm-description-wrap" className="space-y-2">
+                                    <p id="clone-game-source-start-confirm-description-main">
+                                        {t("cloneGame.sourceGameStartConfirmDesc")
+                                            .replace("{name}", selectedGame.name)
+                                            .replace("{target}", targetGameName)}
+                                    </p>
+                                    <ul id="clone-game-source-start-confirm-description-billing" className="list-disc space-y-1 pl-5 text-foreground">
+                                        {startConfirmBillingDetails?.items.map((item, index) => (
+                                            <li
+                                                id={`clone-game-source-start-confirm-description-billing-item-${item.id}-${index}`}
+                                                key={`clone-game-source-start-confirm-description-billing-item-${item.id}-${index}`}
+                                            >
+                                                {renderBillingItemText(item)}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ) : (
+                                <p id="clone-game-source-start-confirm-description-fallback">
+                                    {t("cloneGame.sourceGameStartConfirmFallback")}
+                                </p>
+                            )}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter id="clone-game-source-start-confirm-footer">
