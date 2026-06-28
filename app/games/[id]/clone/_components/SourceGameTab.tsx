@@ -527,11 +527,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                         {game.name}
                                                     </span>
                                                 </CardTitle>
-                                                {isCurrentGame ? (
-                                                    <Badge id={`clone-game-source-card-current-badge-${game.id}`} variant="outline">
-                                                        {t("cloneGame.sourceGameYourGame")}
-                                                    </Badge>
-                                                ) : null}
                                             </div>
                                         </div>
                                         <div id={`clone-game-source-card-id-row-${game.id}`} className="flex flex-wrap items-center gap-1 text-xs font-mono text-muted-foreground">
