@@ -5,9 +5,8 @@ import { Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "@/lib/i18n/use-translation";
-import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import {
     getCurrentCloneSessionItemContainers,
@@ -22,8 +21,11 @@ import {
     type CloneSessionWarning,
 } from "@/lib/game-api";
 import { CurrentCloneSessionAlerts } from "./CurrentCloneSessionAlerts";
+import { CurrentCloneSessionFooterProgress } from "./CurrentCloneSessionFooterProgress";
+import { CurrentCloneSessionLoadingCard } from "./CurrentCloneSessionLoadingCard";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
 import { getConflictProgressTab, getConflictSearchId, normalizeProgressTab } from "./cloneSessionConflictNavigation";
+import { formatTechnicalLabel, getCloneSessionErrorMessage, getCloneSessionStatusStyle } from "./cloneSessionProgressUtils";
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
 
 type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
@@ -40,84 +42,6 @@ type CurrentCloneSessionCardProps = {
     onRetry: () => Promise<void>;
     onDelete: () => void;
 };
-
-function formatTechnicalLabel(value?: string) {
-    if (!value) {
-        return "";
-    }
-
-    return value
-        .split(/[_-]+/)
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-}
-
-function getCloneSessionStatusStyle(status?: string) {
-    if (status === "running") {
-        return {
-            pill: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
-            dot: "bg-sky-500",
-        };
-    }
-
-    if (status === "created") {
-        return {
-            pill: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-            dot: "bg-amber-500",
-        };
-    }
-
-    if (status === "blocked" || status === "failed") {
-        return {
-            pill: "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300",
-            dot: "bg-red-500",
-        };
-    }
-
-    if (status === "completed") {
-        return {
-            pill: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-            dot: "bg-emerald-500",
-        };
-    }
-
-    return {
-        pill: "border-muted-foreground/20 bg-muted/60 text-muted-foreground",
-        dot: "bg-muted-foreground",
-    };
-}
-
-function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
-    const rawMessage = error instanceof ApiError
-        ? (error.data?.message || error.data?.error || error.message)
-        : error instanceof Error
-            ? error.message
-            : "";
-
-    const normalizedMessage = rawMessage.trim().toLowerCase();
-
-    if (normalizedMessage === "insufficient balance") {
-        return t("cloneGame.sourceGameCloneProgressInsufficientBalance");
-    }
-
-    return rawMessage || t("common.error");
-}
-
-function CurrentCloneSessionLoadingCard() {
-    return (
-        <Card id="clone-game-source-current-session-loading-card" className="border-primary/30">
-            <CardHeader id="clone-game-source-current-session-loading-header" className="space-y-2">
-                <div id="clone-game-source-current-session-loading-title" className="h-5 w-56 rounded bg-muted" />
-                <div id="clone-game-source-current-session-loading-description" className="h-4 w-3/4 rounded bg-muted" />
-            </CardHeader>
-            <CardContent id="clone-game-source-current-session-loading-content" className="space-y-3">
-                <div id="clone-game-source-current-session-loading-line-1" className="h-4 w-full rounded bg-muted" />
-                <div id="clone-game-source-current-session-loading-line-2" className="h-4 w-2/3 rounded bg-muted" />
-            </CardContent>
-        </Card>
-    );
-}
 
 type CurrentCloneSessionContentProps = {
     t: TranslationFn;
@@ -705,6 +629,11 @@ export function CurrentCloneSessionCard({
                     </Button>
                 </div>
             </CardFooter>
+
+            <CurrentCloneSessionFooterProgress
+                t={t}
+                progressEntries={currentSessionProgressEntries}
+            />
 
             <div id="clone-game-source-current-session-alerts-wrap" className="px-6 pb-6">
                 <CurrentCloneSessionAlerts

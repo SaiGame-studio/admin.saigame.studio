@@ -14,6 +14,7 @@ import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } fro
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
 import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
+import { formatTechnicalLabel, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
 
 type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
 
@@ -88,36 +89,6 @@ type CurrentCloneSessionProgressTabsProps = {
 
 const ITEMS_PAGE_SIZE = 12;
 
-function formatTechnicalLabel(value?: string) {
-    if (!value) {
-        return "";
-    }
-
-    return value
-        .split(/[_-]+/)
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-}
-
-function getCloneSessionPhaseLabel(phaseKey: string | undefined, t: TranslationFn) {
-    switch (phaseKey) {
-        case "item_definitions":
-            return t("cloneGame.sourceGameCurrentSessionItemDefinitionsTabLabel");
-        case "item_container_definitions":
-            return t("cloneGame.sourceGameCurrentSessionItemContainerDefinitionsTabLabel");
-        case "item_tags":
-        case "item_tag_definitions":
-            return t("cloneGame.sourceGameCurrentSessionItemTagsTabLabel");
-        case "quest_definitions":
-            return t("cloneGame.sourceGameCurrentSessionQuestDefinitionsTabLabel");
-        case "shop_definitions":
-            return t("cloneGame.sourceGameCurrentSessionShopDefinitionsTabLabel");
-        default:
-            return formatTechnicalLabel(phaseKey) || t("common.unknown");
-    }
-}
-
 function isSGemCurrency(value?: string) {
     return value?.trim().toLowerCase() === "sgem";
 }
@@ -128,14 +99,6 @@ function toKebabIdSegment(value?: string) {
     }
 
     return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "unknown";
-}
-
-function getProgressValue(processed?: number, total?: number) {
-    if (!total || total <= 0) {
-        return 0;
-    }
-
-    return Math.min(100, Math.max(0, ((processed ?? 0) / total) * 100));
 }
 
 function formatRange(start: number, end: number, total: number) {
