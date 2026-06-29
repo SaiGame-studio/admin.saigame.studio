@@ -500,6 +500,8 @@
     "sourceGameCurrentSessionIgnoreLabel": "Bỏ qua",
     "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "Tự động ghi đè nội dung bị xung đột",
     "sourceGameCurrentSessionOverwriteAction": "Ghi đè",
+    "sourceGameCurrentSessionOverwriteConfirmTitle": "Xác nhận ghi đè?",
+    "sourceGameCurrentSessionOverwriteConfirmDescription": "Thao tác này sẽ ghi đè dữ liệu của game đích bằng dữ liệu từ game nguồn. Dữ liệu hiện có ở game đích sẽ bị thay thế.",
     "sourceGameCurrentSessionConflictsLabel": "Xung đột",
     "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict thiếu source_item_definitions_id.",
     "conflicts": {

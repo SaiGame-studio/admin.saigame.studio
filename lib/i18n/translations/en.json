@@ -500,6 +500,8 @@
       "sourceGameCurrentSessionIgnoreLabel": "Ignore",
       "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "Auto overwrite conflict content",
       "sourceGameCurrentSessionOverwriteAction": "Overwrite",
+      "sourceGameCurrentSessionOverwriteConfirmTitle": "Confirm overwrite?",
+      "sourceGameCurrentSessionOverwriteConfirmDescription": "This will overwrite target game data with data from the source game. Existing target game data will be replaced.",
       "sourceGameCurrentSessionConflictsLabel": "Conflicts",
       "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
       "conflicts": {

@@ -500,6 +500,8 @@
     "sourceGameCurrentSessionIgnoreLabel": "無視",
     "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "競合しているコンテンツを自動で上書き",
     "sourceGameCurrentSessionOverwriteAction": "上書き",
+    "sourceGameCurrentSessionOverwriteConfirmTitle": "上書きを確認しますか？",
+    "sourceGameCurrentSessionOverwriteConfirmDescription": "この操作により、複製元ゲームのデータで複製先ゲームのデータを上書きします。複製先ゲームの既存データは置き換えられます。",
     "sourceGameCurrentSessionConflictsLabel": "競合",
     "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
     "conflicts": {
