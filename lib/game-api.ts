@@ -52,6 +52,10 @@ export interface CloneSessionLastRunResponse {
     estimated_clone_cost?: CloneSessionEstimatedCost;
 }
 
+export interface CloneSessionRunOptions {
+    overwrite_all_conflicting_codes?: boolean;
+}
+
 export interface CloneSessionSnapshot {
     session_id?: string;
     source_game_id?: string;
@@ -62,6 +66,7 @@ export interface CloneSessionSnapshot {
     current_phase?: string;
     current_batch_index?: number;
     batch_size?: number;
+    clone_run_options?: CloneSessionRunOptions;
     last_run_response?: CloneSessionLastRunResponse;
     progress?: Record<string, CloneSessionProgress>;
     message?: string;
@@ -402,6 +407,13 @@ export async function getCurrentCloneSession(gameId: string): Promise<CloneSessi
 
 export async function runCloneSession(sessionId: string): Promise<CloneSessionSnapshot> {
     return await api.post(`/api/v1/game-clone-sessions/${sessionId}/run`, undefined, { suppressToast: true });
+}
+
+export async function updateCloneSessionRunOptions(
+    sessionId: string,
+    options: CloneSessionRunOptions,
+): Promise<CloneSessionSnapshot> {
+    return await api.patch(`/api/v1/game-clone-sessions/${sessionId}/run-options`, options, { suppressToast: true });
 }
 
 export async function ignoreCloneSessionContent(sessionId: string, contentType: CloneSessionIgnoreContentType, sourceId: string): Promise<void> {

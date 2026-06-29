@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
@@ -24,6 +24,7 @@ import { CurrentCloneSessionAlerts } from "./CurrentCloneSessionAlerts";
 import { CurrentCloneSessionFooterProgress } from "./CurrentCloneSessionFooterProgress";
 import { CurrentCloneSessionLoadingCard } from "./CurrentCloneSessionLoadingCard";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
+import { CloneSessionRunOptionsSwitch } from "./CloneSessionRunOptionsSwitch";
 import { getConflictProgressTab, getConflictSearchId, normalizeProgressTab } from "./cloneSessionConflictNavigation";
 import { formatTechnicalLabel, getCloneSessionErrorMessage, getCloneSessionStatusStyle } from "./cloneSessionProgressUtils";
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
@@ -152,6 +153,7 @@ export function CurrentCloneSessionCard({
     const [itemTagsError, setItemTagsError] = useState<string | null>(null);
     const [runningCloneSession, setRunningCloneSession] = useState(false);
     const [runCloneSessionError, setRunCloneSessionError] = useState<string | null>(null);
+    const previousSessionIdRef = useRef<string | null>(null);
     const currentSessionId = currentSession?.session_id ?? null;
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
@@ -165,6 +167,23 @@ export function CurrentCloneSessionCard({
     const isQuestDefinitionsTab = activeProgressTab === "quest_definitions";
     const isShopDefinitionsTab = activeProgressTab === "shop_definitions";
     const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
+
+    useEffect(() => {
+        if (!currentSessionId || currentSessionProgressEntries.length === 0) {
+            previousSessionIdRef.current = currentSessionId;
+            return;
+        }
+
+        if (previousSessionIdRef.current === currentSessionId) {
+            return;
+        }
+
+        previousSessionIdRef.current = currentSessionId;
+
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", currentSessionProgressEntries[0]?.[0] ?? "");
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    }, [currentSessionId, currentSessionProgressEntries, pathname, router, searchParams]);
 
     useEffect(() => {
         if (currentSessionProgressEntries.length === 0) {
@@ -615,6 +634,14 @@ export function CurrentCloneSessionCard({
                     ) : null}
                 </div>
                 <div id="clone-game-source-current-session-footer-right" className="flex flex-wrap items-center gap-2">
+                    <CloneSessionRunOptionsSwitch
+                        id="clone-game-source-current-session-overwrite-conflicts-switch"
+                        sessionId={currentSession.session_id}
+                        initialChecked={currentSession.clone_run_options?.overwrite_all_conflicting_codes}
+                        disabled={runningCloneSession || deletingCurrentSession}
+                        t={t}
+                        onUpdated={onRefreshCurrentSession}
+                    />
                     <Button
                         id="clone-game-source-current-session-run-btn"
                         type="button"

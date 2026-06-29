@@ -498,6 +498,7 @@
       "sourceGameCurrentSessionShopItemsLabel": "Items",
       "sourceGameCurrentSessionShopDescriptionLabel": "Description",
       "sourceGameCurrentSessionIgnoreLabel": "Ignore",
+      "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "Auto overwrite conflict content",
       "sourceGameCurrentSessionConflictsLabel": "Conflicts",
       "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
       "sourceGameCurrentSessionWarningsLabel": "Warnings",
