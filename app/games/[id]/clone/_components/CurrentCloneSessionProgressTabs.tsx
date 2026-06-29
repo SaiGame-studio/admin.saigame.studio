@@ -9,8 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CloneSessionConflict, CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot, CloneSessionWarning } from "@/lib/game-api";
-import { CurrentCloneSessionAlerts } from "./CurrentCloneSessionAlerts";
+import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot } from "@/lib/game-api";
 import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } from "./CurrentCloneSessionLists";
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
@@ -20,15 +19,11 @@ type TranslationFn = (key: string, params?: Record<string, string | number | boo
 
 type CurrentCloneSessionProgressTabsProps = {
     t: TranslationFn;
-    targetGameId: string;
     currentSession: CloneSessionSnapshot;
     activeProgressTab: string | null;
     onActiveProgressTabChange: (value: string) => void;
     currentSessionProgressEntries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>;
     currentSessionEstimatedCost?: { currency?: string; amount?: number };
-    currentSessionWarnings: CloneSessionWarning[];
-    currentSessionConflicts: CloneSessionConflict[];
-    onConflictClick: (conflict: CloneSessionConflict) => void;
     items: CloneSessionCurrentItemDefinition[];
     itemsTotal: number;
     itemsOffset: number;
@@ -161,15 +156,11 @@ function formatPage(currentPage: number, totalPages: number) {
 
 export function CurrentCloneSessionProgressTabs({
     t,
-    targetGameId,
     currentSession,
     activeProgressTab,
     onActiveProgressTabChange,
     currentSessionProgressEntries,
     currentSessionEstimatedCost,
-    currentSessionWarnings,
-    currentSessionConflicts,
-    onConflictClick,
     items,
     itemsTotal,
     itemsOffset,
@@ -331,14 +322,6 @@ export function CurrentCloneSessionProgressTabs({
                     ) : null}
                 </div>
             </div>
-
-            <CurrentCloneSessionAlerts
-                t={t}
-                targetGameId={targetGameId}
-                warnings={currentSessionWarnings}
-                conflicts={currentSessionConflicts}
-                onConflictClick={onConflictClick}
-            />
 
             {currentSessionProgressEntries.length > 0 ? (
                 <div id="clone-game-source-current-session-progress" className="space-y-2 border-t pt-4">

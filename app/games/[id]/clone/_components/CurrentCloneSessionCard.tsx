@@ -21,6 +21,7 @@ import {
     type CloneSessionSnapshot,
     type CloneSessionWarning,
 } from "@/lib/game-api";
+import { CurrentCloneSessionAlerts } from "./CurrentCloneSessionAlerts";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
 import { getConflictProgressTab, getConflictSearchId, normalizeProgressTab } from "./cloneSessionConflictNavigation";
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
@@ -120,15 +121,11 @@ function CurrentCloneSessionLoadingCard() {
 
 type CurrentCloneSessionContentProps = {
     t: TranslationFn;
-    targetGameId: string;
     currentSession: CloneSessionSnapshot;
     activeProgressTab: string | null;
     onActiveProgressTabChange: (value: string) => void;
     currentSessionProgressEntries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>;
     currentSessionEstimatedCost?: { currency?: string; amount?: number };
-    currentSessionWarnings: CloneSessionWarning[];
-    currentSessionConflicts: CloneSessionConflict[];
-    onConflictClick: (conflict: CloneSessionConflict) => void;
     items: CloneSessionCurrentItemDefinition[];
     itemsTotal: number;
     itemsOffset: number;
@@ -561,15 +558,11 @@ export function CurrentCloneSessionCard({
 
     const contentProps: CurrentCloneSessionContentProps = {
         t,
-        targetGameId,
         currentSession,
         activeProgressTab,
         onActiveProgressTabChange: () => {},
         currentSessionProgressEntries,
         currentSessionEstimatedCost,
-        currentSessionWarnings,
-        currentSessionConflicts,
-        onConflictClick: handleConflictClick,
         items,
         itemsTotal,
         itemsOffset,
@@ -712,6 +705,17 @@ export function CurrentCloneSessionCard({
                     </Button>
                 </div>
             </CardFooter>
+
+            <div id="clone-game-source-current-session-alerts-wrap" className="px-6 pb-6">
+                <CurrentCloneSessionAlerts
+                    t={t}
+                    targetGameId={targetGameId}
+                    sourceGameId={currentSession.source_game_id}
+                    warnings={currentSessionWarnings}
+                    conflicts={currentSessionConflicts}
+                    onConflictClick={handleConflictClick}
+                />
+            </div>
         </Card>
     );
 }
