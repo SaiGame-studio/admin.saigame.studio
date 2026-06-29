@@ -502,7 +502,7 @@
     "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict thiếu source_item_definitions_id.",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "warnings": {
-      "clone_quota_quest_definitions": "Quota của game đích có thể không đủ cho tất cả quest definitions. Đang dùng: {current_total} / {required_total}."
+      "clone_quota_quest_definitions": "Quota của game đích có thể không đủ cho tất cả quest definitions. Slot trống: {available_slot} / {required_total}."
     },
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },

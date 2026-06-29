@@ -48,12 +48,12 @@ export function CurrentCloneSessionAlerts({
 
     const getWarningMessage = (warning: CloneSessionWarning) => {
         if (warning.message_code === "clone_quota_quest_definitions") {
-            const currentTotal = warning.message_params?.current_total;
+            const availableSlot = warning.message_params?.available_slot;
             const requiredTotal = warning.message_params?.required_total;
 
-            if (currentTotal != null && requiredTotal != null) {
+            if (availableSlot != null && requiredTotal != null) {
                 return t("cloneGame.warnings.clone_quota_quest_definitions", {
-                    current_total: currentTotal,
+                    available_slot: availableSlot,
                     required_total: requiredTotal,
                 });
             }
