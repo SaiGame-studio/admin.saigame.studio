@@ -6,7 +6,6 @@ import {
     getCurrentCloneSessionShopDefinitions,
     type CloneSessionCurrentQuestDefinition,
     type CloneSessionCurrentShopDefinition,
-    type CloneSessionSnapshot,
 } from "@/lib/game-api";
 
 export const CLONE_SESSION_PAGE_SIZE = 12;
@@ -29,7 +28,7 @@ type CloneSessionPagedState<TItem> = {
 };
 
 type UseCurrentCloneSessionDefinitionsParams = {
-    currentSession: CloneSessionSnapshot | null;
+    currentSessionId: string | null;
     targetGameId: string;
     isQuestDefinitionsTab: boolean;
     isShopDefinitionsTab: boolean;
@@ -105,7 +104,7 @@ function toPagedResult<TItem>(state: ReturnType<typeof useCloneSessionPagedState
 }
 
 export function useCurrentCloneSessionDefinitions({
-    currentSession,
+    currentSessionId,
     targetGameId,
     isQuestDefinitionsTab,
     isShopDefinitionsTab,
@@ -115,7 +114,7 @@ export function useCurrentCloneSessionDefinitions({
     const shopDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentShopDefinition>();
 
     useEffect(() => {
-        if (!currentSession || !isQuestDefinitionsTab) {
+        if (!currentSessionId || !isQuestDefinitionsTab) {
             return;
         }
 
@@ -165,10 +164,10 @@ export function useCurrentCloneSessionDefinitions({
         return () => {
             cancelled = true;
         };
-    }, [currentSession, formatError, isQuestDefinitionsTab, questsState.offset, questsState.searchId, questsState.searchName, targetGameId]);
+    }, [currentSessionId, formatError, isQuestDefinitionsTab, questsState.offset, questsState.searchId, questsState.searchName, targetGameId]);
 
     useEffect(() => {
-        if (!currentSession || !isShopDefinitionsTab) {
+        if (!currentSessionId || !isShopDefinitionsTab) {
             return;
         }
 
@@ -218,7 +217,7 @@ export function useCurrentCloneSessionDefinitions({
         return () => {
             cancelled = true;
         };
-    }, [currentSession, formatError, isShopDefinitionsTab, shopDefinitionsState.offset, shopDefinitionsState.searchId, shopDefinitionsState.searchName, targetGameId]);
+    }, [currentSessionId, formatError, isShopDefinitionsTab, shopDefinitionsState.offset, shopDefinitionsState.searchId, shopDefinitionsState.searchName, targetGameId]);
 
     return {
         questsState: toPagedResult(questsState),

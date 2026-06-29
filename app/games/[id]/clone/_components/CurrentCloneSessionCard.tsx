@@ -19,12 +19,13 @@ import {
     type CloneSessionCurrentItemDefinition,
     type CloneSessionCurrentItemTag,
     type CloneSessionSnapshot,
+    type CloneSessionWarning,
 } from "@/lib/game-api";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
 import { getConflictProgressTab, getConflictSearchId, normalizeProgressTab } from "./cloneSessionConflictNavigation";
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
 
-type TranslationFn = (key: string) => string;
+type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
 
 const ITEMS_PAGE_SIZE = 12;
 
@@ -34,6 +35,7 @@ type CurrentCloneSessionCardProps = {
     currentSessionLoading: boolean;
     currentSessionError: string | null;
     deletingCurrentSession: boolean;
+    onRefreshCurrentSession: () => Promise<void>;
     onRetry: () => Promise<void>;
     onDelete: () => void;
 };
@@ -118,12 +120,13 @@ function CurrentCloneSessionLoadingCard() {
 
 type CurrentCloneSessionContentProps = {
     t: TranslationFn;
+    targetGameId: string;
     currentSession: CloneSessionSnapshot;
     activeProgressTab: string | null;
     onActiveProgressTabChange: (value: string) => void;
     currentSessionProgressEntries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>;
     currentSessionEstimatedCost?: { currency?: string; amount?: number };
-    currentSessionWarnings: Array<{ field?: string; message?: string }>;
+    currentSessionWarnings: CloneSessionWarning[];
     currentSessionConflicts: CloneSessionConflict[];
     onConflictClick: (conflict: CloneSessionConflict) => void;
     items: CloneSessionCurrentItemDefinition[];
@@ -141,6 +144,8 @@ type CurrentCloneSessionContentProps = {
     itemContainers: CloneSessionCurrentItemContainer[];
     itemContainersTotal: number;
     itemContainersOffset: number;
+    itemContainersSearchInput: string;
+    itemContainersSearchName: string;
     itemContainersLoading: boolean;
     itemContainersError: string | null;
     onItemContainersSearchInputChange: (value: string) => void;
@@ -192,6 +197,7 @@ export function CurrentCloneSessionCard({
     currentSessionLoading,
     currentSessionError,
     deletingCurrentSession,
+    onRefreshCurrentSession,
     onRetry,
     onDelete,
 }: CurrentCloneSessionCardProps) {
@@ -225,6 +231,7 @@ export function CurrentCloneSessionCard({
     const [itemTagsError, setItemTagsError] = useState<string | null>(null);
     const [runningCloneSession, setRunningCloneSession] = useState(false);
     const [runCloneSessionError, setRunCloneSessionError] = useState<string | null>(null);
+    const currentSessionId = currentSession?.session_id ?? null;
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
     const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
@@ -253,7 +260,7 @@ export function CurrentCloneSessionCard({
     }, [currentSessionProgressEntries, pathname, router, searchParams, searchProgressTab]);
 
     useEffect(() => {
-        if (!currentSession || activeProgressTab !== "item_definitions") {
+        if (!currentSessionId || activeProgressTab !== "item_definitions") {
             return;
         }
 
@@ -297,10 +304,10 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, itemsOffset, itemsSearchId, itemsSearchName, targetGameId, t]);
+    }, [activeProgressTab, currentSessionId, itemsOffset, itemsSearchId, itemsSearchName, targetGameId, t]);
 
     useEffect(() => {
-        if (!currentSession || activeProgressTab !== "item_container_definitions") {
+        if (!currentSessionId || activeProgressTab !== "item_container_definitions") {
             return;
         }
 
@@ -344,10 +351,10 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, itemContainersOffset, itemContainersSearchId, itemContainersSearchName, targetGameId, t]);
+    }, [activeProgressTab, currentSessionId, itemContainersOffset, itemContainersSearchId, itemContainersSearchName, targetGameId, t]);
 
     useEffect(() => {
-        if (!currentSession || !isItemTagsTab) {
+        if (!currentSessionId || !isItemTagsTab) {
             return;
         }
 
@@ -396,13 +403,13 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, itemTagsOffset, itemTagsSearchId, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
+    }, [activeProgressTab, currentSessionId, itemTagsOffset, itemTagsSearchId, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
 
     const {
         questsState,
         shopDefinitionsState,
     } = useCurrentCloneSessionDefinitions({
-        currentSession,
+        currentSessionId,
         targetGameId,
         isQuestDefinitionsTab,
         isShopDefinitionsTab,
@@ -478,13 +485,22 @@ export function CurrentCloneSessionCard({
 
         setRunningCloneSession(true);
         setRunCloneSessionError(null);
+        let nextRunCloneSessionError: string | null = null;
 
         try {
             await runCloneSession(currentSession.session_id);
-            await onRetry();
         } catch (error) {
-            setRunCloneSessionError(getCloneSessionErrorMessage(error, t));
+            nextRunCloneSessionError = getCloneSessionErrorMessage(error, t);
         } finally {
+            try {
+                await onRefreshCurrentSession();
+            } catch (error) {
+                if (!nextRunCloneSessionError) {
+                    nextRunCloneSessionError = getCloneSessionErrorMessage(error, t);
+                }
+            }
+
+            setRunCloneSessionError(nextRunCloneSessionError);
             setRunningCloneSession(false);
         }
     };
@@ -545,6 +561,7 @@ export function CurrentCloneSessionCard({
 
     const contentProps: CurrentCloneSessionContentProps = {
         t,
+        targetGameId,
         currentSession,
         activeProgressTab,
         onActiveProgressTabChange: () => {},

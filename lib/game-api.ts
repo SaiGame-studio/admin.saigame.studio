@@ -26,7 +26,9 @@ export interface CloneSessionProgress {
 
 export interface CloneSessionWarning {
     field?: string;
+    message_code?: string;
     message?: string;
+    message_params?: Record<string, string | number | boolean | null | undefined>;
 }
 
 export interface CloneSessionConflict {

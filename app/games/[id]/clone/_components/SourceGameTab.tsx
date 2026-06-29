@@ -40,6 +40,10 @@ type StartConfirmBillingDetails = {
     }>;
 };
 
+type LoadCurrentSessionOptions = {
+    silent?: boolean;
+};
+
 function getVisibilityLabel(game: Game, t: TranslationFn) {
     const shareLevel = game.share_level ?? "private";
 
@@ -287,9 +291,13 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         }
     }, []);
 
-    const loadCurrentSession = useCallback(async () => {
-        setCurrentSessionLoading(true);
-        setCurrentSessionError(null);
+    const loadCurrentSession = useCallback(async (options?: LoadCurrentSessionOptions) => {
+        const silent = options?.silent === true;
+
+        if (!silent) {
+            setCurrentSessionLoading(true);
+            setCurrentSessionError(null);
+        }
 
         try {
             const session = await getCurrentCloneSession(targetGameId);
@@ -298,13 +306,19 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                 setSelectedGameId(session.source_game_id);
             }
         } catch (error) {
-            setCurrentSession(null);
             const status = (error as { status?: number } | null | undefined)?.status;
-            if (status && status !== 404) {
+
+            if (!silent) {
+                setCurrentSession(null);
+            }
+
+            if (!silent && status && status !== 404) {
                 setCurrentSessionError(t("cloneGame.sourceGameCurrentSessionLoadError"));
             }
         } finally {
-            setCurrentSessionLoading(false);
+            if (!silent) {
+                setCurrentSessionLoading(false);
+            }
         }
     }, [targetGameId, t]);
 
@@ -348,8 +362,13 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     };
 
     const handleRefresh = async () => {
-        await Promise.all([loadGames(offset, searchInput), loadCurrentSession()]);
+        await loadCurrentSession();
+        await loadGames(offset, searchInput);
     };
+
+    const handleRefreshCurrentSessionSilently = useCallback(async () => {
+        await loadCurrentSession({ silent: true });
+    }, [loadCurrentSession]);
 
     const handleLoadMore = () => {
         setOffset((current) => current + PAGE_SIZE);
@@ -445,6 +464,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                 currentSessionLoading={currentSessionLoading}
                 currentSessionError={currentSessionError}
                 deletingCurrentSession={deletingCurrentSession}
+                onRefreshCurrentSession={handleRefreshCurrentSessionSilently}
                 onRetry={handleRefresh}
                 onDelete={() => setDeleteConfirmOpen(true)}
             />

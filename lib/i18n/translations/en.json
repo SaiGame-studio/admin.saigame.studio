@@ -501,6 +501,9 @@
       "sourceGameCurrentSessionConflictsLabel": "Conflicts",
       "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
       "sourceGameCurrentSessionWarningsLabel": "Warnings",
+      "warnings": {
+        "clone_quota_quest_definitions": "Target quota may not fit all quest definitions. Usage: {current_total} / {required_total}."
+      },
       "sourceGameCurrentSessionProgressLabel": "Progress"
     },
   "userProfiles": {

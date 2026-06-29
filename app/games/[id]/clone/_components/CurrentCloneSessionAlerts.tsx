@@ -1,13 +1,16 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import type { CloneSessionConflict } from "@/lib/game-api";
+import type { CloneSessionConflict, CloneSessionWarning } from "@/lib/game-api";
 
-type TranslationFn = (key: string) => string;
+type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
 
 type CurrentCloneSessionAlertsProps = {
     t: TranslationFn;
-    warnings: Array<{ field?: string; message?: string }>;
+    targetGameId: string;
+    warnings: CloneSessionWarning[];
     conflicts: CloneSessionConflict[];
     onConflictClick: (conflict: CloneSessionConflict) => void;
 };
@@ -34,6 +37,7 @@ function toKebabIdSegment(value?: string) {
 
 export function CurrentCloneSessionAlerts({
     t,
+    targetGameId,
     warnings,
     conflicts,
     onConflictClick,
@@ -41,6 +45,29 @@ export function CurrentCloneSessionAlerts({
     if (warnings.length === 0 && conflicts.length === 0) {
         return null;
     }
+
+    const getWarningMessage = (warning: CloneSessionWarning) => {
+        if (warning.message_code === "clone_quota_quest_definitions") {
+            const currentTotal = warning.message_params?.current_total;
+            const requiredTotal = warning.message_params?.required_total;
+
+            if (currentTotal != null && requiredTotal != null) {
+                return t("cloneGame.warnings.clone_quota_quest_definitions", {
+                    current_total: currentTotal,
+                    required_total: requiredTotal,
+                });
+            }
+        }
+
+        if (warning.message_code) {
+            const translatedMessage = t(`cloneGame.warnings.${warning.message_code}`, warning.message_params);
+            if (translatedMessage !== `cloneGame.warnings.${warning.message_code}`) {
+                return translatedMessage;
+            }
+        }
+
+        return warning.message || t("common.unknown");
+    };
 
     return (
         <div id="clone-game-source-current-session-alerts" className="space-y-3 border-t pt-4">
@@ -103,11 +130,28 @@ export function CurrentCloneSessionAlerts({
                                     key={`${warning.field ?? "warning"}-${index}`}
                                     className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
                                 >
-                                    <p id={`clone-game-source-current-session-warning-field-${idSegment}-${index}`} className="font-medium text-foreground">
-                                        {formatTechnicalLabel(warning.field) || t("common.unknown")}
-                                    </p>
+                                    {warning.field === "quest_definitions" && targetGameId ? (
+                                        <Link
+                                            id={`clone-game-source-current-session-warning-field-link-${idSegment}-${index}`}
+                                            href={`/games/${targetGameId}/quests`}
+                                            className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline"
+                                        >
+                                            <span id={`clone-game-source-current-session-warning-field-${idSegment}-${index}`}>
+                                                {formatTechnicalLabel(warning.field) || t("common.unknown")}
+                                            </span>
+                                            <ExternalLink
+                                                id={`clone-game-source-current-session-warning-field-link-icon-${idSegment}-${index}`}
+                                                className="h-3.5 w-3.5"
+                                                aria-hidden="true"
+                                            />
+                                        </Link>
+                                    ) : (
+                                        <p id={`clone-game-source-current-session-warning-field-${idSegment}-${index}`} className="font-medium text-foreground">
+                                            {formatTechnicalLabel(warning.field) || t("common.unknown")}
+                                        </p>
+                                    )}
                                     <p id={`clone-game-source-current-session-warning-message-${idSegment}-${index}`}>
-                                        {warning.message || t("common.unknown")}
+                                        {getWarningMessage(warning)}
                                     </p>
                                 </div>
                             );
