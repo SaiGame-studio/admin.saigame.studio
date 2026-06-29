@@ -2,6 +2,7 @@
 
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { CopyButton } from "@/components/CopyButton";
 import { Button } from "@/components/ui/button";
 import type { CloneSessionConflict, CloneSessionWarning } from "@/lib/game-api";
 
@@ -71,6 +72,17 @@ export function CurrentCloneSessionAlerts({
         return warning.message || t("common.unknown");
     };
 
+    const getConflictMessage = (conflict: CloneSessionConflict) => {
+        if (conflict.message_code) {
+            const translatedMessage = t(`cloneGame.conflicts.${conflict.message_code}`, conflict.message_params);
+            if (translatedMessage !== `cloneGame.conflicts.${conflict.message_code}`) {
+                return translatedMessage;
+            }
+        }
+
+        return conflict.message || t("common.unknown");
+    };
+
     return (
         <div id="clone-game-source-current-session-alerts" className="space-y-3 border-t pt-4">
             {conflicts.length > 0 ? (
@@ -81,16 +93,19 @@ export function CurrentCloneSessionAlerts({
                     <div id="clone-game-source-current-session-conflicts-list" className="space-y-2">
                         {conflicts.map((conflict, index) => {
                             const fieldLabel = formatTechnicalLabel(conflict.field) || t("common.unknown");
-                            const conflictValue = conflict.value || conflict.target_definition_id || t("common.unknown");
-                            const idSegment = toKebabIdSegment(conflict.field ?? conflict.target_definition_id);
+                            const conflictValue = conflict.value || conflict.target_id || conflict.target_definition_id || t("common.unknown");
+                            const idSegment = toKebabIdSegment(conflict.field ?? conflict.target_id ?? conflict.target_definition_id);
                             const hasItemCodeConflictLinks = conflict.field === "item_code"
                                 && Boolean(conflict.value)
                                 && Boolean(conflict.source_item_definitions_id || conflict.target_definition_id);
+                            const hasShopKeyConflictLinks = conflict.field === "shop_key"
+                                && Boolean(conflict.value)
+                                && Boolean(conflict.source_id || conflict.target_id);
 
                             return (
                                 <div
                                     id={`clone-game-source-current-session-conflict-${idSegment}-${index}`}
-                                    key={`${conflict.field ?? "conflict"}-${conflict.target_definition_id ?? conflict.value ?? index}`}
+                                    key={`${conflict.field ?? "conflict"}-${conflict.target_id ?? conflict.target_definition_id ?? conflict.value ?? index}`}
                                     className="rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-muted-foreground"
                                 >
                                     {hasItemCodeConflictLinks ? (
@@ -117,6 +132,13 @@ export function CurrentCloneSessionAlerts({
                                                     <span id={`clone-game-source-current-session-conflict-source-id-${idSegment}-${index}`} className="font-mono break-all">
                                                         {conflict.source_item_definitions_id}
                                                     </span>
+                                                    <CopyButton
+                                                        id={`clone-game-source-current-session-conflict-source-id-copy-btn-${idSegment}-${index}`}
+                                                        iconId={`clone-game-source-current-session-conflict-source-id-copy-icon-${idSegment}-${index}`}
+                                                        text={conflict.source_item_definitions_id}
+                                                        size="h-3 w-3"
+                                                        className="ml-0"
+                                                    />
                                                 </div>
                                             ) : null}
                                             {conflict.target_definition_id ? (
@@ -141,6 +163,78 @@ export function CurrentCloneSessionAlerts({
                                                     <span id={`clone-game-source-current-session-conflict-target-id-${idSegment}-${index}`} className="font-mono break-all">
                                                         {conflict.target_definition_id}
                                                     </span>
+                                                    <CopyButton
+                                                        id={`clone-game-source-current-session-conflict-target-id-copy-btn-${idSegment}-${index}`}
+                                                        iconId={`clone-game-source-current-session-conflict-target-id-copy-icon-${idSegment}-${index}`}
+                                                        text={conflict.target_definition_id}
+                                                        size="h-3 w-3"
+                                                        className="ml-0"
+                                                    />
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    ) : hasShopKeyConflictLinks ? (
+                                        <div id={`clone-game-source-current-session-conflict-shop-key-wrap-${idSegment}-${index}`} className="space-y-1">
+                                            <p id={`clone-game-source-current-session-conflict-field-${idSegment}-${index}`} className="font-medium text-foreground">
+                                                {fieldLabel}
+                                            </p>
+                                            {sourceGameId && conflict.source_id ? (
+                                                <div id={`clone-game-source-current-session-conflict-source-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
+                                                    <span id={`clone-game-source-current-session-conflict-source-label-${idSegment}-${index}`} className="text-muted-foreground">
+                                                        Source:
+                                                    </span>
+                                                    <Button
+                                                        id={`clone-game-source-current-session-conflict-source-link-${idSegment}-${index}`}
+                                                        type="button"
+                                                        variant="link"
+                                                        className="h-auto p-0 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                                                        onClick={() => onConflictClick(conflict)}
+                                                    >
+                                                        <span id={`clone-game-source-current-session-conflict-source-value-${idSegment}-${index}`}>
+                                                            {conflictValue}
+                                                        </span>
+                                                    </Button>
+                                                    <span id={`clone-game-source-current-session-conflict-source-id-${idSegment}-${index}`} className="font-mono break-all">
+                                                        {conflict.source_id}
+                                                    </span>
+                                                    <CopyButton
+                                                        id={`clone-game-source-current-session-conflict-source-id-copy-btn-${idSegment}-${index}`}
+                                                        iconId={`clone-game-source-current-session-conflict-source-id-copy-icon-${idSegment}-${index}`}
+                                                        text={conflict.source_id}
+                                                        size="h-3 w-3"
+                                                        className="ml-0"
+                                                    />
+                                                </div>
+                                            ) : null}
+                                            {conflict.target_id ? (
+                                                <div id={`clone-game-source-current-session-conflict-target-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
+                                                    <span id={`clone-game-source-current-session-conflict-target-label-${idSegment}-${index}`} className="text-muted-foreground">
+                                                        Target:
+                                                    </span>
+                                                    <Link
+                                                        id={`clone-game-source-current-session-conflict-target-link-${idSegment}-${index}`}
+                                                        href={`/games/${targetGameId}/shops/${conflict.target_id}`}
+                                                        className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                                                    >
+                                                        <span id={`clone-game-source-current-session-conflict-target-value-${idSegment}-${index}`}>
+                                                            {conflictValue}
+                                                        </span>
+                                                        <ExternalLink
+                                                            id={`clone-game-source-current-session-conflict-target-link-icon-${idSegment}-${index}`}
+                                                            className="h-3.5 w-3.5"
+                                                            aria-hidden="true"
+                                                        />
+                                                    </Link>
+                                                    <span id={`clone-game-source-current-session-conflict-target-id-${idSegment}-${index}`} className="font-mono break-all">
+                                                        {conflict.target_id}
+                                                    </span>
+                                                    <CopyButton
+                                                        id={`clone-game-source-current-session-conflict-target-id-copy-btn-${idSegment}-${index}`}
+                                                        iconId={`clone-game-source-current-session-conflict-target-id-copy-icon-${idSegment}-${index}`}
+                                                        text={conflict.target_id}
+                                                        size="h-3 w-3"
+                                                        className="ml-0"
+                                                    />
                                                 </div>
                                             ) : null}
                                         </div>
@@ -164,7 +258,7 @@ export function CurrentCloneSessionAlerts({
                                         </Button>
                                     )}
                                     <p id={`clone-game-source-current-session-conflict-message-${idSegment}-${index}`}>
-                                        {conflict.message || t("common.unknown")}
+                                        {getConflictMessage(conflict)}
                                     </p>
                                 </div>
                             );

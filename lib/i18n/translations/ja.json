@@ -498,9 +498,12 @@
     "sourceGameCurrentSessionShopItemsLabel": "アイテム",
     "sourceGameCurrentSessionShopDescriptionLabel": "説明",
     "sourceGameCurrentSessionIgnoreLabel": "無視",
-    "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "Auto overwrite conflict content",
+    "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "競合しているコンテンツを自動で上書き",
     "sourceGameCurrentSessionConflictsLabel": "競合",
     "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
+    "conflicts": {
+      "clone_conflict_unknown": "同じコードを持つコンテンツが複製先ゲームに既に存在します。一致するコードベースのコンテンツを上書きするには、auto overwrite conflict content を有効にしてください。"
+    },
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "warnings": {
       "clone_quota_quest_definitions": "コピー先の上限では、すべてのクエスト定義を収められない可能性があります。空きスロット: {available_slot} / {required_total}。"

@@ -20,5 +20,9 @@ export function getConflictSearchId(conflict: CloneSessionConflict, tab: string)
         return (conflict.source_item_definitions_id || "").trim();
     }
 
+    if (tab === "shop_definitions") {
+        return (conflict.source_id || "").trim();
+    }
+
     return (conflict.target_definition_id || conflict.value || "").trim();
 }

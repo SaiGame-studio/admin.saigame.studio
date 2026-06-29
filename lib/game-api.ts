@@ -34,11 +34,15 @@ export interface CloneSessionWarning {
 export interface CloneSessionConflict {
     field?: string;
     value?: string;
+    source_id?: string;
+    target_id?: string;
     source_item_definitions_id?: string;
     target_definition_id?: string;
     phase?: string;
     definition_type?: string;
+    message_code?: string;
     message?: string;
+    message_params?: Record<string, string | number | boolean | null | undefined>;
 }
 
 export interface CloneSessionEstimatedCost {
