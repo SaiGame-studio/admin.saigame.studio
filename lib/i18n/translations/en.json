@@ -499,10 +499,12 @@
       "sourceGameCurrentSessionShopDescriptionLabel": "Description",
       "sourceGameCurrentSessionIgnoreLabel": "Ignore",
       "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "Auto overwrite conflict content",
+      "sourceGameCurrentSessionOverwriteAction": "Overwrite",
       "sourceGameCurrentSessionConflictsLabel": "Conflicts",
       "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
       "conflicts": {
-        "clone_conflict_unknown": "Content with the same code already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content."
+        "clone_conflict_unknown": "Content with the same code already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content.",
+        "clone_conflict_container_code_name_exists": "Container code name already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content."
       },
       "sourceGameCurrentSessionWarningsLabel": "Warnings",
       "warnings": {

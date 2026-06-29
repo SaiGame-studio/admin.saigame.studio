@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwriteButton";
 import type { CloneSessionCurrentQuestDefinition } from "@/lib/game-api";
 import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 
@@ -25,6 +26,8 @@ type CurrentCloneSessionQuestsTabProps = {
     onQuestsClearSearch: () => void;
     onQuestsPreviousPage: () => void;
     onQuestsNextPage: () => void;
+    getManualOverwriteTargetId: (contentType: "quest_definition", sourceId: string) => string | null;
+    onManualOverwriteSuccess: () => Promise<void>;
 };
 
 const QUESTS_PAGE_SIZE = 12;
@@ -67,7 +70,19 @@ function isIgnored(value: CloneSessionCurrentQuestDefinition) {
     return Boolean(value.ignored ?? value.is_ignored);
 }
 
-function CurrentCloneSessionQuestList({ quests, sessionId, t }: { quests: CloneSessionCurrentQuestDefinition[]; sessionId?: string; t: TranslationFn; }) {
+function CurrentCloneSessionQuestList({
+    quests,
+    sessionId,
+    t,
+    getManualOverwriteTargetId,
+    onManualOverwriteSuccess,
+}: {
+    quests: CloneSessionCurrentQuestDefinition[];
+    sessionId?: string;
+    t: TranslationFn;
+    getManualOverwriteTargetId: (contentType: "quest_definition", sourceId: string) => string | null;
+    onManualOverwriteSuccess: () => Promise<void>;
+}) {
     if (quests.length === 0) {
         return (
             <div id="clone-game-source-current-session-quests-empty" className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -75,6 +90,9 @@ function CurrentCloneSessionQuestList({ quests, sessionId, t }: { quests: CloneS
             </div>
         );
     }
+
+    const overwriteTargetIds = new Map(quests.map((quest) => [quest.id, getManualOverwriteTargetId("quest_definition", quest.id)]));
+    const hasOverwriteColumn = Array.from(overwriteTargetIds.values()).some(Boolean);
 
     return (
         <div id="clone-game-source-current-session-quests-table-wrap" className="overflow-x-auto rounded-md border bg-background">
@@ -105,10 +123,18 @@ function CurrentCloneSessionQuestList({ quests, sessionId, t }: { quests: CloneS
                         <th id="clone-game-source-current-session-quests-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
+                        {hasOverwriteColumn ? (
+                            <th id="clone-game-source-current-session-quests-table-overwrite-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-amber-300">
+                                {t("cloneGame.sourceGameCurrentSessionOverwriteAction")}
+                            </th>
+                        ) : null}
                     </tr>
                 </thead>
                 <tbody id="clone-game-source-current-session-quests-table-body">
-                    {quests.map((quest) => (
+                    {quests.map((quest) => {
+                        const overwriteTargetId = overwriteTargetIds.get(quest.id) ?? null;
+
+                        return (
                         <tr id={`clone-game-source-current-session-quest-row-${quest.id}`} key={quest.id} className="border-b transition-colors last:border-0 hover:bg-muted/40">
                             <td id={`clone-game-source-current-session-quest-name-cell-${quest.id}`} className="px-3 py-2 align-middle">
                                 <span id={`clone-game-source-current-session-quest-name-${quest.id}`} className="font-medium">
@@ -148,8 +174,22 @@ function CurrentCloneSessionQuestList({ quests, sessionId, t }: { quests: CloneS
                             <td id={`clone-game-source-current-session-quest-ignore-cell-${quest.id}`} className="px-3 py-2 align-middle">
                                 <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-quest-ignore-${quest.id}`} sessionId={sessionId} contentType="quest_definition" sourceId={quest.id} initialIgnored={isIgnored(quest)} t={t} />
                             </td>
+                            {hasOverwriteColumn ? (
+                                <td id={`clone-game-source-current-session-quest-overwrite-cell-${quest.id}`} className="px-3 py-2 align-middle">
+                                    <CloneSessionManualOverwriteButton
+                                        id={`clone-game-source-current-session-quest-overwrite-${quest.id}`}
+                                        sessionId={sessionId}
+                                        contentType="quest_definition"
+                                        sourceId={quest.id}
+                                        targetId={overwriteTargetId}
+                                        t={t}
+                                        onSuccess={onManualOverwriteSuccess}
+                                    />
+                                </td>
+                            ) : null}
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
@@ -171,6 +211,8 @@ export function CurrentCloneSessionQuestsTab({
     onQuestsClearSearch,
     onQuestsPreviousPage,
     onQuestsNextPage,
+    getManualOverwriteTargetId,
+    onManualOverwriteSuccess,
 }: CurrentCloneSessionQuestsTabProps) {
     const currentPage = questsTotal > 0 ? Math.floor(questsOffset / QUESTS_PAGE_SIZE) + 1 : 0;
     const totalPages = questsTotal > 0 ? Math.ceil(questsTotal / QUESTS_PAGE_SIZE) : 0;
@@ -267,13 +309,13 @@ export function CurrentCloneSessionQuestsTab({
 
             {questsLoading ? (
                 <div id="clone-game-source-current-session-quests-loading" className="overflow-x-auto rounded-md border bg-background">
-                    <div id="clone-game-source-current-session-quests-loading-header" className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.7fr_1.8fr] gap-3 border-b bg-muted/40 px-3 py-2">
-                        {Array.from({ length: 7 }).map((_, index) => (
+                    <div id="clone-game-source-current-session-quests-loading-header" className="grid min-w-[1100px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.7fr_1.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                        {Array.from({ length: 8 }).map((_, index) => (
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-head-${index}`} key={`clone-game-source-current-session-quest-skeleton-head-${index}`} className="h-4 w-20" />
                         ))}
                     </div>
                     {Array.from({ length: 3 }).map((_, index) => (
-                        <div id={`clone-game-source-current-session-quest-skeleton-row-${index}`} key={`clone-game-source-current-session-quest-skeleton-row-${index}`} className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.7fr_1.8fr] gap-3 border-b px-3 py-3 last:border-0">
+                        <div id={`clone-game-source-current-session-quest-skeleton-row-${index}`} key={`clone-game-source-current-session-quest-skeleton-row-${index}`} className="grid min-w-[1100px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.7fr_1.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-name-${index}`} className="h-4 w-2/3" />
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-code-${index}`} className="h-4 w-3/4" />
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-type-${index}`} className="h-4 w-16" />
@@ -281,6 +323,7 @@ export function CurrentCloneSessionQuestsTab({
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-sort-${index}`} className="ml-auto h-4 w-10" />
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-rewards-${index}`} className="ml-auto h-4 w-10" />
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-description-${index}`} className="h-4 w-3/4" />
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-overwrite-${index}`} className="h-4 w-16" />
                         </div>
                     ))}
                 </div>
@@ -289,7 +332,7 @@ export function CurrentCloneSessionQuestsTab({
                     {questsError}
                 </div>
             ) : (
-                <CurrentCloneSessionQuestList quests={quests} sessionId={sessionId} t={t} />
+                <CurrentCloneSessionQuestList quests={quests} sessionId={sessionId} t={t} getManualOverwriteTargetId={getManualOverwriteTargetId} onManualOverwriteSuccess={onManualOverwriteSuccess} />
             )}
         </div>
     );

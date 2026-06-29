@@ -26,6 +26,7 @@ import { CurrentCloneSessionLoadingCard } from "./CurrentCloneSessionLoadingCard
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
 import { CloneSessionRunOptionsSwitch } from "./CloneSessionRunOptionsSwitch";
 import { getConflictProgressTab, getConflictSearchId, normalizeProgressTab } from "./cloneSessionConflictNavigation";
+import { findCloneSessionManualOverwriteTargetId } from "./cloneSessionManualOverwriteUtils";
 import { formatTechnicalLabel, getCloneSessionErrorMessage, getCloneSessionStatusStyle } from "./cloneSessionProgressUtils";
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
 
@@ -111,6 +112,8 @@ type CurrentCloneSessionContentProps = {
     onShopDefinitionsClearSearch: () => void;
     onShopDefinitionsPreviousPage: () => void;
     onShopDefinitionsNextPage: () => void;
+    getManualOverwriteTargetId: (contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition", sourceId: string) => string | null;
+    onManualOverwriteSuccess: () => Promise<void>;
 };
 
 export function CurrentCloneSessionCard({
@@ -153,6 +156,7 @@ export function CurrentCloneSessionCard({
     const [itemTagsError, setItemTagsError] = useState<string | null>(null);
     const [runningCloneSession, setRunningCloneSession] = useState(false);
     const [runCloneSessionError, setRunCloneSessionError] = useState<string | null>(null);
+    const [contentRefreshNonce, setContentRefreshNonce] = useState(0);
     const previousSessionIdRef = useRef<string | null>(null);
     const currentSessionId = currentSession?.session_id ?? null;
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
@@ -244,7 +248,7 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSessionId, itemsOffset, itemsSearchId, itemsSearchName, targetGameId, t]);
+    }, [activeProgressTab, contentRefreshNonce, currentSessionId, itemsOffset, itemsSearchId, itemsSearchName, targetGameId, t]);
 
     useEffect(() => {
         if (!currentSessionId || activeProgressTab !== "item_container_definitions") {
@@ -291,7 +295,7 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSessionId, itemContainersOffset, itemContainersSearchId, itemContainersSearchName, targetGameId, t]);
+    }, [activeProgressTab, contentRefreshNonce, currentSessionId, itemContainersOffset, itemContainersSearchId, itemContainersSearchName, targetGameId, t]);
 
     useEffect(() => {
         if (!currentSessionId || !isItemTagsTab) {
@@ -343,7 +347,7 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSessionId, itemTagsOffset, itemTagsSearchId, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
+    }, [activeProgressTab, contentRefreshNonce, currentSessionId, itemTagsOffset, itemTagsSearchId, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
 
     const {
         questsState,
@@ -353,8 +357,14 @@ export function CurrentCloneSessionCard({
         targetGameId,
         isQuestDefinitionsTab,
         isShopDefinitionsTab,
+        refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
+
+    const getManualOverwriteTargetId = useCallback((
+        contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition",
+        sourceId: string,
+    ) => findCloneSessionManualOverwriteTargetId(currentSessionConflicts, contentType, sourceId), [currentSessionConflicts]);
 
     const handleSearchItems = () => {
         setItemsOffset(0);
@@ -475,6 +485,11 @@ export function CurrentCloneSessionCard({
         }
     };
 
+    const handleManualOverwriteSuccess = useCallback(async () => {
+        await onRefreshCurrentSession();
+        setContentRefreshNonce((current) => current + 1);
+    }, [onRefreshCurrentSession]);
+
     if (currentSessionLoading) {
         return <CurrentCloneSessionLoadingCard />;
     }
@@ -566,6 +581,8 @@ export function CurrentCloneSessionCard({
         onShopDefinitionsClearSearch: shopDefinitionsState.onClearSearch,
         onShopDefinitionsPreviousPage: shopDefinitionsState.onPreviousPage,
         onShopDefinitionsNextPage: shopDefinitionsState.onNextPage,
+        getManualOverwriteTargetId,
+        onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };
     const currentSessionStatusStyle = getCloneSessionStatusStyle(currentSession.status);
 

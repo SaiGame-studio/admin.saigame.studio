@@ -32,6 +32,7 @@ type UseCurrentCloneSessionDefinitionsParams = {
     targetGameId: string;
     isQuestDefinitionsTab: boolean;
     isShopDefinitionsTab: boolean;
+    refreshNonce: number;
     formatError: (error: unknown) => string;
 };
 
@@ -108,6 +109,7 @@ export function useCurrentCloneSessionDefinitions({
     targetGameId,
     isQuestDefinitionsTab,
     isShopDefinitionsTab,
+    refreshNonce,
     formatError,
 }: UseCurrentCloneSessionDefinitionsParams) {
     const questsState = useCloneSessionPagedState<CloneSessionCurrentQuestDefinition>();
@@ -164,7 +166,7 @@ export function useCurrentCloneSessionDefinitions({
         return () => {
             cancelled = true;
         };
-    }, [currentSessionId, formatError, isQuestDefinitionsTab, questsState.offset, questsState.searchId, questsState.searchName, targetGameId]);
+    }, [currentSessionId, formatError, isQuestDefinitionsTab, questsState.offset, questsState.searchId, questsState.searchName, refreshNonce, targetGameId]);
 
     useEffect(() => {
         if (!currentSessionId || !isShopDefinitionsTab) {
@@ -217,7 +219,7 @@ export function useCurrentCloneSessionDefinitions({
         return () => {
             cancelled = true;
         };
-    }, [currentSessionId, formatError, isShopDefinitionsTab, shopDefinitionsState.offset, shopDefinitionsState.searchId, shopDefinitionsState.searchName, targetGameId]);
+    }, [currentSessionId, formatError, isShopDefinitionsTab, refreshNonce, shopDefinitionsState.offset, shopDefinitionsState.searchId, shopDefinitionsState.searchName, targetGameId]);
 
     return {
         questsState: toPagedResult(questsState),

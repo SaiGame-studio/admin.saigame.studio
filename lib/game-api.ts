@@ -232,6 +232,12 @@ export type CloneSessionIgnoreContentType =
     | "quest_definition"
     | "shop_definition";
 
+export interface CloneSessionManualOverwritePairPayload {
+    content_type: CloneSessionIgnoreContentType;
+    source_id: string;
+    target_id: string;
+}
+
 export interface ListCloneableGamesParams {
     targetGameId: string;
     name?: string;
@@ -432,6 +438,13 @@ export async function unignoreCloneSessionContent(sessionId: string, contentType
         content_type: contentType,
         source_id: sourceId,
     }, { suppressToast: true });
+}
+
+export async function createCloneSessionManualOverwritePair(
+    sessionId: string,
+    payload: CloneSessionManualOverwritePairPayload,
+): Promise<void> {
+    await api.post(`/api/v1/game-clone-sessions/${sessionId}/manual-overwrite-pairs`, payload, { suppressToast: true });
 }
 
 export async function getCurrentCloneSessionItems(gameId: string, params?: CloneSessionCurrentItemsParams): Promise<CloneSessionCurrentItemsResponse> {

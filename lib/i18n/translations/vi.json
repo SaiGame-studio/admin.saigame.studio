@@ -499,10 +499,12 @@
     "sourceGameCurrentSessionShopDescriptionLabel": "Mô tả",
     "sourceGameCurrentSessionIgnoreLabel": "Bỏ qua",
     "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "Tự động ghi đè nội dung bị xung đột",
+    "sourceGameCurrentSessionOverwriteAction": "Ghi đè",
     "sourceGameCurrentSessionConflictsLabel": "Xung đột",
     "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict thiếu source_item_definitions_id.",
     "conflicts": {
-      "clone_conflict_unknown": "Nội dung có cùng mã đã tồn tại trong game đích. Hãy bật auto overwrite conflict content để ghi đè nội dung trùng theo mã."
+      "clone_conflict_unknown": "Nội dung có cùng mã đã tồn tại trong game đích. Hãy bật auto overwrite conflict content để ghi đè nội dung trùng theo mã.",
+      "clone_conflict_container_code_name_exists": "Mã code name của container đã tồn tại trong game đích. Hãy bật tự động ghi đè nội dung bị xung đột để ghi đè nội dung trùng theo mã."
     },
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "warnings": {

@@ -499,10 +499,12 @@
     "sourceGameCurrentSessionShopDescriptionLabel": "説明",
     "sourceGameCurrentSessionIgnoreLabel": "無視",
     "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "競合しているコンテンツを自動で上書き",
+    "sourceGameCurrentSessionOverwriteAction": "上書き",
     "sourceGameCurrentSessionConflictsLabel": "競合",
     "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
     "conflicts": {
-      "clone_conflict_unknown": "同じコードを持つコンテンツが複製先ゲームに既に存在します。一致するコードベースのコンテンツを上書きするには、auto overwrite conflict content を有効にしてください。"
+      "clone_conflict_unknown": "同じコードを持つコンテンツが複製先ゲームに既に存在します。一致するコードベースのコンテンツを上書きするには、auto overwrite conflict content を有効にしてください。",
+      "clone_conflict_container_code_name_exists": "コンテナの code name が複製先ゲームに既に存在します。一致するコードベースのコンテンツを上書きするには、競合しているコンテンツを自動で上書きを有効にしてください。"
     },
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "warnings": {

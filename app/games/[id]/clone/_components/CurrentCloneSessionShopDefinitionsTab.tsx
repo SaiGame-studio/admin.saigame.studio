@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwriteButton";
 import type { CloneSessionCurrentShopDefinition } from "@/lib/game-api";
 import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 
@@ -25,6 +26,8 @@ type CurrentCloneSessionShopDefinitionsTabProps = {
     onShopDefinitionsClearSearch: () => void;
     onShopDefinitionsPreviousPage: () => void;
     onShopDefinitionsNextPage: () => void;
+    getManualOverwriteTargetId: (contentType: "shop_definition", sourceId: string) => string | null;
+    onManualOverwriteSuccess: () => Promise<void>;
 };
 
 const SHOP_DEFINITIONS_PAGE_SIZE = 12;
@@ -67,10 +70,14 @@ function CurrentCloneSessionShopDefinitionList({
     shopDefinitions,
     sessionId,
     t,
+    getManualOverwriteTargetId,
+    onManualOverwriteSuccess,
 }: {
     shopDefinitions: CloneSessionCurrentShopDefinition[];
     sessionId?: string;
     t: TranslationFn;
+    getManualOverwriteTargetId: (contentType: "shop_definition", sourceId: string) => string | null;
+    onManualOverwriteSuccess: () => Promise<void>;
 }) {
     if (shopDefinitions.length === 0) {
         return (
@@ -79,6 +86,9 @@ function CurrentCloneSessionShopDefinitionList({
             </div>
         );
     }
+
+    const overwriteTargetIds = new Map(shopDefinitions.map((shop) => [shop.id, getManualOverwriteTargetId("shop_definition", shop.id)]));
+    const hasOverwriteColumn = Array.from(overwriteTargetIds.values()).some(Boolean);
 
     return (
         <div id="clone-game-source-current-session-shop-definitions-table-wrap" className="overflow-x-auto rounded-md border bg-background">
@@ -106,10 +116,18 @@ function CurrentCloneSessionShopDefinitionList({
                         <th id="clone-game-source-current-session-shop-definitions-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
+                        {hasOverwriteColumn ? (
+                            <th id="clone-game-source-current-session-shop-definitions-table-overwrite-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-amber-300">
+                                {t("cloneGame.sourceGameCurrentSessionOverwriteAction")}
+                            </th>
+                        ) : null}
                     </tr>
                 </thead>
                 <tbody id="clone-game-source-current-session-shop-definitions-table-body">
-                    {shopDefinitions.map((shop) => (
+                    {shopDefinitions.map((shop) => {
+                        const overwriteTargetId = overwriteTargetIds.get(shop.id) ?? null;
+
+                        return (
                         <tr id={`clone-game-source-current-session-shop-definition-row-${shop.id}`} key={shop.id} className="border-b transition-colors last:border-0 hover:bg-muted/40">
                             <td id={`clone-game-source-current-session-shop-definition-name-cell-${shop.id}`} className="px-3 py-2 align-middle">
                                 <span id={`clone-game-source-current-session-shop-definition-name-${shop.id}`} className="font-medium">
@@ -144,8 +162,22 @@ function CurrentCloneSessionShopDefinitionList({
                             <td id={`clone-game-source-current-session-shop-definition-ignore-cell-${shop.id}`} className="px-3 py-2 align-middle">
                                 <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-shop-definition-ignore-${shop.id}`} sessionId={sessionId} contentType="shop_definition" sourceId={shop.id} initialIgnored={isIgnored(shop)} t={t} />
                             </td>
+                            {hasOverwriteColumn ? (
+                                <td id={`clone-game-source-current-session-shop-definition-overwrite-cell-${shop.id}`} className="px-3 py-2 align-middle">
+                                    <CloneSessionManualOverwriteButton
+                                        id={`clone-game-source-current-session-shop-definition-overwrite-${shop.id}`}
+                                        sessionId={sessionId}
+                                        contentType="shop_definition"
+                                        sourceId={shop.id}
+                                        targetId={overwriteTargetId}
+                                        t={t}
+                                        onSuccess={onManualOverwriteSuccess}
+                                    />
+                                </td>
+                            ) : null}
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
@@ -167,6 +199,8 @@ export function CurrentCloneSessionShopDefinitionsTab({
     onShopDefinitionsClearSearch,
     onShopDefinitionsPreviousPage,
     onShopDefinitionsNextPage,
+    getManualOverwriteTargetId,
+    onManualOverwriteSuccess,
 }: CurrentCloneSessionShopDefinitionsTabProps) {
     const currentPage = shopDefinitionsTotal > 0 ? Math.floor(shopDefinitionsOffset / SHOP_DEFINITIONS_PAGE_SIZE) + 1 : 0;
     const totalPages = shopDefinitionsTotal > 0 ? Math.ceil(shopDefinitionsTotal / SHOP_DEFINITIONS_PAGE_SIZE) : 0;
@@ -263,19 +297,20 @@ export function CurrentCloneSessionShopDefinitionsTab({
 
             {shopDefinitionsLoading ? (
                 <div id="clone-game-source-current-session-shop-definitions-loading" className="overflow-x-auto rounded-md border bg-background">
-                    <div id="clone-game-source-current-session-shop-definitions-loading-header" className="grid min-w-[860px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_1.8fr] gap-3 border-b bg-muted/40 px-3 py-2">
-                        {Array.from({ length: 6 }).map((_, index) => (
+                    <div id="clone-game-source-current-session-shop-definitions-loading-header" className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_1.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                        {Array.from({ length: 7 }).map((_, index) => (
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-head-${index}`} key={`clone-game-source-current-session-shop-definition-skeleton-head-${index}`} className="h-4 w-20" />
                         ))}
                     </div>
                     {Array.from({ length: 3 }).map((_, index) => (
-                        <div id={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} key={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} className="grid min-w-[860px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_1.8fr] gap-3 border-b px-3 py-3 last:border-0">
+                        <div id={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} key={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_1.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-name-${index}`} className="h-4 w-2/3" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-key-${index}`} className="h-4 w-3/4" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-type-${index}`} className="h-4 w-16" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-status-${index}`} className="h-4 w-14" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-items-${index}`} className="ml-auto h-4 w-10" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-description-${index}`} className="h-4 w-3/4" />
+                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-overwrite-${index}`} className="h-4 w-16" />
                         </div>
                     ))}
                 </div>
@@ -284,7 +319,7 @@ export function CurrentCloneSessionShopDefinitionsTab({
                     {shopDefinitionsError}
                 </div>
             ) : (
-                <CurrentCloneSessionShopDefinitionList shopDefinitions={shopDefinitions} sessionId={sessionId} t={t} />
+                <CurrentCloneSessionShopDefinitionList shopDefinitions={shopDefinitions} sessionId={sessionId} t={t} getManualOverwriteTargetId={getManualOverwriteTargetId} onManualOverwriteSuccess={onManualOverwriteSuccess} />
             )}
         </div>
     );
