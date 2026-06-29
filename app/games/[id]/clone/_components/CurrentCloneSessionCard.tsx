@@ -630,11 +630,6 @@ export function CurrentCloneSessionCard({
                 </div>
             </CardFooter>
 
-            <CurrentCloneSessionFooterProgress
-                t={t}
-                progressEntries={currentSessionProgressEntries}
-            />
-
             <div id="clone-game-source-current-session-alerts-wrap" className="px-6 pb-6">
                 <CurrentCloneSessionAlerts
                     t={t}
@@ -645,6 +640,11 @@ export function CurrentCloneSessionCard({
                     onConflictClick={handleConflictClick}
                 />
             </div>
+
+            <CurrentCloneSessionFooterProgress
+                t={t}
+                progressEntries={currentSessionProgressEntries}
+            />
         </Card>
     );
 }

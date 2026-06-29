@@ -103,20 +103,17 @@ export function CurrentCloneSessionAlerts({
                                                     <span id={`clone-game-source-current-session-conflict-source-label-${idSegment}-${index}`} className="text-muted-foreground">
                                                         Source:
                                                     </span>
-                                                    <Link
+                                                    <Button
                                                         id={`clone-game-source-current-session-conflict-source-link-${idSegment}-${index}`}
-                                                        href={`/games/${sourceGameId}/items/${conflict.source_item_definitions_id}`}
-                                                        className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline"
+                                                        type="button"
+                                                        variant="link"
+                                                        className="h-auto p-0 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                                                        onClick={() => onConflictClick(conflict)}
                                                     >
                                                         <span id={`clone-game-source-current-session-conflict-source-value-${idSegment}-${index}`}>
                                                             {conflictValue}
                                                         </span>
-                                                        <ExternalLink
-                                                            id={`clone-game-source-current-session-conflict-source-link-icon-${idSegment}-${index}`}
-                                                            className="h-3.5 w-3.5"
-                                                            aria-hidden="true"
-                                                        />
-                                                    </Link>
+                                                    </Button>
                                                     <span id={`clone-game-source-current-session-conflict-source-id-${idSegment}-${index}`} className="font-mono break-all">
                                                         {conflict.source_item_definitions_id}
                                                     </span>
