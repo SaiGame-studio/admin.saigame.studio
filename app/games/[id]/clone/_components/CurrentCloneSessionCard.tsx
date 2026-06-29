@@ -485,6 +485,17 @@ export function CurrentCloneSessionCard({
         }
     };
 
+    const handleWarningClick = (warning: CloneSessionWarning) => {
+        const searchValue = (warning.source_id || "").trim();
+        const nextTab = normalizeProgressTab("quest_definitions", currentSessionProgressEntries);
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", nextTab);
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+        if (!searchValue) return setRunCloneSessionError(t("cloneGame.sourceGameCurrentSessionConflictMissingItemDefinitionId"));
+        setRunCloneSessionError(null);
+        questsState.onApplySearchValue(searchValue);
+    };
+
     const handleManualOverwriteSuccess = useCallback(async () => {
         await onRefreshCurrentSession();
         setContentRefreshNonce((current) => current + 1);
@@ -682,6 +693,7 @@ export function CurrentCloneSessionCard({
                     warnings={currentSessionWarnings}
                     conflicts={currentSessionConflicts}
                     onConflictClick={handleConflictClick}
+                    onWarningClick={handleWarningClick}
                 />
             </div>
 

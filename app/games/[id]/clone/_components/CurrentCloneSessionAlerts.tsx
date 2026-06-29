@@ -16,6 +16,7 @@ type CurrentCloneSessionAlertsProps = {
     warnings: CloneSessionWarning[];
     conflicts: CloneSessionConflict[];
     onConflictClick: (conflict: CloneSessionConflict) => void;
+    onWarningClick: (warning: CloneSessionWarning) => void;
 };
 
 function formatTechnicalLabel(value?: string) {
@@ -45,6 +46,7 @@ export function CurrentCloneSessionAlerts({
     warnings,
     conflicts,
     onConflictClick,
+    onWarningClick,
 }: CurrentCloneSessionAlertsProps) {
     if (warnings.length === 0 && conflicts.length === 0) {
         return null;
@@ -412,6 +414,11 @@ export function CurrentCloneSessionAlerts({
                     <div id="clone-game-source-current-session-warnings-list" className="space-y-2">
                         {warnings.map((warning, index) => {
                             const idSegment = toKebabIdSegment(warning.field);
+                            const shopKey = `${warning.message_params?.shop_key ?? ""}`.trim();
+                            const hasShopMissingSourceItemDefinitionWarning = warning.field === "shop_definitions"
+                                && warning.message_code === "clone_warning_shop_source_item_definition_missing"
+                                && Boolean(shopKey)
+                                && Boolean(warning.source_id);
 
                             return (
                                 <div
@@ -419,7 +426,39 @@ export function CurrentCloneSessionAlerts({
                                     key={`${warning.field ?? "warning"}-${index}`}
                                     className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
                                 >
-                                    {warning.field === "quest_definitions" && targetGameId ? (
+                                    {hasShopMissingSourceItemDefinitionWarning ? (
+                                        <div id={`clone-game-source-current-session-warning-shop-wrap-${idSegment}-${index}`} className="space-y-1">
+                                            <p id={`clone-game-source-current-session-warning-field-${idSegment}-${index}`} className="font-medium text-foreground">
+                                                {formatTechnicalLabel(warning.field) || t("common.unknown")}
+                                            </p>
+                                            <div id={`clone-game-source-current-session-warning-source-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
+                                                <span id={`clone-game-source-current-session-warning-source-label-${idSegment}-${index}`} className="text-muted-foreground">
+                                                    Source:
+                                                </span>
+                                                <Button
+                                                    id={`clone-game-source-current-session-warning-source-link-${idSegment}-${index}`}
+                                                    type="button"
+                                                    variant="link"
+                                                    className="h-auto p-0 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                                                    onClick={() => onWarningClick(warning)}
+                                                >
+                                                    <span id={`clone-game-source-current-session-warning-source-value-${idSegment}-${index}`}>
+                                                        {shopKey}
+                                                    </span>
+                                                </Button>
+                                                <span id={`clone-game-source-current-session-warning-source-id-${idSegment}-${index}`} className="font-mono break-all">
+                                                    {warning.source_id}
+                                                </span>
+                                                <CopyButton
+                                                    id={`clone-game-source-current-session-warning-source-id-copy-btn-${idSegment}-${index}`}
+                                                    iconId={`clone-game-source-current-session-warning-source-id-copy-icon-${idSegment}-${index}`}
+                                                    text={warning.source_id ?? ""}
+                                                    size="h-3 w-3"
+                                                    className="ml-0"
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : warning.field === "quest_definitions" && targetGameId ? (
                                         <Link
                                             id={`clone-game-source-current-session-warning-field-link-${idSegment}-${index}`}
                                             href={`/games/${targetGameId}/quests`}

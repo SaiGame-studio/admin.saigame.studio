@@ -511,7 +511,8 @@
       },
       "sourceGameCurrentSessionWarningsLabel": "Warnings",
       "warnings": {
-        "clone_quota_quest_definitions": "Target quota may not fit all quest definitions. Available slots: {available_slot} / {required_total}."
+        "clone_quota_quest_definitions": "Target quota may not fit all quest definitions. Available slots: {available_slot} / {required_total}.",
+        "clone_warning_shop_source_item_definition_missing": "Source shop item {shop_item_id} references missing source item definition {missing_source_item_definition_id}."
       },
       "sourceGameCurrentSessionProgressLabel": "Progress"
     },

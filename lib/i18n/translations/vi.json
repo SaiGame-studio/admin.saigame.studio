@@ -511,7 +511,8 @@
     },
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "warnings": {
-      "clone_quota_quest_definitions": "Quota của game đích có thể không đủ cho tất cả quest definitions. Slot trống: {available_slot} / {required_total}."
+      "clone_quota_quest_definitions": "Quota của game đích có thể không đủ cho tất cả quest definitions. Slot trống: {available_slot} / {required_total}.",
+      "clone_warning_shop_source_item_definition_missing": "Shop item nguồn {shop_item_id} đang tham chiếu tới source item definition bị thiếu {missing_source_item_definition_id}."
     },
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },
