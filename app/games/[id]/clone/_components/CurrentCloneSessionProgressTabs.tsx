@@ -16,7 +16,7 @@ import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } fro
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
 import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
-import { formatTechnicalLabel, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
+import { formatDurationCompact, formatTechnicalLabel, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
 
 type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
 
@@ -119,29 +119,6 @@ function formatPage(currentPage: number, totalPages: number) {
     }
 
     return `${currentPage.toLocaleString("en-US")}/${totalPages.toLocaleString("en-US")}`;
-}
-
-function formatDurationCompact(totalSeconds?: number) {
-    if (typeof totalSeconds !== "number" || !Number.isFinite(totalSeconds)) {
-        return null;
-    }
-    const normalizedSeconds = Math.max(0, Math.floor(totalSeconds));
-    const days = Math.floor(normalizedSeconds / 86400);
-    const hours = Math.floor((normalizedSeconds % 86400) / 3600);
-    const minutes = Math.floor((normalizedSeconds % 3600) / 60);
-    const seconds = normalizedSeconds % 60;
-    const parts: string[] = [];
-    if (days > 0) {
-        parts.push(`${days}d`);
-    }
-    if (days > 0 || hours > 0) {
-        parts.push(`${hours}h`);
-    }
-    if (days > 0 || hours > 0 || minutes > 0) {
-        parts.push(`${minutes}m`);
-    }
-    parts.push(`${seconds}s`);
-    return parts.join(" ");
 }
 
 export function CurrentCloneSessionProgressTabs({

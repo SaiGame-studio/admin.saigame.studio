@@ -51,6 +51,23 @@ export interface CloneSessionEstimatedCost {
     amount?: number;
 }
 
+export interface ActiveCloneSessionSummary {
+    session_id: string;
+    target_game_id: string;
+    target_game_name?: string;
+    status?: string;
+    expires_at?: number;
+    expires_in_seconds?: number;
+}
+
+export interface ActiveCloneSessionsResponse {
+    source_game_id?: string;
+    source_game_name?: string;
+    session_ttl_seconds?: number;
+    active_session_count?: number;
+    active_sessions?: ActiveCloneSessionSummary[];
+}
+
 export interface CloneSessionLastRunResponse {
     warnings?: CloneSessionWarning[];
     conflicts?: CloneSessionConflict[];
@@ -568,4 +585,8 @@ export async function getCurrentCloneSessionShopDefinitions(gameId: string, para
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {
     await api.post(`/api/v1/games/${gameId}/clone-sessions/current/delete`, undefined, { suppressToast: true });
+}
+
+export async function getActiveCloneSessions(sourceGameId: string): Promise<ActiveCloneSessionsResponse> {
+    return await api.get(`/api/v1/games/${sourceGameId}/clone-sessions/active`, { suppressToast: true });
 }

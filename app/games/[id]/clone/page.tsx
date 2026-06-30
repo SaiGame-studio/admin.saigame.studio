@@ -16,6 +16,7 @@ import { getGame, updateGame } from "@/lib/game-api";
 import { ApiError } from "@/lib/api-client";
 import type { Game } from "@/types/game";
 import { useToast } from "@/hooks/use-toast";
+import { ActiveCloneSessionsCard } from "./_components/ActiveCloneSessionsCard";
 import { SourceGameTab } from "./_components/SourceGameTab";
 
 type CloneTab = "clone-setting" | "from-another-game";
@@ -469,6 +470,9 @@ export default function GameClonePage() {
               </div>
             </CardContent>
           </Card>
+          {shareLevelDraft === "protected" || shareLevelDraft === "public" ? (
+            <ActiveCloneSessionsCard sourceGameId={gameId} />
+          ) : null}
         </TabsContent>
 
         <TabsContent id="clone-game-tab-content-from-another-game" value="from-another-game" className="mt-0 space-y-4">

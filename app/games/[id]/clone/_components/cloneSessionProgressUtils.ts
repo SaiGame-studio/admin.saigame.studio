@@ -92,3 +92,32 @@ export function getProgressValue(processed?: number, total?: number) {
 
     return Math.min(100, Math.max(0, ((processed ?? 0) / total) * 100));
 }
+
+export function formatDurationCompact(totalSeconds?: number) {
+    if (typeof totalSeconds !== "number" || !Number.isFinite(totalSeconds)) {
+        return null;
+    }
+
+    const normalizedSeconds = Math.max(0, Math.floor(totalSeconds));
+    const days = Math.floor(normalizedSeconds / 86400);
+    const hours = Math.floor((normalizedSeconds % 86400) / 3600);
+    const minutes = Math.floor((normalizedSeconds % 3600) / 60);
+    const seconds = normalizedSeconds % 60;
+    const parts: string[] = [];
+
+    if (days > 0) {
+        parts.push(`${days}d`);
+    }
+
+    if (days > 0 || hours > 0) {
+        parts.push(`${hours}h`);
+    }
+
+    if (days > 0 || hours > 0 || minutes > 0) {
+        parts.push(`${minutes}m`);
+    }
+
+    parts.push(`${seconds}s`);
+
+    return parts.join(" ");
+}
