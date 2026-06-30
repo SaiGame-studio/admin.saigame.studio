@@ -39,6 +39,21 @@ function toKebabIdSegment(value?: string) {
     return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "unknown";
 }
 
+function getConflictContentTypeLabel(conflict: CloneSessionConflict, t: TranslationFn) {
+    if (!conflict.content_type) {
+        return "";
+    }
+
+    const translationKey = `cloneGame.conflictContentTypes.${conflict.content_type}`;
+    const translatedLabel = t(translationKey);
+
+    if (translatedLabel !== translationKey) {
+        return translatedLabel;
+    }
+
+    return formatTechnicalLabel(conflict.content_type);
+}
+
 export function CurrentCloneSessionAlerts({
     t,
     targetGameId,
@@ -95,7 +110,9 @@ export function CurrentCloneSessionAlerts({
                     </p>
                     <div id="clone-game-source-current-session-conflicts-list" className="space-y-2">
                         {conflicts.map((conflict, index) => {
+                            const contentTypeLabel = getConflictContentTypeLabel(conflict, t);
                             const fieldLabel = formatTechnicalLabel(conflict.field) || t("common.unknown");
+                            const conflictHeaderLabel = contentTypeLabel ? `${contentTypeLabel} · ${fieldLabel}` : fieldLabel;
                             const conflictValue = conflict.value || conflict.target_id || conflict.target_definition_id || t("common.unknown");
                             const idSegment = toKebabIdSegment(conflict.field ?? conflict.target_id ?? conflict.target_definition_id);
                             const hasItemCodeConflictLinks = conflict.field === "item_code"
@@ -120,7 +137,7 @@ export function CurrentCloneSessionAlerts({
                                     {hasItemCodeConflictLinks ? (
                                         <div id={`clone-game-source-current-session-conflict-item-code-wrap-${idSegment}-${index}`} className="space-y-1">
                                             <p id={`clone-game-source-current-session-conflict-field-${idSegment}-${index}`} className="font-medium text-foreground">
-                                                {fieldLabel}
+                                                {conflictHeaderLabel}
                                             </p>
                                             {sourceGameId && conflict.source_item_definitions_id ? (
                                                 <div id={`clone-game-source-current-session-conflict-source-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
@@ -185,7 +202,7 @@ export function CurrentCloneSessionAlerts({
                                     ) : hasContainerCodeNameConflictLinks ? (
                                         <div id={`clone-game-source-current-session-conflict-container-code-wrap-${idSegment}-${index}`} className="space-y-1">
                                             <p id={`clone-game-source-current-session-conflict-field-${idSegment}-${index}`} className="font-medium text-foreground">
-                                                {fieldLabel}
+                                                {conflictHeaderLabel}
                                             </p>
                                             {sourceGameId && conflict.source_id ? (
                                                 <div id={`clone-game-source-current-session-conflict-source-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
@@ -250,7 +267,7 @@ export function CurrentCloneSessionAlerts({
                                     ) : hasQuestCodeNameConflictLinks ? (
                                         <div id={`clone-game-source-current-session-conflict-quest-code-wrap-${idSegment}-${index}`} className="space-y-1">
                                             <p id={`clone-game-source-current-session-conflict-field-${idSegment}-${index}`} className="font-medium text-foreground">
-                                                {fieldLabel}
+                                                {conflictHeaderLabel}
                                             </p>
                                             {sourceGameId && conflict.source_id ? (
                                                 <div id={`clone-game-source-current-session-conflict-source-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
@@ -315,7 +332,7 @@ export function CurrentCloneSessionAlerts({
                                     ) : hasShopKeyConflictLinks ? (
                                         <div id={`clone-game-source-current-session-conflict-shop-key-wrap-${idSegment}-${index}`} className="space-y-1">
                                             <p id={`clone-game-source-current-session-conflict-field-${idSegment}-${index}`} className="font-medium text-foreground">
-                                                {fieldLabel}
+                                                {conflictHeaderLabel}
                                             </p>
                                             {sourceGameId && conflict.source_id ? (
                                                 <div id={`clone-game-source-current-session-conflict-source-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
@@ -386,7 +403,7 @@ export function CurrentCloneSessionAlerts({
                                             onClick={() => onConflictClick(conflict)}
                                         >
                                             <span id={`clone-game-source-current-session-conflict-field-${idSegment}-${index}`}>
-                                                {fieldLabel}
+                                                {conflictHeaderLabel}
                                             </span>
                                             <span id={`clone-game-source-current-session-conflict-separator-${idSegment}-${index}`}>
                                                 :&nbsp;

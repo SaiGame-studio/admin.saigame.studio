@@ -33,6 +33,7 @@ export interface CloneSessionWarning {
 }
 
 export interface CloneSessionConflict {
+    content_type?: CloneSessionIgnoreContentType;
     field?: string;
     value?: string;
     source_id?: string;

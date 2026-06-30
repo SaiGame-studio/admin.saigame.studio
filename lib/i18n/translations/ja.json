@@ -518,6 +518,13 @@
     "sourceGameCurrentSessionOverwriteConfirmDescription": "この操作により、複製元ゲームのデータで複製先ゲームのデータを上書きします。複製先ゲームの既存データは置き換えられます。",
     "sourceGameCurrentSessionConflictsLabel": "競合",
     "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
+    "conflictContentTypes": {
+      "item_tag": "アイテムタグ",
+      "item_definition": "アイテム定義",
+      "item_container_definition": "アイテムコンテナ",
+      "quest_definition": "クエスト",
+      "shop_definition": "ショップ定義"
+    },
     "conflicts": {
       "clone_conflict_unknown": "同じコードを持つコンテンツが複製先ゲームに既に存在します。一致するコードベースのコンテンツを上書きするには、auto overwrite conflict content を有効にしてください。",
       "clone_conflict_container_code_name_exists": "コンテナの code name が複製先ゲームに既に存在します。一致するコードベースのコンテンツを上書きするには、競合しているコンテンツを自動で上書きを有効にしてください。",
