@@ -74,6 +74,9 @@ export interface CloneSessionSnapshot {
     clone_run_options?: CloneSessionRunOptions;
     last_run_response?: CloneSessionLastRunResponse;
     progress?: Record<string, CloneSessionProgress>;
+    session_ttl_seconds?: number;
+    expires_at?: number;
+    expires_in_seconds?: number;
     message?: string;
 }
 
@@ -298,8 +301,8 @@ export async function updateGame(gameId: string, gameData: {
         allow_player_trading?: boolean;
         [key: string]: any;
     };
-}): Promise<Game> {
-    return await api.patch(`/api/v1/games/${gameId}`, gameData);
+}, options?: { suppressToast?: boolean }): Promise<Game> {
+    return await api.patch(`/api/v1/games/${gameId}`, gameData, options);
 }
 // Get all games of current user
 export async function getAllGames(): Promise<Game[]> {

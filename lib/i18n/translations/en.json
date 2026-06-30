@@ -398,6 +398,9 @@
     "visibilitySaveFailed": "Failed to update visibility.",
     "clonePriceSaved": "Clone price updated.",
     "clonePriceSaveFailed": "Failed to update clone price.",
+    "errors": {
+      "GAME_SHARE_LEVEL_PRIVATE_BLOCKED_BY_ACTIVE_CLONE_SOURCE": "This game cannot be made private while it is being used as an active clone source."
+    },
     "clonePriceMinError": "Public games need a clone price of at least 7 💎 sGem.",
     "sourceGameTitle": "Clone From",
     "sourceGameSubtitle": "Browse cloneable games and pick the one you want to clone from.",
@@ -462,6 +465,10 @@
     "sourceGameCurrentSessionPhaseLabel": "Current phase",
     "sourceGameCurrentSessionBatchLabel": "Batch progress",
     "sourceGameCurrentSessionCostLabel": "Clone cost",
+    "sourceGameCurrentSessionExpiresInLabel": "Expires in",
+    "sourceGameCurrentSessionExpiresAtLabel": "Expires at",
+    "sourceGameCurrentSessionTtlLabel": "Session TTL",
+    "sourceGameCurrentSessionExpired": "Expired",
     "sourceGameCurrentSessionNameLabel": "Name",
     "sourceGameCurrentSessionCodeLabel": "Code",
     "sourceGameCurrentSessionItemDefinitionsTabLabel": "Item definitions",

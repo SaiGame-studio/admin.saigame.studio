@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot } from "@/lib/game-api";
+import { formatTimestamp } from "@/lib/utils/date-utils";
 import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } from "./CurrentCloneSessionLists";
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
@@ -119,6 +121,29 @@ function formatPage(currentPage: number, totalPages: number) {
     return `${currentPage.toLocaleString("en-US")}/${totalPages.toLocaleString("en-US")}`;
 }
 
+function formatDurationCompact(totalSeconds?: number) {
+    if (typeof totalSeconds !== "number" || !Number.isFinite(totalSeconds)) {
+        return null;
+    }
+    const normalizedSeconds = Math.max(0, Math.floor(totalSeconds));
+    const days = Math.floor(normalizedSeconds / 86400);
+    const hours = Math.floor((normalizedSeconds % 86400) / 3600);
+    const minutes = Math.floor((normalizedSeconds % 3600) / 60);
+    const seconds = normalizedSeconds % 60;
+    const parts: string[] = [];
+    if (days > 0) {
+        parts.push(`${days}d`);
+    }
+    if (days > 0 || hours > 0) {
+        parts.push(`${hours}h`);
+    }
+    if (days > 0 || hours > 0 || minutes > 0) {
+        parts.push(`${minutes}m`);
+    }
+    parts.push(`${seconds}s`);
+    return parts.join(" ");
+}
+
 export function CurrentCloneSessionProgressTabs({
     t,
     currentSession,
@@ -192,6 +217,7 @@ export function CurrentCloneSessionProgressTabs({
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const [remainingSeconds, setRemainingSeconds] = useState(() => Math.max(0, Math.floor(currentSession.expires_in_seconds ?? 0)));
     const currentItemsCurrentPage = itemsTotal > 0 ? Math.floor(itemsOffset / ITEMS_PAGE_SIZE) + 1 : 0;
     const currentItemsTotalPages = itemsTotal > 0 ? Math.ceil(itemsTotal / ITEMS_PAGE_SIZE) : 0;
     const currentItemsStart = itemsTotal > 0 ? itemsOffset + 1 : 0;
@@ -215,6 +241,28 @@ export function CurrentCloneSessionProgressTabs({
         router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
         onActiveProgressTabChange(value);
     };
+
+    useEffect(() => {
+        setRemainingSeconds(Math.max(0, Math.floor(currentSession.expires_in_seconds ?? 0)));
+    }, [currentSession.expires_in_seconds, currentSession.session_id]);
+    useEffect(() => {
+        if (remainingSeconds <= 0) {
+            return;
+        }
+        const timer = window.setInterval(() => {
+            setRemainingSeconds((current) => {
+                if (current <= 1) {
+                    window.clearInterval(timer);
+                    return 0;
+                }
+                return current - 1;
+            });
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [currentSession.expires_in_seconds, currentSession.session_id]);
+    const expiresInText = formatDurationCompact(remainingSeconds);
+    const expiresAtText = formatTimestamp(currentSession.expires_at);
+    const sessionTtlText = formatDurationCompact(currentSession.session_ttl_seconds);
 
     return (
         <CardContent id="clone-game-source-current-session-content" className="space-y-4 text-sm">
@@ -285,6 +333,26 @@ export function CurrentCloneSessionProgressTabs({
                                     </span>
                                 )}
                             </p>
+                        </div>
+                    ) : null}
+                    {expiresInText ? (
+                        <div id="clone-game-source-current-session-expiry" className="space-y-1">
+                            <p id="clone-game-source-current-session-expiry-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                                {t("cloneGame.sourceGameCurrentSessionExpiresInLabel")}
+                            </p>
+                            <p id="clone-game-source-current-session-expiry-value" className="font-medium tabular-nums">
+                                {remainingSeconds > 0 ? expiresInText : t("cloneGame.sourceGameCurrentSessionExpired")}
+                            </p>
+                            {expiresAtText !== "-" ? (
+                                <p id="clone-game-source-current-session-expiry-at" className="text-xs text-muted-foreground">
+                                    {t("cloneGame.sourceGameCurrentSessionExpiresAtLabel")}: {expiresAtText}
+                                </p>
+                            ) : null}
+                            {sessionTtlText ? (
+                                <p id="clone-game-source-current-session-ttl" className="text-xs text-muted-foreground">
+                                    {t("cloneGame.sourceGameCurrentSessionTtlLabel")}: {sessionTtlText}
+                                </p>
+                            ) : null}
                         </div>
                     ) : null}
                 </div>

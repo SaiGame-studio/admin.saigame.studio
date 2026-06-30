@@ -398,6 +398,9 @@
     "visibilitySaveFailed": "公開範囲を更新できませんでした。",
     "clonePriceSaved": "複製価格を更新しました。",
     "clonePriceSaveFailed": "複製価格を更新できませんでした。",
+    "errors": {
+      "GAME_SHARE_LEVEL_PRIVATE_BLOCKED_BY_ACTIVE_CLONE_SOURCE": "このゲームは現在アクティブな複製元として使用されているため、非公開に変更できません。"
+    },
     "clonePriceMinError": "公開ゲームの複製価格は 7 💎 sGem 以上にしてください。",
     "sourceGameTitle": "複製元を選択",
     "sourceGameSubtitle": "複製可能なゲームを確認し、ここから複製したいものを選びます。",
@@ -462,6 +465,10 @@
     "sourceGameCurrentSessionPhaseLabel": "現在のフェーズ",
     "sourceGameCurrentSessionBatchLabel": "バッチ進捗",
     "sourceGameCurrentSessionCostLabel": "複製コスト",
+    "sourceGameCurrentSessionExpiresInLabel": "期限まで",
+    "sourceGameCurrentSessionExpiresAtLabel": "有効期限",
+    "sourceGameCurrentSessionTtlLabel": "セッションTTL",
+    "sourceGameCurrentSessionExpired": "期限切れ",
     "sourceGameCurrentSessionNameLabel": "名前",
     "sourceGameCurrentSessionCodeLabel": "コード",
     "sourceGameCurrentSessionItemDefinitionsTabLabel": "アイテム定義",

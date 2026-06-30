@@ -13,11 +13,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { getGame, updateGame } from "@/lib/game-api";
+import { ApiError } from "@/lib/api-client";
 import type { Game } from "@/types/game";
 import { useToast } from "@/hooks/use-toast";
 import { SourceGameTab } from "./_components/SourceGameTab";
 
 type CloneTab = "clone-setting" | "from-another-game";
+type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
+
+function getUpdateGameErrorMessage(error: unknown, t: TranslationFn, fallbackKey: string) {
+  if (error instanceof ApiError) {
+    const messageCode = typeof error.data?.message_code === "string" ? error.data.message_code.trim() : "";
+
+    if (messageCode) {
+      const translationKey = `cloneGame.errors.${messageCode}`;
+      const translatedMessage = t(translationKey, error.data?.message_params);
+
+      if (translatedMessage !== translationKey) {
+        return translatedMessage;
+      }
+    }
+
+    const rawMessage = typeof error.data?.message === "string"
+      ? error.data.message
+      : typeof error.data?.error === "string"
+        ? error.data.error
+        : error.message;
+
+    if (rawMessage) {
+      return rawMessage;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return t(fallbackKey);
+}
 
 export default function GameClonePage() {
   const params = useParams() as { id: string };
@@ -102,7 +135,7 @@ export default function GameClonePage() {
 
       const updated = await updateGame(game.id, {
         ...payload,
-      });
+      }, { suppressToast: true });
       setGame(updated);
       setShareLevelDraft(updated.share_level ?? "private");
       setCloneCostDraft(String(updated.clone_cost ?? 7));
@@ -110,11 +143,11 @@ export default function GameClonePage() {
         title: t("common.saved"),
         description: t("cloneGame.visibilitySaved"),
       });
-    } catch {
+    } catch (error) {
       setShareLevelDraft(previousShareLevel);
       toast({
         title: t("common.error"),
-        description: t("cloneGame.visibilitySaveFailed"),
+        description: getUpdateGameErrorMessage(error, t, "cloneGame.visibilitySaveFailed"),
         variant: "destructive",
       });
     } finally {
@@ -148,7 +181,7 @@ export default function GameClonePage() {
     try {
       const updated = await updateGame(game.id, {
         clone_cost: normalizedCloneCost,
-      });
+      }, { suppressToast: true });
       setGame(updated);
       setCloneCostDraft(String(updated.clone_cost ?? normalizedCloneCost));
       setEditingCloneCost(false);
@@ -156,11 +189,11 @@ export default function GameClonePage() {
         title: t("common.saved"),
         description: t("cloneGame.clonePriceSaved"),
       });
-    } catch {
+    } catch (error) {
       setCloneCostDraft(previousCloneCost);
       toast({
         title: t("common.error"),
-        description: t("cloneGame.clonePriceSaveFailed"),
+        description: getUpdateGameErrorMessage(error, t, "cloneGame.clonePriceSaveFailed"),
         variant: "destructive",
       });
     } finally {

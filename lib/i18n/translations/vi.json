@@ -398,6 +398,9 @@
     "visibilitySaveFailed": "Không thể cập nhật trạng thái hiển thị.",
     "clonePriceSaved": "Đã cập nhật phí clone.",
     "clonePriceSaveFailed": "Không thể cập nhật phí clone.",
+    "errors": {
+      "GAME_SHARE_LEVEL_PRIVATE_BLOCKED_BY_ACTIVE_CLONE_SOURCE": "Không thể chuyển game sang riêng tư khi game này đang được dùng làm nguồn clone đang hoạt động."
+    },
     "clonePriceMinError": "Game công khai cần phí clone tối thiểu là 7 💎 sGem.",
     "sourceGameTitle": "Nhân bản từ",
     "sourceGameSubtitle": "Duyệt các game có thể clone và chọn game muốn nhân bản từ đó vào game đích này.",
@@ -462,6 +465,10 @@
     "sourceGameCurrentSessionPhaseLabel": "Giai đoạn hiện tại",
     "sourceGameCurrentSessionBatchLabel": "Tiến độ batch",
     "sourceGameCurrentSessionCostLabel": "Chi phí clone",
+    "sourceGameCurrentSessionExpiresInLabel": "Còn lại",
+    "sourceGameCurrentSessionExpiresAtLabel": "Hết hạn lúc",
+    "sourceGameCurrentSessionTtlLabel": "Thời lượng session",
+    "sourceGameCurrentSessionExpired": "Đã hết hạn",
     "sourceGameCurrentSessionNameLabel": "T\u00ean",
     "sourceGameCurrentSessionCodeLabel": "M\u00e3",
     "sourceGameCurrentSessionItemDefinitionsTabLabel": "\u0110\u1ecbnh ngh\u0129a v\u1eadt ph\u1ea9m",
