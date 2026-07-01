@@ -582,11 +582,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                     </Link>
                                                 </Button>
                                             ) : null}
-                                            {isSelected && cloneSessionError ? (
-                                                <p id={`clone-game-source-card-error-${game.id}`} className="basis-full text-xs text-destructive">
-                                                    {cloneSessionError}
-                                                </p>
-                                            ) : null}
                                         </div>
                                         <div id={`clone-game-source-card-visibility-wrap-${game.id}`} className="flex items-center gap-2 text-right">
                                             {visibilityPriceLabel ? (
