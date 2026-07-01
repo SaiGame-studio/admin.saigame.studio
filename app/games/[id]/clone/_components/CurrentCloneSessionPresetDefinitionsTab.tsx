@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { CloneSessionCurrentPresetDefinition } from "@/lib/game-api";
 import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwriteButton";
+import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 
 type TranslationFn = (key: string) => string;
 
@@ -304,6 +305,7 @@ export function CurrentCloneSessionPresetDefinitionsTab({
                         <p id="clone-game-source-current-session-preset-definitions-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
                             {formatRange(start, end, presetDefinitionsTotal)}
                         </p>
+                        <CurrentCloneSessionTableRefreshButton id="clone-game-source-current-session-preset-definitions-refresh-btn" iconId="clone-game-source-current-session-preset-definitions-refresh-icon" loading={presetDefinitionsLoading} t={t} onRefresh={onManualOverwriteSuccess} />
                     </div>
                 </div>
             </div>

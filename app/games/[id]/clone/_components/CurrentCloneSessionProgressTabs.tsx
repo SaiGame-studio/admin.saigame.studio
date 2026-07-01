@@ -17,6 +17,7 @@ import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab
 import { CurrentCloneSessionPresetDefinitionsTab } from "./CurrentCloneSessionPresetDefinitionsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
 import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
+import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 import { formatDurationCompact, formatTechnicalLabel, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
 
 type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
@@ -473,6 +474,7 @@ export function CurrentCloneSessionProgressTabs({
                                                     <p id="clone-game-source-current-session-item-definitions-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
                                                         {formatRange(currentItemsStart, currentItemsEnd, itemsTotal)}
                                                     </p>
+                                                    <CurrentCloneSessionTableRefreshButton id="clone-game-source-current-session-item-definitions-refresh-btn" iconId="clone-game-source-current-session-item-definitions-refresh-icon" loading={itemsLoading} t={t} onRefresh={onManualOverwriteSuccess} />
                                                 </div>
                                             </div>
                                         </div>
@@ -584,6 +586,7 @@ export function CurrentCloneSessionProgressTabs({
                                                     <p id="clone-game-source-current-session-item-containers-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
                                                         {formatRange(currentItemContainersStart, currentItemContainersEnd, itemContainersTotal)}
                                                     </p>
+                                                    <CurrentCloneSessionTableRefreshButton id="clone-game-source-current-session-item-containers-refresh-btn" iconId="clone-game-source-current-session-item-containers-refresh-icon" loading={itemContainersLoading} t={t} onRefresh={onManualOverwriteSuccess} />
                                                 </div>
                                             </div>
                                         </div>

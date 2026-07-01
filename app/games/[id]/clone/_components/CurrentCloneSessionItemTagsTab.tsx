@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwriteButton";
 import type { CloneSessionCurrentItemTag } from "@/lib/game-api";
 import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
+import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 
 type TranslationFn = (key: string) => string;
 
@@ -271,6 +272,7 @@ export function CurrentCloneSessionItemTagsTab({
                         <p id="clone-game-source-current-session-item-tags-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
                             {formatRange(start, end, itemTagsTotal)}
                         </p>
+                        <CurrentCloneSessionTableRefreshButton id="clone-game-source-current-session-item-tags-refresh-btn" iconId="clone-game-source-current-session-item-tags-refresh-icon" loading={itemTagsLoading} t={t} onRefresh={onManualOverwriteSuccess} />
                     </div>
                 </div>
             </div>

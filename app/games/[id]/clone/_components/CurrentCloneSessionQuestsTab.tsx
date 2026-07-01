@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwriteButton";
 import type { CloneSessionCurrentQuestDefinition } from "@/lib/game-api";
 import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
+import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 
 type TranslationFn = (key: string) => string;
 
@@ -303,6 +304,7 @@ export function CurrentCloneSessionQuestsTab({
                         <p id="clone-game-source-current-session-quests-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
                             {formatRange(start, end, questsTotal)}
                         </p>
+                        <CurrentCloneSessionTableRefreshButton id="clone-game-source-current-session-quests-refresh-btn" iconId="clone-game-source-current-session-quests-refresh-icon" loading={questsLoading} t={t} onRefresh={onManualOverwriteSuccess} />
                     </div>
                 </div>
             </div>
