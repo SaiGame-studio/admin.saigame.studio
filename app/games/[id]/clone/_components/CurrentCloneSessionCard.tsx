@@ -687,6 +687,7 @@ export function CurrentCloneSessionCard({
             <CurrentCloneSessionFooterProgress
                 t={t}
                 progressEntries={currentSessionProgressEntries}
+                onRefresh={onRefreshCurrentSession}
             />
         </Card>
     );
