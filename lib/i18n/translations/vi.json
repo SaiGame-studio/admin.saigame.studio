@@ -2463,6 +2463,7 @@
     "presetCodeNamePlaceholder": "vd. standard_deck",
     "searchByName": "Tìm theo tên…",
     "searchByNameIdOrCode": "Tìm theo tên, ID hoặc mã item…",
+    "searchByNameIdOrCodeName": "Tìm theo tên, ID hoặc tên mã…",
     "searchByNameOrCode": "Tìm theo tên hoặc mã…",
     "searchByNameOrId": "Tìm theo tên hoặc ID…",
     "searchByNameTypeOrId": "Tìm theo tên, loại hoặc ID…",

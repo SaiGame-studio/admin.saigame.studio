@@ -3162,7 +3162,7 @@ export default function GameItemsPage() {
             <div className="flex gap-2 items-center flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"/>
-                <Input placeholder={t('items.searchByNameOrCode')} value={containerSearch} onChange={(e) => setContainerSearch(e.target.value)} className="pl-8 h-8 w-56 text-sm"/>
+                <Input placeholder={t('items.searchByNameIdOrCodeName')} value={containerSearch} onChange={(e) => setContainerSearch(e.target.value)} className="pl-8 h-8 w-[400px] text-sm"/>
                 {containerSearch && (<button className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setContainerSearch("")} title={t('items.clearSearch')}>
                     <X className="h-3.5 w-3.5"/>
                   </button>)}

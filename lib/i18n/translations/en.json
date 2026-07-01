@@ -2501,6 +2501,7 @@
     "presetCodeNamePlaceholder": "e.g. standard_deck",
     "searchByName": "Search by name…",
     "searchByNameIdOrCode": "Search by name, ID or item code…",
+    "searchByNameIdOrCodeName": "Search by name, ID or code name…",
     "searchByNameOrCode": "Search by name or code…",
     "searchByNameOrId": "Search by name or ID…",
     "searchByNameTypeOrId": "Search by name, type or ID…",
