@@ -33,6 +33,7 @@ import { createConversation, linkConversationContent } from "@/lib/llm-conversat
 import { safeGetItem } from "@/lib/storage-utils";
 import { BaseStatsSection } from "./_components/BaseStatsSection";
 import { ItemExplanationSheet, type ItemExplanationTopic } from "./_components/ItemExplanationSheet";
+import { MetadataSection } from "./_components/MetadataSection";
 // ─── helpers ─────────────────────────────────────────────────────────────────
 function trimStrings<T>(obj: T): T {
     if (typeof obj === 'string')
@@ -83,33 +84,6 @@ function CopyUUID({ value }: {
       {copied
             ? <Check className="h-3.5 w-3.5 text-green-500 shrink-0"/>
             : <Copy className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0"/>}
-    </button>);
-}
-function CopyIconButton({ value }: {
-    value: string;
-}) {
-    const [copied, setCopied] = useState(false);
-    const copy = () => {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(value);
-        }
-        else {
-            const textarea = document.createElement("textarea");
-            textarea.value = value;
-            textarea.style.position = "fixed";
-            textarea.style.opacity = "0";
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textarea);
-        }
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-    return (<button onClick={copy} className="inline-flex items-center opacity-0 group-hover:opacity-100 transition-opacity" title="Copy">
-      {copied
-            ? <Check className="h-3 w-3 text-green-500 shrink-0"/>
-            : <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground shrink-0"/>}
     </button>);
 }
 // ─── main page ───────────────────────────────────────────────────────────────
@@ -1120,120 +1094,24 @@ export default function ItemDefinitionDetailPage() {
         />
 
         {/* ── Metadata ──────────────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('items.metadata')}</CardTitle>
-            {!editingMeta ? (<Button size="icon" variant="ghost" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={startEditMeta}>
-                <Pencil className="h-3.5 w-3.5"/>
-              </Button>) : (<div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={saveMeta}>
-                  <Save className="h-3.5 w-3.5"/>
-                </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingMeta(false)}>
-                  <X className="h-3.5 w-3.5"/>
-                </Button>
-              </div>)}
-          </CardHeader>
-          <CardContent>
-            {item.metadata?._clone !== undefined && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
-                <div className="ml-1 flex items-center gap-2">
-                  <Badge variant="secondary" className="text-[11px]">
-                    {t('items.cloneItemBadge')}
-                  </Badge>
-                </div>
-              </div>)}
-            {/* ── Linked Container Definition (read-only) ────────── */}
-            {linkedContainerInfo && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
-                <span className="text-muted-foreground font-mono text-xs">linked_container_definition_id</span>
-                <div className="flex items-center gap-1.5 ml-1">
-                  <Link href={`/games/${gameId}/items?tab=containers&q=${linkedContainerInfo.id}`} title={t('items.goToItemDef')} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
-                    <ExternalLink className="h-3 w-3 shrink-0"/>
-                    <span className="font-medium">{linkedContainerInfo.name || t('items.detailUnknownContainer')}</span>
-                    <span className="font-mono text-[10px] opacity-60">{linkedContainerInfo.id.slice(0, 8)}…</span>
-                  </Link>
-                </div>
-              </div>)}
-            {/* ── Craft Recipe Input IDs (read-only) ──────────────── */}
-            {craftInputIds.length > 0 && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
-                <span className="text-muted-foreground font-mono text-xs">craft_recipe_input_ids</span>
-                <div className="flex flex-col gap-1 ml-1">
-                  {craftInputIds.map((rid) => {
-                const recipe = craftRecipeInfo[rid];
-                return (<div key={rid} className="inline-flex items-center gap-1.5 text-xs">
-                        <Link href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`} title={t('items.detailOpenRecipe')} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
-                          <ExternalLink className="h-3 w-3 shrink-0"/>
-                          <span className="font-medium">{recipe?.name || "…"}</span>
-                          <span className="font-mono text-[10px] opacity-60">{rid.slice(0, 8)}…</span>
-                        </Link>
-                      </div>);
-            })}
-                </div>
-              </div>)}
-            {/* ── Craft Recipe Output IDs (read-only) ─────────────── */}
-            {craftOutputIds.length > 0 && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
-                <span className="text-muted-foreground font-mono text-xs">craft_recipe_output_ids</span>
-                <div className="flex flex-col gap-1 ml-1">
-                  {craftOutputIds.map((rid) => {
-                const recipe = craftRecipeInfo[rid];
-                return (<div key={rid} className="inline-flex items-center gap-1.5 text-xs">
-                        <Link href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`} title={t('items.detailOpenRecipe')} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
-                          <ExternalLink className="h-3 w-3 shrink-0"/>
-                          <span className="font-medium">{recipe?.name || "…"}</span>
-                          <span className="font-mono text-[10px] opacity-60">{rid.slice(0, 8)}…</span>
-                        </Link>
-                      </div>);
-            })}
-                </div>
-              </div>)}
-            {/* ── Gacha Pack IDs (read-only) ────────────────────────── */}
-            {linkedPackIds.length > 0 && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
-                <span className="text-muted-foreground font-mono text-xs">gacha_pack_ids</span>
-                <div className="flex flex-col gap-1 ml-1">
-                  {linkedPackIds.map((packId) => {
-                const pack = gachaPackInfo[packId];
-                return (<div key={packId} className="inline-flex items-center gap-1.5 text-xs">
-                        {pack && (<span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${pack.is_enabled
-                            ? "bg-green-500/15 text-green-500 border border-green-500/30"
-                            : "bg-red-500/15 text-red-500 border border-red-500/30"}`}>
-                            {pack.is_enabled ? t('items.enabled') : t('items.disabled')}
-                          </span>)}
-                        <Link href={`/games/${gameId}/items?tab=gacha&editPack=${packId}`} title={t('items.detailOpenGachaPackEditor')} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
-                          <ExternalLink className="h-3 w-3 shrink-0"/>
-                          <span className="font-medium">{pack?.name || "…"}</span>
-                          <span className="font-mono text-[10px] opacity-60">{packId.slice(0, 8)}…</span>
-                        </Link>
-                      </div>);
-            })}
-                </div>
-              </div>)}
-            {editingMeta ? (<div className="space-y-2">
-                {tmpMeta.map((entry, i) => (<div key={i} className="flex gap-1 items-center">
-                    <Input className="h-7 text-xs flex-1 font-mono" placeholder="key" value={entry.key} onChange={(e) => { const a = [...tmpMeta]; a[i] = { ...a[i], key: e.target.value }; setTmpMeta(a); }}/>
-                    <span className="text-muted-foreground text-xs">=</span>
-                    <Input className="h-7 text-xs flex-1" placeholder="value" value={entry.value} onChange={(e) => { const a = [...tmpMeta]; a[i] = { ...a[i], value: e.target.value }; setTmpMeta(a); }}/>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setTmpMeta(tmpMeta.filter((_, j) => j !== i))}>
-                      <Trash2 className="h-3.5 w-3.5"/>
-                    </Button>
-                  </div>))}
-                <Button size="sm" variant="outline" className="h-7 text-xs mt-1 w-full" onClick={() => setTmpMeta([...tmpMeta, { key: "", value: "" }])}>
-                  <Plus className="h-3 w-3 mr-1"/> {t('items.addEntry')}
-                </Button>
-              </div>) : Object.keys(item.metadata ?? {}).filter((k) => !RESERVED_META_KEYS.includes(k)).length === 0 && item.metadata?._clone === undefined ? (<p className="text-sm text-muted-foreground">{t('items.detailNoMetadata')}</p>) : (<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                {Object.entries(item.metadata)
-                .filter(([key]) => !RESERVED_META_KEYS.includes(key))
-                .map(([key, value]) => (<div key={key} className="group flex justify-between text-sm border-b border-muted/50 pb-1.5">
-                    <span className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                      {key}
-                      <CopyIconButton value={key}/>
-                    </span>
-                    <span className="text-xs font-medium max-w-[200px] truncate text-right" title={String(value)}>
-                      {typeof value === "boolean" ? (value ? "true" : "false") : String(value)}
-                    </span>
-                  </div>))}
-              </div>)}
-          </CardContent>
-        </Card>
-
+        <MetadataSection
+          item={item}
+          gameId={gameId}
+          editingMeta={editingMeta}
+          saving={saving}
+          tmpMeta={tmpMeta}
+          setTmpMeta={setTmpMeta}
+          onStartEdit={startEditMeta}
+          onSave={saveMeta}
+          onCancel={() => setEditingMeta(false)}
+          reservedMetaKeys={RESERVED_META_KEYS}
+          linkedContainerInfo={linkedContainerInfo}
+          craftInputIds={craftInputIds}
+          craftOutputIds={craftOutputIds}
+          linkedPackIds={linkedPackIds}
+          craftRecipeInfo={craftRecipeInfo}
+          gachaPackInfo={gachaPackInfo}
+        />
         {/* ── Generator Config (for generator items) ──────────────────── */}
         {item.category === "generator" && (() => {
             const gc = (item.metadata?.generator_config ?? {}) as Record<string, unknown>;
