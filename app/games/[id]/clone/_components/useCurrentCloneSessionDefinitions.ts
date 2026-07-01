@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
+    getCurrentCloneSessionPresetDefinitions,
     getCurrentCloneSessionQuests,
     getCurrentCloneSessionShopDefinitions,
+    type CloneSessionCurrentPresetDefinition,
     type CloneSessionCurrentQuestDefinition,
     type CloneSessionCurrentShopDefinition,
 } from "@/lib/game-api";
@@ -32,6 +34,7 @@ type UseCurrentCloneSessionDefinitionsParams = {
     targetGameId: string;
     isQuestDefinitionsTab: boolean;
     isShopDefinitionsTab: boolean;
+    isPresetDefinitionsTab: boolean;
     refreshNonce: number;
     formatError: (error: unknown) => string;
 };
@@ -109,11 +112,13 @@ export function useCurrentCloneSessionDefinitions({
     targetGameId,
     isQuestDefinitionsTab,
     isShopDefinitionsTab,
+    isPresetDefinitionsTab,
     refreshNonce,
     formatError,
 }: UseCurrentCloneSessionDefinitionsParams) {
     const questsState = useCloneSessionPagedState<CloneSessionCurrentQuestDefinition>();
     const shopDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentShopDefinition>();
+    const presetDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentPresetDefinition>();
 
     useEffect(() => {
         if (!currentSessionId || !isQuestDefinitionsTab) {
@@ -221,8 +226,62 @@ export function useCurrentCloneSessionDefinitions({
         };
     }, [currentSessionId, formatError, isShopDefinitionsTab, refreshNonce, shopDefinitionsState.offset, shopDefinitionsState.searchId, shopDefinitionsState.searchName, targetGameId]);
 
+    useEffect(() => {
+        if (!currentSessionId || !isPresetDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadPresetDefinitions = async () => {
+            presetDefinitionsState.setLoading(true);
+            presetDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionPresetDefinitions(targetGameId, {
+                    id: presetDefinitionsState.searchId || undefined,
+                    name: presetDefinitionsState.searchId ? undefined : presetDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: presetDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextPresetDefinitions = Array.isArray(response.preset_definitions)
+                    ? response.preset_definitions
+                    : Array.isArray(response.presets)
+                        ? response.presets
+                        : [];
+
+                presetDefinitionsState.setItems(nextPresetDefinitions);
+                presetDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                presetDefinitionsState.setItems([]);
+                presetDefinitionsState.setTotal(0);
+                presetDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    presetDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadPresetDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, isPresetDefinitionsTab, presetDefinitionsState.offset, presetDefinitionsState.searchId, presetDefinitionsState.searchName, refreshNonce, targetGameId]);
+
     return {
         questsState: toPagedResult(questsState),
         shopDefinitionsState: toPagedResult(shopDefinitionsState),
+        presetDefinitionsState: toPagedResult(presetDefinitionsState),
     };
 }

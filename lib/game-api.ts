@@ -188,6 +188,20 @@ export interface CloneSessionCurrentShopDefinition {
     updated_at?: string;
 }
 
+export interface CloneSessionCurrentPresetDefinition {
+    id: string;
+    game_id: string;
+    code_name: string;
+    preset_type: string;
+    name: string;
+    max_slots?: number;
+    metadata?: Record<string, string | number | boolean | null | undefined>;
+    ignored?: boolean;
+    is_ignored?: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface CloneSessionCurrentQuestsResponse {
     session_id?: string;
     source_game_id?: string;
@@ -210,6 +224,18 @@ export interface CloneSessionCurrentShopDefinitionsResponse {
     total?: number;
     shop_definitions?: CloneSessionCurrentShopDefinition[];
     shops?: CloneSessionCurrentShopDefinition[];
+}
+
+export interface CloneSessionCurrentPresetDefinitionsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    preset_definitions?: CloneSessionCurrentPresetDefinition[];
+    presets?: CloneSessionCurrentPresetDefinition[];
 }
 
 export interface CloneSessionCurrentItemsParams {
@@ -247,12 +273,20 @@ export interface CloneSessionCurrentShopDefinitionsParams {
     offset?: number;
 }
 
+export interface CloneSessionCurrentPresetDefinitionsParams {
+    id?: string;
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
 export type CloneSessionIgnoreContentType =
     | "item_definition"
     | "item_container_definition"
     | "item_tag"
     | "quest_definition"
-    | "shop_definition";
+    | "shop_definition"
+    | "preset_definition";
 
 export interface CloneSessionManualOverwritePairPayload {
     content_type: CloneSessionIgnoreContentType;
@@ -586,6 +620,29 @@ export async function getCurrentCloneSessionShopDefinitions(gameId: string, para
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/shop-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionPresetDefinitions(gameId: string, params?: CloneSessionCurrentPresetDefinitionsParams): Promise<CloneSessionCurrentPresetDefinitionsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/preset-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {

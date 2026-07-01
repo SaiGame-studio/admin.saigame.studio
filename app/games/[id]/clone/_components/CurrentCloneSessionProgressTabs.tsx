@@ -10,10 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot } from "@/lib/game-api";
+import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentPresetDefinition, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot } from "@/lib/game-api";
 import { formatTimestamp } from "@/lib/utils/date-utils";
 import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } from "./CurrentCloneSessionLists";
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
+import { CurrentCloneSessionPresetDefinitionsTab } from "./CurrentCloneSessionPresetDefinitionsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
 import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
 import { formatDurationCompact, formatTechnicalLabel, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
@@ -87,7 +88,11 @@ type CurrentCloneSessionProgressTabsProps = {
     onShopDefinitionsClearSearch: () => void;
     onShopDefinitionsPreviousPage: () => void;
     onShopDefinitionsNextPage: () => void;
-    getManualOverwriteTargetId: (contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition", sourceId: string) => string | null;
+    presetDefinitions: CloneSessionCurrentPresetDefinition[]; presetDefinitionsTotal: number; presetDefinitionsOffset: number;
+    presetDefinitionsSearchInput: string; presetDefinitionsSearchName: string; presetDefinitionsLoading: boolean; presetDefinitionsError: string | null;
+    onPresetDefinitionsSearchInputChange: (value: string) => void; onPresetDefinitionsSearch: () => void; onPresetDefinitionsClearSearch: () => void;
+    onPresetDefinitionsPreviousPage: () => void; onPresetDefinitionsNextPage: () => void;
+    getManualOverwriteTargetId: (contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition", sourceId: string) => string | null;
     onManualOverwriteSuccess: () => Promise<void>;
 };
 
@@ -188,6 +193,9 @@ export function CurrentCloneSessionProgressTabs({
     onShopDefinitionsClearSearch,
     onShopDefinitionsPreviousPage,
     onShopDefinitionsNextPage,
+    presetDefinitions, presetDefinitionsTotal, presetDefinitionsOffset, presetDefinitionsSearchInput, presetDefinitionsSearchName,
+    presetDefinitionsLoading, presetDefinitionsError, onPresetDefinitionsSearchInputChange, onPresetDefinitionsSearch,
+    onPresetDefinitionsClearSearch, onPresetDefinitionsPreviousPage, onPresetDefinitionsNextPage,
     getManualOverwriteTargetId,
     onManualOverwriteSuccess,
 }: CurrentCloneSessionProgressTabsProps) {
@@ -663,6 +671,16 @@ export function CurrentCloneSessionProgressTabs({
                                         onShopDefinitionsNextPage={onShopDefinitionsNextPage}
                                         getManualOverwriteTargetId={getManualOverwriteTargetId}
                                         onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "preset_definitions" ? (
+                                    <CurrentCloneSessionPresetDefinitionsTab
+                                        t={t} presetDefinitions={presetDefinitions} sessionId={currentSession.session_id}
+                                        presetDefinitionsTotal={presetDefinitionsTotal} presetDefinitionsOffset={presetDefinitionsOffset}
+                                        presetDefinitionsSearchInput={presetDefinitionsSearchInput} presetDefinitionsSearchName={presetDefinitionsSearchName}
+                                        presetDefinitionsLoading={presetDefinitionsLoading} presetDefinitionsError={presetDefinitionsError}
+                                        onPresetDefinitionsSearchInputChange={onPresetDefinitionsSearchInputChange} onPresetDefinitionsSearch={onPresetDefinitionsSearch}
+                                        onPresetDefinitionsClearSearch={onPresetDefinitionsClearSearch} onPresetDefinitionsPreviousPage={onPresetDefinitionsPreviousPage}
+                                        onPresetDefinitionsNextPage={onPresetDefinitionsNextPage} getManualOverwriteTargetId={getManualOverwriteTargetId} onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />
                                 ) : null}
                             </TabsContent>

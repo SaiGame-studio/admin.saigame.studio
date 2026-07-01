@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, RefreshCw, Search, X } from "lucide-react";
+import { Globe, Loader2, Lock, RefreshCw, Search, Shield, X } from "lucide-react";
 import { CopyButton } from "@/components/CopyButton";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api-client";
 import { createCloneSession, deleteCurrentCloneSession, getCurrentCloneSession, listCloneableGames, type CloneSessionSnapshot } from "@/lib/game-api";
 import { useTranslation } from "@/lib/i18n/use-translation";
@@ -510,6 +511,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                             const visibilityLabel = getVisibilityLabel(game, t);
                             const visibilityPriceLabel = getVisibilityPriceLabel(game, t);
                             const visibilityStatusStyle = getVisibilityStatusStyle(game.share_level);
+                            const VisibilityIcon = game.share_level === "public" ? Globe : game.share_level === "protected" ? Shield : Lock;
 
                             return (
                                 <Card
@@ -546,15 +548,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                             {game.description || t("cloneGame.sourceGameNoDescription")}
                                         </p>
                                         <SourceGameIndicators game={game} scope="card" compact />
-                                        {Array.isArray(game.tags) && game.tags.length > 0 ? (
-                                            <div id={`clone-game-source-card-tags-${game.id}`} className="flex flex-wrap gap-1.5">
-                                                {game.tags.slice(0, 4).map((tag) => (
-                                                    <Badge id={`clone-game-source-card-tag-${game.id}-${tag}`} key={`${game.id}-${tag}`} variant="outline">
-                                                        {tag}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        ) : null}
                                     </CardContent>
                                     <CardFooter id={`clone-game-source-card-footer-${game.id}`} className="mt-auto flex flex-wrap items-center justify-between gap-2">
                                         <div id={`clone-game-source-card-actions-${game.id}`} className="flex flex-wrap items-center gap-2">
@@ -601,16 +594,25 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                     {visibilityPriceLabel}
                                                 </p>
                                             ) : null}
-                                            <span
-                                                id={`clone-game-source-card-visibility-${game.id}`}
-                                                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium leading-none ${visibilityStatusStyle.pill}`}
-                                            >
-                                                <span
-                                                    id={`clone-game-source-card-visibility-dot-${game.id}`}
-                                                    className={`h-1.5 w-1.5 rounded-full ${visibilityStatusStyle.dot}`}
-                                                />
-                                                {visibilityLabel}
-                                            </span>
+                                            <TooltipProvider delayDuration={150}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span
+                                                            id={`clone-game-source-card-visibility-${game.id}`}
+                                                            aria-label={visibilityLabel}
+                                                            className={`inline-flex items-center justify-center rounded-full border p-2 ${visibilityStatusStyle.pill}`}
+                                                        >
+                                                            <VisibilityIcon
+                                                                id={`clone-game-source-card-visibility-icon-${game.id}`}
+                                                                className="h-3.5 w-3.5"
+                                                            />
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent id={`clone-game-source-card-visibility-tooltip-${game.id}`} side="top">
+                                                        {visibilityLabel}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </div>
                                     </CardFooter>
                                 </Card>

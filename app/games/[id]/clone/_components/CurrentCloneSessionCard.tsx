@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
 import { Button } from "@/components/ui/button";
@@ -112,7 +113,11 @@ type CurrentCloneSessionContentProps = {
     onShopDefinitionsClearSearch: () => void;
     onShopDefinitionsPreviousPage: () => void;
     onShopDefinitionsNextPage: () => void;
-    getManualOverwriteTargetId: (contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition", sourceId: string) => string | null;
+    presetDefinitions: ReturnType<typeof useCurrentCloneSessionDefinitions>["presetDefinitionsState"]["items"]; presetDefinitionsTotal: number; presetDefinitionsOffset: number;
+    presetDefinitionsSearchInput: string; presetDefinitionsSearchName: string; presetDefinitionsLoading: boolean; presetDefinitionsError: string | null;
+    onPresetDefinitionsSearchInputChange: (value: string) => void; onPresetDefinitionsSearch: () => void; onPresetDefinitionsClearSearch: () => void;
+    onPresetDefinitionsPreviousPage: () => void; onPresetDefinitionsNextPage: () => void;
+    getManualOverwriteTargetId: (contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition", sourceId: string) => string | null;
     onManualOverwriteSuccess: () => Promise<void>;
 };
 
@@ -171,6 +176,7 @@ export function CurrentCloneSessionCard({
     const isItemTagsTab = activeProgressTab === "item_tags" || activeProgressTab === "item_tag_definitions";
     const isQuestDefinitionsTab = activeProgressTab === "quest_definitions";
     const isShopDefinitionsTab = activeProgressTab === "shop_definitions";
+    const isPresetDefinitionsTab = activeProgressTab === "preset_definitions";
     const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
 
     useEffect(() => {
@@ -353,17 +359,19 @@ export function CurrentCloneSessionCard({
     const {
         questsState,
         shopDefinitionsState,
+        presetDefinitionsState,
     } = useCurrentCloneSessionDefinitions({
         currentSessionId,
         targetGameId,
         isQuestDefinitionsTab,
         isShopDefinitionsTab,
+        isPresetDefinitionsTab,
         refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
 
     const getManualOverwriteTargetId = useCallback((
-        contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition",
+        contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition",
         sourceId: string,
     ) => findCloneSessionManualOverwriteTargetId(currentSessionConflicts, contentType, sourceId), [currentSessionConflicts]);
 
@@ -487,6 +495,8 @@ export function CurrentCloneSessionCard({
             questsState.onApplySearchValue(searchValue);
         } else if (nextTab === "shop_definitions") {
             shopDefinitionsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "preset_definitions") {
+            presetDefinitionsState.onApplySearchValue(searchValue);
         }
     };
 
@@ -597,6 +607,11 @@ export function CurrentCloneSessionCard({
         onShopDefinitionsClearSearch: shopDefinitionsState.onClearSearch,
         onShopDefinitionsPreviousPage: shopDefinitionsState.onPreviousPage,
         onShopDefinitionsNextPage: shopDefinitionsState.onNextPage,
+        presetDefinitions: presetDefinitionsState.items, presetDefinitionsTotal: presetDefinitionsState.total, presetDefinitionsOffset: presetDefinitionsState.offset,
+        presetDefinitionsSearchInput: presetDefinitionsState.searchInput, presetDefinitionsSearchName: presetDefinitionsState.searchName,
+        presetDefinitionsLoading: presetDefinitionsState.loading, presetDefinitionsError: presetDefinitionsState.error,
+        onPresetDefinitionsSearchInputChange: presetDefinitionsState.onSearchInputChange, onPresetDefinitionsSearch: presetDefinitionsState.onSearch,
+        onPresetDefinitionsClearSearch: presetDefinitionsState.onClearSearch, onPresetDefinitionsPreviousPage: presetDefinitionsState.onPreviousPage, onPresetDefinitionsNextPage: presetDefinitionsState.onNextPage,
         getManualOverwriteTargetId,
         onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };
@@ -629,19 +644,15 @@ export function CurrentCloneSessionCard({
                                 />
                             ) : null}
                         </div>
-                        <span
-                            id="clone-game-source-current-session-status-badge"
-                            className={cn(
-                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium leading-none",
-                                currentSessionStatusStyle.pill,
-                            )}
-                        >
-                            <span
-                                id="clone-game-source-current-session-status-indicator"
-                                className={cn("h-1.5 w-1.5 rounded-full", currentSessionStatusStyle.dot)}
-                            />
-                            {formatTechnicalLabel(currentSession.status) || t("common.unknown")}
-                        </span>
+                        <div id="clone-game-source-current-session-status-actions" className="flex items-center gap-2">
+                            <span id="clone-game-source-current-session-status-badge" className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium leading-none", currentSessionStatusStyle.pill)}>
+                                <span id="clone-game-source-current-session-status-indicator" className={cn("h-1.5 w-1.5 rounded-full", currentSessionStatusStyle.dot)} />
+                                {formatTechnicalLabel(currentSession.status) || t("common.unknown")}
+                            </span>
+                            <Button id="clone-game-source-current-session-refresh-btn" type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => void onRetry()} aria-label={t("common.refresh")} title={t("common.refresh")}>
+                                <RefreshCw id="clone-game-source-current-session-refresh-icon" className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </CardHeader>
@@ -659,7 +670,6 @@ export function CurrentCloneSessionCard({
                 onDelete={onDelete}
                 onRefreshCurrentSession={onRefreshCurrentSession}
                 onRunCloneSession={handleRunCloneSession}
-                onRetry={onRetry}
             />
 
             <div id="clone-game-source-current-session-alerts-wrap" className="px-6 pb-6">

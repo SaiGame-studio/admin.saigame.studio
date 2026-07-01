@@ -487,6 +487,7 @@
     "sourceGameCurrentSessionItemTagsTabLabel": "Item tags",
     "sourceGameCurrentSessionQuestDefinitionsTabLabel": "Quests",
     "sourceGameCurrentSessionShopDefinitionsTabLabel": "Shops",
+    "sourceGameCurrentSessionPresetDefinitionsTabLabel": "Presets",
     "sourceGameCurrentSessionItemRarityLabel": "Rarity",
     "sourceGameCurrentSessionItemCategoryLabel": "Category",
     "sourceGameCurrentSessionItemSearchLabel": "Search item definitions",
@@ -515,6 +516,10 @@
       "sourceGameCurrentSessionShopStatusLabel": "Status",
       "sourceGameCurrentSessionShopItemsLabel": "Items",
       "sourceGameCurrentSessionShopDescriptionLabel": "Description",
+      "sourceGameCurrentSessionPresetSearchPlaceholder": "Search preset definitions by name...",
+      "sourceGameCurrentSessionPresetTypeLabel": "Type",
+      "sourceGameCurrentSessionPresetMaxSlotsLabel": "Max slots",
+      "sourceGameCurrentSessionPresetMetadataLabel": "Metadata",
       "sourceGameCurrentSessionIgnoreLabel": "Ignore",
       "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "Auto overwrite conflict content",
       "sourceGameCurrentSessionOverwriteAction": "Overwrite",
@@ -527,7 +532,8 @@
         "item_definition": "Item definition",
         "item_container_definition": "Item container",
         "quest_definition": "Quest definition",
-        "shop_definition": "Shop definition"
+        "shop_definition": "Shop definition",
+        "preset_definition": "Preset definition"
       },
       "conflicts": {
         "clone_conflict_unknown": "Content with the same code already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content.",

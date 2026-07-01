@@ -80,6 +80,8 @@ export function getCloneSessionPhaseLabel(phaseKey: string | undefined, t: Trans
             return t("cloneGame.sourceGameCurrentSessionQuestDefinitionsTabLabel");
         case "shop_definitions":
             return t("cloneGame.sourceGameCurrentSessionShopDefinitionsTabLabel");
+        case "preset_definitions":
+            return t("cloneGame.sourceGameCurrentSessionPresetDefinitionsTabLabel");
         default:
             return formatTechnicalLabel(phaseKey) || t("common.unknown");
     }

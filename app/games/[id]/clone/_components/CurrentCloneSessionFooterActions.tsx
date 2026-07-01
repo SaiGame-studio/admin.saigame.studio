@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -29,7 +29,6 @@ type CurrentCloneSessionFooterActionsProps = {
     onDelete: () => void;
     onRefreshCurrentSession: () => Promise<void>;
     onRunCloneSession: () => Promise<void>;
-    onRetry: () => Promise<void>;
 };
 
 export function CurrentCloneSessionFooterActions({
@@ -43,7 +42,6 @@ export function CurrentCloneSessionFooterActions({
     onDelete,
     onRefreshCurrentSession,
     onRunCloneSession,
-    onRetry,
 }: CurrentCloneSessionFooterActionsProps) {
     const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
 
@@ -126,17 +124,6 @@ export function CurrentCloneSessionFooterActions({
                     >
                         {runningCloneSession ? <Loader2 id="clone-game-source-current-session-run-loading-icon" className="h-4 w-4 animate-spin" /> : null}
                         {runningCloneSession ? t("common.loading") : canCompleteCloneSession ? t("cloneGame.sourceGameCurrentSessionComplete") : t("cloneGame.sourceGameCurrentSessionRun")}
-                    </Button>
-                    <Button
-                        id="clone-game-source-current-session-refresh-btn"
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => void onRetry()}
-                        aria-label={t("common.refresh")}
-                        title={t("common.refresh")}
-                    >
-                        <RefreshCw id="clone-game-source-current-session-refresh-icon" className="h-4 w-4" />
                     </Button>
                 </div>
             </CardFooter>

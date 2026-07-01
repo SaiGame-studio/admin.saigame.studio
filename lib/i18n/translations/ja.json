@@ -487,6 +487,7 @@
     "sourceGameCurrentSessionItemTagsTabLabel": "アイテムタグ",
     "sourceGameCurrentSessionQuestDefinitionsTabLabel": "クエスト",
     "sourceGameCurrentSessionShopDefinitionsTabLabel": "ショップ",
+    "sourceGameCurrentSessionPresetDefinitionsTabLabel": "プリセット",
     "sourceGameCurrentSessionItemRarityLabel": "レアリティ",
     "sourceGameCurrentSessionItemCategoryLabel": "カテゴリ",
     "sourceGameCurrentSessionItemSearchLabel": "アイテム定義を検索",
@@ -515,6 +516,10 @@
     "sourceGameCurrentSessionShopStatusLabel": "状態",
     "sourceGameCurrentSessionShopItemsLabel": "アイテム",
     "sourceGameCurrentSessionShopDescriptionLabel": "説明",
+    "sourceGameCurrentSessionPresetSearchPlaceholder": "名前でプリセット定義を検索...",
+    "sourceGameCurrentSessionPresetTypeLabel": "タイプ",
+    "sourceGameCurrentSessionPresetMaxSlotsLabel": "最大スロット数",
+    "sourceGameCurrentSessionPresetMetadataLabel": "メタデータ",
     "sourceGameCurrentSessionIgnoreLabel": "無視",
     "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "競合しているコンテンツを自動で上書き",
     "sourceGameCurrentSessionOverwriteAction": "上書き",
@@ -527,7 +532,8 @@
       "item_definition": "アイテム定義",
       "item_container_definition": "アイテムコンテナ",
       "quest_definition": "クエスト",
-      "shop_definition": "ショップ定義"
+      "shop_definition": "ショップ定義",
+      "preset_definition": "プリセット定義"
     },
     "conflicts": {
       "clone_conflict_unknown": "同じコードを持つコンテンツが複製先ゲームに既に存在します。一致するコードベースのコンテンツを上書きするには、auto overwrite conflict content を有効にしてください。",

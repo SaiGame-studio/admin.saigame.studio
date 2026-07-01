@@ -487,6 +487,7 @@
     "sourceGameCurrentSessionItemTagsTabLabel": "Item tag",
     "sourceGameCurrentSessionQuestDefinitionsTabLabel": "Quest",
     "sourceGameCurrentSessionShopDefinitionsTabLabel": "C\u1eeda h\u00e0ng",
+    "sourceGameCurrentSessionPresetDefinitionsTabLabel": "Preset",
     "sourceGameCurrentSessionItemRarityLabel": "\u0110\u1ed9 hi\u1ebfm",
     "sourceGameCurrentSessionItemCategoryLabel": "Danh mục",
     "sourceGameCurrentSessionItemSearchLabel": "Tìm định nghĩa vật phẩm",
@@ -515,6 +516,10 @@
     "sourceGameCurrentSessionShopStatusLabel": "Trạng thái",
     "sourceGameCurrentSessionShopItemsLabel": "Vật phẩm",
     "sourceGameCurrentSessionShopDescriptionLabel": "Mô tả",
+    "sourceGameCurrentSessionPresetSearchPlaceholder": "Tìm preset definitions theo tên...",
+    "sourceGameCurrentSessionPresetTypeLabel": "Loại",
+    "sourceGameCurrentSessionPresetMaxSlotsLabel": "Số slot tối đa",
+    "sourceGameCurrentSessionPresetMetadataLabel": "Metadata",
     "sourceGameCurrentSessionIgnoreLabel": "Bỏ qua",
     "sourceGameCurrentSessionOverwriteConflictingCodesLabel": "Tự động ghi đè nội dung bị xung đột",
     "sourceGameCurrentSessionOverwriteAction": "Ghi đè",
@@ -527,7 +532,8 @@
       "item_definition": "Định nghĩa vật phẩm",
       "item_container_definition": "Container vật phẩm",
       "quest_definition": "Quest",
-      "shop_definition": "Cửa hàng"
+      "shop_definition": "Cửa hàng",
+      "preset_definition": "Preset"
     },
     "conflicts": {
       "clone_conflict_unknown": "Nội dung có cùng mã đã tồn tại trong game đích. Hãy bật auto overwrite conflict content để ghi đè nội dung trùng theo mã.",

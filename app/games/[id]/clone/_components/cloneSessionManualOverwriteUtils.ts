@@ -40,6 +40,12 @@ export function getCloneSessionManualOverwritePair(conflict: CloneSessionConflic
         return sourceId && targetId ? { contentType: "shop_definition", sourceId, targetId } : null;
     }
 
+    if (progressTab === "preset_definitions") {
+        const sourceId = (conflict.source_id || "").trim();
+        const targetId = (conflict.target_id || "").trim();
+        return sourceId && targetId ? { contentType: "preset_definition", sourceId, targetId } : null;
+    }
+
     return null;
 }
 
