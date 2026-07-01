@@ -2704,53 +2704,65 @@ export default function GameItemsPage() {
                 {total > 0 ? `${total.toLocaleString()} ${t('items.itemsDefined')}` : t('items.noItemsYet')}
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Clear all */}
-              {(searchName || filterCategory !== "all" || filterRarity !== "all" || filterAllowClientUpdateQty !== "all" || selectedTagKeys.length > 0) && (<button id="items-catalogue-clear-filters-btn" className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline" onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setFilterAllowClientUpdateQty("all"); setSelectedTagKeys([]); }}>
-                  Clear
-                </button>)}
-              {/* Catalogue search */}
-              <div id="items-catalogue-search-controls" className="relative">
-                <Search id="items-catalogue-search-input-icon" className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"/>
-                <input id="items-catalogue-search-input" type="text" placeholder={t('items.searchByNameIdOrCode')} value={searchName} onChange={(e) => setSearchName(e.target.value)} className="h-8 w-60 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"/>
-                {searchName && (<button id="items-catalogue-search-clear-btn" type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearchName("")}>
-                  <X id="items-catalogue-search-clear-icon" className="h-3.5 w-3.5"/>
-                </button>)}
+            <div id="items-catalogue-toolbar-controls" className="flex flex-col items-end gap-2">
+              <div id="items-catalogue-toolbar-primary-row" className="flex items-center gap-2 flex-wrap justify-end">
+                {/* Clear all */}
+                {(searchName || filterCategory !== "all" || filterRarity !== "all" || filterAllowClientUpdateQty !== "all" || selectedTagKeys.length > 0) && (<button id="items-catalogue-clear-filters-btn" className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline" onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setFilterAllowClientUpdateQty("all"); setSelectedTagKeys([]); }}>
+                    Clear
+                  </button>)}
+                {/* Catalogue search */}
+                <div id="items-catalogue-search-controls" className="relative">
+                <div id="items-catalogue-search-input-wrap" className="relative">
+                  <Search id="items-catalogue-search-input-icon" className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"/>
+                  <input id="items-catalogue-search-input" type="text" placeholder={t('items.searchByNameIdOrCode')} value={searchName} onChange={(e) => setSearchName(e.target.value)} className="h-8 w-[400px] rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"/>
+                  {searchName && (<button id="items-catalogue-search-clear-btn" type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearchName("")}>
+                    <X id="items-catalogue-search-clear-icon" className="h-3.5 w-3.5"/>
+                  </button>)}
+                </div>
+                </div>
+                <Button id="items-catalogue-refresh-btn" variant="outline" size="icon" className="h-8 w-8" onClick={fetchItems} disabled={loading} title="Refresh">
+                  <RefreshCw id="items-catalogue-refresh-icon" className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}/>
+                </Button>
+                <Button id="items-catalogue-new-item-btn" size="sm" className="h-8" onClick={() => setShowCreate(true)}>
+                  <Plus id="items-catalogue-new-item-icon" className="h-4 w-4 mr-1"/>
+                  {t('items.newItem')}
+                </Button>
               </div>
-              {/* Category */}
-              <select id="items-catalogue-category-filter" className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                <option value="all">{t('items.allCategories')}</option>
-                {categories.map((c) => (<option key={c} value={c}>{prettyCategory(c)}</option>))}
-              </select>
-              {/* Rarity */}
-              <select id="items-catalogue-rarity-filter" className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize" value={filterRarity} onChange={(e) => setFilterRarity(e.target.value)}>
-                <option value="all">{t('items.allRarities')}</option>
-                {rarities.map((r) => (<option key={r} value={r} className="capitalize">{r}</option>))}
-              </select>
-              {/* Allow Client Update Qty */}
-              <select id="items-catalogue-qty-filter" className="h-8 rounded-md border border-input bg-background px-2 text-sm" value={filterAllowClientUpdateQty} onChange={(e) => setFilterAllowClientUpdateQty(e.target.value)}>
-                <option value="all">{t('items.allQtyPermissions')}</option>
-                <option value="true">{t('items.canUpdateQty')}</option>
-                <option value="false">{t('items.cannotUpdateQty')}</option>
-              </select>
-              {/* Tags filter */}
-              {itemTags.length > 0 && (<Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                      <Tag className="h-3.5 w-3.5"/>
-                      {t('items.tabTags')}
-                      {selectedTagKeys.length > 0 && (<span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-semibold">
-                          {selectedTagKeys.length}
-                        </span>)}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder={t('items.searchTagsIn')}/>
-                      <CommandList>
-                        <CommandEmpty>{t('items.noTagsFound')}</CommandEmpty>
-                        <CommandGroup>
-                          {itemTags.map((tag) => {
+              <div id="items-catalogue-toolbar-filter-row" className="flex items-center gap-2 flex-wrap justify-end">
+                {/* Category */}
+                <select id="items-catalogue-category-filter" className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                  <option value="all">{t('items.allCategories')}</option>
+                  {categories.map((c) => (<option key={c} value={c}>{prettyCategory(c)}</option>))}
+                </select>
+                {/* Rarity */}
+                <select id="items-catalogue-rarity-filter" className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize" value={filterRarity} onChange={(e) => setFilterRarity(e.target.value)}>
+                  <option value="all">{t('items.allRarities')}</option>
+                  {rarities.map((r) => (<option key={r} value={r} className="capitalize">{r}</option>))}
+                </select>
+                {/* Allow Client Update Qty */}
+                <select id="items-catalogue-qty-filter" className="h-8 rounded-md border border-input bg-background px-2 text-sm" value={filterAllowClientUpdateQty} onChange={(e) => setFilterAllowClientUpdateQty(e.target.value)}>
+                  <option value="all">{t('items.allQtyPermissions')}</option>
+                  <option value="true">{t('items.canUpdateQty')}</option>
+                  <option value="false">{t('items.cannotUpdateQty')}</option>
+                </select>
+                {/* Tags filter */}
+                {itemTags.length > 0 && (<Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                        <Tag className="h-3.5 w-3.5"/>
+                        {t('items.tabTags')}
+                        {selectedTagKeys.length > 0 && (<span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-semibold">
+                            {selectedTagKeys.length}
+                          </span>)}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder={t('items.searchTagsIn')}/>
+                        <CommandList>
+                          <CommandEmpty>{t('items.noTagsFound')}</CommandEmpty>
+                          <CommandGroup>
+                            {itemTags.map((tag) => {
                 const active = selectedTagKeys.includes(tag.tag_key);
                 return (<CommandItem key={tag.tag_key} value={tag.label || tag.tag_key} onSelect={() => {
                         setSelectedTagKeys((prev) => active ? prev.filter((k) => k !== tag.tag_key) : [...prev, tag.tag_key]);
@@ -2760,18 +2772,12 @@ export default function GameItemsPage() {
                                 {active && <Check className="h-3.5 w-3.5 ml-1 shrink-0"/>}
                               </CommandItem>);
             })}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>)}
-              <Button id="items-catalogue-refresh-btn" variant="outline" size="icon" className="h-8 w-8" onClick={fetchItems} disabled={loading} title="Refresh">
-                <RefreshCw id="items-catalogue-refresh-icon" className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}/>
-              </Button>
-              <Button id="items-catalogue-new-item-btn" size="sm" className="h-8" onClick={() => setShowCreate(true)}>
-                <Plus id="items-catalogue-new-item-icon" className="h-4 w-4 mr-1"/>
-                {t('items.newItem')}
-              </Button>
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>)}
+              </div>
             </div>
           </div>
 
