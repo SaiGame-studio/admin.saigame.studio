@@ -519,7 +519,7 @@ export default function ItemDefinitionDetailPage() {
         setEditingStats(true);
     }
     // Keys managed separately (read-only in the UI)
-    const RESERVED_META_KEYS = ["gacha_pack_ids", "gacha_pack_id", "linked_container_definition_id", "generator_config", "craft_recipe_input_ids", "craft_recipe_output_ids"];
+    const RESERVED_META_KEYS = ["_clone", "gacha_pack_ids", "gacha_pack_id", "linked_container_definition_id", "generator_config", "craft_recipe_input_ids", "craft_recipe_output_ids"];
     function startEditGenConfig() {
         if (!item)
             return;
@@ -1162,6 +1162,13 @@ export default function ItemDefinitionDetailPage() {
               </div>)}
           </CardHeader>
           <CardContent>
+            {item.metadata?._clone !== undefined && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
+                <div className="ml-1 flex items-center gap-2">
+                  <Badge variant="secondary" className="text-[11px]">
+                    {t('items.cloneItemBadge')}
+                  </Badge>
+                </div>
+              </div>)}
             {/* ── Linked Container Definition (read-only) ────────── */}
             {linkedContainerInfo && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
                 <span className="text-muted-foreground font-mono text-xs">linked_container_definition_id</span>
@@ -1238,7 +1245,7 @@ export default function ItemDefinitionDetailPage() {
                 <Button size="sm" variant="outline" className="h-7 text-xs mt-1 w-full" onClick={() => setTmpMeta([...tmpMeta, { key: "", value: "" }])}>
                   <Plus className="h-3 w-3 mr-1"/> {t('items.addEntry')}
                 </Button>
-              </div>) : Object.keys(item.metadata ?? {}).filter((k) => !RESERVED_META_KEYS.includes(k)).length === 0 ? (<p className="text-sm text-muted-foreground">{t('items.detailNoMetadata')}</p>) : (<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+              </div>) : Object.keys(item.metadata ?? {}).filter((k) => !RESERVED_META_KEYS.includes(k)).length === 0 && item.metadata?._clone === undefined ? (<p className="text-sm text-muted-foreground">{t('items.detailNoMetadata')}</p>) : (<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                 {Object.entries(item.metadata)
                 .filter(([key]) => !RESERVED_META_KEYS.includes(key))
                 .map(([key, value]) => (<div key={key} className="group flex justify-between text-sm border-b border-muted/50 pb-1.5">
