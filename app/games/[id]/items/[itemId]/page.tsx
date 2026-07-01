@@ -31,6 +31,7 @@ import { SseUpdateSheet } from "@/components/SseUpdateSheet";
 import type { CreateItemInitialValues } from "@/components/CreateItemDefinitionDialog";
 import { createConversation, linkConversationContent } from "@/lib/llm-conversation-api";
 import { safeGetItem } from "@/lib/storage-utils";
+import { BaseStatsSection } from "./_components/BaseStatsSection";
 import { ItemExplanationSheet, type ItemExplanationTopic } from "./_components/ItemExplanationSheet";
 // ─── helpers ─────────────────────────────────────────────────────────────────
 function trimStrings<T>(obj: T): T {
@@ -1107,44 +1108,16 @@ export default function ItemDefinitionDetailPage() {
         </Card>
 
         {/* ── Base Stats ────────────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('items.baseStats')}</CardTitle>
-            {!editingStats ? (<Button size="icon" variant="ghost" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={startEditStats}>
-                <Pencil className="h-3.5 w-3.5"/>
-              </Button>) : (<div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={saveStats}>
-                  <Save className="h-3.5 w-3.5"/>
-                </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingStats(false)}>
-                  <X className="h-3.5 w-3.5"/>
-                </Button>
-              </div>)}
-          </CardHeader>
-          <CardContent>
-            {editingStats ? (<div className="space-y-2">
-                {tmpStats.map((entry, i) => (<div key={i} className="flex gap-1 items-center">
-                    <Input className="h-7 text-xs flex-1" placeholder="key" value={entry.key} onChange={(e) => { const a = [...tmpStats]; a[i] = { ...a[i], key: e.target.value }; setTmpStats(a); }}/>
-                    <span className="text-muted-foreground text-xs">=</span>
-                    <Input className="h-7 text-xs w-20" placeholder="0" type="number" value={entry.value} onChange={(e) => { const a = [...tmpStats]; a[i] = { ...a[i], value: e.target.value }; setTmpStats(a); }}/>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setTmpStats(tmpStats.filter((_, j) => j !== i))}>
-                      <Trash2 className="h-3.5 w-3.5"/>
-                    </Button>
-                  </div>))}
-                <Button size="sm" variant="outline" className="h-7 text-xs mt-1 w-full" onClick={() => setTmpStats([...tmpStats, { key: "", value: "0" }])}>
-                  <Plus className="h-3 w-3 mr-1"/> {t('items.detailAddStat')}
-                </Button>
-              </div>) : Object.keys(item.base_stats ?? {}).length === 0 ? (<p className="text-sm text-muted-foreground">{t('items.detailNoBaseStats')}</p>) : (<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                {Object.entries(item.base_stats).map(([key, value]) => (<div key={key} className="group flex justify-between text-sm border-b border-muted/50 pb-1.5">
-                    <span className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                      {key}
-                      <CopyIconButton value={key}/>
-                    </span>
-                    <span className="text-xs font-semibold">{value}</span>
-                  </div>))}
-              </div>)}
-          </CardContent>
-        </Card>
+        <BaseStatsSection
+          item={item}
+          editingStats={editingStats}
+          tmpStats={tmpStats}
+          setTmpStats={setTmpStats}
+          saving={saving}
+          onStartEdit={startEditStats}
+          onSave={saveStats}
+          onCancel={() => setEditingStats(false)}
+        />
 
         {/* ── Metadata ──────────────────────────────────────────────────────── */}
         <Card>
