@@ -2460,6 +2460,7 @@
     "presetCodeNameHint": "任意（例: standard_deck）",
     "presetCodeNamePlaceholder": "例: standard_deck",
     "searchByName": "Search by name…",
+    "searchByNameIdOrCode": "名前、IDまたはアイテムコードで検索…",
     "searchByNameOrCode": "Search by name or code…",
     "searchByNameOrId": "Search by name or ID…",
     "searchByNameTypeOrId": "Search by name, type or ID…",

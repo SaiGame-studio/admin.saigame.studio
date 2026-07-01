@@ -1934,13 +1934,29 @@ export default function GameItemsPage() {
                 params.category = filterCategory as ItemCategory;
             if (filterRarity !== "all")
                 params.rarity = filterRarity as ItemRarity;
-            if (debouncedName)
-                params.name = debouncedName;
             if (selectedTagKeys.length > 0)
                 params.tags = selectedTagKeys;
             if (filterAllowClientUpdateQty !== "all")
                 params.allow_client_update_qty = filterAllowClientUpdateQty === "true";
-            const result = await listItemDefinitions({ gameId }, params);
+            const trimmedQuery = debouncedName.trim();
+            const isUuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmedQuery);
+            const isCodeLike = /^[A-Za-z0-9_-]+$/.test(trimmedQuery) && !trimmedQuery.includes("--");
+            let result;
+            if (!trimmedQuery) {
+                result = await listItemDefinitions({ gameId }, params);
+            }
+            else if (isUuidLike) {
+                result = await listItemDefinitions({ gameId }, { ...params, id: trimmedQuery });
+            }
+            else if (isCodeLike) {
+                result = await listItemDefinitions({ gameId }, { ...params, item_code: trimmedQuery });
+                if ((result.items?.length ?? 0) === 0) {
+                    result = await listItemDefinitions({ gameId }, { ...params, name: trimmedQuery });
+                }
+            }
+            else {
+                result = await listItemDefinitions({ gameId }, { ...params, name: trimmedQuery });
+            }
             setItems(result.items ?? []);
             setTotal(result.total);
         }
@@ -2690,29 +2706,29 @@ export default function GameItemsPage() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {/* Clear all */}
-              {(searchName || filterCategory !== "all" || filterRarity !== "all" || filterAllowClientUpdateQty !== "all" || selectedTagKeys.length > 0) && (<button className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline" onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setFilterAllowClientUpdateQty("all"); setSelectedTagKeys([]); }}>
+              {(searchName || filterCategory !== "all" || filterRarity !== "all" || filterAllowClientUpdateQty !== "all" || selectedTagKeys.length > 0) && (<button id="items-catalogue-clear-filters-btn" className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline" onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setFilterAllowClientUpdateQty("all"); setSelectedTagKeys([]); }}>
                   Clear
                 </button>)}
-              {/* Name search */}
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"/>
-                <input type="text" placeholder={t('items.searchByName')} value={searchName} onChange={(e) => setSearchName(e.target.value)} className="h-8 w-44 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"/>
-                {searchName && (<button className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearchName("")}>
-                    <X className="h-3.5 w-3.5"/>
-                  </button>)}
+              {/* Catalogue search */}
+              <div id="items-catalogue-search-controls" className="relative">
+                <Search id="items-catalogue-search-input-icon" className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"/>
+                <input id="items-catalogue-search-input" type="text" placeholder={t('items.searchByNameIdOrCode')} value={searchName} onChange={(e) => setSearchName(e.target.value)} className="h-8 w-60 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"/>
+                {searchName && (<button id="items-catalogue-search-clear-btn" type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearchName("")}>
+                  <X id="items-catalogue-search-clear-icon" className="h-3.5 w-3.5"/>
+                </button>)}
               </div>
               {/* Category */}
-              <select className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+              <select id="items-catalogue-category-filter" className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
                 <option value="all">{t('items.allCategories')}</option>
                 {categories.map((c) => (<option key={c} value={c}>{prettyCategory(c)}</option>))}
               </select>
               {/* Rarity */}
-              <select className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize" value={filterRarity} onChange={(e) => setFilterRarity(e.target.value)}>
+              <select id="items-catalogue-rarity-filter" className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize" value={filterRarity} onChange={(e) => setFilterRarity(e.target.value)}>
                 <option value="all">{t('items.allRarities')}</option>
                 {rarities.map((r) => (<option key={r} value={r} className="capitalize">{r}</option>))}
               </select>
               {/* Allow Client Update Qty */}
-              <select className="h-8 rounded-md border border-input bg-background px-2 text-sm" value={filterAllowClientUpdateQty} onChange={(e) => setFilterAllowClientUpdateQty(e.target.value)}>
+              <select id="items-catalogue-qty-filter" className="h-8 rounded-md border border-input bg-background px-2 text-sm" value={filterAllowClientUpdateQty} onChange={(e) => setFilterAllowClientUpdateQty(e.target.value)}>
                 <option value="all">{t('items.allQtyPermissions')}</option>
                 <option value="true">{t('items.canUpdateQty')}</option>
                 <option value="false">{t('items.cannotUpdateQty')}</option>
@@ -2749,11 +2765,11 @@ export default function GameItemsPage() {
                     </Command>
                   </PopoverContent>
                 </Popover>)}
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchItems} disabled={loading} title="Refresh">
-                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}/>
+              <Button id="items-catalogue-refresh-btn" variant="outline" size="icon" className="h-8 w-8" onClick={fetchItems} disabled={loading} title="Refresh">
+                <RefreshCw id="items-catalogue-refresh-icon" className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}/>
               </Button>
-              <Button size="sm" className="h-8" onClick={() => setShowCreate(true)}>
-                <Plus className="h-4 w-4 mr-1"/>
+              <Button id="items-catalogue-new-item-btn" size="sm" className="h-8" onClick={() => setShowCreate(true)}>
+                <Plus id="items-catalogue-new-item-icon" className="h-4 w-4 mr-1"/>
                 {t('items.newItem')}
               </Button>
             </div>
