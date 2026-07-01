@@ -454,6 +454,7 @@
     "sourceGameStartConfirmChargedNotSameStudio": "The source game does not belong to your studio.",
     "sourceGameStartConfirmFreeNoDeduction": "No {unit} will be deducted.",
     "sourceGameStartConfirmFreeReasonMyGame": "This source game belongs to you.",
+    "sourceGameStartConfirmFreeReasonPurchased": "You have already purchased access to clone this source game.",
     "sourceGameStartConfirmFreeReasonSameStudio": "This source game belongs to your studio.",
     "sourceGameStartConfirmFreeReasonNoFee": "This source game does not require a clone fee.",
     "sourceGameStartConfirmAction": "Start clone",

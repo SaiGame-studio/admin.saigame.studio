@@ -454,6 +454,7 @@
     "sourceGameStartConfirmChargedNotSameStudio": "Game nguồn cũng không thuộc studio của bạn.",
     "sourceGameStartConfirmFreeNoDeduction": "Sẽ không bị trừ {unit}.",
     "sourceGameStartConfirmFreeReasonMyGame": "Đây là game của bạn.",
+    "sourceGameStartConfirmFreeReasonPurchased": "Bạn đã mua quyền clone game nguồn này rồi.",
     "sourceGameStartConfirmFreeReasonSameStudio": "Game nguồn thuộc studio của bạn.",
     "sourceGameStartConfirmFreeReasonNoFee": "Game nguồn này không yêu cầu phí clone.",
     "sourceGameStartConfirmAction": "Bắt đầu clone",

@@ -454,6 +454,7 @@
     "sourceGameStartConfirmChargedNotSameStudio": "複製元ゲームはあなたのスタジオにも属していません。",
     "sourceGameStartConfirmFreeNoDeduction": "{unit} は差し引かれません。",
     "sourceGameStartConfirmFreeReasonMyGame": "この複製元ゲームはあなたの所有ゲームです。",
+    "sourceGameStartConfirmFreeReasonPurchased": "この複製元ゲームの複製権限はすでに購入済みです。",
     "sourceGameStartConfirmFreeReasonSameStudio": "この複製元ゲームはあなたのスタジオに属しています。",
     "sourceGameStartConfirmFreeReasonNoFee": "この複製元ゲームでは複製料金が不要です。",
     "sourceGameStartConfirmAction": "複製を開始",
