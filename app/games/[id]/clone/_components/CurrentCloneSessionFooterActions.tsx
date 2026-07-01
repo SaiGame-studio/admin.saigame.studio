@@ -101,11 +101,6 @@ export function CurrentCloneSessionFooterActions({
                         {deletingCurrentSession ? <Loader2 id="clone-game-source-current-session-delete-loading-icon" className="h-4 w-4 animate-spin" /> : null}
                         {deletingCurrentSession ? t("common.loading") : t("common.delete")}
                     </Button>
-                    {runCloneSessionError ? (
-                        <p id="clone-game-source-current-session-run-error" className="text-sm text-destructive">
-                            {runCloneSessionError}
-                        </p>
-                    ) : null}
                 </div>
                 <div id="clone-game-source-current-session-footer-right" className="flex flex-wrap items-center gap-2">
                     <CloneSessionRunOptionsSwitch
@@ -127,6 +122,13 @@ export function CurrentCloneSessionFooterActions({
                     </Button>
                 </div>
             </CardFooter>
+            {runCloneSessionError ? (
+                <div id="clone-game-source-current-session-run-error-row" className="px-6 pb-6">
+                    <p id="clone-game-source-current-session-run-error" className="text-sm text-destructive">
+                        {runCloneSessionError}
+                    </p>
+                </div>
+            ) : null}
         </>
     );
 }
