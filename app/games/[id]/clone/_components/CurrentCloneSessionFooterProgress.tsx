@@ -27,7 +27,7 @@ export function CurrentCloneSessionFooterProgress({
     }
 
     return (
-        <div id="clone-game-source-current-session-footer-progress" className="space-y-3 border-t px-6 pt-4">
+        <div id="clone-game-source-current-session-footer-progress" className="space-y-3 border-t px-6 pt-4 pb-4">
             <p id="clone-game-source-current-session-footer-progress-label" className="text-xs uppercase tracking-wide text-muted-foreground">
                 {t("cloneGame.sourceGameCurrentSessionProgressLabel")}
             </p>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
     getCurrentCloneSessionItems,
     getCurrentCloneSessionItemTags,
     runCloneSession,
+    completeCloneSession,
     type CloneSessionConflict,
     type CloneSessionCurrentItemContainer,
     type CloneSessionCurrentItemDefinition,
@@ -21,10 +21,10 @@ import {
     type CloneSessionWarning,
 } from "@/lib/game-api";
 import { CurrentCloneSessionAlerts } from "./CurrentCloneSessionAlerts";
+import { CurrentCloneSessionFooterActions } from "./CurrentCloneSessionFooterActions";
 import { CurrentCloneSessionFooterProgress } from "./CurrentCloneSessionFooterProgress";
 import { CurrentCloneSessionLoadingCard } from "./CurrentCloneSessionLoadingCard";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
-import { CloneSessionRunOptionsSwitch } from "./CloneSessionRunOptionsSwitch";
 import { getConflictProgressTab, getConflictSearchId, normalizeProgressTab } from "./cloneSessionConflictNavigation";
 import { findCloneSessionManualOverwriteTargetId } from "./cloneSessionManualOverwriteUtils";
 import { formatTechnicalLabel, getCloneSessionErrorMessage, getCloneSessionStatusStyle } from "./cloneSessionProgressUtils";
@@ -167,6 +167,7 @@ export function CurrentCloneSessionCard({
     const activeProgressTab = currentSessionProgressEntries.some(([phaseKey]) => phaseKey === searchProgressTab)
         ? searchProgressTab
         : currentSessionProgressEntries[0]?.[0] ?? null;
+    const canCompleteCloneSession = currentSession?.status === "review_pending" && currentSession?.current_phase === "finalization";
     const isItemTagsTab = activeProgressTab === "item_tags" || activeProgressTab === "item_tag_definitions";
     const isQuestDefinitionsTab = activeProgressTab === "quest_definitions";
     const isShopDefinitionsTab = activeProgressTab === "shop_definitions";
@@ -438,7 +439,11 @@ export function CurrentCloneSessionCard({
         let nextRunCloneSessionError: string | null = null;
 
         try {
-            await runCloneSession(currentSession.session_id);
+            if (canCompleteCloneSession) {
+                await completeCloneSession(currentSession.session_id);
+            } else {
+                await runCloneSession(currentSession.session_id);
+            }
         } catch (error) {
             nextRunCloneSessionError = getCloneSessionErrorMessage(error, t);
         } finally {
@@ -643,47 +648,19 @@ export function CurrentCloneSessionCard({
 
             <CurrentCloneSessionProgressTabs {...contentProps} />
 
-            <CardFooter id="clone-game-source-current-session-footer" className="flex flex-wrap items-center justify-between gap-2">
-                <div id="clone-game-source-current-session-footer-left" className="flex flex-wrap items-center gap-2">
-                    <Button
-                        id="clone-game-source-current-session-delete-btn"
-                        type="button"
-                        variant="destructive"
-                        onClick={onDelete}
-                        disabled={deletingCurrentSession}
-                    >
-                        {deletingCurrentSession ? <Loader2 id="clone-game-source-current-session-delete-loading-icon" className="h-4 w-4 animate-spin" /> : null}
-                        {deletingCurrentSession ? t("common.loading") : t("common.delete")}
-                    </Button>
-                    {runCloneSessionError ? (
-                        <p id="clone-game-source-current-session-run-error" className="text-sm text-destructive">
-                            {runCloneSessionError}
-                        </p>
-                    ) : null}
-                </div>
-                <div id="clone-game-source-current-session-footer-right" className="flex flex-wrap items-center gap-2">
-                    <CloneSessionRunOptionsSwitch
-                        id="clone-game-source-current-session-overwrite-conflicts-switch"
-                        sessionId={currentSession.session_id}
-                        initialChecked={currentSession.clone_run_options?.overwrite_all_conflicting_codes}
-                        disabled={runningCloneSession || deletingCurrentSession}
-                        t={t}
-                        onUpdated={onRefreshCurrentSession}
-                    />
-                    <Button
-                        id="clone-game-source-current-session-run-btn"
-                        type="button"
-                        onClick={() => void handleRunCloneSession()}
-                        disabled={!currentSession.session_id || runningCloneSession || deletingCurrentSession}
-                    >
-                        {runningCloneSession ? <Loader2 id="clone-game-source-current-session-run-loading-icon" className="h-4 w-4 animate-spin" /> : null}
-                        {runningCloneSession ? t("common.loading") : t("cloneGame.sourceGameCurrentSessionRun")}
-                    </Button>
-                    <Button id="clone-game-source-current-session-refresh-btn" type="button" variant="outline" onClick={() => void onRetry()}>
-                        {t("common.refresh")}
-                    </Button>
-                </div>
-            </CardFooter>
+            <CurrentCloneSessionFooterActions
+                deletingCurrentSession={deletingCurrentSession}
+                runCloneSessionError={runCloneSessionError}
+                runningCloneSession={runningCloneSession}
+                canCompleteCloneSession={canCompleteCloneSession}
+                sessionId={currentSession.session_id}
+                initialOverwriteConflicts={currentSession.clone_run_options?.overwrite_all_conflicting_codes}
+                t={t}
+                onDelete={onDelete}
+                onRefreshCurrentSession={onRefreshCurrentSession}
+                onRunCloneSession={handleRunCloneSession}
+                onRetry={onRetry}
+            />
 
             <div id="clone-game-source-current-session-alerts-wrap" className="px-6 pb-6">
                 <CurrentCloneSessionAlerts

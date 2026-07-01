@@ -441,6 +441,10 @@ export async function runCloneSession(sessionId: string): Promise<CloneSessionSn
     return await api.post(`/api/v1/game-clone-sessions/${sessionId}/run`, undefined, { suppressToast: true });
 }
 
+export async function completeCloneSession(sessionId: string): Promise<CloneSessionSnapshot> {
+    return await api.post(`/api/v1/game-clone-sessions/${sessionId}/complete`, undefined, { suppressToast: true });
+}
+
 export async function updateCloneSessionRunOptions(
     sessionId: string,
     options: CloneSessionRunOptions,
