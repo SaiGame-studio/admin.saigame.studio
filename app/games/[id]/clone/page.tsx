@@ -443,9 +443,6 @@ export default function GameClonePage() {
                             className="w-28"
                           />
                           <div id="clone-game-current-clone-cost-currency-wrap" className="flex flex-col gap-1">
-                            <span id="clone-game-current-clone-cost-currency-label" className="text-xs text-muted-foreground">
-                              {t("cloneGame.clonePriceCurrency")}
-                            </span>
                             <Select
                               value={cloneCostCurrencyDraft}
                               onValueChange={(value) => setCloneCostCurrencyDraft(value as "sGem" | "sCoin")}
