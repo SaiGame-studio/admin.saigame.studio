@@ -484,6 +484,7 @@
     "sourceGameCurrentSessionCodeLabel": "Code",
     "sourceGameCurrentSessionItemDefinitionsTabLabel": "Item definitions",
     "sourceGameCurrentSessionItemContainerDefinitionsTabLabel": "Item containers",
+    "sourceGameCurrentSessionEquipmentSlotDefinitionsTabLabel": "Equipment Slot",
     "sourceGameCurrentSessionItemTagsTabLabel": "Item tags",
     "sourceGameCurrentSessionQuestDefinitionsTabLabel": "Quests",
     "sourceGameCurrentSessionShopDefinitionsTabLabel": "Shops",

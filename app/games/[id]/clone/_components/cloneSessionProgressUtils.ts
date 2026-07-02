@@ -73,6 +73,8 @@ export function getCloneSessionPhaseLabel(phaseKey: string | undefined, t: Trans
             return t("cloneGame.sourceGameCurrentSessionItemDefinitionsTabLabel");
         case "item_container_definitions":
             return t("cloneGame.sourceGameCurrentSessionItemContainerDefinitionsTabLabel");
+        case "equipment_slot_definitions":
+            return t("cloneGame.sourceGameCurrentSessionEquipmentSlotDefinitionsTabLabel");
         case "item_tags":
         case "item_tag_definitions":
             return t("cloneGame.sourceGameCurrentSessionItemTagsTabLabel");

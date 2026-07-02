@@ -484,6 +484,7 @@
     "sourceGameCurrentSessionCodeLabel": "コード",
     "sourceGameCurrentSessionItemDefinitionsTabLabel": "アイテム定義",
     "sourceGameCurrentSessionItemContainerDefinitionsTabLabel": "アイテムコンテナ定義",
+    "sourceGameCurrentSessionEquipmentSlotDefinitionsTabLabel": "装備スロット",
     "sourceGameCurrentSessionItemTagsTabLabel": "アイテムタグ",
     "sourceGameCurrentSessionQuestDefinitionsTabLabel": "クエスト",
     "sourceGameCurrentSessionShopDefinitionsTabLabel": "ショップ定義",

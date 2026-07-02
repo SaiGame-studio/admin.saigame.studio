@@ -484,6 +484,7 @@
     "sourceGameCurrentSessionCodeLabel": "Mã",
     "sourceGameCurrentSessionItemDefinitionsTabLabel": "Định nghĩa vật phẩm",
     "sourceGameCurrentSessionItemContainerDefinitionsTabLabel": "Container vật phẩm",
+    "sourceGameCurrentSessionEquipmentSlotDefinitionsTabLabel": "Ô trang bị",
     "sourceGameCurrentSessionItemTagsTabLabel": "Item tag",
     "sourceGameCurrentSessionQuestDefinitionsTabLabel": "Quest",
     "sourceGameCurrentSessionShopDefinitionsTabLabel": "Cửa hàng",
