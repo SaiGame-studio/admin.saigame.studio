@@ -15,6 +15,10 @@ import { useEscapeLayer } from "@/hooks/use-escape-manager";
 
 import { KVEditor, type KVEntry } from "./KVEditor";
 
+function toKebabIdSegment(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "unknown";
+}
+
 export function EditPresetDefinitionSheet({
   open,
   gameId,
@@ -31,6 +35,8 @@ export function EditPresetDefinitionSheet({
   const { toast } = useToast();
   const { t } = useTranslation();
   useEscapeLayer(open, onClose, 1);
+  const definitionIdSegment = toKebabIdSegment(definition.id);
+  const panelIdPrefix = `edit-preset-definition-${definitionIdSegment}`;
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(definition.name);
   const [maxSlots, setMaxSlots] = useState(String(definition.max_slots));
@@ -91,49 +97,49 @@ export function EditPresetDefinitionSheet({
         if (!v) onClose();
       }}
     >
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
-        <SheetHeader>
-          <SheetTitle>{t("items.editPresetDefinition")}</SheetTitle>
-          <p className="text-xs font-mono text-muted-foreground truncate">{definition.id}</p>
+      <SheetContent id={`${panelIdPrefix}-sheet-content`} side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+        <SheetHeader id={`${panelIdPrefix}-sheet-header`}>
+          <SheetTitle id={`${panelIdPrefix}-sheet-title`}>{t("items.editPresetDefinition")}</SheetTitle>
+          <p id={`${panelIdPrefix}-definition-id`} className="text-xs font-mono text-muted-foreground truncate">{definition.id}</p>
         </SheetHeader>
-        <div className="space-y-4 py-2 pr-2.5 flex-1 overflow-y-auto">
-          <div className="space-y-1">
-            <Label htmlFor="epd-name">
-              {t("items.name")} <span className="text-destructive">*</span>
+        <div id={`${panelIdPrefix}-form`} className="space-y-4 py-2 pr-2.5 flex-1 overflow-y-auto">
+          <div id={`${panelIdPrefix}-name-field`} className="space-y-1">
+            <Label id={`${panelIdPrefix}-name-label`} htmlFor={`${panelIdPrefix}-name-input`}>
+              {t("items.name")} <span id={`${panelIdPrefix}-name-required`} className="text-destructive">*</span>
             </Label>
-            <Input id="epd-name" value={name} onChange={(e) => setName(e.target.value)} />
-            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+            <Input id={`${panelIdPrefix}-name-input`} value={name} onChange={(e) => setName(e.target.value)} />
+            {errors.name && <p id={`${panelIdPrefix}-name-error`} className="text-xs text-destructive">{errors.name}</p>}
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="epd-code-name">{t("items.codeName")}</Label>
-            <Input id="epd-code-name" value={definition.code_name ?? ""} readOnly className="font-mono opacity-70" />
-            <p className="text-xs text-muted-foreground">{t("items.codeName")} is readonly.</p>
+          <div id={`${panelIdPrefix}-code-name-field`} className="space-y-1">
+            <Label id={`${panelIdPrefix}-code-name-label`} htmlFor={`${panelIdPrefix}-code-name-input`}>{t("items.codeName")}</Label>
+            <Input id={`${panelIdPrefix}-code-name-input`} value={definition.code_name ?? ""} readOnly className="font-mono opacity-70" />
+            <p id={`${panelIdPrefix}-code-name-description`} className="text-xs text-muted-foreground">{t("items.codeName")} is readonly.</p>
           </div>
-          <div className="space-y-1">
-            <Label>{t("items.presetType")}</Label>
-            <Input value={definition.preset_type} disabled className="opacity-60" />
-            <p className="text-xs text-muted-foreground">{t("items.presetTypeImmutable")}</p>
+          <div id={`${panelIdPrefix}-preset-type-field`} className="space-y-1">
+            <Label id={`${panelIdPrefix}-preset-type-label`} htmlFor={`${panelIdPrefix}-preset-type-input`}>{t("items.presetType")}</Label>
+            <Input id={`${panelIdPrefix}-preset-type-input`} value={definition.preset_type} disabled className="opacity-60" />
+            <p id={`${panelIdPrefix}-preset-type-description`} className="text-xs text-muted-foreground">{t("items.presetTypeImmutable")}</p>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="epd-slots">
-                {t("items.maxSlots")} <span className="text-destructive">*</span>
+          <div id={`${panelIdPrefix}-max-slots-field`} className="space-y-2">
+            <div id={`${panelIdPrefix}-max-slots-header`} className="flex items-center justify-between">
+              <Label id={`${panelIdPrefix}-max-slots-label`} htmlFor={`${panelIdPrefix}-max-slots-slider`}>
+                {t("items.maxSlots")} <span id={`${panelIdPrefix}-max-slots-required`} className="text-destructive">*</span>
               </Label>
-              <span className="text-sm font-semibold tabular-nums">{maxSlots} / 70</span>
+              <span id={`${panelIdPrefix}-max-slots-value`} className="text-sm font-semibold tabular-nums">{maxSlots} / 70</span>
             </div>
-            <Slider id="epd-slots" min={1} max={70} step={1} value={[Number(maxSlots)]} onValueChange={([v]) => setMaxSlots(String(v))} />
-            {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
+            <Slider id={`${panelIdPrefix}-max-slots-slider`} min={1} max={70} step={1} value={[Number(maxSlots)]} onValueChange={([v]) => setMaxSlots(String(v))} />
+            {errors.maxSlots && <p id={`${panelIdPrefix}-max-slots-error`} className="text-xs text-destructive">{errors.maxSlots}</p>}
           </div>
-          <div className="space-y-1">
-            <KVEditor entries={meta} onChange={setMeta} label={t("items.metadataOptional")} />
+          <div id={`${panelIdPrefix}-metadata-field`} className="space-y-1">
+            <KVEditor entries={meta} onChange={setMeta} label={t("items.metadataOptional")} idPrefix={`${panelIdPrefix}-metadata`} />
           </div>
         </div>
-        <SheetFooter className="pt-4 border-t">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+        <SheetFooter id={`${panelIdPrefix}-sheet-footer`} className="pt-4 border-t">
+          <Button id={`${panelIdPrefix}-cancel-btn`} variant="outline" onClick={onClose} disabled={loading}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          <Button id={`${panelIdPrefix}-save-btn`} onClick={handleSubmit} disabled={loading}>
+            {loading ? <Loader2 id={`${panelIdPrefix}-save-loading-icon`} className="h-4 w-4 mr-2 animate-spin" /> : <Save id={`${panelIdPrefix}-save-icon`} className="h-4 w-4 mr-2" />}
             {t("items.saveChanges")}
           </Button>
         </SheetFooter>

@@ -2,11 +2,16 @@
 
 import { useEffect, useState } from "react";
 import {
+    getCurrentCloneSessionEquipmentSlotDefinitions,
+    getCurrentCloneSessionGachaPacks,
+    getCurrentCloneSessionPresetDefinitions,
     getCurrentCloneSessionQuests,
     getCurrentCloneSessionShopDefinitions,
+    type CloneSessionCurrentEquipmentSlotDefinition,
+    type CloneSessionCurrentGachaPack,
+    type CloneSessionCurrentPresetDefinition,
     type CloneSessionCurrentQuestDefinition,
     type CloneSessionCurrentShopDefinition,
-    type CloneSessionSnapshot,
 } from "@/lib/game-api";
 
 export const CLONE_SESSION_PAGE_SIZE = 12;
@@ -16,10 +21,12 @@ type CloneSessionPagedState<TItem> = {
     total: number;
     offset: number;
     searchInput: string;
+    searchId: string;
     searchName: string;
     loading: boolean;
     error: string | null;
     onSearchInputChange: (value: string) => void;
+    onApplySearchValue: (value: string) => void;
     onSearch: () => void;
     onClearSearch: () => void;
     onPreviousPage: () => void;
@@ -27,10 +34,14 @@ type CloneSessionPagedState<TItem> = {
 };
 
 type UseCurrentCloneSessionDefinitionsParams = {
-    currentSession: CloneSessionSnapshot | null;
+    currentSessionId: string | null;
     targetGameId: string;
+    isEquipmentSlotDefinitionsTab: boolean;
     isQuestDefinitionsTab: boolean;
     isShopDefinitionsTab: boolean;
+    isPresetDefinitionsTab: boolean;
+    isGachaPacksTab: boolean;
+    refreshNonce: number;
     formatError: (error: unknown) => string;
 };
 
@@ -39,6 +50,7 @@ function useCloneSessionPagedState<TItem>() {
     const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
     const [searchInput, setSearchInput] = useState("");
+    const [searchId, setSearchId] = useState("");
     const [searchName, setSearchName] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -52,6 +64,8 @@ function useCloneSessionPagedState<TItem>() {
         setOffset,
         searchInput,
         setSearchInput,
+        searchId,
+        setSearchId,
         searchName,
         setSearchName,
         loading,
@@ -67,16 +81,26 @@ function toPagedResult<TItem>(state: ReturnType<typeof useCloneSessionPagedState
         total: state.total,
         offset: state.offset,
         searchInput: state.searchInput,
+        searchId: state.searchId,
         searchName: state.searchName,
         loading: state.loading,
         error: state.error,
         onSearchInputChange: state.setSearchInput,
+        onApplySearchValue: (value: string) => {
+            const nextValue = value.trim();
+            state.setSearchInput(nextValue);
+            state.setSearchId(nextValue);
+            state.setSearchName("");
+            state.setOffset(0);
+        },
         onSearch: () => {
             state.setOffset(0);
+            state.setSearchId("");
             state.setSearchName(state.searchInput.trim());
         },
         onClearSearch: () => {
             state.setSearchInput("");
+            state.setSearchId("");
             state.setSearchName("");
             state.setOffset(0);
         },
@@ -90,17 +114,80 @@ function toPagedResult<TItem>(state: ReturnType<typeof useCloneSessionPagedState
 }
 
 export function useCurrentCloneSessionDefinitions({
-    currentSession,
+    currentSessionId,
     targetGameId,
+    isEquipmentSlotDefinitionsTab,
     isQuestDefinitionsTab,
     isShopDefinitionsTab,
+    isPresetDefinitionsTab,
+    isGachaPacksTab,
+    refreshNonce,
     formatError,
 }: UseCurrentCloneSessionDefinitionsParams) {
+    const equipmentSlotDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentEquipmentSlotDefinition>();
     const questsState = useCloneSessionPagedState<CloneSessionCurrentQuestDefinition>();
     const shopDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentShopDefinition>();
+    const presetDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentPresetDefinition>();
+    const gachaPacksState = useCloneSessionPagedState<CloneSessionCurrentGachaPack>();
 
     useEffect(() => {
-        if (!currentSession || !isQuestDefinitionsTab) {
+        if (!currentSessionId || !isEquipmentSlotDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadEquipmentSlotDefinitions = async () => {
+            equipmentSlotDefinitionsState.setLoading(true);
+            equipmentSlotDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionEquipmentSlotDefinitions(targetGameId, {
+                    id: equipmentSlotDefinitionsState.searchId || undefined,
+                    name: equipmentSlotDefinitionsState.searchId ? undefined : equipmentSlotDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: equipmentSlotDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                equipmentSlotDefinitionsState.setItems(Array.isArray(response.equipment_slot_definitions) ? response.equipment_slot_definitions : []);
+                equipmentSlotDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                equipmentSlotDefinitionsState.setItems([]);
+                equipmentSlotDefinitionsState.setTotal(0);
+                equipmentSlotDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    equipmentSlotDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadEquipmentSlotDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        currentSessionId,
+        equipmentSlotDefinitionsState.offset,
+        equipmentSlotDefinitionsState.searchId,
+        equipmentSlotDefinitionsState.searchName,
+        formatError,
+        isEquipmentSlotDefinitionsTab,
+        refreshNonce,
+        targetGameId,
+    ]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isQuestDefinitionsTab) {
             return;
         }
 
@@ -112,7 +199,8 @@ export function useCurrentCloneSessionDefinitions({
 
             try {
                 const response = await getCurrentCloneSessionQuests(targetGameId, {
-                    name: questsState.searchName || undefined,
+                    id: questsState.searchId || undefined,
+                    name: questsState.searchId ? undefined : questsState.searchName || undefined,
                     limit: CLONE_SESSION_PAGE_SIZE,
                     offset: questsState.offset,
                 });
@@ -149,10 +237,10 @@ export function useCurrentCloneSessionDefinitions({
         return () => {
             cancelled = true;
         };
-    }, [currentSession, formatError, isQuestDefinitionsTab, questsState.offset, questsState.searchName, targetGameId]);
+    }, [currentSessionId, formatError, isQuestDefinitionsTab, questsState.offset, questsState.searchId, questsState.searchName, refreshNonce, targetGameId]);
 
     useEffect(() => {
-        if (!currentSession || !isShopDefinitionsTab) {
+        if (!currentSessionId || !isShopDefinitionsTab) {
             return;
         }
 
@@ -164,7 +252,8 @@ export function useCurrentCloneSessionDefinitions({
 
             try {
                 const response = await getCurrentCloneSessionShopDefinitions(targetGameId, {
-                    name: shopDefinitionsState.searchName || undefined,
+                    id: shopDefinitionsState.searchId || undefined,
+                    name: shopDefinitionsState.searchId ? undefined : shopDefinitionsState.searchName || undefined,
                     limit: CLONE_SESSION_PAGE_SIZE,
                     offset: shopDefinitionsState.offset,
                 });
@@ -201,10 +290,113 @@ export function useCurrentCloneSessionDefinitions({
         return () => {
             cancelled = true;
         };
-    }, [currentSession, formatError, isShopDefinitionsTab, shopDefinitionsState.offset, shopDefinitionsState.searchName, targetGameId]);
+    }, [currentSessionId, formatError, isShopDefinitionsTab, refreshNonce, shopDefinitionsState.offset, shopDefinitionsState.searchId, shopDefinitionsState.searchName, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isPresetDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadPresetDefinitions = async () => {
+            presetDefinitionsState.setLoading(true);
+            presetDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionPresetDefinitions(targetGameId, {
+                    id: presetDefinitionsState.searchId || undefined,
+                    name: presetDefinitionsState.searchId ? undefined : presetDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: presetDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextPresetDefinitions = Array.isArray(response.preset_definitions)
+                    ? response.preset_definitions
+                    : Array.isArray(response.presets)
+                        ? response.presets
+                        : [];
+
+                presetDefinitionsState.setItems(nextPresetDefinitions);
+                presetDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                presetDefinitionsState.setItems([]);
+                presetDefinitionsState.setTotal(0);
+                presetDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    presetDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadPresetDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, isPresetDefinitionsTab, presetDefinitionsState.offset, presetDefinitionsState.searchId, presetDefinitionsState.searchName, refreshNonce, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isGachaPacksTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadGachaPacks = async () => {
+            gachaPacksState.setLoading(true);
+            gachaPacksState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionGachaPacks(targetGameId, {
+                    id: gachaPacksState.searchId || undefined,
+                    name: gachaPacksState.searchId ? undefined : gachaPacksState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: gachaPacksState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                gachaPacksState.setItems(Array.isArray(response.gacha_packs) ? response.gacha_packs : []);
+                gachaPacksState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                gachaPacksState.setItems([]);
+                gachaPacksState.setTotal(0);
+                gachaPacksState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    gachaPacksState.setLoading(false);
+                }
+            }
+        };
+
+        void loadGachaPacks();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, gachaPacksState.offset, gachaPacksState.searchId, gachaPacksState.searchName, isGachaPacksTab, refreshNonce, targetGameId]);
 
     return {
+        equipmentSlotDefinitionsState: toPagedResult(equipmentSlotDefinitionsState),
         questsState: toPagedResult(questsState),
         shopDefinitionsState: toPagedResult(shopDefinitionsState),
+        presetDefinitionsState: toPagedResult(presetDefinitionsState),
+        gachaPacksState: toPagedResult(gachaPacksState),
     };
 }

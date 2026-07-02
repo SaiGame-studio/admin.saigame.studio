@@ -1,27 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "@/lib/i18n/use-translation";
-import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import {
     getCurrentCloneSessionItemContainers,
     getCurrentCloneSessionItems,
     getCurrentCloneSessionItemTags,
+    runCloneSession,
+    completeCloneSession,
+    type CloneSessionConflict,
     type CloneSessionCurrentItemContainer,
     type CloneSessionCurrentItemDefinition,
     type CloneSessionCurrentItemTag,
     type CloneSessionSnapshot,
+    type CloneSessionWarning,
 } from "@/lib/game-api";
+import { CurrentCloneSessionAlerts } from "./CurrentCloneSessionAlerts";
+import { CurrentCloneSessionFooterActions } from "./CurrentCloneSessionFooterActions";
+import { CurrentCloneSessionFooterProgress } from "./CurrentCloneSessionFooterProgress";
+import { CurrentCloneSessionLoadingCard } from "./CurrentCloneSessionLoadingCard";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
+import type { CurrentCloneSessionProgressTabsProps } from "./currentCloneSessionProgressTabs.types";
+import { getConflictProgressTab, getConflictSearchId, normalizeProgressTab } from "./cloneSessionConflictNavigation";
+import { findCloneSessionManualOverwriteTargetId } from "./cloneSessionManualOverwriteUtils";
+import { formatTechnicalLabel, getCloneSessionErrorMessage, getCloneSessionStatusStyle } from "./cloneSessionProgressUtils";
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
-
-type TranslationFn = (key: string) => string;
 
 const ITEMS_PAGE_SIZE = 12;
 
@@ -31,154 +40,9 @@ type CurrentCloneSessionCardProps = {
     currentSessionLoading: boolean;
     currentSessionError: string | null;
     deletingCurrentSession: boolean;
-    onRetry: () => void;
+    onRefreshCurrentSession: () => Promise<void>;
+    onRetry: () => Promise<void>;
     onDelete: () => void;
-};
-
-function formatTechnicalLabel(value?: string) {
-    if (!value) {
-        return "";
-    }
-
-    return value
-        .split(/[_-]+/)
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-}
-
-function getCloneSessionStatusStyle(status?: string) {
-    if (status === "running") {
-        return {
-            pill: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
-            dot: "bg-sky-500",
-        };
-    }
-
-    if (status === "created") {
-        return {
-            pill: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-            dot: "bg-amber-500",
-        };
-    }
-
-    if (status === "blocked" || status === "failed") {
-        return {
-            pill: "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300",
-            dot: "bg-red-500",
-        };
-    }
-
-    if (status === "completed") {
-        return {
-            pill: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-            dot: "bg-emerald-500",
-        };
-    }
-
-    return {
-        pill: "border-muted-foreground/20 bg-muted/60 text-muted-foreground",
-        dot: "bg-muted-foreground",
-    };
-}
-
-function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
-    const rawMessage = error instanceof ApiError
-        ? (error.data?.message || error.data?.error || error.message)
-        : error instanceof Error
-            ? error.message
-            : "";
-
-    const normalizedMessage = rawMessage.trim().toLowerCase();
-
-    if (normalizedMessage === "insufficient balance") {
-        return t("cloneGame.sourceGameCloneProgressInsufficientBalance");
-    }
-
-    return rawMessage || t("common.error");
-}
-
-function CurrentCloneSessionLoadingCard() {
-    return (
-        <Card id="clone-game-source-current-session-loading-card" className="border-primary/30">
-            <CardHeader id="clone-game-source-current-session-loading-header" className="space-y-2">
-                <div id="clone-game-source-current-session-loading-title" className="h-5 w-56 rounded bg-muted" />
-                <div id="clone-game-source-current-session-loading-description" className="h-4 w-3/4 rounded bg-muted" />
-            </CardHeader>
-            <CardContent id="clone-game-source-current-session-loading-content" className="space-y-3">
-                <div id="clone-game-source-current-session-loading-line-1" className="h-4 w-full rounded bg-muted" />
-                <div id="clone-game-source-current-session-loading-line-2" className="h-4 w-2/3 rounded bg-muted" />
-            </CardContent>
-        </Card>
-    );
-}
-
-type CurrentCloneSessionContentProps = {
-    t: TranslationFn;
-    currentSession: CloneSessionSnapshot;
-    activeProgressTab: string | null;
-    onActiveProgressTabChange: (value: string) => void;
-    currentSessionProgressEntries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>;
-    currentSessionEstimatedCost?: { currency?: string; amount?: number };
-    currentSessionWarnings: Array<{ field?: string; message?: string }>;
-    items: CloneSessionCurrentItemDefinition[];
-    itemsTotal: number;
-    itemsOffset: number;
-    itemsSearchInput: string;
-    itemsSearchName: string;
-    itemsLoading: boolean;
-    itemsError: string | null;
-    onItemsSearchInputChange: (value: string) => void;
-    onItemsSearch: () => void;
-    onItemsClearSearch: () => void;
-    onItemsPreviousPage: () => void;
-    onItemsNextPage: () => void;
-    itemContainers: CloneSessionCurrentItemContainer[];
-    itemContainersTotal: number;
-    itemContainersOffset: number;
-    itemContainersLoading: boolean;
-    itemContainersError: string | null;
-    onItemContainersSearchInputChange: (value: string) => void;
-    onItemContainersSearch: () => void;
-    onItemContainersClearSearch: () => void;
-    onItemContainersPreviousPage: () => void;
-    onItemContainersNextPage: () => void;
-    itemTags: CloneSessionCurrentItemTag[];
-    itemTagsTotal: number;
-    itemTagsOffset: number;
-    itemTagsSearchInput: string;
-    itemTagsSearchName: string;
-    itemTagsLoading: boolean;
-    itemTagsError: string | null;
-    onItemTagsSearchInputChange: (value: string) => void;
-    onItemTagsSearch: () => void;
-    onItemTagsClearSearch: () => void;
-    onItemTagsPreviousPage: () => void;
-    onItemTagsNextPage: () => void;
-    quests: ReturnType<typeof useCurrentCloneSessionDefinitions>["questsState"]["items"];
-    questsTotal: number;
-    questsOffset: number;
-    questsSearchInput: string;
-    questsSearchName: string;
-    questsLoading: boolean;
-    questsError: string | null;
-    onQuestsSearchInputChange: (value: string) => void;
-    onQuestsSearch: () => void;
-    onQuestsClearSearch: () => void;
-    onQuestsPreviousPage: () => void;
-    onQuestsNextPage: () => void;
-    shopDefinitions: ReturnType<typeof useCurrentCloneSessionDefinitions>["shopDefinitionsState"]["items"];
-    shopDefinitionsTotal: number;
-    shopDefinitionsOffset: number;
-    shopDefinitionsSearchInput: string;
-    shopDefinitionsSearchName: string;
-    shopDefinitionsLoading: boolean;
-    shopDefinitionsError: string | null;
-    onShopDefinitionsSearchInputChange: (value: string) => void;
-    onShopDefinitionsSearch: () => void;
-    onShopDefinitionsClearSearch: () => void;
-    onShopDefinitionsPreviousPage: () => void;
-    onShopDefinitionsNextPage: () => void;
 };
 
 export function CurrentCloneSessionCard({
@@ -187,6 +51,7 @@ export function CurrentCloneSessionCard({
     currentSessionLoading,
     currentSessionError,
     deletingCurrentSession,
+    onRefreshCurrentSession,
     onRetry,
     onDelete,
 }: CurrentCloneSessionCardProps) {
@@ -198,6 +63,7 @@ export function CurrentCloneSessionCard({
     const [itemsTotal, setItemsTotal] = useState(0);
     const [itemsOffset, setItemsOffset] = useState(0);
     const [itemsSearchInput, setItemsSearchInput] = useState("");
+    const [itemsSearchId, setItemsSearchId] = useState("");
     const [itemsSearchName, setItemsSearchName] = useState("");
     const [itemsLoading, setItemsLoading] = useState(false);
     const [itemsError, setItemsError] = useState<string | null>(null);
@@ -205,6 +71,7 @@ export function CurrentCloneSessionCard({
     const [itemContainersTotal, setItemContainersTotal] = useState(0);
     const [itemContainersOffset, setItemContainersOffset] = useState(0);
     const [itemContainersSearchInput, setItemContainersSearchInput] = useState("");
+    const [itemContainersSearchId, setItemContainersSearchId] = useState("");
     const [itemContainersSearchName, setItemContainersSearchName] = useState("");
     const [itemContainersLoading, setItemContainersLoading] = useState(false);
     const [itemContainersError, setItemContainersError] = useState<string | null>(null);
@@ -212,20 +79,48 @@ export function CurrentCloneSessionCard({
     const [itemTagsTotal, setItemTagsTotal] = useState(0);
     const [itemTagsOffset, setItemTagsOffset] = useState(0);
     const [itemTagsSearchInput, setItemTagsSearchInput] = useState("");
+    const [itemTagsSearchId, setItemTagsSearchId] = useState("");
     const [itemTagsSearchName, setItemTagsSearchName] = useState("");
     const [itemTagsLoading, setItemTagsLoading] = useState(false);
     const [itemTagsError, setItemTagsError] = useState<string | null>(null);
+    const [runningCloneSession, setRunningCloneSession] = useState(false);
+    const [runCloneSessionError, setRunCloneSessionError] = useState<string | null>(null);
+    const [contentRefreshNonce, setContentRefreshNonce] = useState(0);
+    const previousSessionIdRef = useRef<string | null>(null);
+    const currentSessionId = currentSession?.session_id ?? null;
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
     const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
+    const currentSessionConflicts = currentSession?.last_run_response?.conflicts ?? [];
     const searchProgressTab = searchParams.get("subTab");
     const activeProgressTab = currentSessionProgressEntries.some(([phaseKey]) => phaseKey === searchProgressTab)
         ? searchProgressTab
         : currentSessionProgressEntries[0]?.[0] ?? null;
+    const canCompleteCloneSession = currentSession?.status === "review_pending" && currentSession?.current_phase === "finalization";
     const isItemTagsTab = activeProgressTab === "item_tags" || activeProgressTab === "item_tag_definitions";
+    const isEquipmentSlotDefinitionsTab = activeProgressTab === "equipment_slot_definitions";
     const isQuestDefinitionsTab = activeProgressTab === "quest_definitions";
     const isShopDefinitionsTab = activeProgressTab === "shop_definitions";
+    const isPresetDefinitionsTab = activeProgressTab === "preset_definitions";
+    const isGachaPacksTab = activeProgressTab === "gacha_packs" || activeProgressTab === "gacha_pack_definitions";
     const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
+
+    useEffect(() => {
+        if (!currentSessionId || currentSessionProgressEntries.length === 0) {
+            previousSessionIdRef.current = currentSessionId;
+            return;
+        }
+
+        if (previousSessionIdRef.current === currentSessionId) {
+            return;
+        }
+
+        previousSessionIdRef.current = currentSessionId;
+
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", currentSessionProgressEntries[0]?.[0] ?? "");
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    }, [currentSessionId, currentSessionProgressEntries, pathname, router, searchParams]);
 
     useEffect(() => {
         if (currentSessionProgressEntries.length === 0) {
@@ -242,7 +137,7 @@ export function CurrentCloneSessionCard({
     }, [currentSessionProgressEntries, pathname, router, searchParams, searchProgressTab]);
 
     useEffect(() => {
-        if (!currentSession || activeProgressTab !== "item_definitions") {
+        if (!currentSessionId || activeProgressTab !== "item_definitions") {
             return;
         }
 
@@ -254,7 +149,8 @@ export function CurrentCloneSessionCard({
 
             try {
                 const response = await getCurrentCloneSessionItems(targetGameId, {
-                    name: itemsSearchName || undefined,
+                    id: itemsSearchId || undefined,
+                    name: itemsSearchId ? undefined : itemsSearchName || undefined,
                     limit: ITEMS_PAGE_SIZE,
                     offset: itemsOffset,
                 });
@@ -285,10 +181,10 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, itemsOffset, itemsSearchName, targetGameId, t]);
+    }, [activeProgressTab, contentRefreshNonce, currentSessionId, itemsOffset, itemsSearchId, itemsSearchName, targetGameId, t]);
 
     useEffect(() => {
-        if (!currentSession || activeProgressTab !== "item_container_definitions") {
+        if (!currentSessionId || activeProgressTab !== "item_container_definitions") {
             return;
         }
 
@@ -300,7 +196,8 @@ export function CurrentCloneSessionCard({
 
             try {
                 const response = await getCurrentCloneSessionItemContainers(targetGameId, {
-                    name: itemContainersSearchName || undefined,
+                    id: itemContainersSearchId || undefined,
+                    name: itemContainersSearchId ? undefined : itemContainersSearchName || undefined,
                     limit: ITEMS_PAGE_SIZE,
                     offset: itemContainersOffset,
                 });
@@ -331,10 +228,10 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, itemContainersOffset, itemContainersSearchName, targetGameId, t]);
+    }, [activeProgressTab, contentRefreshNonce, currentSessionId, itemContainersOffset, itemContainersSearchId, itemContainersSearchName, targetGameId, t]);
 
     useEffect(() => {
-        if (!currentSession || !isItemTagsTab) {
+        if (!currentSessionId || !isItemTagsTab) {
             return;
         }
 
@@ -346,7 +243,8 @@ export function CurrentCloneSessionCard({
 
             try {
                 const response = await getCurrentCloneSessionItemTags(targetGameId, {
-                    name: itemTagsSearchName || undefined,
+                    id: itemTagsSearchId || undefined,
+                    name: itemTagsSearchId ? undefined : itemTagsSearchName || undefined,
                     limit: ITEMS_PAGE_SIZE,
                     offset: itemTagsOffset,
                 });
@@ -382,26 +280,40 @@ export function CurrentCloneSessionCard({
         return () => {
             cancelled = true;
         };
-    }, [activeProgressTab, currentSession, itemTagsOffset, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
+    }, [activeProgressTab, contentRefreshNonce, currentSessionId, itemTagsOffset, itemTagsSearchId, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
 
     const {
+        equipmentSlotDefinitionsState,
         questsState,
         shopDefinitionsState,
+        presetDefinitionsState,
+        gachaPacksState,
     } = useCurrentCloneSessionDefinitions({
-        currentSession,
+        currentSessionId,
         targetGameId,
+        isEquipmentSlotDefinitionsTab,
         isQuestDefinitionsTab,
         isShopDefinitionsTab,
+        isPresetDefinitionsTab,
+        isGachaPacksTab,
+        refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
 
+    const getManualOverwriteTargetId = useCallback((
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition",
+        sourceId: string,
+    ) => findCloneSessionManualOverwriteTargetId(currentSessionConflicts, contentType, sourceId), [currentSessionConflicts]);
+
     const handleSearchItems = () => {
         setItemsOffset(0);
+        setItemsSearchId("");
         setItemsSearchName(itemsSearchInput.trim());
     };
 
     const handleClearItemsSearch = () => {
         setItemsSearchInput("");
+        setItemsSearchId("");
         setItemsSearchName("");
         setItemsOffset(0);
     };
@@ -413,14 +325,15 @@ export function CurrentCloneSessionCard({
     const handleNextItemsPage = () => {
         setItemsOffset((current) => current + ITEMS_PAGE_SIZE);
     };
-
     const handleSearchItemContainers = () => {
         setItemContainersOffset(0);
+        setItemContainersSearchId("");
         setItemContainersSearchName(itemContainersSearchInput.trim());
     };
 
     const handleClearItemContainersSearch = () => {
         setItemContainersSearchInput("");
+        setItemContainersSearchId("");
         setItemContainersSearchName("");
         setItemContainersOffset(0);
     };
@@ -435,11 +348,13 @@ export function CurrentCloneSessionCard({
 
     const handleSearchItemTags = () => {
         setItemTagsOffset(0);
+        setItemTagsSearchId("");
         setItemTagsSearchName(itemTagsSearchInput.trim());
     };
 
     const handleClearItemTagsSearch = () => {
         setItemTagsSearchInput("");
+        setItemTagsSearchId("");
         setItemTagsSearchName("");
         setItemTagsOffset(0);
     };
@@ -451,6 +366,89 @@ export function CurrentCloneSessionCard({
     const handleNextItemTagsPage = () => {
         setItemTagsOffset((current) => current + ITEMS_PAGE_SIZE);
     };
+
+    const handleRunCloneSession = async () => {
+        if (!currentSession?.session_id || runningCloneSession) {
+            return;
+        }
+
+        setRunningCloneSession(true);
+        setRunCloneSessionError(null);
+        let nextRunCloneSessionError: string | null = null;
+
+        try {
+            if (canCompleteCloneSession) {
+                await completeCloneSession(currentSession.session_id);
+            } else {
+                await runCloneSession(currentSession.session_id);
+            }
+        } catch (error) {
+            nextRunCloneSessionError = getCloneSessionErrorMessage(error, t);
+        } finally {
+            try {
+                await onRefreshCurrentSession();
+            } catch (error) {
+                if (!nextRunCloneSessionError) {
+                    nextRunCloneSessionError = getCloneSessionErrorMessage(error, t);
+                }
+            }
+
+            setRunCloneSessionError(nextRunCloneSessionError);
+            setRunningCloneSession(false);
+        }
+    };
+
+    const handleConflictClick = (conflict: CloneSessionConflict) => {
+        const nextTab = normalizeProgressTab(getConflictProgressTab(conflict), currentSessionProgressEntries);
+        const searchValue = getConflictSearchId(conflict, nextTab);
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", nextTab);
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+        if (!searchValue) return setRunCloneSessionError(t("cloneGame.sourceGameCurrentSessionConflictMissingItemDefinitionId"));
+        setRunCloneSessionError(null);
+        if (nextTab === "item_definitions") {
+            setItemsSearchInput(searchValue);
+            setItemsSearchId(searchValue);
+            setItemsSearchName("");
+            setItemsOffset(0);
+        } else if (nextTab === "item_container_definitions") {
+            setItemContainersSearchInput(searchValue);
+            setItemContainersSearchId(searchValue);
+            setItemContainersSearchName("");
+            setItemContainersOffset(0);
+        } else if (nextTab === "item_tags" || nextTab === "item_tag_definitions") {
+            setItemTagsSearchInput(searchValue);
+            setItemTagsSearchId(searchValue);
+            setItemTagsSearchName("");
+            setItemTagsOffset(0);
+        } else if (nextTab === "equipment_slot_definitions") {
+            equipmentSlotDefinitionsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "quest_definitions") {
+            questsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "shop_definitions") {
+            shopDefinitionsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "preset_definitions") {
+            presetDefinitionsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "gacha_packs" || nextTab === "gacha_pack_definitions") {
+            gachaPacksState.onApplySearchValue(searchValue);
+        }
+    };
+
+    const handleWarningClick = (warning: CloneSessionWarning) => {
+        const searchValue = (warning.source_id || "").trim();
+        const nextTab = normalizeProgressTab("quest_definitions", currentSessionProgressEntries);
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", nextTab);
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+        if (!searchValue) return setRunCloneSessionError(t("cloneGame.sourceGameCurrentSessionConflictMissingItemDefinitionId"));
+        setRunCloneSessionError(null);
+        questsState.onApplySearchValue(searchValue);
+    };
+
+    const handleManualOverwriteSuccess = useCallback(async () => {
+        await onRefreshCurrentSession();
+        setContentRefreshNonce((current) => current + 1);
+    }, [onRefreshCurrentSession]);
 
     if (currentSessionLoading) {
         return <CurrentCloneSessionLoadingCard />;
@@ -464,7 +462,7 @@ export function CurrentCloneSessionCard({
                     <CardDescription id="clone-game-source-current-session-error-description">{currentSessionError}</CardDescription>
                 </CardHeader>
                 <CardFooter id="clone-game-source-current-session-error-footer" className="flex flex-wrap gap-2">
-                    <Button id="clone-game-source-current-session-error-retry-btn" type="button" variant="outline" onClick={onRetry}>
+                    <Button id="clone-game-source-current-session-error-retry-btn" type="button" variant="outline" onClick={() => void onRetry()}>
                         {t("common.retry")}
                     </Button>
                 </CardFooter>
@@ -476,14 +474,13 @@ export function CurrentCloneSessionCard({
         return null;
     }
 
-    const contentProps: CurrentCloneSessionContentProps = {
+    const contentProps: CurrentCloneSessionProgressTabsProps = {
         t,
         currentSession,
         activeProgressTab,
         onActiveProgressTabChange: () => {},
         currentSessionProgressEntries,
         currentSessionEstimatedCost,
-        currentSessionWarnings,
         items,
         itemsTotal,
         itemsOffset,
@@ -520,6 +517,18 @@ export function CurrentCloneSessionCard({
         onItemTagsClearSearch: handleClearItemTagsSearch,
         onItemTagsPreviousPage: handlePreviousItemTagsPage,
         onItemTagsNextPage: handleNextItemTagsPage,
+        equipmentSlotDefinitions: equipmentSlotDefinitionsState.items,
+        equipmentSlotDefinitionsTotal: equipmentSlotDefinitionsState.total,
+        equipmentSlotDefinitionsOffset: equipmentSlotDefinitionsState.offset,
+        equipmentSlotDefinitionsSearchInput: equipmentSlotDefinitionsState.searchInput,
+        equipmentSlotDefinitionsSearchName: equipmentSlotDefinitionsState.searchName,
+        equipmentSlotDefinitionsLoading: equipmentSlotDefinitionsState.loading,
+        equipmentSlotDefinitionsError: equipmentSlotDefinitionsState.error,
+        onEquipmentSlotDefinitionsSearchInputChange: equipmentSlotDefinitionsState.onSearchInputChange,
+        onEquipmentSlotDefinitionsSearch: equipmentSlotDefinitionsState.onSearch,
+        onEquipmentSlotDefinitionsClearSearch: equipmentSlotDefinitionsState.onClearSearch,
+        onEquipmentSlotDefinitionsPreviousPage: equipmentSlotDefinitionsState.onPreviousPage,
+        onEquipmentSlotDefinitionsNextPage: equipmentSlotDefinitionsState.onNextPage,
         quests: questsState.items,
         questsTotal: questsState.total,
         questsOffset: questsState.offset,
@@ -544,6 +553,26 @@ export function CurrentCloneSessionCard({
         onShopDefinitionsClearSearch: shopDefinitionsState.onClearSearch,
         onShopDefinitionsPreviousPage: shopDefinitionsState.onPreviousPage,
         onShopDefinitionsNextPage: shopDefinitionsState.onNextPage,
+        presetDefinitions: presetDefinitionsState.items, presetDefinitionsTotal: presetDefinitionsState.total, presetDefinitionsOffset: presetDefinitionsState.offset,
+        presetDefinitionsSearchInput: presetDefinitionsState.searchInput, presetDefinitionsSearchName: presetDefinitionsState.searchName,
+        presetDefinitionsLoading: presetDefinitionsState.loading, presetDefinitionsError: presetDefinitionsState.error,
+        onPresetDefinitionsSearchInputChange: presetDefinitionsState.onSearchInputChange, onPresetDefinitionsSearch: presetDefinitionsState.onSearch,
+        onPresetDefinitionsClearSearch: presetDefinitionsState.onClearSearch, onPresetDefinitionsPreviousPage: presetDefinitionsState.onPreviousPage, onPresetDefinitionsNextPage: presetDefinitionsState.onNextPage,
+        gachaPacks: gachaPacksState.items,
+        gachaPacksSessionId: currentSession.session_id,
+        gachaPacksTotal: gachaPacksState.total,
+        gachaPacksOffset: gachaPacksState.offset,
+        gachaPacksSearchInput: gachaPacksState.searchInput,
+        gachaPacksSearchName: gachaPacksState.searchName,
+        gachaPacksLoading: gachaPacksState.loading,
+        gachaPacksError: gachaPacksState.error,
+        onGachaPacksSearchInputChange: gachaPacksState.onSearchInputChange,
+        onGachaPacksSearch: gachaPacksState.onSearch,
+        onGachaPacksClearSearch: gachaPacksState.onClearSearch,
+        onGachaPacksPreviousPage: gachaPacksState.onPreviousPage,
+        onGachaPacksNextPage: gachaPacksState.onNextPage,
+        getManualOverwriteTargetId,
+        onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };
     const currentSessionStatusStyle = getCloneSessionStatusStyle(currentSession.status);
 
@@ -574,40 +603,51 @@ export function CurrentCloneSessionCard({
                                 />
                             ) : null}
                         </div>
-                        <span
-                            id="clone-game-source-current-session-status-badge"
-                            className={cn(
-                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium leading-none",
-                                currentSessionStatusStyle.pill,
-                            )}
-                        >
-                            <span
-                                id="clone-game-source-current-session-status-indicator"
-                                className={cn("h-1.5 w-1.5 rounded-full", currentSessionStatusStyle.dot)}
-                            />
-                            {formatTechnicalLabel(currentSession.status) || t("common.unknown")}
-                        </span>
+                        <div id="clone-game-source-current-session-status-actions" className="flex items-center gap-2">
+                            <span id="clone-game-source-current-session-status-badge" className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium leading-none", currentSessionStatusStyle.pill)}>
+                                <span id="clone-game-source-current-session-status-indicator" className={cn("h-1.5 w-1.5 rounded-full", currentSessionStatusStyle.dot)} />
+                                {formatTechnicalLabel(currentSession.status) || t("common.unknown")}
+                            </span>
+                            <Button id="clone-game-source-current-session-refresh-btn" type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => void onRetry()} aria-label={t("common.refresh")} title={t("common.refresh")}>
+                                <RefreshCw id="clone-game-source-current-session-refresh-icon" className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </CardHeader>
 
             <CurrentCloneSessionProgressTabs {...contentProps} />
 
-            <CardFooter id="clone-game-source-current-session-footer" className="flex flex-wrap items-center justify-end gap-2">
-                <Button
-                    id="clone-game-source-current-session-delete-btn"
-                    type="button"
-                    variant="destructive"
-                    onClick={onDelete}
-                    disabled={deletingCurrentSession}
-                >
-                    {deletingCurrentSession ? <Loader2 id="clone-game-source-current-session-delete-loading-icon" className="h-4 w-4 animate-spin" /> : null}
-                    {deletingCurrentSession ? t("common.loading") : t("common.delete")}
-                </Button>
-                <Button id="clone-game-source-current-session-refresh-btn" type="button" variant="outline" onClick={onRetry}>
-                    {t("common.refresh")}
-                </Button>
-            </CardFooter>
+            <CurrentCloneSessionFooterActions
+                deletingCurrentSession={deletingCurrentSession}
+                runCloneSessionError={runCloneSessionError}
+                runningCloneSession={runningCloneSession}
+                canCompleteCloneSession={canCompleteCloneSession}
+                sessionId={currentSession.session_id}
+                initialOverwriteConflicts={currentSession.clone_run_options?.overwrite_all_conflicting_codes}
+                t={t}
+                onDelete={onDelete}
+                onRefreshCurrentSession={onRefreshCurrentSession}
+                onRunCloneSession={handleRunCloneSession}
+            />
+
+            <div id="clone-game-source-current-session-alerts-wrap" className="px-6 pb-6">
+                <CurrentCloneSessionAlerts
+                    t={t}
+                    targetGameId={targetGameId}
+                    sourceGameId={currentSession.source_game_id}
+                    warnings={currentSessionWarnings}
+                    conflicts={currentSessionConflicts}
+                    onConflictClick={handleConflictClick}
+                    onWarningClick={handleWarningClick}
+                />
+            </div>
+
+            <CurrentCloneSessionFooterProgress
+                t={t}
+                progressEntries={currentSessionProgressEntries}
+                onRefresh={onRefreshCurrentSession}
+            />
         </Card>
     );
 }

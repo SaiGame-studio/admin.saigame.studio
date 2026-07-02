@@ -23,6 +23,7 @@ export async function createItemDefinition(ctx: TenantCtx, body: CreateItemReque
 export interface ListItemsParams {
     limit?: number;
     offset?: number;
+    id?: string;
     category?: ItemCategory;
     rarity?: ItemRarity;
     name?: string;
@@ -37,6 +38,8 @@ export async function listItemDefinitions(ctx: TenantCtx, params: ListItemsParam
         qs.set('limit', String(params.limit));
     if (params.offset != null)
         qs.set('offset', String(params.offset));
+    if (params.id)
+        qs.set('id', params.id);
     if (params.category)
         qs.set('category', params.category);
     if (params.rarity)

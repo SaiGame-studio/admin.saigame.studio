@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -9,115 +10,19 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot } from "@/lib/game-api";
+import { formatTimestamp } from "@/lib/utils/date-utils";
 import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } from "./CurrentCloneSessionLists";
+import { CurrentCloneSessionGachaPacksTab } from "./CurrentCloneSessionGachaPacksTab";
+import { CurrentCloneSessionEquipmentSlotDefinitionsTab } from "./CurrentCloneSessionEquipmentSlotDefinitionsTab";
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
+import { CurrentCloneSessionPresetDefinitionsTab } from "./CurrentCloneSessionPresetDefinitionsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
 import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
-
-type TranslationFn = (key: string) => string;
-
-type CurrentCloneSessionProgressTabsProps = {
-    t: TranslationFn;
-    currentSession: CloneSessionSnapshot;
-    activeProgressTab: string | null;
-    onActiveProgressTabChange: (value: string) => void;
-    currentSessionProgressEntries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>;
-    currentSessionEstimatedCost?: { currency?: string; amount?: number };
-    currentSessionWarnings: Array<{ field?: string; message?: string }>;
-    items: CloneSessionCurrentItemDefinition[];
-    itemsTotal: number;
-    itemsOffset: number;
-    itemsSearchInput: string;
-    itemsSearchName: string;
-    itemsLoading: boolean;
-    itemsError: string | null;
-    onItemsSearchInputChange: (value: string) => void;
-    onItemsSearch: () => void;
-    onItemsClearSearch: () => void;
-    onItemsPreviousPage: () => void;
-    onItemsNextPage: () => void;
-    itemContainers: CloneSessionCurrentItemContainer[];
-    itemContainersTotal: number;
-    itemContainersOffset: number;
-    itemContainersSearchInput: string;
-    itemContainersSearchName: string;
-    itemContainersLoading: boolean;
-    itemContainersError: string | null;
-    onItemContainersSearchInputChange: (value: string) => void;
-    onItemContainersSearch: () => void;
-    onItemContainersClearSearch: () => void;
-    onItemContainersPreviousPage: () => void;
-    onItemContainersNextPage: () => void;
-    itemTags: CloneSessionCurrentItemTag[];
-    itemTagsTotal: number;
-    itemTagsOffset: number;
-    itemTagsSearchInput: string;
-    itemTagsSearchName: string;
-    itemTagsLoading: boolean;
-    itemTagsError: string | null;
-    onItemTagsSearchInputChange: (value: string) => void;
-    onItemTagsSearch: () => void;
-    onItemTagsClearSearch: () => void;
-    onItemTagsPreviousPage: () => void;
-    onItemTagsNextPage: () => void;
-    quests: CloneSessionCurrentQuestDefinition[];
-    questsTotal: number;
-    questsOffset: number;
-    questsSearchInput: string;
-    questsSearchName: string;
-    questsLoading: boolean;
-    questsError: string | null;
-    onQuestsSearchInputChange: (value: string) => void;
-    onQuestsSearch: () => void;
-    onQuestsClearSearch: () => void;
-    onQuestsPreviousPage: () => void;
-    onQuestsNextPage: () => void;
-    shopDefinitions: CloneSessionCurrentShopDefinition[];
-    shopDefinitionsTotal: number;
-    shopDefinitionsOffset: number;
-    shopDefinitionsSearchInput: string;
-    shopDefinitionsSearchName: string;
-    shopDefinitionsLoading: boolean;
-    shopDefinitionsError: string | null;
-    onShopDefinitionsSearchInputChange: (value: string) => void;
-    onShopDefinitionsSearch: () => void;
-    onShopDefinitionsClearSearch: () => void;
-    onShopDefinitionsPreviousPage: () => void;
-    onShopDefinitionsNextPage: () => void;
-};
+import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
+import type { CurrentCloneSessionProgressTabsProps } from "./currentCloneSessionProgressTabs.types";
+import { formatDurationCompact, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
 
 const ITEMS_PAGE_SIZE = 12;
-
-function formatTechnicalLabel(value?: string) {
-    if (!value) {
-        return "";
-    }
-
-    return value
-        .split(/[_-]+/)
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-}
-
-function getCloneSessionPhaseLabel(phaseKey: string | undefined, t: TranslationFn) {
-    switch (phaseKey) {
-        case "item_definitions":
-            return t("cloneGame.sourceGameCurrentSessionItemDefinitionsTabLabel");
-        case "item_container_definitions":
-            return t("cloneGame.sourceGameCurrentSessionItemContainerDefinitionsTabLabel");
-        case "item_tags":
-        case "item_tag_definitions":
-            return t("cloneGame.sourceGameCurrentSessionItemTagsTabLabel");
-        case "quest_definitions":
-            return t("cloneGame.sourceGameCurrentSessionQuestDefinitionsTabLabel");
-        case "shop_definitions":
-            return t("cloneGame.sourceGameCurrentSessionShopDefinitionsTabLabel");
-        default:
-            return formatTechnicalLabel(phaseKey) || t("common.unknown");
-    }
-}
 
 function isSGemCurrency(value?: string) {
     return value?.trim().toLowerCase() === "sgem";
@@ -129,14 +34,6 @@ function toKebabIdSegment(value?: string) {
     }
 
     return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "unknown";
-}
-
-function getProgressValue(processed?: number, total?: number) {
-    if (!total || total <= 0) {
-        return 0;
-    }
-
-    return Math.min(100, Math.max(0, ((processed ?? 0) / total) * 100));
 }
 
 function formatRange(start: number, end: number, total: number) {
@@ -162,7 +59,6 @@ export function CurrentCloneSessionProgressTabs({
     onActiveProgressTabChange,
     currentSessionProgressEntries,
     currentSessionEstimatedCost,
-    currentSessionWarnings,
     items,
     itemsTotal,
     itemsOffset,
@@ -199,6 +95,18 @@ export function CurrentCloneSessionProgressTabs({
     onItemTagsClearSearch,
     onItemTagsPreviousPage,
     onItemTagsNextPage,
+    equipmentSlotDefinitions,
+    equipmentSlotDefinitionsTotal,
+    equipmentSlotDefinitionsOffset,
+    equipmentSlotDefinitionsSearchInput,
+    equipmentSlotDefinitionsSearchName,
+    equipmentSlotDefinitionsLoading,
+    equipmentSlotDefinitionsError,
+    onEquipmentSlotDefinitionsSearchInputChange,
+    onEquipmentSlotDefinitionsSearch,
+    onEquipmentSlotDefinitionsClearSearch,
+    onEquipmentSlotDefinitionsPreviousPage,
+    onEquipmentSlotDefinitionsNextPage,
     quests,
     questsTotal,
     questsOffset,
@@ -223,10 +131,19 @@ export function CurrentCloneSessionProgressTabs({
     onShopDefinitionsClearSearch,
     onShopDefinitionsPreviousPage,
     onShopDefinitionsNextPage,
+    presetDefinitions, presetDefinitionsTotal, presetDefinitionsOffset, presetDefinitionsSearchInput, presetDefinitionsSearchName,
+    presetDefinitionsLoading, presetDefinitionsError, onPresetDefinitionsSearchInputChange, onPresetDefinitionsSearch,
+    onPresetDefinitionsClearSearch, onPresetDefinitionsPreviousPage, onPresetDefinitionsNextPage,
+    gachaPacks, gachaPacksSessionId, gachaPacksTotal, gachaPacksOffset, gachaPacksSearchInput, gachaPacksSearchName,
+    gachaPacksLoading, gachaPacksError, onGachaPacksSearchInputChange, onGachaPacksSearch,
+    onGachaPacksClearSearch, onGachaPacksPreviousPage, onGachaPacksNextPage,
+    getManualOverwriteTargetId,
+    onManualOverwriteSuccess,
 }: CurrentCloneSessionProgressTabsProps) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const [remainingSeconds, setRemainingSeconds] = useState(() => Math.max(0, Math.floor(currentSession.expires_in_seconds ?? 0)));
     const currentItemsCurrentPage = itemsTotal > 0 ? Math.floor(itemsOffset / ITEMS_PAGE_SIZE) + 1 : 0;
     const currentItemsTotalPages = itemsTotal > 0 ? Math.ceil(itemsTotal / ITEMS_PAGE_SIZE) : 0;
     const currentItemsStart = itemsTotal > 0 ? itemsOffset + 1 : 0;
@@ -250,6 +167,28 @@ export function CurrentCloneSessionProgressTabs({
         router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
         onActiveProgressTabChange(value);
     };
+
+    useEffect(() => {
+        setRemainingSeconds(Math.max(0, Math.floor(currentSession.expires_in_seconds ?? 0)));
+    }, [currentSession.expires_in_seconds, currentSession.session_id]);
+    useEffect(() => {
+        if (remainingSeconds <= 0) {
+            return;
+        }
+        const timer = window.setInterval(() => {
+            setRemainingSeconds((current) => {
+                if (current <= 1) {
+                    window.clearInterval(timer);
+                    return 0;
+                }
+                return current - 1;
+            });
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [currentSession.expires_in_seconds, currentSession.session_id]);
+    const expiresInText = formatDurationCompact(remainingSeconds);
+    const expiresAtText = formatTimestamp(currentSession.expires_at);
+    const sessionTtlText = formatDurationCompact(currentSession.session_ttl_seconds);
 
     return (
         <CardContent id="clone-game-source-current-session-content" className="space-y-4 text-sm">
@@ -322,30 +261,28 @@ export function CurrentCloneSessionProgressTabs({
                             </p>
                         </div>
                     ) : null}
+                    {expiresInText ? (
+                        <div id="clone-game-source-current-session-expiry" className="space-y-1">
+                            <p id="clone-game-source-current-session-expiry-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                                {t("cloneGame.sourceGameCurrentSessionExpiresInLabel")}
+                            </p>
+                            <p id="clone-game-source-current-session-expiry-value" className="font-medium tabular-nums">
+                                {remainingSeconds > 0 ? expiresInText : t("cloneGame.sourceGameCurrentSessionExpired")}
+                            </p>
+                            {expiresAtText !== "-" ? (
+                                <p id="clone-game-source-current-session-expiry-at" className="text-xs text-muted-foreground">
+                                    {t("cloneGame.sourceGameCurrentSessionExpiresAtLabel")}: {expiresAtText}
+                                </p>
+                            ) : null}
+                            {sessionTtlText ? (
+                                <p id="clone-game-source-current-session-ttl" className="text-xs text-muted-foreground">
+                                    {t("cloneGame.sourceGameCurrentSessionTtlLabel")}: {sessionTtlText}
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : null}
                 </div>
             </div>
-
-            {currentSessionWarnings.length > 0 ? (
-                <div id="clone-game-source-current-session-warnings" className="space-y-2 border-t pt-4">
-                    <p id="clone-game-source-current-session-warnings-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {t("cloneGame.sourceGameCurrentSessionWarningsLabel")}
-                    </p>
-                    <div id="clone-game-source-current-session-warnings-list" className="space-y-2">
-                        {currentSessionWarnings.map((warning, index) => (
-                            <div
-                                id={`clone-game-source-current-session-warning-${toKebabIdSegment(warning.field)}-${index}`}
-                                key={`${warning.field ?? "warning"}-${index}`}
-                                className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
-                            >
-                                <p id={`clone-game-source-current-session-warning-field-${toKebabIdSegment(warning.field)}-${index}`} className="font-medium text-foreground">
-                                    {formatTechnicalLabel(warning.field) || t("common.unknown")}
-                                </p>
-                                <p id={`clone-game-source-current-session-warning-message-${toKebabIdSegment(warning.field)}-${index}`}>{warning.message || t("common.unknown")}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ) : null}
 
             {currentSessionProgressEntries.length > 0 ? (
                 <div id="clone-game-source-current-session-progress" className="space-y-2 border-t pt-4">
@@ -380,20 +317,6 @@ export function CurrentCloneSessionProgressTabs({
                                 value={phaseKey}
                                 className="mt-0 space-y-3"
                             >
-                                <div id={`clone-game-source-current-session-progress-item-${toKebabIdSegment(phaseKey)}`} className="space-y-1">
-                                    <div id={`clone-game-source-current-session-progress-item-bar-wrap-${toKebabIdSegment(phaseKey)}`} className="relative">
-                                        <Progress
-                                            id={`clone-game-source-current-session-progress-item-bar-${toKebabIdSegment(phaseKey)}`}
-                                            value={getProgressValue(progress.processed, progress.total)}
-                                            className="h-4"
-                                        />
-                                        <div id={`clone-game-source-current-session-progress-item-bar-overlay-${toKebabIdSegment(phaseKey)}`} className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                            <p id={`clone-game-source-current-session-progress-item-bar-text-${toKebabIdSegment(phaseKey)}`} className="text-[10px] font-medium text-foreground">
-                                                {progress.processed ?? 0}/{progress.total ?? 0} ({Math.round(getProgressValue(progress.processed, progress.total))}%)
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
 
                                 {phaseKey === "item_definitions" ? (
                                     <div id="clone-game-source-current-session-item-definitions-section" className="space-y-3">
@@ -477,23 +400,26 @@ export function CurrentCloneSessionProgressTabs({
                                                     <p id="clone-game-source-current-session-item-definitions-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
                                                         {formatRange(currentItemsStart, currentItemsEnd, itemsTotal)}
                                                     </p>
+                                                    <CurrentCloneSessionTableRefreshButton id="clone-game-source-current-session-item-definitions-refresh-btn" iconId="clone-game-source-current-session-item-definitions-refresh-icon" loading={itemsLoading} t={t} onRefresh={onManualOverwriteSuccess} />
                                                 </div>
                                             </div>
                                         </div>
 
                                         {itemsLoading ? (
                                             <div id="clone-game-source-current-session-item-definitions-loading" className="overflow-x-auto rounded-md border bg-background">
-                                                <div id="clone-game-source-current-session-item-definitions-loading-header" className="grid min-w-[640px] grid-cols-[1.4fr_1.4fr_0.8fr_1fr] gap-3 border-b bg-muted/40 px-3 py-2">
-                                                    {Array.from({ length: 4 }).map((_, index) => (
+                                                <div id="clone-game-source-current-session-item-definitions-loading-header" className="grid min-w-[900px] grid-cols-[1.4fr_1.4fr_0.8fr_1fr_0.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                                                    {Array.from({ length: 6 }).map((_, index) => (
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-head-${index}`} key={`clone-game-source-current-session-item-skeleton-head-${index}`} className="h-4 w-20" />
                                                     ))}
                                                 </div>
                                                 {Array.from({ length: 3 }).map((_, index) => (
-                                                    <div id={`clone-game-source-current-session-item-skeleton-row-${index}`} key={`clone-game-source-current-session-item-skeleton-row-${index}`} className="grid min-w-[640px] grid-cols-[1.4fr_1.4fr_0.8fr_1fr] gap-3 border-b px-3 py-3 last:border-0">
+                                                    <div id={`clone-game-source-current-session-item-skeleton-row-${index}`} key={`clone-game-source-current-session-item-skeleton-row-${index}`} className="grid min-w-[900px] grid-cols-[1.4fr_1.4fr_0.8fr_1fr_0.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-name-${index}`} className="h-4 w-2/3" />
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-code-${index}`} className="h-4 w-3/4" />
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-rarity-${index}`} className="h-4 w-16" />
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-category-${index}`} className="h-4 w-20" />
+                                                        <Skeleton id={`clone-game-source-current-session-item-skeleton-previously-cloned-${index}`} className="mx-auto h-4 w-4" />
+                                                        <Skeleton id={`clone-game-source-current-session-item-skeleton-overwrite-${index}`} className="h-4 w-16" />
                                                     </div>
                                                 ))}
                                             </div>
@@ -502,7 +428,7 @@ export function CurrentCloneSessionProgressTabs({
                                                 {itemsError}
                                             </div>
                                         ) : (
-                                            <CurrentCloneSessionItemList items={items} t={t} />
+                                            <CurrentCloneSessionItemList items={items} sessionId={currentSession.session_id} t={t} getManualOverwriteTargetId={getManualOverwriteTargetId} onManualOverwriteSuccess={onManualOverwriteSuccess} />
                                         )}
                                     </div>
                                 ) : phaseKey === "item_container_definitions" ? (
@@ -587,25 +513,28 @@ export function CurrentCloneSessionProgressTabs({
                                                     <p id="clone-game-source-current-session-item-containers-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
                                                         {formatRange(currentItemContainersStart, currentItemContainersEnd, itemContainersTotal)}
                                                     </p>
+                                                    <CurrentCloneSessionTableRefreshButton id="clone-game-source-current-session-item-containers-refresh-btn" iconId="clone-game-source-current-session-item-containers-refresh-icon" loading={itemContainersLoading} t={t} onRefresh={onManualOverwriteSuccess} />
                                                 </div>
                                             </div>
                                         </div>
 
                                         {itemContainersLoading ? (
                                             <div id="clone-game-source-current-session-item-containers-loading" className="overflow-x-auto rounded-md border bg-background">
-                                                <div id="clone-game-source-current-session-item-containers-loading-header" className="grid min-w-[780px] grid-cols-[1.3fr_1.3fr_0.9fr_0.7fr_0.8fr_1fr] gap-3 border-b bg-muted/40 px-3 py-2">
-                                                    {Array.from({ length: 6 }).map((_, index) => (
+                                                <div id="clone-game-source-current-session-item-containers-loading-header" className="grid min-w-[1000px] grid-cols-[1.3fr_1.3fr_0.9fr_0.7fr_0.8fr_1fr_0.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                                                    {Array.from({ length: 8 }).map((_, index) => (
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-head-${index}`} key={`clone-game-source-current-session-item-container-skeleton-head-${index}`} className="h-4 w-20" />
                                                     ))}
                                                 </div>
                                                 {Array.from({ length: 3 }).map((_, index) => (
-                                                    <div id={`clone-game-source-current-session-item-container-skeleton-row-${index}`} key={`clone-game-source-current-session-item-container-skeleton-row-${index}`} className="grid min-w-[780px] grid-cols-[1.3fr_1.3fr_0.9fr_0.7fr_0.8fr_1fr] gap-3 border-b px-3 py-3 last:border-0">
+                                                    <div id={`clone-game-source-current-session-item-container-skeleton-row-${index}`} key={`clone-game-source-current-session-item-container-skeleton-row-${index}`} className="grid min-w-[1000px] grid-cols-[1.3fr_1.3fr_0.9fr_0.7fr_0.8fr_1fr_0.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-name-${index}`} className="h-4 w-2/3" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-code-${index}`} className="h-4 w-3/4" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-type-${index}`} className="h-4 w-16" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-grid-${index}`} className="h-4 w-12" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-portable-${index}`} className="h-4 w-12" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-instanced-${index}`} className="h-4 w-12" />
+                                                        <Skeleton id={`clone-game-source-current-session-item-container-skeleton-previously-cloned-${index}`} className="mx-auto h-4 w-4" />
+                                                        <Skeleton id={`clone-game-source-current-session-item-container-skeleton-overwrite-${index}`} className="h-4 w-16" />
                                                     </div>
                                                 ))}
                                             </div>
@@ -614,13 +543,14 @@ export function CurrentCloneSessionProgressTabs({
                                                 {itemContainersError}
                                             </div>
                                         ) : (
-                                            <CurrentCloneSessionItemContainerList itemContainers={itemContainers} t={t} />
+                                            <CurrentCloneSessionItemContainerList itemContainers={itemContainers} sessionId={currentSession.session_id} t={t} getManualOverwriteTargetId={getManualOverwriteTargetId} onManualOverwriteSuccess={onManualOverwriteSuccess} />
                                         )}
                                     </div>
                                 ) : phaseKey === "item_tags" || phaseKey === "item_tag_definitions" ? (
                                     <CurrentCloneSessionItemTagsTab
                                         t={t}
                                         itemTags={itemTags}
+                                        sessionId={currentSession.session_id}
                                         itemTagsTotal={itemTagsTotal}
                                         itemTagsOffset={itemTagsOffset}
                                         itemTagsSearchInput={itemTagsSearchInput}
@@ -632,11 +562,33 @@ export function CurrentCloneSessionProgressTabs({
                                         onItemTagsClearSearch={onItemTagsClearSearch}
                                         onItemTagsPreviousPage={onItemTagsPreviousPage}
                                         onItemTagsNextPage={onItemTagsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "equipment_slot_definitions" ? (
+                                    <CurrentCloneSessionEquipmentSlotDefinitionsTab
+                                        t={t}
+                                        equipmentSlotDefinitions={equipmentSlotDefinitions}
+                                        sessionId={currentSession.session_id}
+                                        equipmentSlotDefinitionsTotal={equipmentSlotDefinitionsTotal}
+                                        equipmentSlotDefinitionsOffset={equipmentSlotDefinitionsOffset}
+                                        equipmentSlotDefinitionsSearchInput={equipmentSlotDefinitionsSearchInput}
+                                        equipmentSlotDefinitionsSearchName={equipmentSlotDefinitionsSearchName}
+                                        equipmentSlotDefinitionsLoading={equipmentSlotDefinitionsLoading}
+                                        equipmentSlotDefinitionsError={equipmentSlotDefinitionsError}
+                                        onEquipmentSlotDefinitionsSearchInputChange={onEquipmentSlotDefinitionsSearchInputChange}
+                                        onEquipmentSlotDefinitionsSearch={onEquipmentSlotDefinitionsSearch}
+                                        onEquipmentSlotDefinitionsClearSearch={onEquipmentSlotDefinitionsClearSearch}
+                                        onEquipmentSlotDefinitionsPreviousPage={onEquipmentSlotDefinitionsPreviousPage}
+                                        onEquipmentSlotDefinitionsNextPage={onEquipmentSlotDefinitionsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />
                                 ) : phaseKey === "quest_definitions" ? (
                                     <CurrentCloneSessionQuestsTab
                                         t={t}
                                         quests={quests}
+                                        sessionId={currentSession.session_id}
                                         questsTotal={questsTotal}
                                         questsOffset={questsOffset}
                                         questsSearchInput={questsSearchInput}
@@ -648,11 +600,14 @@ export function CurrentCloneSessionProgressTabs({
                                         onQuestsClearSearch={onQuestsClearSearch}
                                         onQuestsPreviousPage={onQuestsPreviousPage}
                                         onQuestsNextPage={onQuestsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />
                                 ) : phaseKey === "shop_definitions" ? (
                                     <CurrentCloneSessionShopDefinitionsTab
                                         t={t}
                                         shopDefinitions={shopDefinitions}
+                                        sessionId={currentSession.session_id}
                                         shopDefinitionsTotal={shopDefinitionsTotal}
                                         shopDefinitionsOffset={shopDefinitionsOffset}
                                         shopDefinitionsSearchInput={shopDefinitionsSearchInput}
@@ -664,6 +619,36 @@ export function CurrentCloneSessionProgressTabs({
                                         onShopDefinitionsClearSearch={onShopDefinitionsClearSearch}
                                         onShopDefinitionsPreviousPage={onShopDefinitionsPreviousPage}
                                         onShopDefinitionsNextPage={onShopDefinitionsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "preset_definitions" ? (
+                                    <CurrentCloneSessionPresetDefinitionsTab
+                                        t={t} presetDefinitions={presetDefinitions} sessionId={currentSession.session_id}
+                                        presetDefinitionsTotal={presetDefinitionsTotal} presetDefinitionsOffset={presetDefinitionsOffset}
+                                        presetDefinitionsSearchInput={presetDefinitionsSearchInput} presetDefinitionsSearchName={presetDefinitionsSearchName}
+                                        presetDefinitionsLoading={presetDefinitionsLoading} presetDefinitionsError={presetDefinitionsError}
+                                        onPresetDefinitionsSearchInputChange={onPresetDefinitionsSearchInputChange} onPresetDefinitionsSearch={onPresetDefinitionsSearch}
+                                        onPresetDefinitionsClearSearch={onPresetDefinitionsClearSearch} onPresetDefinitionsPreviousPage={onPresetDefinitionsPreviousPage}
+                                        onPresetDefinitionsNextPage={onPresetDefinitionsNextPage} getManualOverwriteTargetId={getManualOverwriteTargetId} onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "gacha_packs" || phaseKey === "gacha_pack_definitions" ? (
+                                    <CurrentCloneSessionGachaPacksTab
+                                        t={t}
+                                        gachaPacks={gachaPacks}
+                                        sessionId={gachaPacksSessionId}
+                                        gachaPacksTotal={gachaPacksTotal}
+                                        gachaPacksOffset={gachaPacksOffset}
+                                        gachaPacksSearchInput={gachaPacksSearchInput}
+                                        gachaPacksSearchName={gachaPacksSearchName}
+                                        gachaPacksLoading={gachaPacksLoading}
+                                        gachaPacksError={gachaPacksError}
+                                        onGachaPacksSearchInputChange={onGachaPacksSearchInputChange}
+                                        onGachaPacksSearch={onGachaPacksSearch}
+                                        onGachaPacksClearSearch={onGachaPacksClearSearch}
+                                        onGachaPacksPreviousPage={onGachaPacksPreviousPage}
+                                        onGachaPacksNextPage={onGachaPacksNextPage}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />
                                 ) : null}
                             </TabsContent>

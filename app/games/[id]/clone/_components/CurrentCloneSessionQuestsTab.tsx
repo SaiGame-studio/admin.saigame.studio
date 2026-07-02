@@ -5,13 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwriteButton";
 import type { CloneSessionCurrentQuestDefinition } from "@/lib/game-api";
+import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
+import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
+import { CloneSessionPreviouslyClonedStatus } from "./CloneSessionPreviouslyClonedStatus";
 
 type TranslationFn = (key: string) => string;
 
 type CurrentCloneSessionQuestsTabProps = {
     t: TranslationFn;
     quests: CloneSessionCurrentQuestDefinition[];
+    sessionId?: string;
     questsTotal: number;
     questsOffset: number;
     questsSearchInput: string;
@@ -23,6 +28,8 @@ type CurrentCloneSessionQuestsTabProps = {
     onQuestsClearSearch: () => void;
     onQuestsPreviousPage: () => void;
     onQuestsNextPage: () => void;
+    getManualOverwriteTargetId: (contentType: "quest_definition", sourceId: string) => string | null;
+    onManualOverwriteSuccess: () => Promise<void>;
 };
 
 const QUESTS_PAGE_SIZE = 12;
@@ -61,7 +68,23 @@ function getQuestTypeBadgeVariant(questType?: string) {
     return "outline" as const;
 }
 
-function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurrentQuestDefinition[]; t: TranslationFn; }) {
+function isIgnored(value: CloneSessionCurrentQuestDefinition) {
+    return Boolean(value.ignored ?? value.is_ignored);
+}
+
+function CurrentCloneSessionQuestList({
+    quests,
+    sessionId,
+    t,
+    getManualOverwriteTargetId,
+    onManualOverwriteSuccess,
+}: {
+    quests: CloneSessionCurrentQuestDefinition[];
+    sessionId?: string;
+    t: TranslationFn;
+    getManualOverwriteTargetId: (contentType: "quest_definition", sourceId: string) => string | null;
+    onManualOverwriteSuccess: () => Promise<void>;
+}) {
     if (quests.length === 0) {
         return (
             <div id="clone-game-source-current-session-quests-empty" className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -69,6 +92,9 @@ function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurre
             </div>
         );
     }
+
+    const overwriteTargetIds = new Map(quests.map((quest) => [quest.id, getManualOverwriteTargetId("quest_definition", quest.id)]));
+    const hasOverwriteColumn = Array.from(overwriteTargetIds.values()).some(Boolean);
 
     return (
         <div id="clone-game-source-current-session-quests-table-wrap" className="overflow-x-auto rounded-md border bg-background">
@@ -87,19 +113,27 @@ function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurre
                         <th id="clone-game-source-current-session-quests-table-status-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionQuestStatusLabel")}
                         </th>
-                        <th id="clone-game-source-current-session-quests-table-sort-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
-                            {t("cloneGame.sourceGameCurrentSessionQuestSortOrderLabel")}
-                        </th>
                         <th id="clone-game-source-current-session-quests-table-rewards-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionQuestRewardsLabel")}
                         </th>
-                        <th id="clone-game-source-current-session-quests-table-description-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
-                            {t("cloneGame.sourceGameCurrentSessionQuestDescriptionLabel")}
+                        <th id="clone-game-source-current-session-quests-table-previously-cloned-head" className="h-9 px-3 text-center align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionPreviouslyClonedLabel")}
                         </th>
+                        <th id="clone-game-source-current-session-quests-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
+                        </th>
+                        {hasOverwriteColumn ? (
+                            <th id="clone-game-source-current-session-quests-table-overwrite-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-amber-300">
+                                {t("cloneGame.sourceGameCurrentSessionOverwriteAction")}
+                            </th>
+                        ) : null}
                     </tr>
                 </thead>
                 <tbody id="clone-game-source-current-session-quests-table-body">
-                    {quests.map((quest) => (
+                    {quests.map((quest) => {
+                        const overwriteTargetId = overwriteTargetIds.get(quest.id) ?? null;
+
+                        return (
                         <tr id={`clone-game-source-current-session-quest-row-${quest.id}`} key={quest.id} className="border-b transition-colors last:border-0 hover:bg-muted/40">
                             <td id={`clone-game-source-current-session-quest-name-cell-${quest.id}`} className="px-3 py-2 align-middle">
                                 <span id={`clone-game-source-current-session-quest-name-${quest.id}`} className="font-medium">
@@ -121,23 +155,39 @@ function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurre
                                     {quest.is_active ? t("common.active") : t("common.inactive")}
                                 </span>
                             </td>
-                            <td id={`clone-game-source-current-session-quest-sort-cell-${quest.id}`} className="px-3 py-2 text-right align-middle tabular-nums">
-                                <span id={`clone-game-source-current-session-quest-sort-value-${quest.id}`}>
-                                    {typeof quest.sort_order === "number" ? quest.sort_order.toLocaleString("en-US") : t("common.unknown")}
-                                </span>
-                            </td>
                             <td id={`clone-game-source-current-session-quest-rewards-cell-${quest.id}`} className="px-3 py-2 text-right align-middle tabular-nums">
                                 <span id={`clone-game-source-current-session-quest-rewards-value-${quest.id}`}>
                                     {(quest.rewards ?? []).length.toLocaleString("en-US")}
                                 </span>
                             </td>
-                            <td id={`clone-game-source-current-session-quest-description-cell-${quest.id}`} className="max-w-[320px] px-3 py-2 align-middle">
-                                <span id={`clone-game-source-current-session-quest-description-value-${quest.id}`} className="line-clamp-2 text-muted-foreground">
-                                    {quest.description || t("common.unknown")}
-                                </span>
+                            <td id={`clone-game-source-current-session-quest-previously-cloned-cell-${quest.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionPreviouslyClonedStatus
+                                    id={`clone-game-source-current-session-quest-previously-cloned-${quest.id}`}
+                                    iconId={`clone-game-source-current-session-quest-previously-cloned-icon-${quest.id}`}
+                                    labelId={`clone-game-source-current-session-quest-previously-cloned-label-${quest.id}`}
+                                    previouslyCloned={quest.previously_cloned}
+                                    t={t}
+                                />
                             </td>
+                            <td id={`clone-game-source-current-session-quest-ignore-cell-${quest.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-quest-ignore-${quest.id}`} sessionId={sessionId} contentType="quest_definition" sourceId={quest.id} initialIgnored={isIgnored(quest)} t={t} />
+                            </td>
+                            {hasOverwriteColumn ? (
+                                <td id={`clone-game-source-current-session-quest-overwrite-cell-${quest.id}`} className="px-3 py-2 align-middle">
+                                    <CloneSessionManualOverwriteButton
+                                        id={`clone-game-source-current-session-quest-overwrite-${quest.id}`}
+                                        sessionId={sessionId}
+                                        contentType="quest_definition"
+                                        sourceId={quest.id}
+                                        targetId={overwriteTargetId}
+                                        t={t}
+                                        onSuccess={onManualOverwriteSuccess}
+                                    />
+                                </td>
+                            ) : null}
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
@@ -147,6 +197,7 @@ function CurrentCloneSessionQuestList({ quests, t }: { quests: CloneSessionCurre
 export function CurrentCloneSessionQuestsTab({
     t,
     quests,
+    sessionId,
     questsTotal,
     questsOffset,
     questsSearchInput,
@@ -158,6 +209,8 @@ export function CurrentCloneSessionQuestsTab({
     onQuestsClearSearch,
     onQuestsPreviousPage,
     onQuestsNextPage,
+    getManualOverwriteTargetId,
+    onManualOverwriteSuccess,
 }: CurrentCloneSessionQuestsTabProps) {
     const currentPage = questsTotal > 0 ? Math.floor(questsOffset / QUESTS_PAGE_SIZE) + 1 : 0;
     const totalPages = questsTotal > 0 ? Math.ceil(questsTotal / QUESTS_PAGE_SIZE) : 0;
@@ -248,26 +301,27 @@ export function CurrentCloneSessionQuestsTab({
                         <p id="clone-game-source-current-session-quests-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
                             {formatRange(start, end, questsTotal)}
                         </p>
+                        <CurrentCloneSessionTableRefreshButton id="clone-game-source-current-session-quests-refresh-btn" iconId="clone-game-source-current-session-quests-refresh-icon" loading={questsLoading} t={t} onRefresh={onManualOverwriteSuccess} />
                     </div>
                 </div>
             </div>
 
             {questsLoading ? (
                 <div id="clone-game-source-current-session-quests-loading" className="overflow-x-auto rounded-md border bg-background">
-                    <div id="clone-game-source-current-session-quests-loading-header" className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.7fr_1.8fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                    <div id="clone-game-source-current-session-quests-loading-header" className="grid min-w-[900px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
                         {Array.from({ length: 7 }).map((_, index) => (
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-head-${index}`} key={`clone-game-source-current-session-quest-skeleton-head-${index}`} className="h-4 w-20" />
                         ))}
                     </div>
                     {Array.from({ length: 3 }).map((_, index) => (
-                        <div id={`clone-game-source-current-session-quest-skeleton-row-${index}`} key={`clone-game-source-current-session-quest-skeleton-row-${index}`} className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.7fr_1.8fr] gap-3 border-b px-3 py-3 last:border-0">
+                        <div id={`clone-game-source-current-session-quest-skeleton-row-${index}`} key={`clone-game-source-current-session-quest-skeleton-row-${index}`} className="grid min-w-[900px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-name-${index}`} className="h-4 w-2/3" />
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-code-${index}`} className="h-4 w-3/4" />
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-type-${index}`} className="h-4 w-16" />
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-status-${index}`} className="h-4 w-14" />
-                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-sort-${index}`} className="ml-auto h-4 w-10" />
                             <Skeleton id={`clone-game-source-current-session-quest-skeleton-rewards-${index}`} className="ml-auto h-4 w-10" />
-                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-description-${index}`} className="h-4 w-3/4" />
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-previously-cloned-${index}`} className="mx-auto h-4 w-4" />
+                            <Skeleton id={`clone-game-source-current-session-quest-skeleton-overwrite-${index}`} className="h-4 w-16" />
                         </div>
                     ))}
                 </div>
@@ -276,7 +330,7 @@ export function CurrentCloneSessionQuestsTab({
                     {questsError}
                 </div>
             ) : (
-                <CurrentCloneSessionQuestList quests={quests} t={t} />
+                <CurrentCloneSessionQuestList quests={quests} sessionId={sessionId} t={t} getManualOverwriteTargetId={getManualOverwriteTargetId} onManualOverwriteSuccess={onManualOverwriteSuccess} />
             )}
         </div>
     );

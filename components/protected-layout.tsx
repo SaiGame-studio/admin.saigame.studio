@@ -26,7 +26,7 @@ export function ProtectedLayout({ children }: {
       <SideNav />
       <div className="flex flex-1 flex-col h-screen min-w-0">
         <TopNav />
-        <main className="flex-1 overflow-auto [&_.container]:ml-0 pr-5">{children}</main>
+        <main id="protected-layout-main" className="flex-1 [&_.container]:ml-0 pr-5">{children}</main>
         <Footer />
       </div>
     </div>);

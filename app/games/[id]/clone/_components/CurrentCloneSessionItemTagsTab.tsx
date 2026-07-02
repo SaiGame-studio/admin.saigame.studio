@@ -4,13 +4,18 @@ import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwriteButton";
 import type { CloneSessionCurrentItemTag } from "@/lib/game-api";
+import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
+import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
+import { CloneSessionPreviouslyClonedStatus } from "./CloneSessionPreviouslyClonedStatus";
 
 type TranslationFn = (key: string) => string;
 
 type CurrentCloneSessionItemTagsTabProps = {
     t: TranslationFn;
     itemTags: CloneSessionCurrentItemTag[];
+    sessionId?: string;
     itemTagsTotal: number;
     itemTagsOffset: number;
     itemTagsSearchInput: string;
@@ -22,6 +27,8 @@ type CurrentCloneSessionItemTagsTabProps = {
     onItemTagsClearSearch: () => void;
     onItemTagsPreviousPage: () => void;
     onItemTagsNextPage: () => void;
+    getManualOverwriteTargetId: (contentType: "item_tag", sourceId: string) => string | null;
+    onManualOverwriteSuccess: () => Promise<void>;
 };
 
 const ITEMS_PAGE_SIZE = 12;
@@ -50,7 +57,23 @@ function getTagColorStyle(color?: string) {
     return { backgroundColor: color };
 }
 
-function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessionCurrentItemTag[]; t: TranslationFn; }) {
+function isIgnored(value: { ignored?: boolean; is_ignored?: boolean }) {
+    return Boolean(value.ignored ?? value.is_ignored);
+}
+
+function CurrentCloneSessionItemTagList({
+    itemTags,
+    sessionId,
+    t,
+    getManualOverwriteTargetId,
+    onManualOverwriteSuccess,
+}: {
+    itemTags: CloneSessionCurrentItemTag[];
+    sessionId?: string;
+    t: TranslationFn;
+    getManualOverwriteTargetId: (contentType: "item_tag", sourceId: string) => string | null;
+    onManualOverwriteSuccess: () => Promise<void>;
+}) {
     if (itemTags.length === 0) {
         return (
             <div id="clone-game-source-current-session-item-tags-empty" className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -58,6 +81,9 @@ function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessio
             </div>
         );
     }
+
+    const overwriteTargetIds = new Map(itemTags.map((itemTag) => [itemTag.id, getManualOverwriteTargetId("item_tag", itemTag.id)]));
+    const hasOverwriteColumn = Array.from(overwriteTargetIds.values()).some(Boolean);
 
     return (
         <div id="clone-game-source-current-session-item-tags-table-wrap" className="overflow-x-auto rounded-md border bg-background">
@@ -76,10 +102,24 @@ function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessio
                         <th id="clone-game-source-current-session-item-tags-table-usage-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionItemTagsUsageLabel")}
                         </th>
+                        <th id="clone-game-source-current-session-item-tags-table-previously-cloned-head" className="h-9 px-3 text-center align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionPreviouslyClonedLabel")}
+                        </th>
+                        <th id="clone-game-source-current-session-item-tags-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
+                        </th>
+                        {hasOverwriteColumn ? (
+                            <th id="clone-game-source-current-session-item-tags-table-overwrite-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-amber-300">
+                                {t("cloneGame.sourceGameCurrentSessionOverwriteAction")}
+                            </th>
+                        ) : null}
                     </tr>
                 </thead>
                 <tbody id="clone-game-source-current-session-item-tags-table-body">
-                    {itemTags.map((itemTag) => (
+                    {itemTags.map((itemTag) => {
+                        const overwriteTargetId = overwriteTargetIds.get(itemTag.id) ?? null;
+
+                        return (
                         <tr id={`clone-game-source-current-session-item-tag-row-${itemTag.id}`} key={itemTag.id} className="border-b transition-colors last:border-0 hover:bg-muted/40">
                             <td id={`clone-game-source-current-session-item-tag-label-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
                                 <span id={`clone-game-source-current-session-item-tag-label-${itemTag.id}`} className="font-medium">
@@ -104,8 +144,34 @@ function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessio
                                     {typeof itemTag.item_count === "number" ? itemTag.item_count.toLocaleString("en-US") : t("common.unknown")}
                                 </span>
                             </td>
+                            <td id={`clone-game-source-current-session-item-tag-previously-cloned-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionPreviouslyClonedStatus
+                                    id={`clone-game-source-current-session-item-tag-previously-cloned-${itemTag.id}`}
+                                    iconId={`clone-game-source-current-session-item-tag-previously-cloned-icon-${itemTag.id}`}
+                                    labelId={`clone-game-source-current-session-item-tag-previously-cloned-label-${itemTag.id}`}
+                                    previouslyCloned={itemTag.previously_cloned}
+                                    t={t}
+                                />
+                            </td>
+                            <td id={`clone-game-source-current-session-item-tag-ignore-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-item-tag-ignore-${itemTag.id}`} sessionId={sessionId} contentType="item_tag" sourceId={itemTag.id} initialIgnored={isIgnored(itemTag)} t={t} />
+                            </td>
+                            {hasOverwriteColumn ? (
+                                <td id={`clone-game-source-current-session-item-tag-overwrite-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
+                                    <CloneSessionManualOverwriteButton
+                                        id={`clone-game-source-current-session-item-tag-overwrite-${itemTag.id}`}
+                                        sessionId={sessionId}
+                                        contentType="item_tag"
+                                        sourceId={itemTag.id}
+                                        targetId={overwriteTargetId}
+                                        t={t}
+                                        onSuccess={onManualOverwriteSuccess}
+                                    />
+                                </td>
+                            ) : null}
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
@@ -115,6 +181,7 @@ function CurrentCloneSessionItemTagList({ itemTags, t }: { itemTags: CloneSessio
 export function CurrentCloneSessionItemTagsTab({
     t,
     itemTags,
+    sessionId,
     itemTagsTotal,
     itemTagsOffset,
     itemTagsSearchInput,
@@ -126,6 +193,8 @@ export function CurrentCloneSessionItemTagsTab({
     onItemTagsClearSearch,
     onItemTagsPreviousPage,
     onItemTagsNextPage,
+    getManualOverwriteTargetId,
+    onManualOverwriteSuccess,
 }: CurrentCloneSessionItemTagsTabProps) {
     const currentPage = itemTagsTotal > 0 ? Math.floor(itemTagsOffset / ITEMS_PAGE_SIZE) + 1 : 0;
     const totalPages = itemTagsTotal > 0 ? Math.ceil(itemTagsTotal / ITEMS_PAGE_SIZE) : 0;
@@ -216,23 +285,26 @@ export function CurrentCloneSessionItemTagsTab({
                         <p id="clone-game-source-current-session-item-tags-pagination-summary" className="text-[10px] text-muted-foreground tabular-nums">
                             {formatRange(start, end, itemTagsTotal)}
                         </p>
+                        <CurrentCloneSessionTableRefreshButton id="clone-game-source-current-session-item-tags-refresh-btn" iconId="clone-game-source-current-session-item-tags-refresh-icon" loading={itemTagsLoading} t={t} onRefresh={onManualOverwriteSuccess} />
                     </div>
                 </div>
             </div>
 
             {itemTagsLoading ? (
                 <div id="clone-game-source-current-session-item-tags-loading" className="overflow-x-auto rounded-md border bg-background">
-                    <div id="clone-game-source-current-session-item-tags-loading-header" className="grid min-w-[640px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr] gap-3 border-b bg-muted/40 px-3 py-2">
-                        {Array.from({ length: 4 }).map((_, index) => (
+                    <div id="clone-game-source-current-session-item-tags-loading-header" className="grid min-w-[900px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr_0.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                        {Array.from({ length: 6 }).map((_, index) => (
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-head-${index}`} key={`clone-game-source-current-session-item-tag-skeleton-head-${index}`} className="h-4 w-20" />
                         ))}
                     </div>
                     {Array.from({ length: 3 }).map((_, index) => (
-                        <div id={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} key={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} className="grid min-w-[640px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr] gap-3 border-b px-3 py-3 last:border-0">
+                        <div id={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} key={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} className="grid min-w-[900px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr_0.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-label-${index}`} className="h-4 w-2/3" />
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-key-${index}`} className="h-4 w-3/4" />
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-color-${index}`} className="h-4 w-20" />
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-count-${index}`} className="ml-auto h-4 w-12" />
+                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-previously-cloned-${index}`} className="mx-auto h-4 w-4" />
+                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-overwrite-${index}`} className="h-4 w-16" />
                         </div>
                     ))}
                 </div>
@@ -241,7 +313,7 @@ export function CurrentCloneSessionItemTagsTab({
                     {itemTagsError}
                 </div>
             ) : (
-                <CurrentCloneSessionItemTagList itemTags={itemTags} t={t} />
+                <CurrentCloneSessionItemTagList itemTags={itemTags} sessionId={sessionId} t={t} getManualOverwriteTargetId={getManualOverwriteTargetId} onManualOverwriteSuccess={onManualOverwriteSuccess} />
             )}
         </div>
     );
