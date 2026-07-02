@@ -70,7 +70,7 @@ export function CloneSessionRunOptionsSwitch({
                 <label
                     id={`${id}-label`}
                     htmlFor={id}
-                    className="text-xs text-muted-foreground"
+                    className="inline-flex items-center self-center text-xs leading-none text-muted-foreground"
                 >
                     {t("cloneGame.sourceGameCurrentSessionOverwriteConflictingCodesLabel")}
                 </label>
