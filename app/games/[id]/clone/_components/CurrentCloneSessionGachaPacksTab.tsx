@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CloneSessionCurrentGachaPack } from "@/lib/game-api";
+import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 import { CloneSessionPreviouslyClonedStatus } from "./CloneSessionPreviouslyClonedStatus";
 import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 
@@ -15,6 +16,7 @@ type TranslationFn = (key: string) => string;
 type CurrentCloneSessionGachaPacksTabProps = {
     t: TranslationFn;
     gachaPacks: CloneSessionCurrentGachaPack[];
+    sessionId?: string;
     gachaPacksTotal: number;
     gachaPacksOffset: number;
     gachaPacksSearchInput: string;
@@ -51,7 +53,19 @@ function getEnabledBadgeVariant(isEnabled?: boolean) {
     return isEnabled ? "default" as const : "secondary" as const;
 }
 
-function CurrentCloneSessionGachaPackList({ gachaPacks, t }: { gachaPacks: CloneSessionCurrentGachaPack[]; t: TranslationFn }) {
+function isIgnored(value: { ignored?: boolean; is_ignored?: boolean }) {
+    return Boolean(value.ignored ?? value.is_ignored);
+}
+
+function CurrentCloneSessionGachaPackList({
+    gachaPacks,
+    sessionId,
+    t,
+}: {
+    gachaPacks: CloneSessionCurrentGachaPack[];
+    sessionId?: string;
+    t: TranslationFn;
+}) {
     if (gachaPacks.length === 0) {
         return (
             <div id="clone-game-source-current-session-gacha-packs-empty" className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -71,8 +85,8 @@ function CurrentCloneSessionGachaPackList({ gachaPacks, t }: { gachaPacks: Clone
                         <th id="clone-game-source-current-session-gacha-packs-table-pool-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">{t("cloneGame.sourceGameCurrentSessionGachaPackPoolItemsLabel")}</th>
                         <th id="clone-game-source-current-session-gacha-packs-table-keys-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">{t("cloneGame.sourceGameCurrentSessionGachaPackKeyRequirementsLabel")}</th>
                         <th id="clone-game-source-current-session-gacha-packs-table-status-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">{t("cloneGame.sourceGameCurrentSessionGachaPackStatusLabel")}</th>
-                        <th id="clone-game-source-current-session-gacha-packs-table-ignored-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">{t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}</th>
                         <th id="clone-game-source-current-session-gacha-packs-table-previously-cloned-head" className="h-9 px-3 text-center align-middle text-xs font-medium text-muted-foreground">{t("cloneGame.sourceGameCurrentSessionPreviouslyClonedLabel")}</th>
+                        <th id="clone-game-source-current-session-gacha-packs-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">{t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}</th>
                     </tr>
                 </thead>
                 <tbody id="clone-game-source-current-session-gacha-packs-table-body">
@@ -105,11 +119,18 @@ function CurrentCloneSessionGachaPackList({ gachaPacks, t }: { gachaPacks: Clone
                             <td id={`clone-game-source-current-session-gacha-pack-status-cell-${gachaPack.id}`} className="px-3 py-2 align-middle">
                                 <Badge id={`clone-game-source-current-session-gacha-pack-status-${gachaPack.id}`} variant={getEnabledBadgeVariant(gachaPack.is_enabled)}>{gachaPack.is_enabled ? t("common.active") : t("common.inactive")}</Badge>
                             </td>
-                            <td id={`clone-game-source-current-session-gacha-pack-ignored-cell-${gachaPack.id}`} className="px-3 py-2 align-middle">
-                                <Badge id={`clone-game-source-current-session-gacha-pack-ignored-${gachaPack.id}`} variant={gachaPack.ignored ? "secondary" : "outline"}>{gachaPack.ignored ? t("common.yes") : t("common.no")}</Badge>
-                            </td>
                             <td id={`clone-game-source-current-session-gacha-pack-previously-cloned-cell-${gachaPack.id}`} className="px-3 py-2 align-middle">
                                 <CloneSessionPreviouslyClonedStatus id={`clone-game-source-current-session-gacha-pack-previously-cloned-${gachaPack.id}`} iconId={`clone-game-source-current-session-gacha-pack-previously-cloned-icon-${gachaPack.id}`} labelId={`clone-game-source-current-session-gacha-pack-previously-cloned-label-${gachaPack.id}`} previouslyCloned={gachaPack.previously_cloned} t={t} />
+                            </td>
+                            <td id={`clone-game-source-current-session-gacha-pack-ignore-cell-${gachaPack.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionIgnoreSwitch
+                                    id={`clone-game-source-current-session-gacha-pack-ignore-${gachaPack.id}`}
+                                    sessionId={sessionId}
+                                    contentType="gacha_pack"
+                                    sourceId={gachaPack.id}
+                                    initialIgnored={isIgnored(gachaPack)}
+                                    t={t}
+                                />
                             </td>
                         </tr>
                     ))}
@@ -120,7 +141,7 @@ function CurrentCloneSessionGachaPackList({ gachaPacks, t }: { gachaPacks: Clone
 }
 
 export function CurrentCloneSessionGachaPacksTab({
-    t, gachaPacks, gachaPacksTotal, gachaPacksOffset, gachaPacksSearchInput, gachaPacksSearchName, gachaPacksLoading, gachaPacksError,
+    t, gachaPacks, sessionId, gachaPacksTotal, gachaPacksOffset, gachaPacksSearchInput, gachaPacksSearchName, gachaPacksLoading, gachaPacksError,
     onGachaPacksSearchInputChange, onGachaPacksSearch, onGachaPacksClearSearch, onGachaPacksPreviousPage, onGachaPacksNextPage, onManualOverwriteSuccess,
 }: CurrentCloneSessionGachaPacksTabProps) {
     const currentPage = gachaPacksTotal > 0 ? Math.floor(gachaPacksOffset / GACHA_PACKS_PAGE_SIZE) + 1 : 0;
@@ -177,15 +198,15 @@ export function CurrentCloneSessionGachaPacksTab({
                             <Skeleton id={`clone-game-source-current-session-gacha-pack-skeleton-pool-${index}`} className="ml-auto h-4 w-10" />
                             <Skeleton id={`clone-game-source-current-session-gacha-pack-skeleton-keys-${index}`} className="ml-auto h-4 w-10" />
                             <Skeleton id={`clone-game-source-current-session-gacha-pack-skeleton-status-${index}`} className="h-4 w-14" />
-                            <Skeleton id={`clone-game-source-current-session-gacha-pack-skeleton-ignored-${index}`} className="h-4 w-12" />
                             <Skeleton id={`clone-game-source-current-session-gacha-pack-skeleton-previously-cloned-${index}`} className="mx-auto h-4 w-4" />
+                            <Skeleton id={`clone-game-source-current-session-gacha-pack-skeleton-ignore-${index}`} className="h-4 w-12" />
                         </div>
                     ))}
                 </div>
             ) : gachaPacksError ? (
                 <div id="clone-game-source-current-session-gacha-packs-error" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{gachaPacksError}</div>
             ) : (
-                <CurrentCloneSessionGachaPackList gachaPacks={gachaPacks} t={t} />
+                <CurrentCloneSessionGachaPackList gachaPacks={gachaPacks} sessionId={sessionId} t={t} />
             )}
         </div>
     );

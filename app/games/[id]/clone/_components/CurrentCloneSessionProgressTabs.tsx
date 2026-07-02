@@ -121,7 +121,7 @@ export function CurrentCloneSessionProgressTabs({
     presetDefinitions, presetDefinitionsTotal, presetDefinitionsOffset, presetDefinitionsSearchInput, presetDefinitionsSearchName,
     presetDefinitionsLoading, presetDefinitionsError, onPresetDefinitionsSearchInputChange, onPresetDefinitionsSearch,
     onPresetDefinitionsClearSearch, onPresetDefinitionsPreviousPage, onPresetDefinitionsNextPage,
-    gachaPacks, gachaPacksTotal, gachaPacksOffset, gachaPacksSearchInput, gachaPacksSearchName,
+    gachaPacks, gachaPacksSessionId, gachaPacksTotal, gachaPacksOffset, gachaPacksSearchInput, gachaPacksSearchName,
     gachaPacksLoading, gachaPacksError, onGachaPacksSearchInputChange, onGachaPacksSearch,
     onGachaPacksClearSearch, onGachaPacksPreviousPage, onGachaPacksNextPage,
     getManualOverwriteTargetId,
@@ -618,6 +618,7 @@ export function CurrentCloneSessionProgressTabs({
                                     <CurrentCloneSessionGachaPacksTab
                                         t={t}
                                         gachaPacks={gachaPacks}
+                                        sessionId={gachaPacksSessionId}
                                         gachaPacksTotal={gachaPacksTotal}
                                         gachaPacksOffset={gachaPacksOffset}
                                         gachaPacksSearchInput={gachaPacksSearchInput}

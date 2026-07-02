@@ -341,7 +341,8 @@ export type CloneSessionIgnoreContentType =
     | "item_tag"
     | "quest_definition"
     | "shop_definition"
-    | "preset_definition";
+    | "preset_definition"
+    | "gacha_pack";
 
 export interface CloneSessionManualOverwritePairPayload {
     content_type: CloneSessionIgnoreContentType;

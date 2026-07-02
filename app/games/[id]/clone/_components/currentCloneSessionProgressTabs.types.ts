@@ -93,6 +93,7 @@ export type CurrentCloneSessionProgressTabsProps = {
     onPresetDefinitionsPreviousPage: () => void;
     onPresetDefinitionsNextPage: () => void;
     gachaPacks: CloneSessionCurrentGachaPack[];
+    gachaPacksSessionId?: string;
     gachaPacksTotal: number;
     gachaPacksOffset: number;
     gachaPacksSearchInput: string;

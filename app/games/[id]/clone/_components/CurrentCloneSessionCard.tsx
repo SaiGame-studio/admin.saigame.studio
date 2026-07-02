@@ -542,6 +542,7 @@ export function CurrentCloneSessionCard({
         onPresetDefinitionsSearchInputChange: presetDefinitionsState.onSearchInputChange, onPresetDefinitionsSearch: presetDefinitionsState.onSearch,
         onPresetDefinitionsClearSearch: presetDefinitionsState.onClearSearch, onPresetDefinitionsPreviousPage: presetDefinitionsState.onPreviousPage, onPresetDefinitionsNextPage: presetDefinitionsState.onNextPage,
         gachaPacks: gachaPacksState.items,
+        gachaPacksSessionId: currentSession.session_id,
         gachaPacksTotal: gachaPacksState.total,
         gachaPacksOffset: gachaPacksState.offset,
         gachaPacksSearchInput: gachaPacksState.searchInput,
