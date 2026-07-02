@@ -54,7 +54,7 @@ import { useGachaPage } from "./_hooks/use-gacha-page";
 import { useItemsCataloguePage } from "./_hooks/use-items-catalogue-page";
 import { EMPTY_KEY_ROW, EMPTY_ROW, emptyGachaForm, type ContainerDraftValues, type GachaLLMRow, type KeyReqRow, normalizeContainerDraftValues, type PoolRow } from "./_hooks/items-page-state-types";
 import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api';
-import { safeGetItem, safeSetItem } from '@/lib/storage-utils';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage-utils';
 function RarityBadge({ rarity }: {
     rarity: ItemRarity;
 }) {
@@ -809,19 +809,7 @@ export default function GameItemsPage() {
         }
         router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false });
     }, [gachaSearchDebounced]); // eslint-disable-line react-hooks/exhaustive-deps
-    // fetch categories, rarities & tags from API on mount
-    useEffect(() => {
-        Promise.all([fetchItemCategories(), fetchItemRarities()])
-            .then(([cats, rars]) => { setCategories(cats); setRarities(rars); })
-            .catch(() => { });
-    }, []);
-    useEffect(() => {
-        if (!gameId)
-            return;
-        listItemTags({ gameId }, { limit: 200, offset: 0 })
-            .then((res) => setItemTags(res.tags ?? []))
-            .catch(() => { });
-    }, [gameId]); // eslint-disable-line react-hooks/exhaustive-deps
+    // NOTE: categories, rarities & tags are fetched inside useItemsCataloguePage
     const {
         loadGameInfo,
         fetchItems,
