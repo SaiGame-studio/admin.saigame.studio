@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { toSafeCodeName } from "@/lib/utils";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -33,7 +33,6 @@ import { ApiError } from "@/lib/api-client";
 import { listItemDefinitions, createItemDefinition, getItemDefinition, updateItemDefinition, fetchItemCategories, fetchItemRarities, listContainerDefinitions, createContainerDefinition, getContainerDefinition, updateContainerDefinition, deleteContainerDefinition, fetchContainerTypes, type ContainerTypeOption, listGachaPacks, createGachaPack, updateGachaPack, deleteGachaPack, setGachaPackEnabled, listEquipmentSlots, getEquipmentSlot, createEquipmentSlot, updateEquipmentSlot, deleteEquipmentSlot, listItemTags, listPresetDefinitions, deletePresetDefinition, type ListItemsParams, type ItemTag, type PresetDefinition, } from "@/lib/inventory-api";
 import type { ItemDefinition, ItemCategory, ItemRarity, CreateItemRequest, UpdateItemRequest, ContainerDefinition, ContainerType, CreateContainerDefinitionRequest, UpdateContainerDefinitionRequest, GachaPack, GachaPoolEntry, KeyRequirement, EquipmentSlot, } from "@/types/inventory";
 import { RARITY_COLORS } from "@/types/inventory";
-import type { GameLimits } from "@/types/game";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { CopyButton } from "@/components/CopyButton";
 import { CraftingTab } from "@/components/crafting/crafting-tab";
@@ -48,6 +47,9 @@ import { ItemsPageContainerSection } from "./_components/items-page-container-se
 import { ItemsPageGeneratorSection } from "./_components/items-page-generator-section";
 import { ItemsPagePresetsSection } from "./_components/items-page-presets-section";
 import { ItemsPageTagsSection } from "./_components/items-page-tags-section";
+import { useContainerPageState } from "./_hooks/use-container-page-state";
+import { useGachaPageState } from "./_hooks/use-gacha-page-state";
+import { EMPTY_KEY_ROW, EMPTY_ROW, emptyGachaForm, type ContainerDraftValues, type GachaLLMRow, type KeyReqRow, normalizeContainerDraftValues, type PoolRow } from "./_hooks/items-page-state-types";
 import { KVEditor } from "./_components/KVEditor";
 import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api';
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils';
@@ -93,45 +95,6 @@ function DropBar({ weight, total }: {
       </span>
     </div>);
 }
-interface PoolRow {
-    item_definition_id: string;
-    weight: string;
-    quantity_min: string;
-    quantity_max: string;
-}
-const EMPTY_ROW = (): PoolRow => ({
-    item_definition_id: "",
-    weight: "700000",
-    quantity_min: "1",
-    quantity_max: "1",
-});
-interface KeyReqRow {
-    item_definition_id: string;
-    quantity: string;
-}
-type GachaLLMRow = {
-    item_definition_id?: unknown;
-    weight?: unknown;
-    quantity_min?: unknown;
-    quantity_max?: unknown;
-    quantity?: unknown;
-};
-const EMPTY_KEY_ROW = (): KeyReqRow => ({
-    item_definition_id: "",
-    quantity: "1",
-});
-function emptyGachaForm() {
-    return {
-        name: "",
-        code_name: "",
-        collect_destination: "mailbox" as "mailbox" | "inventory",
-        is_enabled: true,
-        mailbox_title: "",
-        mailbox_body: "",
-        pool: [EMPTY_ROW()],
-        keyReqs: [EMPTY_KEY_ROW()],
-    };
-}
 /** Resolve a __REF:ITEM_CODE placeholder to the actual item definition ID.
  *  Returns the original value unchanged if it is not a __REF: placeholder
  *  or no matching item is found. */
@@ -176,40 +139,6 @@ const CONTAINER_TYPE_META: Record<string, {
     shulker_box: { label: 'Shulker Box', className: 'bg-pink-500/15 text-pink-500 border-pink-500/40' },
     equipment: { label: 'Equipment', className: 'bg-blue-500/15 text-blue-400 border-blue-400/40' },
 };
-type ContainerDraftValues = {
-    name?: string;
-    code_name?: string;
-    container_type?: string;
-    grid_cols?: number;
-    grid_rows?: number;
-    is_portable?: boolean;
-    instanced_per_item?: boolean;
-    linked_item_definition_id?: string;
-    linked_item_definition_name?: string;
-    linked_item_definition_code?: string;
-    metadata?: Record<string, unknown>;
-};
-function normalizeContainerDraftValues(draft: Record<string, unknown> | null | undefined): ContainerDraftValues | undefined {
-    if (!draft || typeof draft !== 'object' || Array.isArray(draft))
-        return undefined;
-    const record = draft as Record<string, unknown>;
-    const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
-        ? record.metadata as Record<string, unknown>
-        : undefined;
-    return {
-        name: typeof record.name === 'string' ? record.name : undefined,
-        code_name: typeof record.code_name === 'string' ? record.code_name : undefined,
-        container_type: typeof record.container_type === 'string' ? record.container_type : undefined,
-        grid_cols: typeof record.grid_cols === 'number' ? record.grid_cols : undefined,
-        grid_rows: typeof record.grid_rows === 'number' ? record.grid_rows : undefined,
-        is_portable: typeof record.is_portable === 'boolean' ? record.is_portable : undefined,
-        instanced_per_item: typeof record.instanced_per_item === 'boolean' ? record.instanced_per_item : undefined,
-        linked_item_definition_id: typeof record.linked_item_definition_id === 'string' ? record.linked_item_definition_id : undefined,
-        linked_item_definition_name: typeof record.linked_item_definition_name === 'string' ? record.linked_item_definition_name : undefined,
-        linked_item_definition_code: typeof record.linked_item_definition_code === 'string' ? record.linked_item_definition_code : undefined,
-        metadata,
-    };
-}
 function CreateContainerDefinitionDialog({ open, gameId, allItems, containerTypeOptions, initialValues, onCreated, onClose, }: {
     open: boolean;
     gameId: string;
@@ -731,57 +660,62 @@ export default function GameItemsPage() {
     const [activeTab, setActiveTab] = useState<string>("catalogue");
     // containers tab state
     const CONTAINER_LIMIT = 50;
-    const [containerDefs, setContainerDefs] = useState<ContainerDefinition[]>([]);
-    const [containerTotal, setContainerTotal] = useState(0);
-    const [containerLoading, setContainerLoading] = useState(false);
-    const [containerError, setContainerError] = useState<string | null>(null);
-    const [containerOffset, setContainerOffset] = useState(0);
-    const [showCreateContainer, setShowCreateContainer] = useState(false);
-    const [createContainerInitialValues, setCreateContainerInitialValues] = useState<{
-        name?: string;
-        code_name?: string;
-        container_type?: string;
-        grid_cols?: number;
-        grid_rows?: number;
-        is_portable?: boolean;
-        linked_item_definition_id?: string;
-        linked_item_definition_name?: string;
-        linked_item_definition_code?: string;
-        metadata?: Record<string, unknown>;
-    } | undefined>(undefined);
-    const [createContainerConvContext, setCreateContainerConvContext] = useState<{
-        turnId: string;
-        responseIdx: number;
-        containerIdx: number;
-    } | undefined>(undefined);
-    const [editingContainer, setEditingContainer] = useState<ContainerDefinition | null>(null);
-    const [editingContainerDraft, setEditingContainerDraft] = useState<ContainerDraftValues | undefined>(undefined);
-    const [editingContainerConvContext, setEditingContainerConvContext] = useState<{
-        turnId: string;
-        responseIdx: number;
-        containerIdx: number;
-    } | undefined>(undefined);
-    const [deletingContainer, setDeletingContainer] = useState<ContainerDefinition | null>(null);
-    const [deleteContainerLoading, setDeleteContainerLoading] = useState(false);
-    const [containerSearch, setContainerSearch] = useState("");
-    const [containerSearchDebounced, setContainerSearchDebounced] = useState("");
-    const [containerAllItems, setContainerAllItems] = useState<ItemDefinition[]>([]);
-    const [containerTypeOptions, setContainerTypeOptions] = useState<ContainerTypeOption[]>([]);
-    const [expandedContainerId, setExpandedContainerId] = useState<string | null>(null);
-    const [containerDetailCache, setContainerDetailCache] = useState<Record<string, ContainerDefinition>>({});
-    const [containerDetailLoading, setContainerDetailLoading] = useState<string | null>(null);
-    const [editingField, setEditingField] = useState<{
-        id: string;
-        field: string;
-    } | null>(null);
-    const [editValue, setEditValue] = useState<string>("");
-    const [editValue2, setEditValue2] = useState<string>(""); // for dimensions
-    const [containerItemsOnly, setContainerItemsOnly] = useState<boolean>(false);
-    const [metadataRows, setMetadataRows] = useState<{
-        k: string;
-        v: string;
-    }[]>([]);
-    const [containerSubTab, setContainerSubTab] = useState<"definitions" | "slot-guide">("definitions");
+    const {
+        containerDefs,
+        setContainerDefs,
+        containerTotal,
+        setContainerTotal,
+        containerLoading,
+        setContainerLoading,
+        containerError,
+        setContainerError,
+        containerOffset,
+        setContainerOffset,
+        showCreateContainer,
+        setShowCreateContainer,
+        createContainerInitialValues,
+        setCreateContainerInitialValues,
+        createContainerConvContext,
+        setCreateContainerConvContext,
+        editingContainer,
+        setEditingContainer,
+        editingContainerDraft,
+        setEditingContainerDraft,
+        editingContainerConvContext,
+        setEditingContainerConvContext,
+        deletingContainer,
+        setDeletingContainer,
+        deleteContainerLoading,
+        setDeleteContainerLoading,
+        containerSearch,
+        setContainerSearch,
+        containerSearchDebounced,
+        setContainerSearchDebounced,
+        containerAllItems,
+        setContainerAllItems,
+        containerTypeOptions,
+        setContainerTypeOptions,
+        expandedContainerId,
+        setExpandedContainerId,
+        containerDetailCache,
+        setContainerDetailCache,
+        containerDetailLoading,
+        setContainerDetailLoading,
+        editingField,
+        setEditingField,
+        editValue,
+        setEditValue,
+        editValue2,
+        setEditValue2,
+        containerItemsOnly,
+        setContainerItemsOnly,
+        metadataRows,
+        setMetadataRows,
+        containerSubTab,
+        setContainerSubTab,
+        updatingContainerId,
+        setUpdatingContainerId,
+    } = useContainerPageState();
     // generator tab state
     const [generatorItems, setGeneratorItems] = useState<ItemDefinition[]>([]);
     const [generatorLoading, setGeneratorLoading] = useState(false);
@@ -823,27 +757,41 @@ export default function GameItemsPage() {
     const [deletingPreset, setDeletingPreset] = useState<PresetDefinition | null>(null);
     const [deletePresetLoading, setDeletePresetLoading] = useState(false);
     // gacha tab state
-    const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([]);
-    const [gachaAllItems, setGachaAllItems] = useState<ItemDefinition[]>([]);
-    const [gachaLoading, setGachaLoading] = useState(false);
-    const [gachaError, setGachaError] = useState<string | null>(null);
-    const [gameLimits, setGameLimits] = useState<GameLimits | null>(null);
-    const [expandedPack, setExpandedPack] = useState<string | null>(null);
-    const [gachaSheetOpen, setGachaSheetOpen] = useState(false);
-    const [editingPack, setEditingPack] = useState<GachaPack | null>(null);
-    const [formSaving, setFormSaving] = useState(false);
-    const [gachaForm, setGachaForm] = useState(emptyGachaForm());
-    const [createGachaConvContext, setCreateGachaConvContext] = useState<{
-        turnId: string;
-        responseIdx: number;
-        gachaPackIdx: number;
-    } | undefined>(undefined);
-    const [deletingPack, setDeletingPack] = useState<GachaPack | null>(null);
-    const [deletePackLoading, setDeletePackLoading] = useState(false);
-    const [togglingId, setTogglingId] = useState<string | null>(null);
-    const [gachaSearch, setGachaSearch] = useState("");
-    const [gachaSearchDebounced, setGachaSearchDebounced] = useState("");
-    const suppressGachaAutoOpenRef = useRef(false);
+    const {
+        gachaPacks,
+        setGachaPacks,
+        gachaAllItems,
+        setGachaAllItems,
+        gachaLoading,
+        setGachaLoading,
+        gachaError,
+        setGachaError,
+        gameLimits,
+        setGameLimits,
+        expandedPack,
+        setExpandedPack,
+        gachaSheetOpen,
+        setGachaSheetOpen,
+        editingPack,
+        setEditingPack,
+        formSaving,
+        setFormSaving,
+        gachaForm,
+        setGachaForm,
+        createGachaConvContext,
+        setCreateGachaConvContext,
+        deletingPack,
+        setDeletingPack,
+        deletePackLoading,
+        setDeletePackLoading,
+        togglingId,
+        setTogglingId,
+        gachaSearch,
+        setGachaSearch,
+        gachaSearchDebounced,
+        setGachaSearchDebounced,
+        suppressGachaAutoOpenRef,
+    } = useGachaPageState();
     // conversation panel integration
     const [convPanelOpen, setConvPanelOpen] = useState(false);
     const [convActiveId, setConvActiveId] = useState<string | null>(null);
@@ -1662,7 +1610,6 @@ export default function GameItemsPage() {
         })
             .finally(() => setContainerDetailLoading(null));
     };
-    const [updatingContainerId, setUpdatingContainerId] = useState<string | null>(null);
     const handleUpdateContainerField = useCallback(async (definitionId: string, patch: UpdateContainerDefinitionRequest) => {
         setUpdatingContainerId(definitionId);
         try {
