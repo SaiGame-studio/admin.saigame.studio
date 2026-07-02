@@ -304,20 +304,6 @@ export function CurrentCloneSessionProgressTabs({
                                 value={phaseKey}
                                 className="mt-0 space-y-3"
                             >
-                                <div id={`clone-game-source-current-session-progress-item-${toKebabIdSegment(phaseKey)}`} className="space-y-1">
-                                    <div id={`clone-game-source-current-session-progress-item-bar-wrap-${toKebabIdSegment(phaseKey)}`} className="relative">
-                                        <Progress
-                                            id={`clone-game-source-current-session-progress-item-bar-${toKebabIdSegment(phaseKey)}`}
-                                            value={getProgressValue(progress.processed, progress.total)}
-                                            className="h-4"
-                                        />
-                                        <div id={`clone-game-source-current-session-progress-item-bar-overlay-${toKebabIdSegment(phaseKey)}`} className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                            <p id={`clone-game-source-current-session-progress-item-bar-text-${toKebabIdSegment(phaseKey)}`} className="text-[10px] font-medium text-foreground">
-                                                {progress.processed ?? 0}/{progress.total ?? 0} ({Math.round(getProgressValue(progress.processed, progress.total))}%)
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
 
                                 {phaseKey === "item_definitions" ? (
                                     <div id="clone-game-source-current-session-item-definitions-section" className="space-y-3">

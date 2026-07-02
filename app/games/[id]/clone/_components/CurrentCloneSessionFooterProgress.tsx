@@ -68,6 +68,10 @@ export function CurrentCloneSessionFooterProgress({
         }
     };
 
+    const totalProcessed = progressEntries.reduce((sum, [, progress]) => sum + (progress.processed ?? 0), 0);
+    const totalItems = progressEntries.reduce((sum, [, progress]) => sum + (progress.total ?? 0), 0);
+    const totalProgressValue = getProgressValue(totalProcessed, totalItems);
+
     return (
         <div id="clone-game-source-current-session-footer-progress" className="space-y-3 border-t px-6 pt-4 pb-4">
             <div id="clone-game-source-current-session-footer-progress-header" className="flex items-center justify-between gap-2">
@@ -94,6 +98,18 @@ export function CurrentCloneSessionFooterProgress({
                         />
                     )}
                 </Button>
+            </div>
+            <div id="clone-game-source-current-session-total-progress-wrap" className="relative mb-4 mt-2">
+                <Progress
+                    id="clone-game-source-current-session-total-progress-bar"
+                    value={totalProgressValue}
+                    className="h-4"
+                />
+                <div id="clone-game-source-current-session-total-progress-overlay" className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <p id="clone-game-source-current-session-total-progress-text" className="text-[10px] font-medium text-foreground">
+                        {totalProcessed}/{totalItems} ({Math.round(totalProgressValue)}%)
+                    </p>
+                </div>
             </div>
             <div id="clone-game-source-current-session-footer-progress-list" className="space-y-3">
                 {progressEntries.map(([phaseKey, progress], index) => {
