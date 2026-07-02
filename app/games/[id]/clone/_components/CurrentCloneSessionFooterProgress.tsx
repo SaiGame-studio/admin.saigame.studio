@@ -111,7 +111,7 @@ export function CurrentCloneSessionFooterProgress({
                     </p>
                 </div>
             </div>
-            <div id="clone-game-source-current-session-footer-progress-list" className="space-y-3">
+            <div id="clone-game-source-current-session-footer-progress-list" className="grid grid-cols-2 gap-3">
                 {progressEntries.map(([phaseKey, progress], index) => {
                     const idSegment = toKebabIdSegment(phaseKey);
                     const progressValue = getProgressValue(progress.processed, progress.total);
