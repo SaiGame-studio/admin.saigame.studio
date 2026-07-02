@@ -7,11 +7,39 @@ export type StartConfirmBillingDetails = {
     items: Array<{
         id: string;
         text: string;
-        containsGemUnit?: boolean;
     }>;
 };
 
-export const GEM_UNIT_TOKEN = "__SGEM_UNIT__";
+export type CloneCostCurrencyMeta = {
+    code: "sGem" | "sCoin";
+    icon: string;
+    label: string;
+    paymentTab: "buy-sgem" | "buy-scoin";
+};
+
+export function getCloneCostCurrencyMeta(currency?: string): CloneCostCurrencyMeta {
+    const normalizedCurrency = currency?.trim().toLowerCase();
+
+    if (normalizedCurrency === "scoin") {
+        return {
+            code: "sCoin",
+            icon: "🪙",
+            label: "🪙 sCoin",
+            paymentTab: "buy-scoin",
+        };
+    }
+
+    return {
+        code: "sGem",
+        icon: "💎",
+        label: "💎 sGem",
+        paymentTab: "buy-sgem",
+    };
+}
+
+export function formatCloneCost(amount: number, currency?: string) {
+    return `${amount.toLocaleString("en-US")} ${getCloneCostCurrencyMeta(currency).label}`;
+}
 
 export function getVisibilityLabel(game: Game, t: TranslationFn) {
     const shareLevel = game.share_level ?? "private";
@@ -55,7 +83,7 @@ export function getVisibilityPriceLabel(game: Game, t: TranslationFn) {
         return null;
     }
 
-    return `${game.clone_cost ?? 7} ${t("cloneGame.clonePriceUnit")}`;
+    return formatCloneCost(game.clone_cost ?? 7, game.clone_cost_currency);
 }
 
 export function getRequiredCloneCost(game: Game | null) {
@@ -72,6 +100,8 @@ export function getRequiredCloneCost(game: Game | null) {
 
 export function getStartConfirmBillingDetails(game: Game, t: TranslationFn): StartConfirmBillingDetails {
     const requiredCloneCost = getRequiredCloneCost(game);
+    const cloneCostLabel = formatCloneCost(requiredCloneCost, game.clone_cost_currency);
+    const currencyLabel = getCloneCostCurrencyMeta(game.clone_cost_currency).label;
 
     if (!game.is_my_game && !game.same_studio && requiredCloneCost > 0) {
         return {
@@ -79,7 +109,7 @@ export function getStartConfirmBillingDetails(game: Game, t: TranslationFn): Sta
                 {
                     id: "charged-amount",
                     text: t("cloneGame.sourceGameStartConfirmChargedAmount")
-                        .replace("{amount}", `${requiredCloneCost} ${t("cloneGame.clonePriceUnit")}`),
+                        .replace("{amount}", cloneCostLabel),
                 },
                 {
                     id: "charged-not-my-game",
@@ -98,8 +128,7 @@ export function getStartConfirmBillingDetails(game: Game, t: TranslationFn): Sta
             items: [
                 {
                     id: "free-no-deduction",
-                    text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", GEM_UNIT_TOKEN),
-                    containsGemUnit: true,
+                    text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", currencyLabel),
                 },
                 {
                     id: "free-reason-my-game",
@@ -114,8 +143,7 @@ export function getStartConfirmBillingDetails(game: Game, t: TranslationFn): Sta
             items: [
                 {
                     id: "free-no-deduction",
-                    text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", GEM_UNIT_TOKEN),
-                    containsGemUnit: true,
+                    text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", currencyLabel),
                 },
                 {
                     id: "free-reason-purchased",
@@ -130,8 +158,7 @@ export function getStartConfirmBillingDetails(game: Game, t: TranslationFn): Sta
             items: [
                 {
                     id: "free-no-deduction",
-                    text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", GEM_UNIT_TOKEN),
-                    containsGemUnit: true,
+                    text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", currencyLabel),
                 },
                 {
                     id: "free-reason-same-studio",
@@ -145,8 +172,7 @@ export function getStartConfirmBillingDetails(game: Game, t: TranslationFn): Sta
         items: [
             {
                 id: "free-no-deduction",
-                text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", GEM_UNIT_TOKEN),
-                containsGemUnit: true,
+                text: t("cloneGame.sourceGameStartConfirmFreeNoDeduction").replace("{unit}", currencyLabel),
             },
             {
                 id: "free-reason-no-fee",

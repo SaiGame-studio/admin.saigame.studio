@@ -392,9 +392,10 @@
     "visibilityPublicDesc": "どのスタジオからでも複製できます。",
     "clonedGamePublicDisabledNote": "このゲームは複製されたゲームのため、公開にはできません。",
     "clonePrice": "複製価格",
+    "clonePriceCurrency": "通貨",
     "clonePriceUnit": "💎 sGem",
-    "clonePricePublicDesc": "最小 7 💎 sGem。",
-    "clonePricePayoutDesc": "このゲームを複製するユーザーが支払い、複製元の所有者が受け取ります。",
+    "clonePricePublicDesc": "最小 7 {unit}。",
+    "clonePricePayoutDesc": "このゲームを複製するユーザーが {unit} で支払い、複製元の所有者が受け取ります。",
     "visibilitySaved": "公開範囲を更新しました。",
     "visibilitySaveFailed": "公開範囲を更新できませんでした。",
     "clonePriceSaved": "複製価格を更新しました。",
@@ -402,7 +403,7 @@
     "errors": {
       "GAME_SHARE_LEVEL_PRIVATE_BLOCKED_BY_ACTIVE_CLONE_SOURCE": "このゲームは現在アクティブな複製元として使用されているため、非公開に変更できません。"
     },
-    "clonePriceMinError": "公開ゲームの複製価格は 7 💎 sGem 以上にしてください。",
+    "clonePriceMinError": "公開ゲームの複製価格は 7 {unit} 以上にしてください。",
     "sourceGameTitle": "複製元を選択",
     "sourceGameSubtitle": "複製可能なゲームを確認し、ここから複製したいものを選びます。",
     "sourceGameTargetGameLabel": "利用先ゲーム",

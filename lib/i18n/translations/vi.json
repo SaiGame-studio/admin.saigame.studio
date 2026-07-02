@@ -392,9 +392,10 @@
     "visibilityPublicDesc": "Clone được từ bất kỳ studio nào.",
     "clonedGamePublicDisabledNote": "Đây là game đã được clone, nên không thể chuyển sang công khai.",
     "clonePrice": "Phí clone",
+    "clonePriceCurrency": "Loại tiền",
     "clonePriceUnit": "💎 sGem",
-    "clonePricePublicDesc": "Tối thiểu 7 💎 sGem.",
-    "clonePricePayoutDesc": "Người clone game này sẽ bị trứ sGem, còn chủ nguồn clone sẽ nhận số 💎 sGem đó.",
+    "clonePricePublicDesc": "Tối thiểu 7 {unit}.",
+    "clonePricePayoutDesc": "Người clone game này sẽ thanh toán bằng {unit}, và chủ nguồn clone sẽ nhận khoản đó.",
     "visibilitySaved": "Đã cập nhật trạng thái hiển thị.",
     "visibilitySaveFailed": "Không thể cập nhật trạng thái hiển thị.",
     "clonePriceSaved": "Đã cập nhật phí clone.",
@@ -402,7 +403,7 @@
     "errors": {
       "GAME_SHARE_LEVEL_PRIVATE_BLOCKED_BY_ACTIVE_CLONE_SOURCE": "Không thể chuyển game sang riêng tư khi game này đang được dùng làm nguồn clone đang hoạt động."
     },
-    "clonePriceMinError": "Game công khai cần phí clone tối thiểu là 7 💎 sGem.",
+    "clonePriceMinError": "Game công khai cần phí clone tối thiểu là 7 {unit}.",
     "sourceGameTitle": "Nhân bản từ",
     "sourceGameSubtitle": "Duyệt các game có thể clone và chọn game muốn nhân bản từ đó vào game đích này.",
     "sourceGameTargetGameLabel": "Game đích",

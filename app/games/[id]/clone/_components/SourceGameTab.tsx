@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Globe, Loader2, Lock, RefreshCw, Search, Shield, X } from "lucide-react";
@@ -21,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CurrentCloneSessionCard } from "./CurrentCloneSessionCard";
 import { SourceGameFilters } from "./SourceGameFilters";
 import { SourceGameIndicators } from "./SourceGameIndicators";
-import { GEM_UNIT_TOKEN, getCloneSessionErrorMessage, getRequiredCloneCost, getStartConfirmBillingDetails, getVisibilityLabel, getVisibilityPriceLabel, getVisibilityStatusStyle, type StartConfirmBillingDetails } from "./sourceGameCloneUtils";
+import { getCloneCostCurrencyMeta, getCloneSessionErrorMessage, getRequiredCloneCost, getStartConfirmBillingDetails, getVisibilityLabel, getVisibilityPriceLabel, getVisibilityStatusStyle } from "./sourceGameCloneUtils";
 
 const PAGE_SIZE = 12;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -34,26 +33,6 @@ type LoadCurrentSessionOptions = {
     silent?: boolean;
 };
 
-function renderBillingItemText(item: StartConfirmBillingDetails["items"][number]): ReactNode {
-    if (!item.containsGemUnit) {
-        return item.text;
-    }
-
-    const [before, after] = item.text.split(GEM_UNIT_TOKEN);
-
-    return (
-        <>
-            {before}
-            <span id={`clone-game-source-start-confirm-gem-unit-${item.id}`} className="inline-flex items-baseline gap-1">
-                <span id={`clone-game-source-start-confirm-gem-unit-icon-${item.id}`}>💎</span>
-                <span id={`clone-game-source-start-confirm-gem-unit-text-${item.id}`}>
-                    sGem
-                </span>
-            </span>
-            {after}
-        </>
-    );
-}
 
 export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabProps) {
     const { t } = useTranslation();
@@ -72,6 +51,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [startingClone, setStartingClone] = useState(false);
     const [cloneSessionError, setCloneSessionError] = useState<string | null>(null);
     const [sgemBalance, setSgemBalance] = useState<number | null>(null);
+    const [scoinBalance, setScoinBalance] = useState<number | null>(null);
     const [sameStudioFilter, setSameStudioFilter] = useState(false);
     const [myGamesFilter, setMyGamesFilter] = useState(false);
     const [isPurchasedFilter, setIsPurchasedFilter] = useState(false);
@@ -80,10 +60,12 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const requestSeqRef = useRef(0);
 
     const selectedGame = games.find((game) => game.id === selectedGameId) ?? null;
+    const selectedGameCurrency = getCloneCostCurrencyMeta(selectedGame?.clone_cost_currency);
     const hasCurrentCloneSession = Boolean(currentSession);
     const requiredCloneCost = getRequiredCloneCost(selectedGame);
-    const hasEnoughSgem = sgemBalance === null || sgemBalance >= requiredCloneCost;
-    const shouldShowBuyMoreSgem = Boolean(selectedGame) && requiredCloneCost > 0 && sgemBalance !== null && !hasEnoughSgem;
+    const selectedCurrencyBalance = selectedGameCurrency.code === "sCoin" ? scoinBalance : sgemBalance;
+    const hasEnoughBalance = selectedCurrencyBalance === null || selectedCurrencyBalance >= requiredCloneCost;
+    const shouldShowBuyMoreCurrency = Boolean(selectedGame) && requiredCloneCost > 0 && selectedCurrencyBalance !== null && !hasEnoughBalance;
     const startConfirmBillingDetails = selectedGame ? getStartConfirmBillingDetails(selectedGame, t) : null;
 
     const loadGames = useCallback(
@@ -142,6 +124,15 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         }
     }, []);
 
+    const loadScoinWallet = useCallback(async () => {
+        try {
+            const data = await api.get("/api/v1/coins/wallet");
+            setScoinBalance(typeof data?.balance === "number" ? data.balance : null);
+        } catch {
+            setScoinBalance(null);
+        }
+    }, []);
+
     const loadCurrentSession = useCallback(async (options?: LoadCurrentSessionOptions) => {
         const silent = options?.silent === true;
 
@@ -190,6 +181,10 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     }, [loadSgemWallet]);
 
     useEffect(() => {
+        void loadScoinWallet();
+    }, [loadScoinWallet]);
+
+    useEffect(() => {
         const handler = (event: Event) => {
             const detail = event instanceof CustomEvent ? event.detail : null;
             if (detail?.skipSourceGameWalletRefresh) {
@@ -202,6 +197,15 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         window.addEventListener("sgem-wallet:refresh", handler);
         return () => window.removeEventListener("sgem-wallet:refresh", handler);
     }, [loadSgemWallet]);
+
+    useEffect(() => {
+        const handler = () => {
+            void loadScoinWallet();
+        };
+
+        window.addEventListener("wallet:refresh", handler);
+        return () => window.removeEventListener("wallet:refresh", handler);
+    }, [loadScoinWallet]);
 
     useEffect(() => {
         setCloneSessionError(null);
@@ -340,7 +344,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                 id={`clone-game-source-start-confirm-description-billing-item-${item.id}-${index}`}
                                                 key={`clone-game-source-start-confirm-description-billing-item-${item.id}-${index}`}
                                             >
-                                                {renderBillingItemText(item)}
+                                                {item.text}
                                             </li>
                                         ))}
                                     </ul>
@@ -570,15 +574,15 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                     id={`clone-game-source-card-confirm-btn-${game.id}`}
                                                     type="button"
                                                     onClick={() => setStartConfirmOpen(true)}
-                                                    disabled={startingClone || shouldShowBuyMoreSgem}
+                                                    disabled={startingClone || shouldShowBuyMoreCurrency}
                                                 >
                                                     {startingClone ? t("common.loading") : t("common.confirm")}
                                                 </Button>
                                             ) : null}
-                                            {isSelected && shouldShowBuyMoreSgem ? (
-                                                <Button id={`clone-game-source-card-buy-more-sgem-btn-${game.id}`} type="button" variant="link" className="h-auto px-0 py-0 text-xs" asChild>
-                                                    <Link id={`clone-game-source-card-buy-more-sgem-link-${game.id}`} href="/payment?tab=buy-sgem">
-                                                        {t("llmTokenPurchase.buyMoreSGem")}
+                                            {isSelected && shouldShowBuyMoreCurrency ? (
+                                                <Button id={`clone-game-source-card-buy-more-currency-btn-${game.id}`} type="button" variant="link" className="h-auto px-0 py-0 text-xs" asChild>
+                                                    <Link id={`clone-game-source-card-buy-more-currency-link-${game.id}`} href={`/payment?tab=${selectedGameCurrency.paymentTab}`}>
+                                                        {selectedGameCurrency.code === "sCoin" ? t("payment.topUpSCoin") : t("llmTokenPurchase.buyMoreSGem")}
                                                     </Link>
                                                 </Button>
                                             ) : null}

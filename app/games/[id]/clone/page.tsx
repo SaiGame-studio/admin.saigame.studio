@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { GameNavButtons } from "@/components/GameNavButtons";
@@ -17,6 +18,7 @@ import { ApiError } from "@/lib/api-client";
 import type { Game } from "@/types/game";
 import { useToast } from "@/hooks/use-toast";
 import { ActiveCloneSessionsCard } from "./_components/ActiveCloneSessionsCard";
+import { formatCloneCost, getCloneCostCurrencyMeta } from "./_components/sourceGameCloneUtils";
 import { SourceGameTab } from "./_components/SourceGameTab";
 
 type CloneTab = "clone-setting" | "from-another-game";
@@ -66,6 +68,7 @@ export default function GameClonePage() {
   const [gameError, setGameError] = useState<string | null>(null);
   const [shareLevelDraft, setShareLevelDraft] = useState<Game["share_level"]>("private");
   const [cloneCostDraft, setCloneCostDraft] = useState("7");
+  const [cloneCostCurrencyDraft, setCloneCostCurrencyDraft] = useState<"sGem" | "sCoin">("sGem");
   const [editingCloneCost, setEditingCloneCost] = useState(false);
   const [savingShareStatus, setSavingShareStatus] = useState(false);
   const [savingCloneCost, setSavingCloneCost] = useState(false);
@@ -73,6 +76,7 @@ export default function GameClonePage() {
   const activeTab = (searchParams.get("tab") === "from-another-game" ? "from-another-game" : "clone-setting") as CloneTab;
   const parsedCloneCost = Number(cloneCostDraft);
   const cloneCostValue = Number.isFinite(parsedCloneCost) ? Math.trunc(parsedCloneCost) : (game?.clone_cost ?? 7);
+  const cloneCostCurrencyLabel = getCloneCostCurrencyMeta(editingCloneCost ? cloneCostCurrencyDraft : game?.clone_cost_currency).label;
 
   useEffect(() => {
     if (!game) {
@@ -80,6 +84,7 @@ export default function GameClonePage() {
     }
     setShareLevelDraft(game.share_level ?? "private");
     setCloneCostDraft(String(game.clone_cost ?? 7));
+    setCloneCostCurrencyDraft(getCloneCostCurrencyMeta(game.clone_cost_currency).code);
     setEditingCloneCost(false);
   }, [game]);
 
@@ -130,12 +135,13 @@ export default function GameClonePage() {
     setShareLevelDraft(nextShareLevel);
     setSavingShareStatus(true);
     try {
-      const payload: { share_level: Game["share_level"]; clone_cost?: number } = {
+      const payload: { share_level: Game["share_level"]; clone_cost?: number; clone_cost_currency?: "sGem" | "sCoin" } = {
         share_level: nextShareLevel,
       };
 
       if (nextShareLevel === "public") {
         payload.clone_cost = Math.max(game.clone_cost ?? 7, 7);
+        payload.clone_cost_currency = cloneCostCurrencyDraft;
       }
 
       const updated = await updateGame(game.id, {
@@ -144,6 +150,7 @@ export default function GameClonePage() {
       setGame(updated);
       setShareLevelDraft(updated.share_level ?? "private");
       setCloneCostDraft(String(updated.clone_cost ?? 7));
+      setCloneCostCurrencyDraft(getCloneCostCurrencyMeta(updated.clone_cost_currency).code);
       toast({
         title: t("common.saved"),
         description: t("cloneGame.visibilitySaved"),
@@ -172,11 +179,12 @@ export default function GameClonePage() {
     const parsedCloneCost = Number(cloneCostDraft);
     const normalizedCloneCost = Number.isFinite(parsedCloneCost) ? Math.trunc(parsedCloneCost) : NaN;
     const previousCloneCost = String(game.clone_cost ?? 7);
+    const previousCloneCostCurrency = getCloneCostCurrencyMeta(game.clone_cost_currency).code;
 
     if (!Number.isFinite(normalizedCloneCost) || normalizedCloneCost < 7) {
       toast({
         title: t("common.error"),
-        description: t("cloneGame.clonePriceMinError"),
+        description: t("cloneGame.clonePriceMinError").replace("{unit}", cloneCostCurrencyLabel),
         variant: "destructive",
       });
       return;
@@ -186,9 +194,11 @@ export default function GameClonePage() {
     try {
       const updated = await updateGame(game.id, {
         clone_cost: normalizedCloneCost,
+        clone_cost_currency: cloneCostCurrencyDraft,
       }, { suppressToast: true });
       setGame(updated);
       setCloneCostDraft(String(updated.clone_cost ?? normalizedCloneCost));
+      setCloneCostCurrencyDraft(getCloneCostCurrencyMeta(updated.clone_cost_currency).code);
       setEditingCloneCost(false);
       toast({
         title: t("common.saved"),
@@ -196,6 +206,7 @@ export default function GameClonePage() {
       });
     } catch (error) {
       setCloneCostDraft(previousCloneCost);
+      setCloneCostCurrencyDraft(previousCloneCostCurrency);
       toast({
         title: t("common.error"),
         description: getUpdateGameErrorMessage(error, t, "cloneGame.clonePriceSaveFailed"),
@@ -397,10 +408,10 @@ export default function GameClonePage() {
                               {t("cloneGame.visibilityPublicDesc")}
                             </p>
                             <p id="clone-game-current-visibility-public-price" className="text-xs text-muted-foreground">
-                              {t("cloneGame.clonePricePublicDesc")}
+                              {t("cloneGame.clonePricePublicDesc").replace("{unit}", cloneCostCurrencyLabel)}
                             </p>
                             <p id="clone-game-current-visibility-public-payout" className="text-xs text-muted-foreground">
-                              {t("cloneGame.clonePricePayoutDesc")}
+                              {t("cloneGame.clonePricePayoutDesc").replace("{unit}", cloneCostCurrencyLabel)}
                             </p>
                             {game.is_cloned_game ? (
                               <p id="clone-game-current-visibility-public-cloned-note" className="text-xs text-amber-600">
@@ -431,9 +442,28 @@ export default function GameClonePage() {
                             onChange={(e) => setCloneCostDraft(e.target.value)}
                             className="w-28"
                           />
-                          <span id="clone-game-current-clone-cost-unit" className="text-sm text-muted-foreground">
-                            {t("cloneGame.clonePriceUnit")}
-                          </span>
+                          <div id="clone-game-current-clone-cost-currency-wrap" className="flex flex-col gap-1">
+                            <span id="clone-game-current-clone-cost-currency-label" className="text-xs text-muted-foreground">
+                              {t("cloneGame.clonePriceCurrency")}
+                            </span>
+                            <Select
+                              value={cloneCostCurrencyDraft}
+                              onValueChange={(value) => setCloneCostCurrencyDraft(value as "sGem" | "sCoin")}
+                              disabled={savingCloneCost}
+                            >
+                              <SelectTrigger id="clone-game-current-clone-cost-currency-trigger" className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent id="clone-game-current-clone-cost-currency-content">
+                                <SelectItem id="clone-game-current-clone-cost-currency-sgem" value="sGem">
+                                  {getCloneCostCurrencyMeta("sGem").label}
+                                </SelectItem>
+                                <SelectItem id="clone-game-current-clone-cost-currency-scoin" value="sCoin">
+                                  {getCloneCostCurrencyMeta("sCoin").label}
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                           <Button id="clone-game-current-clone-cost-save-btn" size="sm" onClick={handleCloneCostSave} disabled={savingCloneCost}>
                             {savingCloneCost ? <Loader2 id="clone-game-current-clone-cost-save-loading-icon" className="h-4 w-4 animate-spin" /> : <Check id="clone-game-current-clone-cost-save-icon" className="h-4 w-4" />}
                           </Button>
@@ -443,6 +473,7 @@ export default function GameClonePage() {
                             variant="outline"
                             onClick={() => {
                               setCloneCostDraft(String(game.clone_cost ?? 7));
+                              setCloneCostCurrencyDraft(getCloneCostCurrencyMeta(game.clone_cost_currency).code);
                               setEditingCloneCost(false);
                             }}
                             disabled={savingCloneCost}
@@ -452,14 +483,14 @@ export default function GameClonePage() {
                         </div>
                       ) : (
                         <p id="clone-game-current-clone-cost-value" className="text-sm font-medium">
-                          {cloneCostValue.toLocaleString("en-US")}{" "}
+                          {formatCloneCost(cloneCostValue, game.clone_cost_currency)}{" "}
                           <span id="clone-game-current-clone-cost-value-unit" className="inline-flex items-center gap-1">
-                            <span id="clone-game-current-clone-cost-value-unit-text">{t("cloneGame.clonePriceUnit")}</span>
+                            <span id="clone-game-current-clone-cost-value-unit-text" className="sr-only">{cloneCostCurrencyLabel}</span>
                           </span>
                         </p>
                       )}
                       <p id="clone-game-current-clone-cost-description" className="text-xs text-muted-foreground">
-                        {t("cloneGame.clonePricePublicDesc")}
+                        {t("cloneGame.clonePricePublicDesc").replace("{unit}", cloneCostCurrencyLabel)}
                       </p>
                     </div>
                     <Button
@@ -470,6 +501,7 @@ export default function GameClonePage() {
                       aria-label={t("common.edit")}
                       onClick={() => {
                         setCloneCostDraft(String(game.clone_cost ?? 7));
+                        setCloneCostCurrencyDraft(getCloneCostCurrencyMeta(game.clone_cost_currency).code);
                         setEditingCloneCost(true);
                       }}
                     >

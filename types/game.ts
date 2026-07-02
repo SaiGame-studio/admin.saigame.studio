@@ -37,6 +37,7 @@ export interface Game {
     game_type: string;
     share_level?: "private" | "protected" | "public";
     clone_cost?: number;
+    clone_cost_currency?: "sGem" | "sCoin" | string;
     is_cloned_game?: boolean;
     same_studio?: boolean;
     is_my_game?: boolean;
