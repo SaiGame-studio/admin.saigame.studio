@@ -22,6 +22,7 @@ These rules apply to any coding agent working in this repository.
 - When adding or changing UI text, update translations in the same change.
 - Do not ship new single-language UI text.
 - Always read and write multilingual text files as UTF-8, and preserve UTF-8 encoding when editing translations to avoid mojibake or corrupted characters.
+- For translation files such as `vi.json`, `ja.json`, and other localized resources, always open, edit, and save them explicitly as UTF-8.
 - Keep tooltip content positioned above the trigger.
 - Use `side="top"` for tooltip content.
 

@@ -527,6 +527,7 @@
     "sourceGameCurrentSessionOverwriteConfirmDescription": "Thao tác này sẽ ghi đè dữ liệu của game đích bằng dữ liệu từ game nguồn. Dữ liệu hiện có ở game đích sẽ bị thay thế.",
     "sourceGameCurrentSessionConflictsLabel": "Xung đột",
     "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict thiếu source_item_definitions_id.",
+    "sourceGameCurrentSessionPreviouslyClonedLabel": "Đã clone trước đó",
     "conflictContentTypes": {
       "item_tag": "Item tag",
       "item_definition": "Định nghĩa vật phẩm",

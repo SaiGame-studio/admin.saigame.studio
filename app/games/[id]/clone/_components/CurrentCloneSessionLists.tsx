@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwriteButton";
 import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition } from "@/lib/game-api";
 import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
+import { CloneSessionPreviouslyClonedStatus } from "./CloneSessionPreviouslyClonedStatus";
 
 type TranslationFn = (key: string) => string;
 
@@ -88,6 +89,9 @@ export function CurrentCloneSessionItemList({
                         <th id="clone-game-source-current-session-items-table-category-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionItemCategoryLabel")}
                         </th>
+                        <th id="clone-game-source-current-session-items-table-previously-cloned-head" className="h-9 px-3 text-center align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionPreviouslyClonedLabel")}
+                        </th>
                         <th id="clone-game-source-current-session-items-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
@@ -123,6 +127,15 @@ export function CurrentCloneSessionItemList({
                                 <span id={`clone-game-source-current-session-item-category-value-${item.id}`}>
                                     {item.category || t("common.unknown")}
                                 </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-item-previously-cloned-cell-${item.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionPreviouslyClonedStatus
+                                    id={`clone-game-source-current-session-item-previously-cloned-${item.id}`}
+                                    iconId={`clone-game-source-current-session-item-previously-cloned-icon-${item.id}`}
+                                    labelId={`clone-game-source-current-session-item-previously-cloned-label-${item.id}`}
+                                    previouslyCloned={item.previously_cloned}
+                                    t={t}
+                                />
                             </td>
                             <td id={`clone-game-source-current-session-item-ignore-cell-${item.id}`} className="px-3 py-2 align-middle">
                                 <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-item-ignore-${item.id}`} sessionId={sessionId} contentType="item_definition" sourceId={item.id} initialIgnored={isIgnored(item)} t={t} />
@@ -196,6 +209,9 @@ export function CurrentCloneSessionItemContainerList({
                         <th id="clone-game-source-current-session-item-containers-table-instanced-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionItemContainerInstancedLabel")}
                         </th>
+                        <th id="clone-game-source-current-session-item-containers-table-previously-cloned-head" className="h-9 px-3 text-center align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionPreviouslyClonedLabel")}
+                        </th>
                         <th id="clone-game-source-current-session-item-containers-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
@@ -241,6 +257,15 @@ export function CurrentCloneSessionItemContainerList({
                                 <span id={`clone-game-source-current-session-item-container-instanced-value-${container.id}`}>
                                     {container.instanced_per_item ? t("common.yes") : t("common.no")}
                                 </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-item-container-previously-cloned-cell-${container.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionPreviouslyClonedStatus
+                                    id={`clone-game-source-current-session-item-container-previously-cloned-${container.id}`}
+                                    iconId={`clone-game-source-current-session-item-container-previously-cloned-icon-${container.id}`}
+                                    labelId={`clone-game-source-current-session-item-container-previously-cloned-label-${container.id}`}
+                                    previouslyCloned={container.previously_cloned}
+                                    t={t}
+                                />
                             </td>
                             <td id={`clone-game-source-current-session-item-container-ignore-cell-${container.id}`} className="px-3 py-2 align-middle">
                                 <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-item-container-ignore-${container.id}`} sessionId={sessionId} contentType="item_container_definition" sourceId={container.id} initialIgnored={isIgnored(container)} t={t} />

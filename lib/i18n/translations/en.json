@@ -504,6 +504,7 @@
     "sourceGameCurrentSessionItemTagsKeyLabel": "Tag key",
     "sourceGameCurrentSessionItemTagsColorLabel": "Color",
     "sourceGameCurrentSessionItemTagsUsageLabel": "Item count",
+    "sourceGameCurrentSessionPreviouslyClonedLabel": "Cloned before",
       "sourceGameCurrentSessionQuestSearchPlaceholder": "Search quests by name...",
       "sourceGameCurrentSessionQuestTypeLabel": "Type",
       "sourceGameCurrentSessionQuestStatusLabel": "Status",

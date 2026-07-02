@@ -481,17 +481,18 @@ export function CurrentCloneSessionProgressTabs({
 
                                         {itemsLoading ? (
                                             <div id="clone-game-source-current-session-item-definitions-loading" className="overflow-x-auto rounded-md border bg-background">
-                                                <div id="clone-game-source-current-session-item-definitions-loading-header" className="grid min-w-[760px] grid-cols-[1.4fr_1.4fr_0.8fr_1fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
-                                                    {Array.from({ length: 5 }).map((_, index) => (
+                                                <div id="clone-game-source-current-session-item-definitions-loading-header" className="grid min-w-[900px] grid-cols-[1.4fr_1.4fr_0.8fr_1fr_0.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                                                    {Array.from({ length: 6 }).map((_, index) => (
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-head-${index}`} key={`clone-game-source-current-session-item-skeleton-head-${index}`} className="h-4 w-20" />
                                                     ))}
                                                 </div>
                                                 {Array.from({ length: 3 }).map((_, index) => (
-                                                    <div id={`clone-game-source-current-session-item-skeleton-row-${index}`} key={`clone-game-source-current-session-item-skeleton-row-${index}`} className="grid min-w-[760px] grid-cols-[1.4fr_1.4fr_0.8fr_1fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
+                                                    <div id={`clone-game-source-current-session-item-skeleton-row-${index}`} key={`clone-game-source-current-session-item-skeleton-row-${index}`} className="grid min-w-[900px] grid-cols-[1.4fr_1.4fr_0.8fr_1fr_0.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-name-${index}`} className="h-4 w-2/3" />
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-code-${index}`} className="h-4 w-3/4" />
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-rarity-${index}`} className="h-4 w-16" />
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-category-${index}`} className="h-4 w-20" />
+                                                        <Skeleton id={`clone-game-source-current-session-item-skeleton-previously-cloned-${index}`} className="mx-auto h-4 w-4" />
                                                         <Skeleton id={`clone-game-source-current-session-item-skeleton-overwrite-${index}`} className="h-4 w-16" />
                                                     </div>
                                                 ))}
@@ -593,19 +594,20 @@ export function CurrentCloneSessionProgressTabs({
 
                                         {itemContainersLoading ? (
                                             <div id="clone-game-source-current-session-item-containers-loading" className="overflow-x-auto rounded-md border bg-background">
-                                                <div id="clone-game-source-current-session-item-containers-loading-header" className="grid min-w-[900px] grid-cols-[1.3fr_1.3fr_0.9fr_0.7fr_0.8fr_1fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
-                                                    {Array.from({ length: 7 }).map((_, index) => (
+                                                <div id="clone-game-source-current-session-item-containers-loading-header" className="grid min-w-[1000px] grid-cols-[1.3fr_1.3fr_0.9fr_0.7fr_0.8fr_1fr_0.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                                                    {Array.from({ length: 8 }).map((_, index) => (
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-head-${index}`} key={`clone-game-source-current-session-item-container-skeleton-head-${index}`} className="h-4 w-20" />
                                                     ))}
                                                 </div>
                                                 {Array.from({ length: 3 }).map((_, index) => (
-                                                    <div id={`clone-game-source-current-session-item-container-skeleton-row-${index}`} key={`clone-game-source-current-session-item-container-skeleton-row-${index}`} className="grid min-w-[900px] grid-cols-[1.3fr_1.3fr_0.9fr_0.7fr_0.8fr_1fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
+                                                    <div id={`clone-game-source-current-session-item-container-skeleton-row-${index}`} key={`clone-game-source-current-session-item-container-skeleton-row-${index}`} className="grid min-w-[1000px] grid-cols-[1.3fr_1.3fr_0.9fr_0.7fr_0.8fr_1fr_0.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-name-${index}`} className="h-4 w-2/3" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-code-${index}`} className="h-4 w-3/4" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-type-${index}`} className="h-4 w-16" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-grid-${index}`} className="h-4 w-12" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-portable-${index}`} className="h-4 w-12" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-instanced-${index}`} className="h-4 w-12" />
+                                                        <Skeleton id={`clone-game-source-current-session-item-container-skeleton-previously-cloned-${index}`} className="mx-auto h-4 w-4" />
                                                         <Skeleton id={`clone-game-source-current-session-item-container-skeleton-overwrite-${index}`} className="h-4 w-16" />
                                                     </div>
                                                 ))}

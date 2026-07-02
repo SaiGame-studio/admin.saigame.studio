@@ -9,6 +9,7 @@ import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwrite
 import type { CloneSessionCurrentShopDefinition } from "@/lib/game-api";
 import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
+import { CloneSessionPreviouslyClonedStatus } from "./CloneSessionPreviouslyClonedStatus";
 
 type TranslationFn = (key: string) => string;
 
@@ -111,8 +112,8 @@ function CurrentCloneSessionShopDefinitionList({
                         <th id="clone-game-source-current-session-shop-definitions-table-items-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionShopItemsLabel")}
                         </th>
-                        <th id="clone-game-source-current-session-shop-definitions-table-description-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
-                            {t("cloneGame.sourceGameCurrentSessionShopDescriptionLabel")}
+                        <th id="clone-game-source-current-session-shop-definitions-table-previously-cloned-head" className="h-9 px-3 text-center align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionPreviouslyClonedLabel")}
                         </th>
                         <th id="clone-game-source-current-session-shop-definitions-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
@@ -155,10 +156,14 @@ function CurrentCloneSessionShopDefinitionList({
                                     {typeof shop.item_count === "number" ? shop.item_count.toLocaleString("en-US") : t("common.unknown")}
                                 </span>
                             </td>
-                            <td id={`clone-game-source-current-session-shop-definition-description-cell-${shop.id}`} className="max-w-[320px] px-3 py-2 align-middle">
-                                <span id={`clone-game-source-current-session-shop-definition-description-value-${shop.id}`} className="line-clamp-2 text-muted-foreground">
-                                    {shop.description || t("common.unknown")}
-                                </span>
+                            <td id={`clone-game-source-current-session-shop-definition-previously-cloned-cell-${shop.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionPreviouslyClonedStatus
+                                    id={`clone-game-source-current-session-shop-definition-previously-cloned-${shop.id}`}
+                                    iconId={`clone-game-source-current-session-shop-definition-previously-cloned-icon-${shop.id}`}
+                                    labelId={`clone-game-source-current-session-shop-definition-previously-cloned-label-${shop.id}`}
+                                    previouslyCloned={shop.previously_cloned}
+                                    t={t}
+                                />
                             </td>
                             <td id={`clone-game-source-current-session-shop-definition-ignore-cell-${shop.id}`} className="px-3 py-2 align-middle">
                                 <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-shop-definition-ignore-${shop.id}`} sessionId={sessionId} contentType="shop_definition" sourceId={shop.id} initialIgnored={isIgnored(shop)} t={t} />
@@ -299,19 +304,19 @@ export function CurrentCloneSessionShopDefinitionsTab({
 
             {shopDefinitionsLoading ? (
                 <div id="clone-game-source-current-session-shop-definitions-loading" className="overflow-x-auto rounded-md border bg-background">
-                    <div id="clone-game-source-current-session-shop-definitions-loading-header" className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_1.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                    <div id="clone-game-source-current-session-shop-definitions-loading-header" className="grid min-w-[920px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
                         {Array.from({ length: 7 }).map((_, index) => (
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-head-${index}`} key={`clone-game-source-current-session-shop-definition-skeleton-head-${index}`} className="h-4 w-20" />
                         ))}
                     </div>
                     {Array.from({ length: 3 }).map((_, index) => (
-                        <div id={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} key={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} className="grid min-w-[980px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_1.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
+                        <div id={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} key={`clone-game-source-current-session-shop-definition-skeleton-row-${index}`} className="grid min-w-[920px] grid-cols-[1.4fr_1.2fr_0.8fr_0.7fr_0.7fr_0.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-name-${index}`} className="h-4 w-2/3" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-key-${index}`} className="h-4 w-3/4" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-type-${index}`} className="h-4 w-16" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-status-${index}`} className="h-4 w-14" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-items-${index}`} className="ml-auto h-4 w-10" />
-                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-description-${index}`} className="h-4 w-3/4" />
+                            <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-previously-cloned-${index}`} className="mx-auto h-4 w-4" />
                             <Skeleton id={`clone-game-source-current-session-shop-definition-skeleton-overwrite-${index}`} className="h-4 w-16" />
                         </div>
                     ))}

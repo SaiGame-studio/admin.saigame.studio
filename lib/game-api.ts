@@ -105,6 +105,7 @@ export interface CloneSessionCurrentItemDefinition {
     name: string;
     category?: string;
     rarity?: string;
+    previously_cloned?: boolean;
     ignored?: boolean;
     is_ignored?: boolean;
 }
@@ -130,6 +131,7 @@ export interface CloneSessionCurrentItemContainer {
     grid_rows: number;
     is_portable: boolean;
     instanced_per_item: boolean;
+    previously_cloned?: boolean;
     ignored?: boolean;
     is_ignored?: boolean;
 }
@@ -152,6 +154,7 @@ export interface CloneSessionCurrentItemTag {
     label: string;
     color?: string;
     item_count?: number;
+    previously_cloned?: boolean;
     ignored?: boolean;
     is_ignored?: boolean;
 }
@@ -169,6 +172,7 @@ export interface CloneSessionCurrentItemTagsResponse {
 }
 
 export type CloneSessionCurrentQuestDefinition = QuestDefinition & {
+    previously_cloned?: boolean;
     ignored?: boolean;
     is_ignored?: boolean;
 };
@@ -182,6 +186,7 @@ export interface CloneSessionCurrentShopDefinition {
     shop_type: string;
     is_active: boolean;
     item_count?: number;
+    previously_cloned?: boolean;
     ignored?: boolean;
     is_ignored?: boolean;
     created_at?: string;
@@ -196,6 +201,7 @@ export interface CloneSessionCurrentPresetDefinition {
     name: string;
     max_slots?: number;
     metadata?: Record<string, string | number | boolean | null | undefined>;
+    previously_cloned?: boolean;
     ignored?: boolean;
     is_ignored?: boolean;
     created_at?: string;

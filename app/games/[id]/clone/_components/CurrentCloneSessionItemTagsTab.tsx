@@ -8,6 +8,7 @@ import { CloneSessionManualOverwriteButton } from "./CloneSessionManualOverwrite
 import type { CloneSessionCurrentItemTag } from "@/lib/game-api";
 import { CloneSessionIgnoreSwitch } from "./CloneSessionIgnoreSwitch";
 import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
+import { CloneSessionPreviouslyClonedStatus } from "./CloneSessionPreviouslyClonedStatus";
 
 type TranslationFn = (key: string) => string;
 
@@ -101,6 +102,9 @@ function CurrentCloneSessionItemTagList({
                         <th id="clone-game-source-current-session-item-tags-table-usage-head" className="h-9 px-3 text-right align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionItemTagsUsageLabel")}
                         </th>
+                        <th id="clone-game-source-current-session-item-tags-table-previously-cloned-head" className="h-9 px-3 text-center align-middle text-xs font-medium text-muted-foreground">
+                            {t("cloneGame.sourceGameCurrentSessionPreviouslyClonedLabel")}
+                        </th>
                         <th id="clone-game-source-current-session-item-tags-table-ignore-head" className="h-9 px-3 text-left align-middle text-xs font-medium text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionIgnoreLabel")}
                         </th>
@@ -139,6 +143,15 @@ function CurrentCloneSessionItemTagList({
                                 <span id={`clone-game-source-current-session-item-tag-usage-value-${itemTag.id}`}>
                                     {typeof itemTag.item_count === "number" ? itemTag.item_count.toLocaleString("en-US") : t("common.unknown")}
                                 </span>
+                            </td>
+                            <td id={`clone-game-source-current-session-item-tag-previously-cloned-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionPreviouslyClonedStatus
+                                    id={`clone-game-source-current-session-item-tag-previously-cloned-${itemTag.id}`}
+                                    iconId={`clone-game-source-current-session-item-tag-previously-cloned-icon-${itemTag.id}`}
+                                    labelId={`clone-game-source-current-session-item-tag-previously-cloned-label-${itemTag.id}`}
+                                    previouslyCloned={itemTag.previously_cloned}
+                                    t={t}
+                                />
                             </td>
                             <td id={`clone-game-source-current-session-item-tag-ignore-cell-${itemTag.id}`} className="px-3 py-2 align-middle">
                                 <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-item-tag-ignore-${itemTag.id}`} sessionId={sessionId} contentType="item_tag" sourceId={itemTag.id} initialIgnored={isIgnored(itemTag)} t={t} />
@@ -279,17 +292,18 @@ export function CurrentCloneSessionItemTagsTab({
 
             {itemTagsLoading ? (
                 <div id="clone-game-source-current-session-item-tags-loading" className="overflow-x-auto rounded-md border bg-background">
-                    <div id="clone-game-source-current-session-item-tags-loading-header" className="grid min-w-[760px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
-                        {Array.from({ length: 5 }).map((_, index) => (
+                    <div id="clone-game-source-current-session-item-tags-loading-header" className="grid min-w-[900px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr_0.8fr_0.9fr] gap-3 border-b bg-muted/40 px-3 py-2">
+                        {Array.from({ length: 6 }).map((_, index) => (
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-head-${index}`} key={`clone-game-source-current-session-item-tag-skeleton-head-${index}`} className="h-4 w-20" />
                         ))}
                     </div>
                     {Array.from({ length: 3 }).map((_, index) => (
-                        <div id={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} key={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} className="grid min-w-[760px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
+                        <div id={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} key={`clone-game-source-current-session-item-tag-skeleton-row-${index}`} className="grid min-w-[900px] grid-cols-[1.4fr_1.4fr_1fr_0.7fr_0.8fr_0.9fr] gap-3 border-b px-3 py-3 last:border-0">
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-label-${index}`} className="h-4 w-2/3" />
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-key-${index}`} className="h-4 w-3/4" />
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-color-${index}`} className="h-4 w-20" />
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-count-${index}`} className="ml-auto h-4 w-12" />
+                            <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-previously-cloned-${index}`} className="mx-auto h-4 w-4" />
                             <Skeleton id={`clone-game-source-current-session-item-tag-skeleton-overwrite-${index}`} className="h-4 w-16" />
                         </div>
                     ))}

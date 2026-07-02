@@ -527,6 +527,7 @@
     "sourceGameCurrentSessionOverwriteConfirmDescription": "この操作により、複製元ゲームのデータで複製先ゲームのデータを上書きします。複製先ゲームの既存データは置き換えられます。",
     "sourceGameCurrentSessionConflictsLabel": "競合",
     "sourceGameCurrentSessionConflictMissingItemDefinitionId": "Conflict is missing source_item_definitions_id.",
+    "sourceGameCurrentSessionPreviouslyClonedLabel": "過去に複製済み",
     "conflictContentTypes": {
       "item_tag": "アイテムタグ",
       "item_definition": "アイテム定義",
