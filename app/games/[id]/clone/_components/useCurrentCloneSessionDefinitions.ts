@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import {
+    getCurrentCloneSessionGachaPacks,
     getCurrentCloneSessionPresetDefinitions,
     getCurrentCloneSessionQuests,
     getCurrentCloneSessionShopDefinitions,
+    type CloneSessionCurrentGachaPack,
     type CloneSessionCurrentPresetDefinition,
     type CloneSessionCurrentQuestDefinition,
     type CloneSessionCurrentShopDefinition,
@@ -35,6 +37,7 @@ type UseCurrentCloneSessionDefinitionsParams = {
     isQuestDefinitionsTab: boolean;
     isShopDefinitionsTab: boolean;
     isPresetDefinitionsTab: boolean;
+    isGachaPacksTab: boolean;
     refreshNonce: number;
     formatError: (error: unknown) => string;
 };
@@ -113,12 +116,14 @@ export function useCurrentCloneSessionDefinitions({
     isQuestDefinitionsTab,
     isShopDefinitionsTab,
     isPresetDefinitionsTab,
+    isGachaPacksTab,
     refreshNonce,
     formatError,
 }: UseCurrentCloneSessionDefinitionsParams) {
     const questsState = useCloneSessionPagedState<CloneSessionCurrentQuestDefinition>();
     const shopDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentShopDefinition>();
     const presetDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentPresetDefinition>();
+    const gachaPacksState = useCloneSessionPagedState<CloneSessionCurrentGachaPack>();
 
     useEffect(() => {
         if (!currentSessionId || !isQuestDefinitionsTab) {
@@ -279,9 +284,57 @@ export function useCurrentCloneSessionDefinitions({
         };
     }, [currentSessionId, formatError, isPresetDefinitionsTab, presetDefinitionsState.offset, presetDefinitionsState.searchId, presetDefinitionsState.searchName, refreshNonce, targetGameId]);
 
+    useEffect(() => {
+        if (!currentSessionId || !isGachaPacksTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadGachaPacks = async () => {
+            gachaPacksState.setLoading(true);
+            gachaPacksState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionGachaPacks(targetGameId, {
+                    id: gachaPacksState.searchId || undefined,
+                    name: gachaPacksState.searchId ? undefined : gachaPacksState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: gachaPacksState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                gachaPacksState.setItems(Array.isArray(response.gacha_packs) ? response.gacha_packs : []);
+                gachaPacksState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                gachaPacksState.setItems([]);
+                gachaPacksState.setTotal(0);
+                gachaPacksState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    gachaPacksState.setLoading(false);
+                }
+            }
+        };
+
+        void loadGachaPacks();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, gachaPacksState.offset, gachaPacksState.searchId, gachaPacksState.searchName, isGachaPacksTab, refreshNonce, targetGameId]);
+
     return {
         questsState: toPagedResult(questsState),
         shopDefinitionsState: toPagedResult(shopDefinitionsState),
         presetDefinitionsState: toPagedResult(presetDefinitionsState),
+        gachaPacksState: toPagedResult(gachaPacksState),
     };
 }

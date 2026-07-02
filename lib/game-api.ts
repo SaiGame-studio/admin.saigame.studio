@@ -208,6 +208,37 @@ export interface CloneSessionCurrentPresetDefinition {
     updated_at?: string;
 }
 
+export interface CloneSessionCurrentGachaPackPoolItem {
+    item_definition_id: string;
+    weight: number;
+    quantity_min: number;
+    quantity_max: number;
+}
+
+export interface CloneSessionCurrentGachaPackKeyRequirement {
+    item_definition_id: string;
+    quantity: number;
+}
+
+export interface CloneSessionCurrentGachaPack {
+    id: string;
+    game_id: string;
+    code_name: string;
+    name: string;
+    item_pool?: CloneSessionCurrentGachaPackPoolItem[];
+    collect_destination?: string;
+    key_requirements?: CloneSessionCurrentGachaPackKeyRequirement[];
+    metadata?: Record<string, string | number | boolean | null | undefined>;
+    is_enabled?: boolean;
+    ignored?: boolean;
+    is_ignored?: boolean;
+    previously_cloned?: boolean;
+    cloned_target_id?: string | null;
+    clone_adoption_kind?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface CloneSessionCurrentQuestsResponse {
     session_id?: string;
     source_game_id?: string;
@@ -242,6 +273,17 @@ export interface CloneSessionCurrentPresetDefinitionsResponse {
     total?: number;
     preset_definitions?: CloneSessionCurrentPresetDefinition[];
     presets?: CloneSessionCurrentPresetDefinition[];
+}
+
+export interface CloneSessionCurrentGachaPacksResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    gacha_packs?: CloneSessionCurrentGachaPack[];
 }
 
 export interface CloneSessionCurrentItemsParams {
@@ -280,6 +322,13 @@ export interface CloneSessionCurrentShopDefinitionsParams {
 }
 
 export interface CloneSessionCurrentPresetDefinitionsParams {
+    id?: string;
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface CloneSessionCurrentGachaPacksParams {
     id?: string;
     name?: string;
     limit?: number;
@@ -649,6 +698,29 @@ export async function getCurrentCloneSessionPresetDefinitions(gameId: string, pa
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/preset-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionGachaPacks(gameId: string, params?: CloneSessionCurrentGachaPacksParams): Promise<CloneSessionCurrentGachaPacksResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/gacha-packs${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {

@@ -10,92 +10,16 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CloneSessionCurrentItemContainer, CloneSessionCurrentItemDefinition, CloneSessionCurrentItemTag, CloneSessionCurrentPresetDefinition, CloneSessionCurrentQuestDefinition, CloneSessionCurrentShopDefinition, CloneSessionSnapshot } from "@/lib/game-api";
 import { formatTimestamp } from "@/lib/utils/date-utils";
 import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } from "./CurrentCloneSessionLists";
+import { CurrentCloneSessionGachaPacksTab } from "./CurrentCloneSessionGachaPacksTab";
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
 import { CurrentCloneSessionPresetDefinitionsTab } from "./CurrentCloneSessionPresetDefinitionsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
 import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
 import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
-import { formatDurationCompact, formatTechnicalLabel, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
-
-type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
-
-type CurrentCloneSessionProgressTabsProps = {
-    t: TranslationFn;
-    currentSession: CloneSessionSnapshot;
-    activeProgressTab: string | null;
-    onActiveProgressTabChange: (value: string) => void;
-    currentSessionProgressEntries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>;
-    currentSessionEstimatedCost?: { currency?: string; amount?: number };
-    items: CloneSessionCurrentItemDefinition[];
-    itemsTotal: number;
-    itemsOffset: number;
-    itemsSearchInput: string;
-    itemsSearchName: string;
-    itemsLoading: boolean;
-    itemsError: string | null;
-    onItemsSearchInputChange: (value: string) => void;
-    onItemsSearch: () => void;
-    onItemsClearSearch: () => void;
-    onItemsPreviousPage: () => void;
-    onItemsNextPage: () => void;
-    itemContainers: CloneSessionCurrentItemContainer[];
-    itemContainersTotal: number;
-    itemContainersOffset: number;
-    itemContainersSearchInput: string;
-    itemContainersSearchName: string;
-    itemContainersLoading: boolean;
-    itemContainersError: string | null;
-    onItemContainersSearchInputChange: (value: string) => void;
-    onItemContainersSearch: () => void;
-    onItemContainersClearSearch: () => void;
-    onItemContainersPreviousPage: () => void;
-    onItemContainersNextPage: () => void;
-    itemTags: CloneSessionCurrentItemTag[];
-    itemTagsTotal: number;
-    itemTagsOffset: number;
-    itemTagsSearchInput: string;
-    itemTagsSearchName: string;
-    itemTagsLoading: boolean;
-    itemTagsError: string | null;
-    onItemTagsSearchInputChange: (value: string) => void;
-    onItemTagsSearch: () => void;
-    onItemTagsClearSearch: () => void;
-    onItemTagsPreviousPage: () => void;
-    onItemTagsNextPage: () => void;
-    quests: CloneSessionCurrentQuestDefinition[];
-    questsTotal: number;
-    questsOffset: number;
-    questsSearchInput: string;
-    questsSearchName: string;
-    questsLoading: boolean;
-    questsError: string | null;
-    onQuestsSearchInputChange: (value: string) => void;
-    onQuestsSearch: () => void;
-    onQuestsClearSearch: () => void;
-    onQuestsPreviousPage: () => void;
-    onQuestsNextPage: () => void;
-    shopDefinitions: CloneSessionCurrentShopDefinition[];
-    shopDefinitionsTotal: number;
-    shopDefinitionsOffset: number;
-    shopDefinitionsSearchInput: string;
-    shopDefinitionsSearchName: string;
-    shopDefinitionsLoading: boolean;
-    shopDefinitionsError: string | null;
-    onShopDefinitionsSearchInputChange: (value: string) => void;
-    onShopDefinitionsSearch: () => void;
-    onShopDefinitionsClearSearch: () => void;
-    onShopDefinitionsPreviousPage: () => void;
-    onShopDefinitionsNextPage: () => void;
-    presetDefinitions: CloneSessionCurrentPresetDefinition[]; presetDefinitionsTotal: number; presetDefinitionsOffset: number;
-    presetDefinitionsSearchInput: string; presetDefinitionsSearchName: string; presetDefinitionsLoading: boolean; presetDefinitionsError: string | null;
-    onPresetDefinitionsSearchInputChange: (value: string) => void; onPresetDefinitionsSearch: () => void; onPresetDefinitionsClearSearch: () => void;
-    onPresetDefinitionsPreviousPage: () => void; onPresetDefinitionsNextPage: () => void;
-    getManualOverwriteTargetId: (contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition", sourceId: string) => string | null;
-    onManualOverwriteSuccess: () => Promise<void>;
-};
+import type { CurrentCloneSessionProgressTabsProps } from "./currentCloneSessionProgressTabs.types";
+import { formatDurationCompact, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
 
 const ITEMS_PAGE_SIZE = 12;
 
@@ -197,6 +121,9 @@ export function CurrentCloneSessionProgressTabs({
     presetDefinitions, presetDefinitionsTotal, presetDefinitionsOffset, presetDefinitionsSearchInput, presetDefinitionsSearchName,
     presetDefinitionsLoading, presetDefinitionsError, onPresetDefinitionsSearchInputChange, onPresetDefinitionsSearch,
     onPresetDefinitionsClearSearch, onPresetDefinitionsPreviousPage, onPresetDefinitionsNextPage,
+    gachaPacks, gachaPacksTotal, gachaPacksOffset, gachaPacksSearchInput, gachaPacksSearchName,
+    gachaPacksLoading, gachaPacksError, onGachaPacksSearchInputChange, onGachaPacksSearch,
+    onGachaPacksClearSearch, onGachaPacksPreviousPage, onGachaPacksNextPage,
     getManualOverwriteTargetId,
     onManualOverwriteSuccess,
 }: CurrentCloneSessionProgressTabsProps) {
@@ -686,6 +613,23 @@ export function CurrentCloneSessionProgressTabs({
                                         onPresetDefinitionsSearchInputChange={onPresetDefinitionsSearchInputChange} onPresetDefinitionsSearch={onPresetDefinitionsSearch}
                                         onPresetDefinitionsClearSearch={onPresetDefinitionsClearSearch} onPresetDefinitionsPreviousPage={onPresetDefinitionsPreviousPage}
                                         onPresetDefinitionsNextPage={onPresetDefinitionsNextPage} getManualOverwriteTargetId={getManualOverwriteTargetId} onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "gacha_packs" || phaseKey === "gacha_pack_definitions" ? (
+                                    <CurrentCloneSessionGachaPacksTab
+                                        t={t}
+                                        gachaPacks={gachaPacks}
+                                        gachaPacksTotal={gachaPacksTotal}
+                                        gachaPacksOffset={gachaPacksOffset}
+                                        gachaPacksSearchInput={gachaPacksSearchInput}
+                                        gachaPacksSearchName={gachaPacksSearchName}
+                                        gachaPacksLoading={gachaPacksLoading}
+                                        gachaPacksError={gachaPacksError}
+                                        onGachaPacksSearchInputChange={onGachaPacksSearchInputChange}
+                                        onGachaPacksSearch={onGachaPacksSearch}
+                                        onGachaPacksClearSearch={onGachaPacksClearSearch}
+                                        onGachaPacksPreviousPage={onGachaPacksPreviousPage}
+                                        onGachaPacksNextPage={onGachaPacksNextPage}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />
                                 ) : null}
                             </TabsContent>

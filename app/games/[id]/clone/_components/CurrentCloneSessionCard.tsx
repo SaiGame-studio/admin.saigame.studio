@@ -26,12 +26,11 @@ import { CurrentCloneSessionFooterActions } from "./CurrentCloneSessionFooterAct
 import { CurrentCloneSessionFooterProgress } from "./CurrentCloneSessionFooterProgress";
 import { CurrentCloneSessionLoadingCard } from "./CurrentCloneSessionLoadingCard";
 import { CurrentCloneSessionProgressTabs } from "./CurrentCloneSessionProgressTabs";
+import type { CurrentCloneSessionProgressTabsProps } from "./currentCloneSessionProgressTabs.types";
 import { getConflictProgressTab, getConflictSearchId, normalizeProgressTab } from "./cloneSessionConflictNavigation";
 import { findCloneSessionManualOverwriteTargetId } from "./cloneSessionManualOverwriteUtils";
 import { formatTechnicalLabel, getCloneSessionErrorMessage, getCloneSessionStatusStyle } from "./cloneSessionProgressUtils";
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
-
-type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
 
 const ITEMS_PAGE_SIZE = 12;
 
@@ -44,81 +43,6 @@ type CurrentCloneSessionCardProps = {
     onRefreshCurrentSession: () => Promise<void>;
     onRetry: () => Promise<void>;
     onDelete: () => void;
-};
-
-type CurrentCloneSessionContentProps = {
-    t: TranslationFn;
-    currentSession: CloneSessionSnapshot;
-    activeProgressTab: string | null;
-    onActiveProgressTabChange: (value: string) => void;
-    currentSessionProgressEntries: Array<[string, { total?: number; processed?: number; completed?: boolean }]>;
-    currentSessionEstimatedCost?: { currency?: string; amount?: number };
-    items: CloneSessionCurrentItemDefinition[];
-    itemsTotal: number;
-    itemsOffset: number;
-    itemsSearchInput: string;
-    itemsSearchName: string;
-    itemsLoading: boolean;
-    itemsError: string | null;
-    onItemsSearchInputChange: (value: string) => void;
-    onItemsSearch: () => void;
-    onItemsClearSearch: () => void;
-    onItemsPreviousPage: () => void;
-    onItemsNextPage: () => void;
-    itemContainers: CloneSessionCurrentItemContainer[];
-    itemContainersTotal: number;
-    itemContainersOffset: number;
-    itemContainersSearchInput: string;
-    itemContainersSearchName: string;
-    itemContainersLoading: boolean;
-    itemContainersError: string | null;
-    onItemContainersSearchInputChange: (value: string) => void;
-    onItemContainersSearch: () => void;
-    onItemContainersClearSearch: () => void;
-    onItemContainersPreviousPage: () => void;
-    onItemContainersNextPage: () => void;
-    itemTags: CloneSessionCurrentItemTag[];
-    itemTagsTotal: number;
-    itemTagsOffset: number;
-    itemTagsSearchInput: string;
-    itemTagsSearchName: string;
-    itemTagsLoading: boolean;
-    itemTagsError: string | null;
-    onItemTagsSearchInputChange: (value: string) => void;
-    onItemTagsSearch: () => void;
-    onItemTagsClearSearch: () => void;
-    onItemTagsPreviousPage: () => void;
-    onItemTagsNextPage: () => void;
-    quests: ReturnType<typeof useCurrentCloneSessionDefinitions>["questsState"]["items"];
-    questsTotal: number;
-    questsOffset: number;
-    questsSearchInput: string;
-    questsSearchName: string;
-    questsLoading: boolean;
-    questsError: string | null;
-    onQuestsSearchInputChange: (value: string) => void;
-    onQuestsSearch: () => void;
-    onQuestsClearSearch: () => void;
-    onQuestsPreviousPage: () => void;
-    onQuestsNextPage: () => void;
-    shopDefinitions: ReturnType<typeof useCurrentCloneSessionDefinitions>["shopDefinitionsState"]["items"];
-    shopDefinitionsTotal: number;
-    shopDefinitionsOffset: number;
-    shopDefinitionsSearchInput: string;
-    shopDefinitionsSearchName: string;
-    shopDefinitionsLoading: boolean;
-    shopDefinitionsError: string | null;
-    onShopDefinitionsSearchInputChange: (value: string) => void;
-    onShopDefinitionsSearch: () => void;
-    onShopDefinitionsClearSearch: () => void;
-    onShopDefinitionsPreviousPage: () => void;
-    onShopDefinitionsNextPage: () => void;
-    presetDefinitions: ReturnType<typeof useCurrentCloneSessionDefinitions>["presetDefinitionsState"]["items"]; presetDefinitionsTotal: number; presetDefinitionsOffset: number;
-    presetDefinitionsSearchInput: string; presetDefinitionsSearchName: string; presetDefinitionsLoading: boolean; presetDefinitionsError: string | null;
-    onPresetDefinitionsSearchInputChange: (value: string) => void; onPresetDefinitionsSearch: () => void; onPresetDefinitionsClearSearch: () => void;
-    onPresetDefinitionsPreviousPage: () => void; onPresetDefinitionsNextPage: () => void;
-    getManualOverwriteTargetId: (contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition", sourceId: string) => string | null;
-    onManualOverwriteSuccess: () => Promise<void>;
 };
 
 export function CurrentCloneSessionCard({
@@ -177,6 +101,7 @@ export function CurrentCloneSessionCard({
     const isQuestDefinitionsTab = activeProgressTab === "quest_definitions";
     const isShopDefinitionsTab = activeProgressTab === "shop_definitions";
     const isPresetDefinitionsTab = activeProgressTab === "preset_definitions";
+    const isGachaPacksTab = activeProgressTab === "gacha_packs" || activeProgressTab === "gacha_pack_definitions";
     const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
 
     useEffect(() => {
@@ -360,12 +285,14 @@ export function CurrentCloneSessionCard({
         questsState,
         shopDefinitionsState,
         presetDefinitionsState,
+        gachaPacksState,
     } = useCurrentCloneSessionDefinitions({
         currentSessionId,
         targetGameId,
         isQuestDefinitionsTab,
         isShopDefinitionsTab,
         isPresetDefinitionsTab,
+        isGachaPacksTab,
         refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
@@ -497,6 +424,8 @@ export function CurrentCloneSessionCard({
             shopDefinitionsState.onApplySearchValue(searchValue);
         } else if (nextTab === "preset_definitions") {
             presetDefinitionsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "gacha_packs" || nextTab === "gacha_pack_definitions") {
+            gachaPacksState.onApplySearchValue(searchValue);
         }
     };
 
@@ -540,7 +469,7 @@ export function CurrentCloneSessionCard({
         return null;
     }
 
-    const contentProps: CurrentCloneSessionContentProps = {
+    const contentProps: CurrentCloneSessionProgressTabsProps = {
         t,
         currentSession,
         activeProgressTab,
@@ -612,6 +541,18 @@ export function CurrentCloneSessionCard({
         presetDefinitionsLoading: presetDefinitionsState.loading, presetDefinitionsError: presetDefinitionsState.error,
         onPresetDefinitionsSearchInputChange: presetDefinitionsState.onSearchInputChange, onPresetDefinitionsSearch: presetDefinitionsState.onSearch,
         onPresetDefinitionsClearSearch: presetDefinitionsState.onClearSearch, onPresetDefinitionsPreviousPage: presetDefinitionsState.onPreviousPage, onPresetDefinitionsNextPage: presetDefinitionsState.onNextPage,
+        gachaPacks: gachaPacksState.items,
+        gachaPacksTotal: gachaPacksState.total,
+        gachaPacksOffset: gachaPacksState.offset,
+        gachaPacksSearchInput: gachaPacksState.searchInput,
+        gachaPacksSearchName: gachaPacksState.searchName,
+        gachaPacksLoading: gachaPacksState.loading,
+        gachaPacksError: gachaPacksState.error,
+        onGachaPacksSearchInputChange: gachaPacksState.onSearchInputChange,
+        onGachaPacksSearch: gachaPacksState.onSearch,
+        onGachaPacksClearSearch: gachaPacksState.onClearSearch,
+        onGachaPacksPreviousPage: gachaPacksState.onPreviousPage,
+        onGachaPacksNextPage: gachaPacksState.onNextPage,
         getManualOverwriteTargetId,
         onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };

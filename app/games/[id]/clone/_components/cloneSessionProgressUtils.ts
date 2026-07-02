@@ -82,6 +82,9 @@ export function getCloneSessionPhaseLabel(phaseKey: string | undefined, t: Trans
             return t("cloneGame.sourceGameCurrentSessionShopDefinitionsTabLabel");
         case "preset_definitions":
             return t("cloneGame.sourceGameCurrentSessionPresetDefinitionsTabLabel");
+        case "gacha_packs":
+        case "gacha_pack_definitions":
+            return t("cloneGame.sourceGameCurrentSessionGachaPacksTabLabel");
         default:
             return formatTechnicalLabel(phaseKey) || t("common.unknown");
     }
