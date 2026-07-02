@@ -390,6 +390,7 @@
     "visibilityPrivateDesc": "Hidden from the clone picker.",
     "visibilityProtectedDesc": "Cloneable only from the same studio.",
     "visibilityPublicDesc": "Cloneable from any studio.",
+    "clonedGamePublicDisabledNote": "This game is cloned, so public visibility is unavailable.",
     "clonePrice": "Clone price",
     "clonePriceUnit": "💎 sGem",
     "clonePricePublicDesc": "Min 7 💎 sGem.",

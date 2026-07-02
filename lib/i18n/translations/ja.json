@@ -390,6 +390,7 @@
     "visibilityPrivateDesc": "非公開ゲームは複製一覧に表示されません。",
     "visibilityProtectedDesc": "同じスタジオ内のゲームからのみ複製できます。",
     "visibilityPublicDesc": "どのスタジオからでも複製できます。",
+    "clonedGamePublicDisabledNote": "このゲームは複製されたゲームのため、公開にはできません。",
     "clonePrice": "複製価格",
     "clonePriceUnit": "💎 sGem",
     "clonePricePublicDesc": "最小 7 💎 sGem。",

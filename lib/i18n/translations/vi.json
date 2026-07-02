@@ -390,6 +390,7 @@
     "visibilityPrivateDesc": "Game riêng tư sẽ không xuất hiện trong danh sách clone.",
     "visibilityProtectedDesc": "Chỉ clone được từ cùng studio.",
     "visibilityPublicDesc": "Clone được từ bất kỳ studio nào.",
+    "clonedGamePublicDisabledNote": "Đây là game đã được clone, nên không thể chuyển sang công khai.",
     "clonePrice": "Phí clone",
     "clonePriceUnit": "💎 sGem",
     "clonePricePublicDesc": "Tối thiểu 7 💎 sGem.",

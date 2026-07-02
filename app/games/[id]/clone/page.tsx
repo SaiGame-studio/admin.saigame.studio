@@ -118,6 +118,10 @@ export default function GameClonePage() {
       return;
     }
 
+    if (game.is_cloned_game && nextShareLevel === "public") {
+      return;
+    }
+
     const previousShareLevel = shareLevelDraft;
     if (nextShareLevel === previousShareLevel) {
       return;
@@ -381,6 +385,7 @@ export default function GameClonePage() {
                               size="sm"
                               variant="outline"
                               onClick={() => void handleShareLevelChange("public")}
+                              disabled={game.is_cloned_game}
                             >
                               {t("common.select")}
                             </Button>
@@ -397,6 +402,11 @@ export default function GameClonePage() {
                             <p id="clone-game-current-visibility-public-payout" className="text-xs text-muted-foreground">
                               {t("cloneGame.clonePricePayoutDesc")}
                             </p>
+                            {game.is_cloned_game ? (
+                              <p id="clone-game-current-visibility-public-cloned-note" className="text-xs text-amber-600">
+                                {t("cloneGame.clonedGamePublicDisabledNote")}
+                              </p>
+                            ) : null}
                           </div>
                         </div>
                       </div>
