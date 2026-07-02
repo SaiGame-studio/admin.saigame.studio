@@ -27,10 +27,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
-import { getGame } from "@/lib/game-api";
-import { ApiError } from "@/lib/api-client";
-import { listItemDefinitions, createItemDefinition, getItemDefinition, updateItemDefinition, fetchItemCategories, fetchItemRarities, listContainerDefinitions, getContainerDefinition, updateContainerDefinition, deleteContainerDefinition, fetchContainerTypes, listGachaPacks, createGachaPack, updateGachaPack, deleteGachaPack, setGachaPackEnabled, listEquipmentSlots, getEquipmentSlot, createEquipmentSlot, updateEquipmentSlot, deleteEquipmentSlot, listItemTags, listPresetDefinitions, deletePresetDefinition, type ListItemsParams, type ItemTag, type PresetDefinition, } from "@/lib/inventory-api";
-import type { ItemDefinition, ItemCategory, ItemRarity, CreateItemRequest, UpdateItemRequest, ContainerDefinition, UpdateContainerDefinitionRequest, GachaPack, GachaPoolEntry, KeyRequirement, EquipmentSlot, } from "@/types/inventory";
+import { listItemDefinitions, createItemDefinition, getItemDefinition, listEquipmentSlots, getEquipmentSlot, createEquipmentSlot, updateEquipmentSlot, deleteEquipmentSlot, listPresetDefinitions, deletePresetDefinition, type ItemTag, type PresetDefinition, } from "@/lib/inventory-api";
+import type { ItemDefinition, ItemCategory, ItemRarity, CreateItemRequest, ContainerDefinition, GachaPack, EquipmentSlot, } from "@/types/inventory";
 import { RARITY_COLORS } from "@/types/inventory";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { CopyButton } from "@/components/CopyButton";
@@ -50,7 +48,10 @@ import { ItemsPageGeneratorSection } from "./_components/items-page-generator-se
 import { ItemsPagePresetsSection } from "./_components/items-page-presets-section";
 import { ItemsPageTagsSection } from "./_components/items-page-tags-section";
 import { useContainerPageState } from "./_hooks/use-container-page-state";
+import { useContainerPage } from "./_hooks/use-container-page";
 import { useGachaPageState } from "./_hooks/use-gacha-page-state";
+import { useGachaPage } from "./_hooks/use-gacha-page";
+import { useItemsCataloguePage } from "./_hooks/use-items-catalogue-page";
 import { EMPTY_KEY_ROW, EMPTY_ROW, emptyGachaForm, type ContainerDraftValues, type GachaLLMRow, type KeyReqRow, normalizeContainerDraftValues, type PoolRow } from "./_hooks/items-page-state-types";
 import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api';
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils';
@@ -821,161 +822,45 @@ export default function GameItemsPage() {
             .then((res) => setItemTags(res.tags ?? []))
             .catch(() => { });
     }, [gameId]); // eslint-disable-line react-hooks/exhaustive-deps
-    // Load game info. Also used to refresh usage after mutations.
-    const loadGameInfo = useCallback(async () => {
-        try {
-            const g = await getGame(gameId);
-            setGameName(g.name);
-            setStudioId(g.studio_id ?? "");
-            setMaxItems(g.limits?.max_items ?? null);
-            setItemUsage(g.usage?.items ?? null);
-            setGameLimits(g.limits ?? null);
-            setMaxEquipmentSlots(g.limits?.max_equipment_slots ?? null);
-            setEquipmentSlotsUsage(g.usage?.equipment_slots ?? null);
-        }
-        catch {
-            // Game failed to load. Stop the skeleton.
-            setLoading(false);
-        }
-    }, [gameId]);
-    useEffect(() => {
-        loadGameInfo();
-    }, [loadGameInfo]);
-    const fetchItems = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const params: ListItemsParams = { limit: LIMIT, offset };
-            if (filterCategory !== "all")
-                params.category = filterCategory as ItemCategory;
-            if (filterRarity !== "all")
-                params.rarity = filterRarity as ItemRarity;
-            if (selectedTagKeys.length > 0)
-                params.tags = selectedTagKeys;
-            if (filterAllowClientUpdateQty !== "all")
-                params.allow_client_update_qty = filterAllowClientUpdateQty === "true";
-            const trimmedQuery = debouncedName.trim();
-            const isUuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmedQuery);
-            const isCodeLike = /^[A-Za-z0-9_-]+$/.test(trimmedQuery) && !trimmedQuery.includes("--");
-            let result;
-            if (!trimmedQuery) {
-                result = await listItemDefinitions({ gameId }, params);
-            }
-            else if (isUuidLike) {
-                result = await listItemDefinitions({ gameId }, { ...params, id: trimmedQuery });
-            }
-            else if (isCodeLike) {
-                result = await listItemDefinitions({ gameId }, { ...params, item_code: trimmedQuery });
-                if ((result.items?.length ?? 0) === 0) {
-                    result = await listItemDefinitions({ gameId }, { ...params, name: trimmedQuery });
-                }
-            }
-            else {
-                result = await listItemDefinitions({ gameId }, { ...params, name: trimmedQuery });
-            }
-            setItems(result.items ?? []);
-            setTotal(result.total);
-        }
-        catch (err: any) {
-            // 404 means the catalogue exists but is empty. Treat it as an empty list, not an error.
-            if (err instanceof ApiError && err.status === 404) {
-                setItems([]);
-                setTotal(0);
-            }
-            else {
-                setError(err?.message ?? "Failed to load items");
-            }
-        }
-        finally {
-            setLoading(false);
-        }
-    }, [gameId, filterCategory, filterRarity, debouncedName, selectedTagKeys, filterAllowClientUpdateQty, offset]);
-    useEffect(() => {
-        fetchItems();
-    }, [fetchItems]);
-    // reset offset when filters change
-    useEffect(() => {
-        setOffset(0);
-    }, [filterCategory, filterRarity, debouncedName, selectedTagKeys, filterAllowClientUpdateQty]);
-    // handle updating a single item field
-    const handleUpdateItemField = useCallback(async (itemId: string, patch: Partial<ItemDefinition>) => {
-        setUpdatingItemId(itemId);
-        try {
-            const updated = await updateItemDefinition({ gameId }, itemId, patch as UpdateItemRequest);
-            // update local state
-            setItems((prev) => prev.map((item) => item.id === itemId ? { ...item, ...updated.item } : item));
-            toast({ title: t('items.itemUpdated') });
-        }
-        catch (err: any) {
-            toast({ variant: "destructive", title: t('items.failedToUpdateItem'), description: err?.message ?? "Unknown error" });
-        }
-        finally {
-            setUpdatingItemId(null);
-        }
-    }, [gameId, toast]);
-    // Link an item definition to the active (or a newly created) conversation
-    async function handleLinkItemToConversation(item: ItemDefinition) {
-        setLinkingItemId(item.id);
-        try {
-            let convId: string | null = convActiveId;
-            if (!convId) {
-                // No active conversation. Create a new one.
-                const newConv = await createConversation(gameId, {
-                    title: `Item: ${item.name}`,
-                    goal: t('items.linkToConvGoal').replace('{name}', item.name),
-                });
-                convId = newConv.ID;
-            }
-            safeSetItem(`ss_conv_active_${gameId}`, convId);
-            setConvActiveId(convId);
-            await linkConversationContent(gameId, convId, 'item_definition', item.id);
-            // Dispatch AFTER linking so the useEffect([activeConvId]) in the panel loads already-linked content
-            window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }));
-            window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId, contentType: 'item_definition', contentId: item.id, contentName: item.name } }));
-            toast({ title: t('items.linkToConvSuccess'), description: item.name });
-        }
-        catch (err: unknown) {
-            toast({
-                variant: 'destructive',
-                title: t('items.linkToConvFailed'),
-                description: err instanceof Error ? err.message : undefined,
-            });
-        }
-        finally {
-            setLinkingItemId(null);
-        }
-    }
-    // Link a container definition to the active (or a newly created) conversation
-    async function handleLinkContainerToConversation(def: ContainerDefinition) {
-        setLinkingContainerId(def.id);
-        try {
-            let convId: string | null = convActiveId;
-            const containerLabel = def.code_name ? `${def.name} (${def.code_name})` : def.name;
-            if (!convId) {
-                const newConv = await createConversation(gameId, {
-                    title: `Container: ${containerLabel}`,
-                    goal: t('items.linkToConvGoal').replace('{name}', containerLabel),
-                });
-                convId = newConv.ID;
-            }
-            safeSetItem(`ss_conv_active_${gameId}`, convId);
-            setConvActiveId(convId);
-            await linkConversationContent(gameId, convId, 'container_definition', def.id);
-            window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }));
-            window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId, contentType: 'container_definition', contentId: def.id, contentName: containerLabel } }));
-            toast({ title: t('items.linkToConvSuccess'), description: containerLabel });
-        }
-        catch (err: unknown) {
-            toast({
-                variant: 'destructive',
-                title: t('items.linkToConvFailed'),
-                description: err instanceof Error ? err.message : undefined,
-            });
-        }
-        finally {
-            setLinkingContainerId(null);
-        }
-    }
+    const {
+        loadGameInfo,
+        fetchItems,
+        handleUpdateItemField,
+        handleLinkItemToConversation,
+        totalPages,
+        currentPage,
+    } = useItemsCataloguePage({
+        gameId,
+        limit: LIMIT,
+        total,
+        offset,
+        filterCategory,
+        filterRarity,
+        debouncedName,
+        selectedTagKeys,
+        filterAllowClientUpdateQty,
+        convActiveId,
+        t,
+        toast,
+        setGameName,
+        setStudioId,
+        setMaxItems,
+        setItemUsage,
+        setGameLimits,
+        setMaxEquipmentSlots,
+        setEquipmentSlotsUsage,
+        setLoading,
+        setError,
+        setItems,
+        setTotal,
+        setOffset,
+        setUpdatingItemId,
+        setConvActiveId,
+        setLinkingItemId,
+        setCategories,
+        setRarities,
+        setItemTags,
+    });
     // Content linking helpers
     // Link a preset definition to the active (or a newly created) conversation
     async function handleLinkPresetToConversation(def: PresetDefinition) {
@@ -1007,511 +892,100 @@ export default function GameItemsPage() {
             setLinkingPresetId(null);
         }
     }
-    const fetchContainerDefs = useCallback(async () => {
-        setContainerLoading(true);
-        setContainerError(null);
-        try {
-            const ctx = { gameId };
-            const [result, itemsRes] = await Promise.all([
-                listContainerDefinitions(ctx, { limit: CONTAINER_LIMIT, offset: containerOffset }),
-                listItemDefinitions(ctx, { limit: 200 }),
-            ]);
-            setContainerDefs(result.container_definitions ?? []);
-            setContainerTotal(result.total);
-            setContainerAllItems(itemsRes.items ?? []);
-        }
-        catch (err: any) {
-            setContainerError(err?.message ?? 'Failed to load container definitions');
-        }
-        finally {
-            setContainerLoading(false);
-        }
-    }, [gameId, containerOffset]);
-    useEffect(() => {
-        if (activeTab === 'containers') {
-            fetchContainerDefs();
-        }
-    }, [activeTab, fetchContainerDefs]);
-    useEffect(() => {
-        fetchContainerTypes().then(setContainerTypeOptions).catch(() => { });
-    }, []);
-    async function handleDeleteContainer() {
-        if (!deletingContainer)
-            return;
-        setDeleteContainerLoading(true);
-        try {
-            await deleteContainerDefinition({ gameId }, deletingContainer.id);
-            toast({ title: t('items.containerDeleted') });
-            setDeletingContainer(null);
-            fetchContainerDefs();
-            loadGameInfo();
-        }
-        catch (err: any) {
-            if (err?.status === 403) {
-                toast({ variant: "destructive", title: t('items.cannotDelete'), description: t('items.systemContainerCannotDelete') });
-            }
-            else if (err?.status === 409) {
-                toast({ variant: "destructive", title: t('items.cannotDelete'), description: t('items.containerHasActiveRefs') });
-            }
-            else {
-                toast({ variant: "destructive", title: t('items.failedToDelete'), description: err?.message ?? "Unknown error" });
-            }
-        }
-        finally {
-            setDeleteContainerLoading(false);
-        }
-    }
-    const containerTotalPages = Math.ceil(containerTotal / CONTAINER_LIMIT);
-    const containerCurrentPage = Math.floor(containerOffset / CONTAINER_LIMIT) + 1;
-    // client-side filter by name, code name, or id
-    const filteredGachaPacks = gachaSearchDebounced
-        ? gachaPacks.filter((p) => {
-            const q = gachaSearchDebounced.toLowerCase();
-            return (p.name.toLowerCase().includes(q) ||
-                p.id.toLowerCase().includes(q) ||
-                (p.code_name ?? "").toLowerCase().includes(q));
-        })
-        : gachaPacks;
-    const filteredContainerDefs = containerSearchDebounced
-        ? containerDefs.filter((d) => d.name.toLowerCase().includes(containerSearchDebounced.toLowerCase()) ||
-            (d.code_name ?? "").toLowerCase().includes(containerSearchDebounced.toLowerCase()) ||
-            d.id.toLowerCase().includes(containerSearchDebounced.toLowerCase()))
-        : containerDefs;
-    function getItemName(id: string | null | undefined): string {
-        if (!id)
-            return t('items.noLinkedItem');
-        const it = containerAllItems.find((i) => i.id === id) || items.find((i) => i.id === id);
-                return it ? (it.name + (it.item_code ? ` (${it.item_code})` : "")) : id.slice(0, 8) + "...";
-    }
-    const handleContainerRowClick = (def: ContainerDefinition) => {
-        if (expandedContainerId === def.id) {
-            setExpandedContainerId(null);
-            return;
-        }
-        setExpandedContainerId(def.id);
-        setEditingField(null); // Reset inline edit state
-        // Initialize metadata rows immediately from cache or basic def
-        const base = containerDetailCache[def.id] || def;
-        const rows = Object.entries(base.metadata || {}).map(([k, v]) => ({
-            k,
-            v: typeof v === 'object' ? JSON.stringify(v) : String(v)
-        }));
-        setMetadataRows(rows.length > 0 ? rows : [{ k: "", v: "" }]);
-        if (containerDetailCache[def.id])
-            return;
-        setContainerDetailLoading(def.id);
-        getContainerDefinition({ gameId }, def.id)
-            .then((res: {
-            container_definition: ContainerDefinition;
-        }) => {
-            setContainerDetailCache((prev) => ({ ...prev, [def.id]: res.container_definition }));
-            // Update rows with fetched data if the user hasn't started editing yet
-            if (!editingField || editingField.id !== def.id) {
-                const fetchedRows = Object.entries(res.container_definition.metadata || {}).map(([k, v]) => ({
-                    k,
-                    v: typeof v === 'object' ? JSON.stringify(v) : String(v)
-                }));
-                setMetadataRows(fetchedRows.length > 0 ? fetchedRows : [{ k: "", v: "" }]);
-            }
-        })
-            .catch(() => {
-            setContainerDetailCache((prev) => ({ ...prev, [def.id]: def }));
-        })
-            .finally(() => setContainerDetailLoading(null));
-    };
-    const handleUpdateContainerField = useCallback(async (definitionId: string, patch: UpdateContainerDefinitionRequest) => {
-        setUpdatingContainerId(definitionId);
-        try {
-            const { container_definition: updated } = await updateContainerDefinition({ gameId }, definitionId, patch);
-            // Update the main list
-            setContainerDefs((prev) => prev.map((d) => d.id === definitionId ? updated : d));
-            // Update the detail cache
-            setContainerDetailCache((prev) => ({ ...prev, [definitionId]: updated }));
-            toast({ title: t('items.containerUpdated') });
-        }
-        catch (err: any) {
-            toast({ variant: "destructive", title: t('items.failedToUpdate'), description: err?.message ?? "Unknown error" });
-        }
-        finally {
-            setUpdatingContainerId(null);
-        }
-    }, [gameId, t, toast]);
-    const handleSaveInlineEdit = async () => {
-        if (!editingField)
-            return;
-        const { id, field } = editingField;
-        const patch: UpdateContainerDefinitionRequest = {};
-        if (field === 'name') {
-            if (!editValue.trim()) {
-                toast({ variant: "destructive", title: t('items.nameRequired') });
-                return;
-            }
-            patch.name = editValue.trim();
-        }
-        if (field === 'code_name') {
-            if (!editValue.trim()) {
-                toast({ variant: "destructive", title: t('items.codeNameRequired') });
-                return;
-            }
-            if (!/^[a-z][a-z0-9_]{0,63}$/.test(editValue.trim())) {
-                toast({ variant: "destructive", title: t('items.saveFailed'), description: t('items.codeNameInvalid') });
-                return;
-            }
-            patch.code_name = editValue.trim();
-        }
-        if (field === 'linked_item_id')
-            patch.linked_item_definition_id = editValue;
-        if (field === 'grid') {
-            const cols = parseInt(editValue);
-            const rows = parseInt(editValue2);
-            if (isNaN(cols) || cols < 1 || cols > 54) {
-                toast({ variant: "destructive", title: t('items.colsMustBe') });
-                return;
-            }
-            if (isNaN(rows) || rows < 1 || rows > 54) {
-                toast({ variant: "destructive", title: t('items.rowsMustBe') });
-                return;
-            }
-            patch.grid_cols = cols;
-            patch.grid_rows = rows;
-        }
-        if (field === 'metadata') {
-            const metadata: Record<string, any> = {};
-            metadataRows.forEach(row => {
-                const key = row.k.trim();
-                if (key) {
-                    let val: any = row.v.trim();
-                    // Basic type inference
-                    if (val.toLowerCase() === 'true')
-                        val = true;
-                    else if (val.toLowerCase() === 'false')
-                        val = false;
-                    else if (!isNaN(Number(val)) && val !== "")
-                        val = Number(val);
-                    metadata[key] = val;
-                }
-            });
-            patch.metadata = metadata;
-        }
-        await handleUpdateContainerField(id, patch);
-        setEditingField(null);
-    };
-    // Gacha section
-    const fetchGachaData = useCallback(async () => {
-        setGachaLoading(true);
-        setGachaError(null);
-        try {
-            const ctx = { gameId };
-            const [packsRes, itemsRes] = await Promise.all([
-                listGachaPacks(ctx),
-                listItemDefinitions(ctx, { limit: 200 }),
-            ]);
-            setGachaPacks(packsRes.packs ?? []);
-            setGachaAllItems(itemsRes.items ?? []);
-        }
-        catch (err: any) {
-            setGachaError(err?.message ?? "Failed to load gacha data");
-        }
-        finally {
-            setGachaLoading(false);
-        }
-    }, [gameId]);
-    useEffect(() => {
-        if (activeTab === 'gacha') {
-            fetchGachaData();
-        }
-    }, [activeTab, fetchGachaData]);
-    // resolve __REF:ITEM_CODE placeholders in gacha form pool/keyReqs once item list is available
-    useEffect(() => {
-        if (!gachaSheetOpen || gachaAllItems.length === 0)
-            return;
-        setGachaForm((prev) => {
-            const hasRefs = prev.pool.some((r) => r.item_definition_id.startsWith('__REF:')) ||
-                prev.keyReqs.some((r) => r.item_definition_id.startsWith('__REF:'));
-            if (!hasRefs)
-                return prev;
-            return {
-                ...prev,
-                pool: prev.pool.map((r) => ({
-                    ...r,
-                    item_definition_id: resolveGachaRef(r.item_definition_id, gachaAllItems),
-                })),
-                keyReqs: prev.keyReqs.map((r) => ({
-                    ...r,
-                    item_definition_id: resolveGachaRef(r.item_definition_id, gachaAllItems),
-                })),
-            };
-        });
-    }, [gachaAllItems, gachaSheetOpen]);
-    // auto-open edit sheet when ?editPack=<id> is in the URL (keep param so F5 re-opens)
-    useEffect(() => {
-        if (suppressGachaAutoOpenRef.current) {
-            suppressGachaAutoOpenRef.current = false;
-            return;
-        }
-        const packId = searchParams.get("editPack");
-        if (!packId || gachaLoading || gachaPacks.length === 0)
-            return;
-        const pack = gachaPacks.find((p) => p.id === packId);
-        if (pack) {
-            gachaOpenEdit(pack);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gachaPacks, gachaLoading]);
-    function gachaCloseSheet() {
-        suppressGachaAutoOpenRef.current = true;
-        setGachaSheetOpen(false);
-        setCreateGachaConvContext(undefined);
-        const newParams = new URLSearchParams(searchParams.toString());
-        newParams.delete("editPack");
-        router.replace(`${window.location.pathname}?${newParams.toString()}`);
-    }
-    function gachaOpenCreate() {
-        setEditingPack(null);
-        setGachaForm(emptyGachaForm());
-        setGachaSheetOpen(true);
-        const newParams = new URLSearchParams(searchParams.toString());
-        newParams.delete("editPack");
-        router.replace(`${window.location.pathname}?${newParams.toString()}`);
-    }
-    function gachaOpenEdit(pack: GachaPack) {
-        setEditingPack(pack);
-        const meta = (pack.metadata ?? {}) as Record<string, unknown>;
-        setGachaForm({
-            name: pack.name,
-            code_name: pack.code_name ?? "",
-            collect_destination: pack.collect_destination ?? "mailbox",
-            is_enabled: pack.is_enabled,
-            mailbox_title: typeof meta.mailbox_title === "string" ? meta.mailbox_title : "",
-            mailbox_body: typeof meta.mailbox_body === "string" ? meta.mailbox_body : "",
-            pool: pack.item_pool.length > 0
-                ? pack.item_pool.map((e) => ({
-                    item_definition_id: e.item_definition_id,
-                    weight: String(e.weight),
-                    quantity_min: String(e.quantity_min),
-                    quantity_max: String(e.quantity_max),
-                }))
-                : [EMPTY_ROW()],
-            keyReqs: (pack.key_requirements ?? []).length > 0
-                ? pack.key_requirements.map((r) => ({
-                    item_definition_id: r.item_definition_id,
-                    quantity: String(r.quantity),
-                }))
-                : [EMPTY_KEY_ROW()],
-        });
-        setGachaSheetOpen(true);
-        const newParams = new URLSearchParams(searchParams.toString());
-        newParams.set("editPack", pack.id);
-        router.replace(`${window.location.pathname}?${newParams.toString()}`);
-    }
-    function updateKeyReqRow(index: number, patch: Partial<KeyReqRow>) {
-        setGachaForm((f) => ({ ...f, keyReqs: f.keyReqs.map((r, i) => i === index ? { ...r, ...patch } : r) }));
-    }
-    function addKeyReqRow() {
-        setGachaForm((f) => ({ ...f, keyReqs: [...f.keyReqs, EMPTY_KEY_ROW()] }));
-    }
-    function removeKeyReqRow(index: number) {
-        setGachaForm((f) => ({ ...f, keyReqs: f.keyReqs.filter((_, i) => i !== index) }));
-    }
-    function updatePoolRow(index: number, patch: Partial<PoolRow>) {
-        setGachaForm((f) => ({ ...f, pool: f.pool.map((r, i) => i === index ? { ...r, ...patch } : r) }));
-    }
-    function addPoolRow() {
-        setGachaForm((f) => ({ ...f, pool: [...f.pool, EMPTY_ROW()] }));
-    }
-    function removePoolRow(index: number) {
-        setGachaForm((f) => ({ ...f, pool: f.pool.filter((_, i) => i !== index) }));
-    }
-    async function handleGachaSave(closeAfterSave: boolean = true) {
-        const name = gachaForm.name.trim();
-        const codeName = gachaForm.code_name.trim();
-        if (!name) {
-            toast({ variant: "destructive", title: t('items.nameRequired') });
-            return;
-        }
-        if (codeName && !/^[a-z][a-z0-9_]{0,63}$/.test(codeName)) {
-            toast({
-                variant: "destructive",
-                title: t('items.saveFailed'),
-                description: 'Code name must match ^[a-z][a-z0-9_]{0,63}$',
-            });
-            return;
-        }
-        const poolSource = gachaForm.pool
-            .filter((r) => r.item_definition_id.trim())
-            .map((r) => ({
-            ...r,
-            item_definition_id: resolveGachaRef(r.item_definition_id.trim(), gachaAllItems),
-        }));
-        const keyReqSource = gachaForm.keyReqs
-            .filter((r) => r.item_definition_id.trim())
-            .map((r) => ({
-            ...r,
-            item_definition_id: resolveGachaRef(r.item_definition_id.trim(), gachaAllItems),
-        }));
-        if (poolSource.length < 1) {
-            toast({
-                variant: "destructive",
-                title: t('items.saveFailed'),
-                description: 'Gacha pack must have at least one reward item.',
-            });
-            return;
-        }
-        const unresolvedRefs = [...poolSource, ...keyReqSource].filter((r) => r.item_definition_id.startsWith('__REF:'));
-        if (unresolvedRefs.length > 0) {
-            toast({
-                variant: "destructive",
-                title: t('items.saveFailed'),
-                description: 'Some referenced item definitions are still unresolved. Please select them manually before saving.',
-            });
-            return;
-        }
-        const item_pool: GachaPoolEntry[] = poolSource.map((r) => ({
-            item_definition_id: r.item_definition_id,
-            weight: Math.max(1, Number(r.weight) || 1),
-            quantity_min: Math.max(1, Number(r.quantity_min) || 1),
-            quantity_max: Math.max(Number(r.quantity_min) || 1, Number(r.quantity_max) || 1),
-        }));
-        const key_requirements: KeyRequirement[] = keyReqSource.map((r) => ({
-            item_definition_id: r.item_definition_id,
-            quantity: Math.max(1, Number(r.quantity) || 1),
-        }));
-        if (item_pool.some((entry) => entry.weight < 1 || entry.quantity_min < 1 || entry.quantity_max < entry.quantity_min)) {
-            toast({
-                variant: "destructive",
-                title: t('items.saveFailed'),
-                description: 'Reward entries must have valid weight and quantity ranges.',
-            });
-            return;
-        }
-        if (key_requirements.some((entry) => entry.quantity < 1)) {
-            toast({
-                variant: "destructive",
-                title: t('items.saveFailed'),
-                description: 'Key requirement quantities must be at least 1.',
-            });
-            return;
-        }
-        const existingMeta = (editingPack?.metadata ?? {}) as Record<string, unknown>;
-        const { mailbox_title: _omitTitle, mailbox_body: _omitBody, ...restMeta } = existingMeta;
-        const metadata: Record<string, unknown> = { ...restMeta };
-        if (gachaForm.collect_destination === "mailbox") {
-            if (gachaForm.mailbox_title.trim())
-                metadata.mailbox_title = gachaForm.mailbox_title.trim();
-            if (gachaForm.mailbox_body.trim())
-                metadata.mailbox_body = gachaForm.mailbox_body.trim();
-        }
-        const countMetadataKeys = (value: unknown): number => {
-            if (!value || typeof value !== 'object')
-                return 0;
-            if (Array.isArray(value))
-                return value.reduce((sum, entry) => sum + countMetadataKeys(entry), 0);
-            return Object.entries(value as Record<string, unknown>).reduce((sum, [, entry]) => sum + 1 + countMetadataKeys(entry), 0);
-        };
-        if (countMetadataKeys(metadata) > 50) {
-            toast({
-                variant: "destructive",
-                title: t('items.saveFailed'),
-                description: 'Metadata cannot exceed 50 keys in total.',
-            });
-            return;
-        }
-        setFormSaving(true);
-        try {
-            const ctx = { gameId };
-            if (editingPack) {
-                const res = await updateGachaPack(ctx, editingPack.id, {
-                    name,
-                    ...(codeName && { code_name: codeName }),
-                    collect_destination: gachaForm.collect_destination,
-                    is_enabled: gachaForm.is_enabled,
-                    item_pool,
-                    key_requirements,
-                    metadata,
-                });
-                setGachaPacks((prev) => prev.map((p) => p.id === editingPack.id ? res.pack : p));
-                setEditingPack(res.pack);
-                toast({ title: t('items.packUpdated') });
-                if (createGachaConvContext) {
-                    const { turnId, responseIdx, gachaPackIdx } = createGachaConvContext;
-                    window.dispatchEvent(new CustomEvent('ss:gacha-pack-created', {
-                        detail: { gachaPackId: res.pack.id, gachaPackName: res.pack.name, turnId, responseIdx, gachaPackIdx },
-                    }));
-                    setCreateGachaConvContext(undefined);
-                }
-            }
-            else {
-                const res = await createGachaPack(ctx, {
-                    name,
-                    ...(codeName && { code_name: codeName }),
-                    collect_destination: gachaForm.collect_destination,
-                    is_enabled: gachaForm.is_enabled,
-                    item_pool,
-                    key_requirements,
-                    metadata,
-                });
-                setGachaPacks((prev) => [res.pack, ...prev]);
-                toast({ title: t('items.packCreated') });
-                loadGameInfo();
-                if (createGachaConvContext) {
-                    const { turnId, responseIdx, gachaPackIdx } = createGachaConvContext;
-                    window.dispatchEvent(new CustomEvent('ss:gacha-pack-created', {
-                        detail: { gachaPackId: res.pack.id, gachaPackName: res.pack.name, turnId, responseIdx, gachaPackIdx },
-                    }));
-                    setCreateGachaConvContext(undefined);
-                }
-            }
-            if (closeAfterSave)
-                gachaCloseSheet();
-        }
-        catch (err: any) {
-            toast({ variant: "destructive", title: t('items.saveFailed'), description: err?.message ?? "Unknown error" });
-        }
-        finally {
-            setFormSaving(false);
-        }
-    }
-    async function handleGachaToggle(pack: GachaPack) {
-        setTogglingId(pack.id);
-        try {
-            const res = await setGachaPackEnabled({ gameId }, pack.id, !pack.is_enabled);
-            setGachaPacks((prev) => prev.map((p) => p.id === pack.id ? { ...p, is_enabled: res.is_enabled } : p));
-        }
-        catch (err: any) {
-            toast({ variant: "destructive", title: t('items.failedToTogglePack'), description: err?.message });
-        }
-        finally {
-            setTogglingId(null);
-        }
-    }
-    async function handleGachaDelete() {
-        if (!deletingPack)
-            return;
-        setDeletePackLoading(true);
-        try {
-            await deleteGachaPack({ gameId }, deletingPack.id);
-            setGachaPacks((prev) => prev.filter((p) => p.id !== deletingPack.id));
-            toast({ title: t('items.packDeleted') });
-            setDeletingPack(null);
-            loadGameInfo();
-        }
-        catch (err: any) {
-            toast({ variant: "destructive", title: t('items.failedToDelete'), description: err?.message });
-        }
-        finally {
-            setDeletePackLoading(false);
-        }
-    }
-    function gachaItemName(id: string) {
-        const it = gachaAllItems.find((i) => i.id === id);
-        if (!it)
-                    return <code className="text-xs">{id.slice(0, 8)}...</code>;
-        return <span>{it.name} <span className="text-muted-foreground text-xs">({it.item_code || it.id.slice(0, 6)})</span></span>;
-    }
-    function gachaItemShortName(id: string) {
-        const it = gachaAllItems.find((i) => i.id === id);
-                return it ? (it.name + (it.item_code ? ` (${it.item_code})` : "")) : id.slice(0, 8) + "...";
-    }
+    const {
+        fetchContainerDefs,
+        handleLinkContainerToConversation,
+        handleDeleteContainer,
+        filteredContainerDefs,
+        containerTotalPages,
+        containerCurrentPage,
+        getItemName,
+        handleContainerRowClick,
+        handleUpdateContainerField,
+        handleSaveInlineEdit,
+    } = useContainerPage({
+        gameId,
+        activeTab,
+        containerLimit: CONTAINER_LIMIT,
+        containerOffset,
+        containerTotal,
+        containerDefs,
+        containerSearchDebounced,
+        containerAllItems,
+        items,
+        expandedContainerId,
+        containerDetailCache,
+        deletingContainer,
+        editingField,
+        editValue,
+        editValue2,
+        metadataRows,
+        convActiveId,
+        t,
+        toast,
+        loadGameInfo,
+        setContainerLoading,
+        setContainerError,
+        setContainerDefs,
+        setContainerTotal,
+        setContainerAllItems,
+        setContainerTypeOptions,
+        setDeleteContainerLoading,
+        setDeletingContainer,
+        setExpandedContainerId,
+        setEditingField,
+        setMetadataRows,
+        setContainerDetailLoading,
+        setContainerDetailCache,
+        setUpdatingContainerId,
+        setConvActiveId,
+        setLinkingContainerId,
+    });
+    const {
+        fetchGachaData,
+        filteredGachaPacks,
+        gachaCloseSheet,
+        gachaOpenCreate,
+        gachaOpenEdit,
+        handleGachaSave,
+        handleGachaToggle,
+        handleGachaDelete,
+        gachaItemShortName,
+    } = useGachaPage({
+        gameId,
+        activeTab,
+        searchParams,
+        router,
+        gachaLoading,
+        gachaPacks,
+        gachaAllItems,
+        gachaSheetOpen,
+        gachaForm,
+        editingPack,
+        deletingPack,
+        gachaSearchDebounced,
+        createGachaConvContext,
+        suppressGachaAutoOpenRef,
+        t,
+        toast,
+        loadGameInfo,
+        emptyGachaForm,
+        resolveGachaRef,
+        emptyRow: EMPTY_ROW,
+        emptyKeyRow: EMPTY_KEY_ROW,
+        setGachaLoading,
+        setGachaError,
+        setGachaPacks,
+        setGachaAllItems,
+        setGachaSheetOpen,
+        setEditingPack,
+        setGachaForm,
+        setFormSaving,
+        setDeletePackLoading,
+        setDeletingPack,
+        setTogglingId,
+        setCreateGachaConvContext,
+    });
     // Preset definitions
     const fetchPresetDefs = useCallback(async () => {
         if (!gameId)
@@ -1539,8 +1013,6 @@ export default function GameItemsPage() {
             d.preset_type.toLowerCase().includes(presetSearchDebounced.toLowerCase()) ||
             d.id.toLowerCase().includes(presetSearchDebounced.toLowerCase()))
         : presetDefs;
-    const totalPages = Math.ceil(total / LIMIT);
-    const currentPage = Math.floor(offset / LIMIT) + 1;
     return (<div id="game-items-page" className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       {/* Breadcrumb */}
       <div className="mb-4">
