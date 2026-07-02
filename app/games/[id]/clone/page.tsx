@@ -408,7 +408,7 @@ export default function GameClonePage() {
                               {t("cloneGame.visibilityPublicDesc")}
                             </p>
                             <p id="clone-game-current-visibility-public-price" className="text-xs text-muted-foreground">
-                              {t("cloneGame.clonePricePublicDesc").replace("{unit}", cloneCostCurrencyLabel)}
+                              {t("cloneGame.clonePrice")}: {formatCloneCost(game.clone_cost ?? 7, game.clone_cost_currency)}
                             </p>
                             <p id="clone-game-current-visibility-public-payout" className="text-xs text-muted-foreground">
                               {t("cloneGame.clonePricePayoutDesc").replace("{unit}", cloneCostCurrencyLabel)}
