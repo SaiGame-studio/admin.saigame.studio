@@ -3658,6 +3658,7 @@ export default function GameItemsPage() {
               {filteredGachaPacks.map((pack) => {
                     const totalWeight = pack.item_pool.reduce((s, e) => s + e.weight, 0);
                     const isExpanded = expandedPack === pack.id;
+                    const packDomId = `gacha-pack-${pack.id}`;
                     return (<Card key={pack.id} className={`transition-all ${!pack.is_enabled ? "opacity-60" : ""}`}>
                     {/* Clickable header row */}
                     <div className="cursor-pointer select-none" onClick={() => setExpandedPack(isExpanded ? null : pack.id)}>
@@ -3729,44 +3730,104 @@ export default function GameItemsPage() {
                     {/* Expanded detail */}
                     {isExpanded && (<>
                         <Separator />
-                        <CardContent className="pt-4 pb-4">
-                          <div className="grid grid-cols-5 gap-4 items-start">
-                            <div className="col-span-2">
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('items.keyRequirements')}</p>
+                        <CardContent
+                          id={`${packDomId}-expand-content`}
+                          className="gacha-pack-expand-content pt-4 pb-4"
+                        >
+                          <div
+                            id={`${packDomId}-expand-grid`}
+                            className="gacha-pack-expand-grid grid grid-cols-5 gap-4 items-start"
+                          >
+                            <div
+                              id={`${packDomId}-key-requirements-section`}
+                              className="gacha-pack-key-requirements-section col-span-2"
+                            >
+                              <p
+                                id={`${packDomId}-key-requirements-heading`}
+                                className="gacha-pack-key-requirements-heading text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2"
+                              >
+                                {t('items.keyRequirements')}
+                              </p>
                               {(pack.key_requirements ?? []).length === 0 ? (
-                                <p className="text-xs text-muted-foreground italic">{t('items.noKeyRequired')}</p>
+                                <p
+                                  id={`${packDomId}-key-requirements-empty`}
+                                  className="gacha-pack-key-requirements-empty text-xs text-muted-foreground italic"
+                                >
+                                  {t('items.noKeyRequired')}
+                                </p>
                               ) : (
-                                <div className="rounded-md border overflow-hidden">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow className="bg-muted/50">
-                                        <TableHead className="text-xs h-8 w-8" />
-                                        <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
-                                        <TableHead className="text-xs h-8 text-right w-12">{t('items.quantity')}</TableHead>
+                                <div
+                                  id={`${packDomId}-key-requirements-table-container`}
+                                  className="gacha-pack-key-requirements-table-container rounded-md border overflow-hidden"
+                                >
+                                  <Table id={`${packDomId}-key-requirements-table`} className="gacha-pack-key-requirements-table">
+                                    <TableHeader id={`${packDomId}-key-requirements-table-header`} className="gacha-pack-key-requirements-table-header">
+                                      <TableRow id={`${packDomId}-key-requirements-header-row`} className="gacha-pack-key-requirements-header-row bg-muted/50">
+                                        <TableHead id={`${packDomId}-key-requirements-header-link`} className="gacha-pack-key-requirements-header-link text-xs h-8 w-8" />
+                                        <TableHead id={`${packDomId}-key-requirements-header-name`} className="gacha-pack-key-requirements-header-name text-xs h-8">{t('items.name')}</TableHead>
+                                        <TableHead id={`${packDomId}-key-requirements-header-quantity`} className="gacha-pack-key-requirements-header-quantity text-xs h-8 text-right w-12">{t('items.quantity')}</TableHead>
                                       </TableRow>
                                     </TableHeader>
-                                    <TableBody>
+                                    <TableBody id={`${packDomId}-key-requirements-table-body`} className="gacha-pack-key-requirements-table-body">
                                       {(pack.key_requirements ?? []).map((kr, i) => {
                                         const item = gachaAllItems.find((x) => x.id === kr.item_definition_id);
+                                        const keyRequirementDomId = `${packDomId}-key-requirement-${i}-${kr.item_definition_id}`;
                                         return (
-                                          <TableRow key={i}>
-                                            <TableCell className="text-xs py-2 w-8">
-                                              <Link href={`/games/${gameId}/items/${kr.item_definition_id}`} target="_blank" title={t('items.goToItemDef')}>
-                                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                                          <TableRow
+                                            key={i}
+                                            id={`${keyRequirementDomId}-row`}
+                                            className="gacha-pack-key-requirement-row"
+                                          >
+                                            <TableCell
+                                              id={`${keyRequirementDomId}-link-cell`}
+                                              className="gacha-pack-key-requirement-link-cell text-xs py-2 w-8"
+                                            >
+                                              <Link
+                                                id={`${keyRequirementDomId}-link`}
+                                                className="gacha-pack-key-requirement-link"
+                                                href={`/games/${gameId}/items/${kr.item_definition_id}`}
+                                                target="_blank"
+                                                title={t('items.goToItemDef')}
+                                              >
+                                                <ExternalLink
+                                                  id={`${keyRequirementDomId}-link-icon`}
+                                                  className="gacha-pack-key-requirement-link-icon h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors"
+                                                />
                                               </Link>
                                             </TableCell>
-                                            <TableCell className="text-xs py-2">
+                                            <TableCell
+                                              id={`${keyRequirementDomId}-name-cell`}
+                                              className="gacha-pack-key-requirement-name-cell text-xs py-2"
+                                            >
                                               {item ? (
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                  <span className="font-medium">{item.name}</span>
-                                                  {item.item_code && <code className="text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
+                                                <div
+                                                  id={`${keyRequirementDomId}-item`}
+                                                  className="gacha-pack-key-requirement-item flex items-center gap-1.5 flex-wrap"
+                                                >
+                                                  <span
+                                                    id={`${keyRequirementDomId}-item-name`}
+                                                    className="gacha-pack-key-requirement-item-name font-medium"
+                                                  >
+                                                    {item.name}
+                                                  </span>
+                                                  {item.item_code && <code id={`${keyRequirementDomId}-item-code`} className="gacha-pack-key-requirement-item-code text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
                                                   {item.rarity && <RarityBadge rarity={item.rarity} />}
                                                 </div>
                                               ) : (
-                                                <code className="font-mono text-[11px] text-muted-foreground">{kr.item_definition_id.slice(0, 8)}...</code>
+                                                <code
+                                                  id={`${keyRequirementDomId}-fallback-id`}
+                                                  className="gacha-pack-key-requirement-fallback-id font-mono text-[11px] text-muted-foreground"
+                                                >
+                                                  {kr.item_definition_id.slice(0, 8)}...
+                                                </code>
                                               )}
                                             </TableCell>
-                                            <TableCell className="text-xs py-2 text-right font-semibold tabular-nums">{kr.quantity}x</TableCell>
+                                            <TableCell
+                                              id={`${keyRequirementDomId}-quantity-cell`}
+                                              className="gacha-pack-key-requirement-quantity-cell text-xs py-2 text-right font-semibold tabular-nums"
+                                            >
+                                              {kr.quantity}x
+                                            </TableCell>
                                           </TableRow>
                                         );
                                       })}
@@ -3776,60 +3837,134 @@ export default function GameItemsPage() {
                               )}
                             </div>
 
-                            <div className="col-span-3">
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('items.dropTable')}</p>
+                            <div
+                              id={`${packDomId}-drop-table-section`}
+                              className="gacha-pack-drop-table-section col-span-3"
+                            >
+                              <p
+                                id={`${packDomId}-drop-table-heading`}
+                                className="gacha-pack-drop-table-heading text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2"
+                              >
+                                {t('items.dropTable')}
+                              </p>
                               {pack.item_pool.length === 0 ? (
-                                <p className="text-xs text-muted-foreground italic">No items in pool</p>
+                                <p
+                                  id={`${packDomId}-drop-table-empty`}
+                                  className="gacha-pack-drop-table-empty text-xs text-muted-foreground italic"
+                                >
+                                  No items in pool
+                                </p>
                               ) : (
-                                <div className="rounded-md border overflow-hidden">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow className="bg-muted/50">
-                                        <TableHead className="text-xs h-8 w-8" />
-                                        <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
-                                        <TableHead className="text-xs h-8 w-24">{t('items.rarityHeader')}</TableHead>
-                                        <TableHead className="text-xs h-8">{t('items.dropRate')}</TableHead>
-                                        <TableHead className="text-xs h-8 text-right w-24">{t('items.weight')}</TableHead>
-                                        <TableHead className="text-xs h-8 text-right w-14">Min</TableHead>
-                                        <TableHead className="text-xs h-8 text-right w-14">Max</TableHead>
+                                <div
+                                  id={`${packDomId}-drop-table-container`}
+                                  className="gacha-pack-drop-table-container rounded-md border overflow-hidden"
+                                >
+                                  <Table id={`${packDomId}-drop-table`} className="gacha-pack-drop-table">
+                                    <TableHeader id={`${packDomId}-drop-table-header`} className="gacha-pack-drop-table-header">
+                                      <TableRow id={`${packDomId}-drop-table-header-row`} className="gacha-pack-drop-table-header-row bg-muted/50">
+                                        <TableHead id={`${packDomId}-drop-table-header-link`} className="gacha-pack-drop-table-header-link text-xs h-8 w-8" />
+                                        <TableHead id={`${packDomId}-drop-table-header-name`} className="gacha-pack-drop-table-header-name text-xs h-8">{t('items.name')}</TableHead>
+                                        <TableHead id={`${packDomId}-drop-table-header-rarity`} className="gacha-pack-drop-table-header-rarity text-xs h-8 w-24">{t('items.rarityHeader')}</TableHead>
+                                        <TableHead id={`${packDomId}-drop-table-header-rate`} className="gacha-pack-drop-table-header-rate text-xs h-8">{t('items.dropRate')}</TableHead>
+                                        <TableHead id={`${packDomId}-drop-table-header-weight`} className="gacha-pack-drop-table-header-weight text-xs h-8 text-right w-24">{t('items.weight')}</TableHead>
+                                        <TableHead id={`${packDomId}-drop-table-header-min`} className="gacha-pack-drop-table-header-min text-xs h-8 text-right w-14">Min</TableHead>
+                                        <TableHead id={`${packDomId}-drop-table-header-max`} className="gacha-pack-drop-table-header-max text-xs h-8 text-right w-14">Max</TableHead>
                                       </TableRow>
                                     </TableHeader>
-                                    <TableBody>
+                                    <TableBody id={`${packDomId}-drop-table-body`} className="gacha-pack-drop-table-body">
                                       {[...pack.item_pool]
                                         .sort((a, b) => b.weight - a.weight)
                                         .map((entry, i) => {
                                           const item = gachaAllItems.find((x) => x.id === entry.item_definition_id);
                                           const pct = totalWeight > 0 ? (entry.weight / totalWeight) * 100 : 0;
                                           const rarity = entry.rarity ?? item?.rarity;
+                                          const dropRowDomId = `${packDomId}-drop-${i}-${entry.item_definition_id}`;
                                           return (
-                                            <TableRow key={i}>
-                                              <TableCell className="text-xs py-2 w-8">
-                                                <Link href={`/games/${gameId}/items/${entry.item_definition_id}`} target="_blank" title={t('items.goToItemDef')}>
-                                                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                                            <TableRow
+                                              key={i}
+                                              id={`${dropRowDomId}-row`}
+                                              className="gacha-pack-drop-row"
+                                            >
+                                              <TableCell
+                                                id={`${dropRowDomId}-link-cell`}
+                                                className="gacha-pack-drop-link-cell text-xs py-2 w-8"
+                                              >
+                                                <Link
+                                                  id={`${dropRowDomId}-link`}
+                                                  className="gacha-pack-drop-link"
+                                                  href={`/games/${gameId}/items/${entry.item_definition_id}`}
+                                                  target="_blank"
+                                                  title={t('items.goToItemDef')}
+                                                >
+                                                  <ExternalLink
+                                                    id={`${dropRowDomId}-link-icon`}
+                                                    className="gacha-pack-drop-link-icon h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors"
+                                                  />
                                                 </Link>
                                               </TableCell>
-                                              <TableCell className="text-xs py-2">
+                                              <TableCell
+                                                id={`${dropRowDomId}-name-cell`}
+                                                className="gacha-pack-drop-name-cell text-xs py-2"
+                                              >
                                                 {item ? (
-                                                  <div>
-                                                    <span className="font-medium">{item.name}</span>
-                                                    {item.item_code && <code className="ml-1.5 text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
+                                                  <div id={`${dropRowDomId}-item`} className="gacha-pack-drop-item">
+                                                    <span id={`${dropRowDomId}-item-name`} className="gacha-pack-drop-item-name font-medium">{item.name}</span>
+                                                    {item.item_code && <code id={`${dropRowDomId}-item-code`} className="gacha-pack-drop-item-code ml-1.5 text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
                                                   </div>
                                                 ) : (
-                                                  <code className="font-mono text-[11px] text-muted-foreground">{entry.item_definition_id.slice(0, 8)}...</code>
+                                                  <code
+                                                    id={`${dropRowDomId}-fallback-id`}
+                                                    className="gacha-pack-drop-fallback-id font-mono text-[11px] text-muted-foreground"
+                                                  >
+                                                    {entry.item_definition_id.slice(0, 8)}...
+                                                  </code>
                                                 )}
                                               </TableCell>
-                                              <TableCell className="text-xs py-2">
+                                              <TableCell
+                                                id={`${dropRowDomId}-rarity-cell`}
+                                                className="gacha-pack-drop-rarity-cell text-xs py-2"
+                                              >
                                                 {rarity ? <RarityBadge rarity={rarity} /> : <span className="text-muted-foreground">-</span>}
-                                                <div className="flex items-center gap-2">
-                                                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
+                                                <div
+                                                  id={`${dropRowDomId}-rate`}
+                                                  className="gacha-pack-drop-rate flex items-center gap-2"
+                                                >
+                                                  <div
+                                                    id={`${dropRowDomId}-rate-bar-track`}
+                                                    className="gacha-pack-drop-rate-bar-track flex-1 h-1.5 bg-muted rounded-full overflow-hidden"
+                                                  >
+                                                    <div
+                                                      id={`${dropRowDomId}-rate-bar-fill`}
+                                                      className="gacha-pack-drop-rate-bar-fill h-full bg-primary rounded-full"
+                                                      style={{ width: `${Math.min(pct, 100)}%` }}
+                                                    />
                                                   </div>
-                                                  <span className="tabular-nums text-muted-foreground w-16 text-right shrink-0">{formatPct(pct)}</span>
+                                                  <span
+                                                    id={`${dropRowDomId}-rate-value`}
+                                                    className="gacha-pack-drop-rate-value tabular-nums text-muted-foreground w-16 text-right shrink-0"
+                                                  >
+                                                    {formatPct(pct)}
+                                                  </span>
                                                 </div>
                                               </TableCell>
-                                              <TableCell className="text-xs py-2 text-right tabular-nums text-muted-foreground">{entry.weight.toLocaleString()}</TableCell>
-                                              <TableCell className="text-xs py-2 text-right tabular-nums font-medium">{entry.quantity_min}</TableCell>
-                                              <TableCell className="text-xs py-2 text-right tabular-nums font-medium">{entry.quantity_max}</TableCell>
+                                              <TableCell
+                                                id={`${dropRowDomId}-weight-cell`}
+                                                className="gacha-pack-drop-weight-cell text-xs py-2 text-right tabular-nums text-muted-foreground"
+                                              >
+                                                {entry.weight.toLocaleString()}
+                                              </TableCell>
+                                              <TableCell
+                                                id={`${dropRowDomId}-min-cell`}
+                                                className="gacha-pack-drop-min-cell text-xs py-2 text-right tabular-nums font-medium"
+                                              >
+                                                {entry.quantity_min}
+                                              </TableCell>
+                                              <TableCell
+                                                id={`${dropRowDomId}-max-cell`}
+                                                className="gacha-pack-drop-max-cell text-xs py-2 text-right tabular-nums font-medium"
+                                              >
+                                                {entry.quantity_max}
+                                              </TableCell>
                                             </TableRow>
                                           );
                                         })}
