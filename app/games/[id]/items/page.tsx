@@ -3765,6 +3765,7 @@ export default function GameItemsPage() {
                                       <TableRow id={`${packDomId}-key-requirements-header-row`} className="gacha-pack-key-requirements-header-row bg-muted/50">
                                         <TableHead id={`${packDomId}-key-requirements-header-link`} className="gacha-pack-key-requirements-header-link text-xs h-8 w-8" />
                                         <TableHead id={`${packDomId}-key-requirements-header-name`} className="gacha-pack-key-requirements-header-name text-xs h-8">{t('items.name')}</TableHead>
+                                        <TableHead id={`${packDomId}-key-requirements-header-rarity`} className="gacha-pack-key-requirements-header-rarity text-xs h-8 w-24">{t('items.rarityHeader')}</TableHead>
                                         <TableHead id={`${packDomId}-key-requirements-header-quantity`} className="gacha-pack-key-requirements-header-quantity text-xs h-8 text-right w-12">{t('items.quantity')}</TableHead>
                                       </TableRow>
                                     </TableHeader>
@@ -3810,8 +3811,6 @@ export default function GameItemsPage() {
                                                   >
                                                     {item.name}
                                                   </span>
-                                                  {item.item_code && <code id={`${keyRequirementDomId}-item-code`} className="gacha-pack-key-requirement-item-code text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
-                                                  {item.rarity && <RarityBadge rarity={item.rarity} />}
                                                 </div>
                                               ) : (
                                                 <code
@@ -3821,6 +3820,12 @@ export default function GameItemsPage() {
                                                   {kr.item_definition_id.slice(0, 8)}...
                                                 </code>
                                               )}
+                                            </TableCell>
+                                            <TableCell
+                                              id={`${keyRequirementDomId}-rarity-cell`}
+                                              className="gacha-pack-key-requirement-rarity-cell text-xs py-2"
+                                            >
+                                              {item?.rarity ? <RarityBadge rarity={item.rarity} /> : <span className="text-muted-foreground">-</span>}
                                             </TableCell>
                                             <TableCell
                                               id={`${keyRequirementDomId}-quantity-cell`}
@@ -3909,7 +3914,6 @@ export default function GameItemsPage() {
                                                 {item ? (
                                                   <div id={`${dropRowDomId}-item`} className="gacha-pack-drop-item">
                                                     <span id={`${dropRowDomId}-item-name`} className="gacha-pack-drop-item-name font-medium">{item.name}</span>
-                                                    {item.item_code && <code id={`${dropRowDomId}-item-code`} className="gacha-pack-drop-item-code ml-1.5 text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
                                                   </div>
                                                 ) : (
                                                   <code
@@ -3925,6 +3929,11 @@ export default function GameItemsPage() {
                                                 className="gacha-pack-drop-rarity-cell text-xs py-2"
                                               >
                                                 {rarity ? <RarityBadge rarity={rarity} /> : <span className="text-muted-foreground">-</span>}
+                                              </TableCell>
+                                              <TableCell
+                                                id={`${dropRowDomId}-rate-cell`}
+                                                className="gacha-pack-drop-rate-cell text-xs py-2"
+                                              >
                                                 <div
                                                   id={`${dropRowDomId}-rate`}
                                                   className="gacha-pack-drop-rate flex items-center gap-2"
