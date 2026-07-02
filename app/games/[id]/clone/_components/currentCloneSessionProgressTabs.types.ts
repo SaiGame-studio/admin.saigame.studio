@@ -2,6 +2,7 @@
 
 import type {
     CloneSessionCurrentGachaPack,
+    CloneSessionCurrentEquipmentSlotDefinition,
     CloneSessionCurrentItemContainer,
     CloneSessionCurrentItemDefinition,
     CloneSessionCurrentItemTag,
@@ -56,6 +57,18 @@ export type CurrentCloneSessionProgressTabsProps = {
     onItemTagsClearSearch: () => void;
     onItemTagsPreviousPage: () => void;
     onItemTagsNextPage: () => void;
+    equipmentSlotDefinitions: CloneSessionCurrentEquipmentSlotDefinition[];
+    equipmentSlotDefinitionsTotal: number;
+    equipmentSlotDefinitionsOffset: number;
+    equipmentSlotDefinitionsSearchInput: string;
+    equipmentSlotDefinitionsSearchName: string;
+    equipmentSlotDefinitionsLoading: boolean;
+    equipmentSlotDefinitionsError: string | null;
+    onEquipmentSlotDefinitionsSearchInputChange: (value: string) => void;
+    onEquipmentSlotDefinitionsSearch: () => void;
+    onEquipmentSlotDefinitionsClearSearch: () => void;
+    onEquipmentSlotDefinitionsPreviousPage: () => void;
+    onEquipmentSlotDefinitionsNextPage: () => void;
     quests: CloneSessionCurrentQuestDefinition[];
     questsTotal: number;
     questsOffset: number;
@@ -106,7 +119,7 @@ export type CurrentCloneSessionProgressTabsProps = {
     onGachaPacksPreviousPage: () => void;
     onGachaPacksNextPage: () => void;
     getManualOverwriteTargetId: (
-        contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition",
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition",
         sourceId: string,
     ) => string | null;
     onManualOverwriteSuccess: () => Promise<void>;

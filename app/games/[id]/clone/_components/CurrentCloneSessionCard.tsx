@@ -98,6 +98,7 @@ export function CurrentCloneSessionCard({
         : currentSessionProgressEntries[0]?.[0] ?? null;
     const canCompleteCloneSession = currentSession?.status === "review_pending" && currentSession?.current_phase === "finalization";
     const isItemTagsTab = activeProgressTab === "item_tags" || activeProgressTab === "item_tag_definitions";
+    const isEquipmentSlotDefinitionsTab = activeProgressTab === "equipment_slot_definitions";
     const isQuestDefinitionsTab = activeProgressTab === "quest_definitions";
     const isShopDefinitionsTab = activeProgressTab === "shop_definitions";
     const isPresetDefinitionsTab = activeProgressTab === "preset_definitions";
@@ -282,6 +283,7 @@ export function CurrentCloneSessionCard({
     }, [activeProgressTab, contentRefreshNonce, currentSessionId, itemTagsOffset, itemTagsSearchId, itemTagsSearchName, isItemTagsTab, targetGameId, t]);
 
     const {
+        equipmentSlotDefinitionsState,
         questsState,
         shopDefinitionsState,
         presetDefinitionsState,
@@ -289,6 +291,7 @@ export function CurrentCloneSessionCard({
     } = useCurrentCloneSessionDefinitions({
         currentSessionId,
         targetGameId,
+        isEquipmentSlotDefinitionsTab,
         isQuestDefinitionsTab,
         isShopDefinitionsTab,
         isPresetDefinitionsTab,
@@ -298,7 +301,7 @@ export function CurrentCloneSessionCard({
     });
 
     const getManualOverwriteTargetId = useCallback((
-        contentType: "item_definition" | "item_container_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition",
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition",
         sourceId: string,
     ) => findCloneSessionManualOverwriteTargetId(currentSessionConflicts, contentType, sourceId), [currentSessionConflicts]);
 
@@ -418,6 +421,8 @@ export function CurrentCloneSessionCard({
             setItemTagsSearchId(searchValue);
             setItemTagsSearchName("");
             setItemTagsOffset(0);
+        } else if (nextTab === "equipment_slot_definitions") {
+            equipmentSlotDefinitionsState.onApplySearchValue(searchValue);
         } else if (nextTab === "quest_definitions") {
             questsState.onApplySearchValue(searchValue);
         } else if (nextTab === "shop_definitions") {
@@ -512,6 +517,18 @@ export function CurrentCloneSessionCard({
         onItemTagsClearSearch: handleClearItemTagsSearch,
         onItemTagsPreviousPage: handlePreviousItemTagsPage,
         onItemTagsNextPage: handleNextItemTagsPage,
+        equipmentSlotDefinitions: equipmentSlotDefinitionsState.items,
+        equipmentSlotDefinitionsTotal: equipmentSlotDefinitionsState.total,
+        equipmentSlotDefinitionsOffset: equipmentSlotDefinitionsState.offset,
+        equipmentSlotDefinitionsSearchInput: equipmentSlotDefinitionsState.searchInput,
+        equipmentSlotDefinitionsSearchName: equipmentSlotDefinitionsState.searchName,
+        equipmentSlotDefinitionsLoading: equipmentSlotDefinitionsState.loading,
+        equipmentSlotDefinitionsError: equipmentSlotDefinitionsState.error,
+        onEquipmentSlotDefinitionsSearchInputChange: equipmentSlotDefinitionsState.onSearchInputChange,
+        onEquipmentSlotDefinitionsSearch: equipmentSlotDefinitionsState.onSearch,
+        onEquipmentSlotDefinitionsClearSearch: equipmentSlotDefinitionsState.onClearSearch,
+        onEquipmentSlotDefinitionsPreviousPage: equipmentSlotDefinitionsState.onPreviousPage,
+        onEquipmentSlotDefinitionsNextPage: equipmentSlotDefinitionsState.onNextPage,
         quests: questsState.items,
         questsTotal: questsState.total,
         questsOffset: questsState.offset,

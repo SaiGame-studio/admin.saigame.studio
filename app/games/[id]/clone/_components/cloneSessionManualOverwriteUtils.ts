@@ -22,6 +22,12 @@ export function getCloneSessionManualOverwritePair(conflict: CloneSessionConflic
         return sourceId && targetId ? { contentType: "item_container_definition", sourceId, targetId } : null;
     }
 
+    if (progressTab === "equipment_slot_definitions") {
+        const sourceId = (conflict.source_id || "").trim();
+        const targetId = (conflict.target_id || "").trim();
+        return sourceId && targetId ? { contentType: "equipment_slot_definition", sourceId, targetId } : null;
+    }
+
     if (progressTab === "item_tags" || progressTab === "item_tag_definitions") {
         const sourceId = (conflict.source_id || "").trim();
         const targetId = (conflict.target_id || "").trim();

@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import {
+    getCurrentCloneSessionEquipmentSlotDefinitions,
     getCurrentCloneSessionGachaPacks,
     getCurrentCloneSessionPresetDefinitions,
     getCurrentCloneSessionQuests,
     getCurrentCloneSessionShopDefinitions,
+    type CloneSessionCurrentEquipmentSlotDefinition,
     type CloneSessionCurrentGachaPack,
     type CloneSessionCurrentPresetDefinition,
     type CloneSessionCurrentQuestDefinition,
@@ -34,6 +36,7 @@ type CloneSessionPagedState<TItem> = {
 type UseCurrentCloneSessionDefinitionsParams = {
     currentSessionId: string | null;
     targetGameId: string;
+    isEquipmentSlotDefinitionsTab: boolean;
     isQuestDefinitionsTab: boolean;
     isShopDefinitionsTab: boolean;
     isPresetDefinitionsTab: boolean;
@@ -113,6 +116,7 @@ function toPagedResult<TItem>(state: ReturnType<typeof useCloneSessionPagedState
 export function useCurrentCloneSessionDefinitions({
     currentSessionId,
     targetGameId,
+    isEquipmentSlotDefinitionsTab,
     isQuestDefinitionsTab,
     isShopDefinitionsTab,
     isPresetDefinitionsTab,
@@ -120,10 +124,67 @@ export function useCurrentCloneSessionDefinitions({
     refreshNonce,
     formatError,
 }: UseCurrentCloneSessionDefinitionsParams) {
+    const equipmentSlotDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentEquipmentSlotDefinition>();
     const questsState = useCloneSessionPagedState<CloneSessionCurrentQuestDefinition>();
     const shopDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentShopDefinition>();
     const presetDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentPresetDefinition>();
     const gachaPacksState = useCloneSessionPagedState<CloneSessionCurrentGachaPack>();
+
+    useEffect(() => {
+        if (!currentSessionId || !isEquipmentSlotDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadEquipmentSlotDefinitions = async () => {
+            equipmentSlotDefinitionsState.setLoading(true);
+            equipmentSlotDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionEquipmentSlotDefinitions(targetGameId, {
+                    id: equipmentSlotDefinitionsState.searchId || undefined,
+                    name: equipmentSlotDefinitionsState.searchId ? undefined : equipmentSlotDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: equipmentSlotDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                equipmentSlotDefinitionsState.setItems(Array.isArray(response.equipment_slot_definitions) ? response.equipment_slot_definitions : []);
+                equipmentSlotDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                equipmentSlotDefinitionsState.setItems([]);
+                equipmentSlotDefinitionsState.setTotal(0);
+                equipmentSlotDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    equipmentSlotDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadEquipmentSlotDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        currentSessionId,
+        equipmentSlotDefinitionsState.offset,
+        equipmentSlotDefinitionsState.searchId,
+        equipmentSlotDefinitionsState.searchName,
+        formatError,
+        isEquipmentSlotDefinitionsTab,
+        refreshNonce,
+        targetGameId,
+    ]);
 
     useEffect(() => {
         if (!currentSessionId || !isQuestDefinitionsTab) {
@@ -332,6 +393,7 @@ export function useCurrentCloneSessionDefinitions({
     }, [currentSessionId, formatError, gachaPacksState.offset, gachaPacksState.searchId, gachaPacksState.searchName, isGachaPacksTab, refreshNonce, targetGameId]);
 
     return {
+        equipmentSlotDefinitionsState: toPagedResult(equipmentSlotDefinitionsState),
         questsState: toPagedResult(questsState),
         shopDefinitionsState: toPagedResult(shopDefinitionsState),
         presetDefinitionsState: toPagedResult(presetDefinitionsState),

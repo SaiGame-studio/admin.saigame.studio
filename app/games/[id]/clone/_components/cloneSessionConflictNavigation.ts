@@ -2,6 +2,7 @@ import type { CloneSessionConflict } from "@/lib/game-api";
 
 export function getConflictProgressTab(conflict: CloneSessionConflict) {
     const hint = `${conflict.phase ?? ""} ${conflict.definition_type ?? ""} ${conflict.field ?? ""} ${conflict.message_code ?? ""}`.toLowerCase();
+    if (hint.includes("equipment") || hint.includes("slot")) return "equipment_slot_definitions";
     if (hint.includes("container")) return "item_container_definitions";
     if (hint.includes("tag")) return "item_tags";
     if (hint.includes("quest")) return "quest_definitions";
@@ -22,7 +23,7 @@ export function getConflictSearchId(conflict: CloneSessionConflict, tab: string)
         return (conflict.source_item_definitions_id || "").trim();
     }
 
-    if (tab === "item_container_definitions" || tab === "item_tags" || tab === "item_tag_definitions" || tab === "quest_definitions" || tab === "shop_definitions" || tab === "preset_definitions" || tab === "gacha_packs" || tab === "gacha_pack_definitions") {
+    if (tab === "item_container_definitions" || tab === "equipment_slot_definitions" || tab === "item_tags" || tab === "item_tag_definitions" || tab === "quest_definitions" || tab === "shop_definitions" || tab === "preset_definitions" || tab === "gacha_packs" || tab === "gacha_pack_definitions") {
         return (conflict.source_id || "").trim();
     }
 

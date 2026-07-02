@@ -171,6 +171,37 @@ export interface CloneSessionCurrentItemTagsResponse {
     tags?: CloneSessionCurrentItemTag[];
 }
 
+export interface CloneSessionCurrentEquipmentSlotDefinition {
+    id: string;
+    game_id: string;
+    slot_key: string;
+    name: string;
+    description?: string;
+    allowed_categories?: string[];
+    allowed_item_definition_ids?: string[];
+    metadata?: Record<string, string | number | boolean | null | undefined>;
+    is_active?: boolean;
+    created_by?: string;
+    created_at?: string;
+    updated_at?: string;
+    ignored?: boolean;
+    is_ignored?: boolean;
+    previously_cloned?: boolean;
+    cloned_target_id?: string | null;
+    clone_adoption_kind?: string | null;
+}
+
+export interface CloneSessionCurrentEquipmentSlotDefinitionsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    equipment_slot_definitions?: CloneSessionCurrentEquipmentSlotDefinition[];
+}
+
 export type CloneSessionCurrentQuestDefinition = QuestDefinition & {
     previously_cloned?: boolean;
     ignored?: boolean;
@@ -307,6 +338,13 @@ export interface CloneSessionCurrentItemTagsParams {
     offset?: number;
 }
 
+export interface CloneSessionCurrentEquipmentSlotDefinitionsParams {
+    id?: string;
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
 export interface CloneSessionCurrentQuestsParams {
     id?: string;
     name?: string;
@@ -338,6 +376,7 @@ export interface CloneSessionCurrentGachaPacksParams {
 export type CloneSessionIgnoreContentType =
     | "item_definition"
     | "item_container_definition"
+    | "equipment_slot_definition"
     | "item_tag"
     | "quest_definition"
     | "shop_definition"
@@ -630,6 +669,29 @@ export async function getCurrentCloneSessionItemTags(gameId: string, params?: Cl
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/item-tags${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionEquipmentSlotDefinitions(gameId: string, params?: CloneSessionCurrentEquipmentSlotDefinitionsParams): Promise<CloneSessionCurrentEquipmentSlotDefinitionsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/equipment-slot-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
 export async function getCurrentCloneSessionQuests(gameId: string, params?: CloneSessionCurrentQuestsParams): Promise<CloneSessionCurrentQuestsResponse> {

@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatTimestamp } from "@/lib/utils/date-utils";
 import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } from "./CurrentCloneSessionLists";
 import { CurrentCloneSessionGachaPacksTab } from "./CurrentCloneSessionGachaPacksTab";
+import { CurrentCloneSessionEquipmentSlotDefinitionsTab } from "./CurrentCloneSessionEquipmentSlotDefinitionsTab";
 import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab";
 import { CurrentCloneSessionPresetDefinitionsTab } from "./CurrentCloneSessionPresetDefinitionsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
@@ -94,6 +95,18 @@ export function CurrentCloneSessionProgressTabs({
     onItemTagsClearSearch,
     onItemTagsPreviousPage,
     onItemTagsNextPage,
+    equipmentSlotDefinitions,
+    equipmentSlotDefinitionsTotal,
+    equipmentSlotDefinitionsOffset,
+    equipmentSlotDefinitionsSearchInput,
+    equipmentSlotDefinitionsSearchName,
+    equipmentSlotDefinitionsLoading,
+    equipmentSlotDefinitionsError,
+    onEquipmentSlotDefinitionsSearchInputChange,
+    onEquipmentSlotDefinitionsSearch,
+    onEquipmentSlotDefinitionsClearSearch,
+    onEquipmentSlotDefinitionsPreviousPage,
+    onEquipmentSlotDefinitionsNextPage,
     quests,
     questsTotal,
     questsOffset,
@@ -549,6 +562,25 @@ export function CurrentCloneSessionProgressTabs({
                                         onItemTagsClearSearch={onItemTagsClearSearch}
                                         onItemTagsPreviousPage={onItemTagsPreviousPage}
                                         onItemTagsNextPage={onItemTagsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "equipment_slot_definitions" ? (
+                                    <CurrentCloneSessionEquipmentSlotDefinitionsTab
+                                        t={t}
+                                        equipmentSlotDefinitions={equipmentSlotDefinitions}
+                                        sessionId={currentSession.session_id}
+                                        equipmentSlotDefinitionsTotal={equipmentSlotDefinitionsTotal}
+                                        equipmentSlotDefinitionsOffset={equipmentSlotDefinitionsOffset}
+                                        equipmentSlotDefinitionsSearchInput={equipmentSlotDefinitionsSearchInput}
+                                        equipmentSlotDefinitionsSearchName={equipmentSlotDefinitionsSearchName}
+                                        equipmentSlotDefinitionsLoading={equipmentSlotDefinitionsLoading}
+                                        equipmentSlotDefinitionsError={equipmentSlotDefinitionsError}
+                                        onEquipmentSlotDefinitionsSearchInputChange={onEquipmentSlotDefinitionsSearchInputChange}
+                                        onEquipmentSlotDefinitionsSearch={onEquipmentSlotDefinitionsSearch}
+                                        onEquipmentSlotDefinitionsClearSearch={onEquipmentSlotDefinitionsClearSearch}
+                                        onEquipmentSlotDefinitionsPreviousPage={onEquipmentSlotDefinitionsPreviousPage}
+                                        onEquipmentSlotDefinitionsNextPage={onEquipmentSlotDefinitionsNextPage}
                                         getManualOverwriteTargetId={getManualOverwriteTargetId}
                                         onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />
