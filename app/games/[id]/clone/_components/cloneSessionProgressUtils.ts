@@ -94,6 +94,9 @@ export function getCloneSessionPhaseLabel(phaseKey: string | undefined, t: Trans
             return t("cloneGame.sourceGameCurrentSessionEntityDefinitionsTabLabel");
         case "entity_pools":
             return t("cloneGame.sourceGameCurrentSessionEntityPoolsTabLabel");
+        case "leaderboards":
+        case "leaderboard_definitions":
+            return t("cloneGame.sourceGameCurrentSessionLeaderboardsTabLabel");
         default:
             return formatTechnicalLabel(phaseKey) || t("common.unknown");
     }
