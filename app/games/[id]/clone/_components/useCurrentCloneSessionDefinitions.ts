@@ -584,7 +584,7 @@ export function useCurrentCloneSessionDefinitions({
                     return;
                 }
 
-                const nextLeaderboards = Array.isArray(response.items) ? response.items : [];
+                const nextLeaderboards = Array.isArray(response.leaderboard_definitions) ? response.leaderboard_definitions : [];
 
                 leaderboardDefinitionsState.setItems(nextLeaderboards);
                 leaderboardDefinitionsState.setTotal(Number(response.total ?? 0));

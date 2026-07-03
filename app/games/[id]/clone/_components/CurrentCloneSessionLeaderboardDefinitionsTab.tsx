@@ -74,7 +74,7 @@ function CurrentCloneSessionLeaderboardDefinitionList({
         );
     }
 
-    const overwriteTargetIds = new Map(leaderboards.map((board) => [board.source_id, getManualOverwriteTargetId("leaderboard_definition", board.source_id)]));
+    const overwriteTargetIds = new Map(leaderboards.map((board) => [board.id, getManualOverwriteTargetId("leaderboard_definition", board.id)]));
     const hasOverwriteColumn = Array.from(overwriteTargetIds.values()).some(Boolean);
 
     return (
@@ -109,49 +109,49 @@ function CurrentCloneSessionLeaderboardDefinitionList({
                 </thead>
                 <tbody id="clone-game-source-current-session-leaderboards-table-body">
                     {leaderboards.map((board) => {
-                        const overwriteTargetId = overwriteTargetIds.get(board.source_id) ?? null;
+                        const overwriteTargetId = overwriteTargetIds.get(board.id) ?? null;
 
                         return (
-                        <tr id={`clone-game-source-current-session-leaderboard-row-${board.source_id}`} key={board.source_id} className="border-b transition-colors last:border-0 hover:bg-muted/40">
-                            <td id={`clone-game-source-current-session-leaderboard-name-cell-${board.source_id}`} className="px-3 py-2 align-middle">
-                                <span id={`clone-game-source-current-session-leaderboard-name-${board.source_id}`} className="font-medium">
-                                    {board.source_data.name}
+                        <tr id={`clone-game-source-current-session-leaderboard-row-${board.id}`} key={board.id} className="border-b transition-colors last:border-0 hover:bg-muted/40">
+                            <td id={`clone-game-source-current-session-leaderboard-name-cell-${board.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-leaderboard-name-${board.id}`} className="font-medium">
+                                    {board.name}
                                 </span>
                             </td>
-                            <td id={`clone-game-source-current-session-leaderboard-key-cell-${board.source_id}`} className="px-3 py-2 align-middle">
-                                <span id={`clone-game-source-current-session-leaderboard-key-${board.source_id}`} className="font-mono text-xs text-muted-foreground">
-                                    {board.source_data.board_key}
+                            <td id={`clone-game-source-current-session-leaderboard-key-cell-${board.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-leaderboard-key-${board.id}`} className="font-mono text-xs text-muted-foreground">
+                                    {board.board_key}
                                 </span>
                             </td>
-                            <td id={`clone-game-source-current-session-leaderboard-scoremode-cell-${board.source_id}`} className="px-3 py-2 align-middle">
-                                <span id={`clone-game-source-current-session-leaderboard-scoremode-${board.source_id}`}>
-                                    {board.source_data.score_mode || t("common.unknown")}
+                            <td id={`clone-game-source-current-session-leaderboard-scoremode-cell-${board.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-leaderboard-scoremode-${board.id}`}>
+                                    {board.score_mode || t("common.unknown")}
                                 </span>
                             </td>
-                            <td id={`clone-game-source-current-session-leaderboard-reset-cell-${board.source_id}`} className="px-3 py-2 align-middle">
-                                <span id={`clone-game-source-current-session-leaderboard-reset-${board.source_id}`}>
-                                    {board.source_data.reset_schedule || t("common.unknown")}
+                            <td id={`clone-game-source-current-session-leaderboard-reset-cell-${board.id}`} className="px-3 py-2 align-middle">
+                                <span id={`clone-game-source-current-session-leaderboard-reset-${board.id}`}>
+                                    {board.reset_schedule || t("common.unknown")}
                                 </span>
                             </td>
-                            <td id={`clone-game-source-current-session-leaderboard-previously-cloned-cell-${board.source_id}`} className="px-3 py-2 align-middle">
+                            <td id={`clone-game-source-current-session-leaderboard-previously-cloned-cell-${board.id}`} className="px-3 py-2 align-middle">
                                 <CloneSessionPreviouslyClonedStatus
-                                    id={`clone-game-source-current-session-leaderboard-previously-cloned-${board.source_id}`}
-                                    iconId={`clone-game-source-current-session-leaderboard-previously-cloned-icon-${board.source_id}`}
-                                    labelId={`clone-game-source-current-session-leaderboard-previously-cloned-label-${board.source_id}`}
-                                    previouslyCloned={!!board.target_id}
+                                    id={`clone-game-source-current-session-leaderboard-previously-cloned-${board.id}`}
+                                    iconId={`clone-game-source-current-session-leaderboard-previously-cloned-icon-${board.id}`}
+                                    labelId={`clone-game-source-current-session-leaderboard-previously-cloned-label-${board.id}`}
+                                    previouslyCloned={!!board.previously_cloned}
                                     t={t}
                                 />
                             </td>
-                            <td id={`clone-game-source-current-session-leaderboard-ignore-cell-${board.source_id}`} className="px-3 py-2 align-middle">
-                                <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-leaderboard-ignore-${board.source_id}`} sessionId={sessionId} contentType="leaderboard_definition" sourceId={board.source_id} initialIgnored={isIgnored(board)} t={t} />
+                            <td id={`clone-game-source-current-session-leaderboard-ignore-cell-${board.id}`} className="px-3 py-2 align-middle">
+                                <CloneSessionIgnoreSwitch id={`clone-game-source-current-session-leaderboard-ignore-${board.id}`} sessionId={sessionId} contentType="leaderboard_definition" sourceId={board.id} initialIgnored={isIgnored(board)} t={t} />
                             </td>
                             {hasOverwriteColumn ? (
-                                <td id={`clone-game-source-current-session-leaderboard-overwrite-cell-${board.source_id}`} className="px-3 py-2 align-middle">
+                                <td id={`clone-game-source-current-session-leaderboard-overwrite-cell-${board.id}`} className="px-3 py-2 align-middle">
                                     <CloneSessionManualOverwriteButton
-                                        id={`clone-game-source-current-session-leaderboard-overwrite-${board.source_id}`}
+                                        id={`clone-game-source-current-session-leaderboard-overwrite-${board.id}`}
                                         sessionId={sessionId}
                                         contentType="leaderboard_definition"
-                                        sourceId={board.source_id}
+                                        sourceId={board.id}
                                         targetId={overwriteTargetId}
                                         t={t}
                                         onSuccess={onManualOverwriteSuccess}

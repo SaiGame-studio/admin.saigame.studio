@@ -948,35 +948,28 @@ export async function getCurrentCloneSessionEntityDefinitions(gameId: string, pa
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/entity-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
-export interface LeaderboardDefinition {
+export interface CloneSessionCurrentLeaderboardDefinition {
     id: string;
     board_key: string;
     name: string;
     description?: string;
-    score_mode: string;
-    sort_direction: string;
-    reset_schedule: string;
-    score_source_type: string;
+    score_mode?: string;
+    sort_direction?: string;
+    reset_schedule?: string;
+    score_source_type?: string;
     score_source_ref_id?: string;
     created_at?: string;
     updated_at?: string;
-}
-
-export interface CloneSessionCurrentLeaderboardDefinition {
-    source_id: string;
-    target_id: string | null;
-    has_conflict: boolean;
-    conflict_code: string;
-    is_ignored: boolean;
-    is_resolved: boolean;
-    source_data: LeaderboardDefinition;
+    ignored?: boolean;
+    is_ignored?: boolean;
+    previously_cloned?: boolean;
 }
 
 export interface CloneSessionCurrentLeaderboardDefinitionsResponse {
     limit?: number;
     offset?: number;
     total?: number;
-    items?: CloneSessionCurrentLeaderboardDefinition[];
+    leaderboard_definitions?: CloneSessionCurrentLeaderboardDefinition[];
 }
 
 export interface CloneSessionCurrentLeaderboardDefinitionsParams {
