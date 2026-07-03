@@ -1734,11 +1734,11 @@ function PoolExpandedContent({ pool, gameId, onSaved, }: {
         <div>
           <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.dropPackIds')}</dt>
           <dd>
-            <div className="space-y-1">
+            <div id={`pool-drop-pack-list-${pool.id}`} className="pool-drop-pack-list space-y-1">
               {getDropPackIds().map((packId) => {
             const pack = gachaPacks.find((p) => p.id === packId);
-            return (<div key={packId} className="flex items-center gap-1.5 py-0.5 px-1 rounded bg-muted/40">
-                    <Link href={`/games/${gameId}/items?tab=gacha`} className="text-xs font-mono flex-1 truncate hover:underline inline-flex items-center gap-1" target="_blank">
+            return (<div key={packId} id={`pool-drop-pack-item-${pool.id}-${packId}`} className="pool-drop-pack-item flex items-center gap-1.5 py-0.5 px-1 rounded bg-muted/40">
+                    <Link href={`/games/${gameId}/items?tab=gacha&q=${packId}`} className="text-xs font-mono flex-1 truncate hover:underline inline-flex items-center gap-1" target="_blank">
                       {pack ? pack.name : packId}<ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground"/>
                     </Link>
                     <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeDropPack(packId)} disabled={saving}><X className="w-3 h-3"/></Button>

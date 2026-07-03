@@ -13,6 +13,7 @@ import type {
     CloneSessionCurrentCraftingRecipe,
     CloneSessionCurrentEntityDefinition,
     CloneSessionCurrentEntityPool,
+    CloneSessionCurrentLeaderboardDefinition,
 } from "@/lib/game-api";
 
 type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
@@ -157,8 +158,20 @@ export type CurrentCloneSessionProgressTabsProps = {
     onEntityPoolsClearSearch: () => void;
     onEntityPoolsPreviousPage: () => void;
     onEntityPoolsNextPage: () => void;
+    leaderboardDefinitions: CloneSessionCurrentLeaderboardDefinition[];
+    leaderboardDefinitionsTotal: number;
+    leaderboardDefinitionsOffset: number;
+    leaderboardDefinitionsSearchInput: string;
+    leaderboardDefinitionsSearchName: string;
+    leaderboardDefinitionsLoading: boolean;
+    leaderboardDefinitionsError: string | null;
+    onLeaderboardDefinitionsSearchInputChange: (value: string) => void;
+    onLeaderboardDefinitionsSearch: () => void;
+    onLeaderboardDefinitionsClearSearch: () => void;
+    onLeaderboardDefinitionsPreviousPage: () => void;
+    onLeaderboardDefinitionsNextPage: () => void;
     getManualOverwriteTargetId: (
-        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition" | "entity_pool",
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition" | "entity_pool" | "leaderboard_definition",
         sourceId: string,
     ) => string | null;
     onManualOverwriteSuccess: () => Promise<void>;

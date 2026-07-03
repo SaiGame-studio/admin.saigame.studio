@@ -64,6 +64,18 @@ export function getCloneSessionManualOverwritePair(conflict: CloneSessionConflic
         return sourceId && targetId ? { contentType: "entity_definition", sourceId, targetId } : null;
     }
 
+    if (progressTab === "entity_pools") {
+        const sourceId = (conflict.source_id || "").trim();
+        const targetId = (conflict.target_id || "").trim();
+        return sourceId && targetId ? { contentType: "entity_pool", sourceId, targetId } : null;
+    }
+
+    if (progressTab === "leaderboards" || progressTab === "leaderboard_definitions") {
+        const sourceId = (conflict.source_id || "").trim();
+        const targetId = (conflict.target_id || "").trim();
+        return sourceId && targetId ? { contentType: "leaderboard_definition", sourceId, targetId } : null;
+    }
+
     return null;
 }
 

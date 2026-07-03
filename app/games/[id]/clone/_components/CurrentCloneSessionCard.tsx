@@ -298,6 +298,7 @@ export function CurrentCloneSessionCard({
         craftingRecipesState,
         entityDefinitionsState,
         entityPoolsState,
+        leaderboardDefinitionsState,
     } = useCurrentCloneSessionDefinitions({
         currentSessionId,
         targetGameId,
@@ -309,6 +310,7 @@ export function CurrentCloneSessionCard({
         isCraftingRecipesTab,
         isEntityDefinitionsTab,
         isEntityPoolsTab,
+        isLeaderboardDefinitionsTab: activeProgressTab === "leaderboards" || activeProgressTab === "leaderboard_definitions",
         refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
@@ -450,6 +452,8 @@ export function CurrentCloneSessionCard({
             entityDefinitionsState.onApplySearchValue(searchValue);
         } else if (nextTab === "entity_pools") {
             entityPoolsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "leaderboards" || nextTab === "leaderboard_definitions") {
+            leaderboardDefinitionsState.onApplySearchValue(searchValue);
         }
     };
 
@@ -626,6 +630,18 @@ export function CurrentCloneSessionCard({
         onEntityPoolsClearSearch: entityPoolsState.onClearSearch,
         onEntityPoolsPreviousPage: entityPoolsState.onPreviousPage,
         onEntityPoolsNextPage: entityPoolsState.onNextPage,
+        leaderboardDefinitions: leaderboardDefinitionsState.items,
+        leaderboardDefinitionsTotal: leaderboardDefinitionsState.total,
+        leaderboardDefinitionsOffset: leaderboardDefinitionsState.offset,
+        leaderboardDefinitionsSearchInput: leaderboardDefinitionsState.searchInput,
+        leaderboardDefinitionsSearchName: leaderboardDefinitionsState.searchName,
+        leaderboardDefinitionsLoading: leaderboardDefinitionsState.loading,
+        leaderboardDefinitionsError: leaderboardDefinitionsState.error,
+        onLeaderboardDefinitionsSearchInputChange: leaderboardDefinitionsState.onSearchInputChange,
+        onLeaderboardDefinitionsSearch: leaderboardDefinitionsState.onSearch,
+        onLeaderboardDefinitionsClearSearch: leaderboardDefinitionsState.onClearSearch,
+        onLeaderboardDefinitionsPreviousPage: leaderboardDefinitionsState.onPreviousPage,
+        onLeaderboardDefinitionsNextPage: leaderboardDefinitionsState.onNextPage,
         getManualOverwriteTargetId,
         onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };
