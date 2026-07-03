@@ -11,6 +11,8 @@ import type {
     CloneSessionCurrentShopDefinition,
     CloneSessionSnapshot,
     CloneSessionCurrentCraftingRecipe,
+    CloneSessionCurrentEntityDefinition,
+    CloneSessionCurrentEntityPool,
 } from "@/lib/game-api";
 
 type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
@@ -131,8 +133,32 @@ export type CurrentCloneSessionProgressTabsProps = {
     onCraftingRecipesClearSearch: () => void;
     onCraftingRecipesPreviousPage: () => void;
     onCraftingRecipesNextPage: () => void;
+    entityDefinitions: CloneSessionCurrentEntityDefinition[];
+    entityDefinitionsTotal: number;
+    entityDefinitionsOffset: number;
+    entityDefinitionsSearchInput: string;
+    entityDefinitionsSearchName: string;
+    entityDefinitionsLoading: boolean;
+    entityDefinitionsError: string | null;
+    onEntityDefinitionsSearchInputChange: (value: string) => void;
+    onEntityDefinitionsSearch: () => void;
+    onEntityDefinitionsClearSearch: () => void;
+    onEntityDefinitionsPreviousPage: () => void;
+    onEntityDefinitionsNextPage: () => void;
+    entityPools: CloneSessionCurrentEntityPool[];
+    entityPoolsTotal: number;
+    entityPoolsOffset: number;
+    entityPoolsSearchInput: string;
+    entityPoolsSearchName: string;
+    entityPoolsLoading: boolean;
+    entityPoolsError: string | null;
+    onEntityPoolsSearchInputChange: (value: string) => void;
+    onEntityPoolsSearch: () => void;
+    onEntityPoolsClearSearch: () => void;
+    onEntityPoolsPreviousPage: () => void;
+    onEntityPoolsNextPage: () => void;
     getManualOverwriteTargetId: (
-        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe",
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition" | "entity_pool",
         sourceId: string,
     ) => string | null;
     onManualOverwriteSuccess: () => Promise<void>;

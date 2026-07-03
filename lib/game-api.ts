@@ -98,6 +98,27 @@ export interface CloneSessionSnapshot {
     message?: string;
 }
 
+export interface CloneSessionCurrentEntityPool {
+    id: string;
+    game_id: string;
+    pool_key: string;
+    name: string;
+    previously_cloned?: boolean;
+    ignored?: boolean;
+    is_ignored?: boolean;
+}
+
+export interface CloneSessionCurrentEntityPoolsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    entity_pools?: CloneSessionCurrentEntityPool[];
+}
+
 export interface CloneSessionCurrentItemDefinition {
     id: string;
     game_id: string;
@@ -411,7 +432,8 @@ export type CloneSessionIgnoreContentType =
     | "shop_definition"
     | "preset_definition"
     | "gacha_pack"
-    | "crafting_recipe";
+    | "crafting_recipe"
+    | "entity_definition";
 
 export interface CloneSessionManualOverwritePairPayload {
     content_type: CloneSessionIgnoreContentType;
@@ -655,6 +677,28 @@ export async function getCurrentCloneSessionItems(gameId: string, params?: Clone
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/items${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
+export async function getCurrentCloneSessionEntityPools(gameId: string, params?: CloneSessionCurrentItemsParams): Promise<CloneSessionCurrentEntityPoolsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (params?.limit !== undefined) {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (params?.offset !== undefined) {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/entity-pools?${searchParams.toString()}`);
+}
+
 export async function getCurrentCloneSessionCraftingRecipes(gameId: string, params?: CloneSessionCurrentCraftingRecipesParams): Promise<CloneSessionCurrentCraftingRecipesResponse> {
     const searchParams = new URLSearchParams();
 
@@ -847,3 +891,58 @@ export async function deleteCurrentCloneSession(gameId: string): Promise<void> {
 export async function getActiveCloneSessions(sourceGameId: string): Promise<ActiveCloneSessionsResponse> {
     return await api.get(`/api/v1/games/${sourceGameId}/clone-sessions/active`, { suppressToast: true });
 }
+
+export interface CloneSessionCurrentEntityDefinition {
+    id: string;
+    game_id: string;
+    entity_key: string;
+    name: string;
+    entity_type?: string;
+    rarity?: string;
+    previously_cloned?: boolean;
+    ignored?: boolean;
+    is_ignored?: boolean;
+}
+
+export interface CloneSessionCurrentEntityDefinitionsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    entity_definitions?: CloneSessionCurrentEntityDefinition[];
+    entities?: CloneSessionCurrentEntityDefinition[];
+}
+
+export interface CloneSessionCurrentEntityDefinitionsParams {
+    id?: string;
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export async function getCurrentCloneSessionEntityDefinitions(gameId: string, params?: CloneSessionCurrentEntityDefinitionsParams): Promise<CloneSessionCurrentEntityDefinitionsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/entity-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+

@@ -19,6 +19,8 @@ import { CurrentCloneSessionPresetDefinitionsTab } from "./CurrentCloneSessionPr
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
 import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
 import { CurrentCloneSessionCraftingRecipesTab } from "./CurrentCloneSessionCraftingRecipesTab";
+import { CurrentCloneSessionEntityDefinitionsTab } from "./CurrentCloneSessionEntityDefinitionsTab";
+import { CurrentCloneSessionEntityPoolsTab } from "./CurrentCloneSessionEntityPoolsTab";
 import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 import type { CurrentCloneSessionProgressTabsProps } from "./currentCloneSessionProgressTabs.types";
 import { formatDurationCompact, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
@@ -141,6 +143,12 @@ export function CurrentCloneSessionProgressTabs({
     craftingRecipes, craftingRecipesTotal, craftingRecipesOffset, craftingRecipesSearchInput, craftingRecipesSearchName,
     craftingRecipesLoading, craftingRecipesError, onCraftingRecipesSearchInputChange, onCraftingRecipesSearch,
     onCraftingRecipesClearSearch, onCraftingRecipesPreviousPage, onCraftingRecipesNextPage,
+    entityDefinitions, entityDefinitionsTotal, entityDefinitionsOffset, entityDefinitionsSearchInput, entityDefinitionsSearchName,
+    entityDefinitionsLoading, entityDefinitionsError, onEntityDefinitionsSearchInputChange, onEntityDefinitionsSearch,
+    onEntityDefinitionsClearSearch, onEntityDefinitionsPreviousPage, onEntityDefinitionsNextPage,
+    entityPools, entityPoolsTotal, entityPoolsOffset, entityPoolsSearchInput, entityPoolsSearchName,
+    entityPoolsLoading, entityPoolsError, onEntityPoolsSearchInputChange, onEntityPoolsSearch,
+    onEntityPoolsClearSearch, onEntityPoolsPreviousPage, onEntityPoolsNextPage,
     getManualOverwriteTargetId,
     onManualOverwriteSuccess,
 }: CurrentCloneSessionProgressTabsProps) {
@@ -561,6 +569,25 @@ export function CurrentCloneSessionProgressTabs({
                                         getManualOverwriteTargetId={getManualOverwriteTargetId}
                                         onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />
+                                ) : phaseKey === "entity_pools" ? (
+                                    <CurrentCloneSessionEntityPoolsTab
+                                        t={t}
+                                        entityPools={entityPools}
+                                        sessionId={currentSession.session_id}
+                                        entityPoolsTotal={entityPoolsTotal}
+                                        entityPoolsOffset={entityPoolsOffset}
+                                        entityPoolsSearchInput={entityPoolsSearchInput}
+                                        entityPoolsSearchName={entityPoolsSearchName}
+                                        entityPoolsLoading={entityPoolsLoading}
+                                        entityPoolsError={entityPoolsError}
+                                        onEntityPoolsSearchInputChange={onEntityPoolsSearchInputChange}
+                                        onEntityPoolsSearch={onEntityPoolsSearch}
+                                        onEntityPoolsClearSearch={onEntityPoolsClearSearch}
+                                        onEntityPoolsPreviousPage={onEntityPoolsPreviousPage}
+                                        onEntityPoolsNextPage={onEntityPoolsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
                                 ) : phaseKey === "crafting_recipes" || phaseKey === "crafting_recipe_definitions" ? (
                                     <CurrentCloneSessionCraftingRecipesTab
                                         t={t}
@@ -663,6 +690,25 @@ export function CurrentCloneSessionProgressTabs({
                                         onGachaPacksClearSearch={onGachaPacksClearSearch}
                                         onGachaPacksPreviousPage={onGachaPacksPreviousPage}
                                         onGachaPacksNextPage={onGachaPacksNextPage}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "entity_definitions" ? (
+                                    <CurrentCloneSessionEntityDefinitionsTab
+                                        t={t}
+                                        entityDefinitions={entityDefinitions}
+                                        sessionId={currentSession.session_id}
+                                        entityDefinitionsTotal={entityDefinitionsTotal}
+                                        entityDefinitionsOffset={entityDefinitionsOffset}
+                                        entityDefinitionsSearchInput={entityDefinitionsSearchInput}
+                                        entityDefinitionsSearchName={entityDefinitionsSearchName}
+                                        entityDefinitionsLoading={entityDefinitionsLoading}
+                                        entityDefinitionsError={entityDefinitionsError}
+                                        onEntityDefinitionsSearchInputChange={onEntityDefinitionsSearchInputChange}
+                                        onEntityDefinitionsSearch={onEntityDefinitionsSearch}
+                                        onEntityDefinitionsClearSearch={onEntityDefinitionsClearSearch}
+                                        onEntityDefinitionsPreviousPage={onEntityDefinitionsPreviousPage}
+                                        onEntityDefinitionsNextPage={onEntityDefinitionsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
                                         onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />
                                 ) : null}

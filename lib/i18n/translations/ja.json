@@ -496,6 +496,14 @@
     "sourceGameCurrentSessionCraftingRecipesTabLabel": "クラフト",
     "sourceGameCurrentSessionCraftingRecipeKeyLabel": "レシピキー",
     "sourceGameCurrentSessionCraftingRecipeSearchPlaceholder": "IDまたは名前で検索...",
+    "sourceGameCurrentSessionEntityDefinitionsTabLabel": "エンティティ",
+    "sourceGameCurrentSessionEntityKeyLabel": "エンティティキー",
+    "sourceGameCurrentSessionEntityDefinitionSearchPlaceholder": "IDまたは名前で検索...",
+    "sourceGameCurrentSessionEntityPoolsTabLabel": "エンティティプール",
+    "sourceGameCurrentSessionEntityPoolKeyLabel": "プールキー",
+    "sourceGameCurrentSessionEntityPoolSearchPlaceholder": "プールキーまたは名前で検索...",
+    "sourceGameCurrentSessionTypeLabel": "タイプ",
+    "sourceGameCurrentSessionRarityLabel": "レアリティ",
     "sourceGameCurrentSessionItemRarityLabel": "レアリティ",
     "sourceGameCurrentSessionItemCategoryLabel": "カテゴリ",
     "sourceGameCurrentSessionItemSearchLabel": "アイテム定義を検索",
@@ -564,7 +572,9 @@
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "warnings": {
       "clone_quota_quest_definitions": "コピー先の上限では、すべてのクエスト定義を収められない可能性があります。空きスロット: {available_slot} / {required_total}。",
-      "clone_warning_shop_source_item_definition_missing": "ソースショップ項目 {shop_item_id} は、見つからないソース item definition {missing_source_item_definition_id} を参照しています。"
+      "clone_warning_shop_source_item_definition_missing": "ソースショップ項目 {shop_item_id} は、見つからないソース item definition {missing_source_item_definition_id} を参照しています。",
+      "clone_quota_entity_definitions": "コピー先の上限では、すべてのエンティティ定義を収められない可能性があります。\n- 不足スロット：{missing_slot}\n- 必要数：{required_clone_count}\n- 利用可能：{available_slot}",
+      "clone_quota_entity_pools": "コピー先の上限では、すべてのエンティティプールを収められない可能性があります。\n- 不足スロット：{missing_slot}\n- 必要数：{required_clone_count}\n- 利用可能：{available_slot}"
     },
     "sourceGameCurrentSessionProgressLabel": "進捗"
   },
@@ -3999,7 +4009,11 @@
     "entityUsername": "ユーザー名",
     "entityActive": "アクティブ",
     "entityInactive": "非アクティブ",
-    "entityVerified": "認証済み",
+    "cloneGame.sourceGameCurrentSessionEntityPoolsTabLabel": "エンティティプール",
+    "cloneGame.sourceGameCurrentSessionEntityPoolKeyLabel": "プールキー",
+    "cloneGame.sourceGameCurrentSessionEntityPoolSearchPlaceholder": "プールキーまたは名前で検索...",
+    "cloneGame.warnings.clone_quota_entity_pools": "対象クォータがすべてのエンティティプールを複製するのに十分ではありません。\n- 必要数: {required_clone_count}\n- 利用可能: {available_slot}\n- 不足数: {missing_slot}",
+    "entityVerified": "確認済み",
     "entityUnverified": "未認証",
     "entityLastLogin": "最終ログイン",
     "entityName": "名前",

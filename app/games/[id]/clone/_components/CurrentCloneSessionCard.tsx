@@ -104,19 +104,25 @@ export function CurrentCloneSessionCard({
     const isPresetDefinitionsTab = activeProgressTab === "preset_definitions";
     const isGachaPacksTab = activeProgressTab === "gacha_packs" || activeProgressTab === "gacha_pack_definitions";
     const isCraftingRecipesTab = activeProgressTab === "crafting_recipes" || activeProgressTab === "crafting_recipe_definitions";
+    const isEntityDefinitionsTab = activeProgressTab === "entity_definitions";
+    const isEntityPoolsTab = activeProgressTab === "entity_pools";
     const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
 
     useEffect(() => {
         if (!currentSessionId || currentSessionProgressEntries.length === 0) {
-            previousSessionIdRef.current = currentSessionId;
             return;
         }
 
-        if (previousSessionIdRef.current === currentSessionId) {
+        const previousSessionId = previousSessionIdRef.current;
+        if (previousSessionId === currentSessionId) {
             return;
         }
 
         previousSessionIdRef.current = currentSessionId;
+
+        if (!previousSessionId) {
+            return;
+        }
 
         const nextParams = new URLSearchParams(searchParams.toString());
         nextParams.set("subTab", currentSessionProgressEntries[0]?.[0] ?? "");
@@ -290,6 +296,8 @@ export function CurrentCloneSessionCard({
         presetDefinitionsState,
         gachaPacksState,
         craftingRecipesState,
+        entityDefinitionsState,
+        entityPoolsState,
     } = useCurrentCloneSessionDefinitions({
         currentSessionId,
         targetGameId,
@@ -299,12 +307,14 @@ export function CurrentCloneSessionCard({
         isPresetDefinitionsTab,
         isGachaPacksTab,
         isCraftingRecipesTab,
+        isEntityDefinitionsTab,
+        isEntityPoolsTab,
         refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
 
     const getManualOverwriteTargetId = useCallback((
-        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition",
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition",
         sourceId: string,
     ) => findCloneSessionManualOverwriteTargetId(currentSessionConflicts, contentType, sourceId), [currentSessionConflicts]);
 
@@ -436,6 +446,10 @@ export function CurrentCloneSessionCard({
             gachaPacksState.onApplySearchValue(searchValue);
         } else if (nextTab === "crafting_recipes" || nextTab === "crafting_recipe_definitions") {
             craftingRecipesState.onApplySearchValue(searchValue);
+        } else if (nextTab === "entity_definitions") {
+            entityDefinitionsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "entity_pools") {
+            entityPoolsState.onApplySearchValue(searchValue);
         }
     };
 
@@ -588,6 +602,30 @@ export function CurrentCloneSessionCard({
         onCraftingRecipesClearSearch: craftingRecipesState.onClearSearch,
         onCraftingRecipesPreviousPage: craftingRecipesState.onPreviousPage,
         onCraftingRecipesNextPage: craftingRecipesState.onNextPage,
+        entityDefinitions: entityDefinitionsState.items,
+        entityDefinitionsTotal: entityDefinitionsState.total,
+        entityDefinitionsOffset: entityDefinitionsState.offset,
+        entityDefinitionsSearchInput: entityDefinitionsState.searchInput,
+        entityDefinitionsSearchName: entityDefinitionsState.searchName,
+        entityDefinitionsLoading: entityDefinitionsState.loading,
+        entityDefinitionsError: entityDefinitionsState.error,
+        onEntityDefinitionsSearchInputChange: entityDefinitionsState.onSearchInputChange,
+        onEntityDefinitionsSearch: entityDefinitionsState.onSearch,
+        onEntityDefinitionsClearSearch: entityDefinitionsState.onClearSearch,
+        onEntityDefinitionsPreviousPage: entityDefinitionsState.onPreviousPage,
+        onEntityDefinitionsNextPage: entityDefinitionsState.onNextPage,
+        entityPools: entityPoolsState.items,
+        entityPoolsTotal: entityPoolsState.total,
+        entityPoolsOffset: entityPoolsState.offset,
+        entityPoolsSearchInput: entityPoolsState.searchInput,
+        entityPoolsSearchName: entityPoolsState.searchName,
+        entityPoolsLoading: entityPoolsState.loading,
+        entityPoolsError: entityPoolsState.error,
+        onEntityPoolsSearchInputChange: entityPoolsState.onSearchInputChange,
+        onEntityPoolsSearch: entityPoolsState.onSearch,
+        onEntityPoolsClearSearch: entityPoolsState.onClearSearch,
+        onEntityPoolsPreviousPage: entityPoolsState.onPreviousPage,
+        onEntityPoolsNextPage: entityPoolsState.onNextPage,
         getManualOverwriteTargetId,
         onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };

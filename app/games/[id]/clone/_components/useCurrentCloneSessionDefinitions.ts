@@ -14,6 +14,10 @@ import {
     type CloneSessionCurrentQuestDefinition,
     type CloneSessionCurrentShopDefinition,
     type CloneSessionCurrentCraftingRecipe,
+    getCurrentCloneSessionEntityDefinitions,
+    type CloneSessionCurrentEntityDefinition,
+    getCurrentCloneSessionEntityPools,
+    type CloneSessionCurrentEntityPool,
 } from "@/lib/game-api";
 
 export const CLONE_SESSION_PAGE_SIZE = 12;
@@ -44,6 +48,8 @@ type UseCurrentCloneSessionDefinitionsParams = {
     isPresetDefinitionsTab: boolean;
     isGachaPacksTab: boolean;
     isCraftingRecipesTab: boolean;
+    isEntityDefinitionsTab: boolean;
+    isEntityPoolsTab: boolean;
     refreshNonce: number;
     formatError: (error: unknown) => string;
 };
@@ -125,6 +131,8 @@ export function useCurrentCloneSessionDefinitions({
     isPresetDefinitionsTab,
     isGachaPacksTab,
     isCraftingRecipesTab,
+    isEntityDefinitionsTab,
+    isEntityPoolsTab,
     refreshNonce,
     formatError,
 }: UseCurrentCloneSessionDefinitionsParams) {
@@ -134,6 +142,8 @@ export function useCurrentCloneSessionDefinitions({
     const presetDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentPresetDefinition>();
     const gachaPacksState = useCloneSessionPagedState<CloneSessionCurrentGachaPack>();
     const craftingRecipesState = useCloneSessionPagedState<CloneSessionCurrentCraftingRecipe>();
+    const entityDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentEntityDefinition>();
+    const entityPoolsState = useCloneSessionPagedState<CloneSessionCurrentEntityPool>();
 
     useEffect(() => {
         if (!currentSessionId || !isEquipmentSlotDefinitionsTab) {
@@ -444,6 +454,108 @@ export function useCurrentCloneSessionDefinitions({
         };
     }, [currentSessionId, formatError, craftingRecipesState.offset, craftingRecipesState.searchId, craftingRecipesState.searchName, isCraftingRecipesTab, refreshNonce, targetGameId]);
 
+    useEffect(() => {
+        if (!currentSessionId || !isEntityDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadEntityDefinitions = async () => {
+            entityDefinitionsState.setLoading(true);
+            entityDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionEntityDefinitions(targetGameId, {
+                    id: entityDefinitionsState.searchId || undefined,
+                    name: entityDefinitionsState.searchId ? undefined : entityDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: entityDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextEntityDefinitions = Array.isArray(response.entity_definitions)
+                    ? response.entity_definitions
+                    : Array.isArray(response.entities)
+                        ? response.entities
+                        : [];
+
+                entityDefinitionsState.setItems(nextEntityDefinitions);
+                entityDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                entityDefinitionsState.setItems([]);
+                entityDefinitionsState.setTotal(0);
+                entityDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    entityDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadEntityDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, entityDefinitionsState.offset, entityDefinitionsState.searchId, entityDefinitionsState.searchName, isEntityDefinitionsTab, refreshNonce, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isEntityPoolsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadEntityPools = async () => {
+            entityPoolsState.setLoading(true);
+            entityPoolsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionEntityPools(targetGameId, {
+                    id: entityPoolsState.searchId || undefined,
+                    name: entityPoolsState.searchId ? undefined : entityPoolsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: entityPoolsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextEntityPools = Array.isArray(response.entity_pools) ? response.entity_pools : [];
+
+                entityPoolsState.setItems(nextEntityPools);
+                entityPoolsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                entityPoolsState.setItems([]);
+                entityPoolsState.setTotal(0);
+                entityPoolsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    entityPoolsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadEntityPools();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, entityPoolsState.offset, entityPoolsState.searchId, entityPoolsState.searchName, isEntityPoolsTab, refreshNonce, targetGameId]);
+
     return {
         equipmentSlotDefinitionsState: toPagedResult(equipmentSlotDefinitionsState),
         questsState: toPagedResult(questsState),
@@ -451,5 +563,7 @@ export function useCurrentCloneSessionDefinitions({
         presetDefinitionsState: toPagedResult(presetDefinitionsState),
         gachaPacksState: toPagedResult(gachaPacksState),
         craftingRecipesState: toPagedResult(craftingRecipesState),
+        entityDefinitionsState: toPagedResult(entityDefinitionsState),
+        entityPoolsState: toPagedResult(entityPoolsState),
     };
 }

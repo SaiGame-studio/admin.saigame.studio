@@ -58,6 +58,12 @@ export function getCloneSessionManualOverwritePair(conflict: CloneSessionConflic
         return sourceId && targetId ? { contentType: "crafting_recipe", sourceId, targetId } : null;
     }
 
+    if (progressTab === "entity_definitions") {
+        const sourceId = (conflict.source_id || "").trim();
+        const targetId = (conflict.target_id || "").trim();
+        return sourceId && targetId ? { contentType: "entity_definition", sourceId, targetId } : null;
+    }
+
     return null;
 }
 

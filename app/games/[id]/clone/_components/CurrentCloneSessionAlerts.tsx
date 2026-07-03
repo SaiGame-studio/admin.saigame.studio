@@ -139,6 +139,10 @@ export function CurrentCloneSessionAlerts({
                                 && conflict.field === "recipe_key"
                                 && Boolean(conflict.value)
                                 && Boolean(conflict.source_id || conflict.target_id);
+                            const hasEntityDefinitionCodeConflictLinks = getConflictProgressTab(conflict) === "entity_definitions"
+                                && conflict.field === "entity_code"
+                                && Boolean(conflict.value)
+                                && Boolean(conflict.source_id || conflict.target_id);
 
                             return (
                                 <div
@@ -471,6 +475,71 @@ export function CurrentCloneSessionAlerts({
                                                 </div>
                                             ) : null}
                                         </div>
+                                    ) : hasEntityDefinitionCodeConflictLinks ? (
+                                        <div id={`clone-game-source-current-session-conflict-entity-code-wrap-${idSegment}-${index}`} className="space-y-1">
+                                            <p id={`clone-game-source-current-session-conflict-field-${idSegment}-${index}`} className="font-medium text-foreground">
+                                                {conflictHeaderLabel}
+                                            </p>
+                                            {sourceGameId && conflict.source_id ? (
+                                                <div id={`clone-game-source-current-session-conflict-source-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
+                                                    <span id={`clone-game-source-current-session-conflict-source-label-${idSegment}-${index}`} className="text-muted-foreground">
+                                                        Source:
+                                                    </span>
+                                                    <Button
+                                                        id={`clone-game-source-current-session-conflict-source-link-${idSegment}-${index}`}
+                                                        type="button"
+                                                        variant="link"
+                                                        className="h-auto p-0 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                                                        onClick={() => onConflictClick(conflict)}
+                                                    >
+                                                        <span id={`clone-game-source-current-session-conflict-source-value-${idSegment}-${index}`}>
+                                                            {conflictValue}
+                                                        </span>
+                                                    </Button>
+                                                    <span id={`clone-game-source-current-session-conflict-source-id-${idSegment}-${index}`} className="font-mono break-all">
+                                                        {conflict.source_id}
+                                                    </span>
+                                                    <CopyButton
+                                                        id={`clone-game-source-current-session-conflict-source-id-copy-btn-${idSegment}-${index}`}
+                                                        iconId={`clone-game-source-current-session-conflict-source-id-copy-icon-${idSegment}-${index}`}
+                                                        text={conflict.source_id}
+                                                        size="h-3 w-3"
+                                                        className="ml-0"
+                                                    />
+                                                </div>
+                                            ) : null}
+                                            {conflict.target_id ? (
+                                                <div id={`clone-game-source-current-session-conflict-target-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
+                                                    <span id={`clone-game-source-current-session-conflict-target-label-${idSegment}-${index}`} className="text-muted-foreground">
+                                                        Target:
+                                                    </span>
+                                                    <Link
+                                                        id={`clone-game-source-current-session-conflict-target-link-${idSegment}-${index}`}
+                                                        href={`/games/${targetGameId}/entities/${conflict.target_id}`}
+                                                        className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                                                    >
+                                                        <span id={`clone-game-source-current-session-conflict-target-value-${idSegment}-${index}`}>
+                                                            {conflictValue}
+                                                        </span>
+                                                        <ExternalLink
+                                                            id={`clone-game-source-current-session-conflict-target-link-icon-${idSegment}-${index}`}
+                                                            className="h-3.5 w-3.5"
+                                                            aria-hidden="true"
+                                                        />
+                                                    </Link>
+                                                    <span id={`clone-game-source-current-session-conflict-target-id-${idSegment}-${index}`} className="font-mono break-all">
+                                                        {conflict.target_id}
+                                                    </span>
+                                                    <CopyButton
+                                                        id={`clone-game-source-current-session-conflict-target-id-copy-btn-${idSegment}-${index}`}
+                                                        iconId={`clone-game-source-current-session-conflict-target-id-copy-icon-${idSegment}-${index}`}
+                                                        text={conflict.target_id}
+                                                        size="h-3 w-3"
+                                                        className="ml-0"
+                                                    />
+                                                </div>
+                                            ) : null}
+                                        </div>
                                     ) : hasShopKeyConflictLinks ? (
                                         <div id={`clone-game-source-current-session-conflict-shop-key-wrap-${idSegment}-${index}`} className="space-y-1">
                                             <p id={`clone-game-source-current-session-conflict-field-${idSegment}-${index}`} className="font-medium text-foreground">
@@ -702,7 +771,7 @@ export function CurrentCloneSessionAlerts({
                                             {formatTechnicalLabel(warning.field) || t("common.unknown")}
                                         </p>
                                     )}
-                                    <p id={`clone-game-source-current-session-warning-message-${idSegment}-${index}`}>
+                                    <p id={`clone-game-source-current-session-warning-message-${idSegment}-${index}`} className="whitespace-pre-wrap">
                                         {getWarningMessage(warning)}
                                     </p>
                                 </div>
