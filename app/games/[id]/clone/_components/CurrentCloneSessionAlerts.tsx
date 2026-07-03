@@ -771,7 +771,7 @@ export function CurrentCloneSessionAlerts({
                                             {formatTechnicalLabel(warning.field) || t("common.unknown")}
                                         </p>
                                     )}
-                                    <p id={`clone-game-source-current-session-warning-message-${idSegment}-${index}`}>
+                                    <p id={`clone-game-source-current-session-warning-message-${idSegment}-${index}`} className="whitespace-pre-wrap">
                                         {getWarningMessage(warning)}
                                     </p>
                                 </div>

@@ -569,7 +569,8 @@
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "warnings": {
       "clone_quota_quest_definitions": "コピー先の上限では、すべてのクエスト定義を収められない可能性があります。空きスロット: {available_slot} / {required_total}。",
-      "clone_warning_shop_source_item_definition_missing": "ソースショップ項目 {shop_item_id} は、見つからないソース item definition {missing_source_item_definition_id} を参照しています。"
+      "clone_warning_shop_source_item_definition_missing": "ソースショップ項目 {shop_item_id} は、見つからないソース item definition {missing_source_item_definition_id} を参照しています。",
+      "clone_quota_entity_definitions": "コピー先の上限では、すべてのエンティティ定義を収められない可能性があります。\n- 不足スロット：{missing_slot}\n- 必要数：{required_clone_count}\n- 利用可能：{available_slot}"
     },
     "sourceGameCurrentSessionProgressLabel": "進捗"
   },
