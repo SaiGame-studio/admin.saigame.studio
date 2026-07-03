@@ -434,6 +434,8 @@ export function CurrentCloneSessionCard({
             presetDefinitionsState.onApplySearchValue(searchValue);
         } else if (nextTab === "gacha_packs" || nextTab === "gacha_pack_definitions") {
             gachaPacksState.onApplySearchValue(searchValue);
+        } else if (nextTab === "crafting_recipes" || nextTab === "crafting_recipe_definitions") {
+            craftingRecipesState.onApplySearchValue(searchValue);
         }
     };
 
