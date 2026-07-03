@@ -427,6 +427,7 @@
     "sourceGamePurchasedTooltip": "This public clone source has already been purchased.",
     "sourceGameFiltersLabel": "Filters",
     "sourceGameMyGames": "My Games",
+    "sourceGameIsTarget": "Current Game",
     "sourceGameSelect": "Clone Game",
     "sourceGameStartCloneProgress": "Start Clone Progress",
     "sourceGameCloneProgressStarted": "Clone progress started.",

@@ -427,6 +427,7 @@
     "sourceGamePurchasedTooltip": "Nguồn clone công khai này đã được mua.",
     "sourceGameFiltersLabel": "Bộ lọc",
     "sourceGameMyGames": "Game của tôi",
+    "sourceGameIsTarget": "Game hiện tại",
     "sourceGameSelect": "Nhân bản game",
     "sourceGameStartCloneProgress": "Bắt đầu Clone Progress",
     "sourceGameCloneProgressStarted": "Đã bắt đầu clone progress.",
