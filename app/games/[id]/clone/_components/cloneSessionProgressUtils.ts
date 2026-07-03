@@ -88,7 +88,10 @@ export function getCloneSessionPhaseLabel(phaseKey: string | undefined, t: Trans
         case "gacha_pack_definitions":
             return t("cloneGame.sourceGameCurrentSessionGachaPacksTabLabel");
         case "crafting_recipes":
+        case "crafting_recipe_definitions":
             return t("cloneGame.sourceGameCurrentSessionCraftingRecipesTabLabel");
+        case "entity_definitions":
+            return t("cloneGame.sourceGameCurrentSessionEntityDefinitionsTabLabel");
         default:
             return formatTechnicalLabel(phaseKey) || t("common.unknown");
     }
