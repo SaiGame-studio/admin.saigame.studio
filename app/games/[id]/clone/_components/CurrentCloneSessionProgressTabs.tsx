@@ -298,8 +298,8 @@ export function CurrentCloneSessionProgressTabs({
                         {t("cloneGame.sourceGameCurrentSessionProgressLabel")}
                     </p>
                     <Tabs id="clone-game-source-current-session-progress-tabs" value={activeProgressTab ?? currentSessionProgressEntries[0]?.[0] ?? ""} onValueChange={handleProgressTabChange} className="w-full">
-                        <div id="clone-game-source-current-session-progress-tabs-scroll" className="overflow-x-auto">
-                            <TabsList id="clone-game-source-current-session-progress-tabs-list" className="mb-3 inline-flex min-w-max">
+                        <div id="clone-game-source-current-session-progress-tabs-wrap" className="w-full">
+                            <TabsList id="clone-game-source-current-session-progress-tabs-list" className="mb-3 flex h-auto flex-wrap justify-start gap-1">
                                 {currentSessionProgressEntries.map(([phaseKey], index) => (
                                     <TabsTrigger
                                         id={`clone-game-source-current-session-progress-tab-trigger-${toKebabIdSegment(phaseKey)}`}
