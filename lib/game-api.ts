@@ -433,7 +433,9 @@ export type CloneSessionIgnoreContentType =
     | "preset_definition"
     | "gacha_pack"
     | "crafting_recipe"
-    | "entity_definition";
+    | "entity_definition"
+    | "entity_pool"
+    | "leaderboard_definition";
 
 export interface CloneSessionManualOverwritePairPayload {
     content_type: CloneSessionIgnoreContentType;
@@ -946,3 +948,63 @@ export async function getCurrentCloneSessionEntityDefinitions(gameId: string, pa
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/entity-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
 }
 
+export interface LeaderboardDefinition {
+    id: string;
+    board_key: string;
+    name: string;
+    description?: string;
+    score_mode: string;
+    sort_direction: string;
+    reset_schedule: string;
+    score_source_type: string;
+    score_source_ref_id?: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface CloneSessionCurrentLeaderboardDefinition {
+    source_id: string;
+    target_id: string | null;
+    has_conflict: boolean;
+    conflict_code: string;
+    is_ignored: boolean;
+    is_resolved: boolean;
+    source_data: LeaderboardDefinition;
+}
+
+export interface CloneSessionCurrentLeaderboardDefinitionsResponse {
+    limit?: number;
+    offset?: number;
+    total?: number;
+    items?: CloneSessionCurrentLeaderboardDefinition[];
+}
+
+export interface CloneSessionCurrentLeaderboardDefinitionsParams {
+    id?: string;
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export async function getCurrentCloneSessionLeaderboardDefinitions(gameId: string, params?: CloneSessionCurrentLeaderboardDefinitionsParams): Promise<CloneSessionCurrentLeaderboardDefinitionsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/leaderboard-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
+}

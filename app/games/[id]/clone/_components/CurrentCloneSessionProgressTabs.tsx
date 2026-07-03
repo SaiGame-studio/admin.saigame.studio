@@ -21,6 +21,7 @@ import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShop
 import { CurrentCloneSessionCraftingRecipesTab } from "./CurrentCloneSessionCraftingRecipesTab";
 import { CurrentCloneSessionEntityDefinitionsTab } from "./CurrentCloneSessionEntityDefinitionsTab";
 import { CurrentCloneSessionEntityPoolsTab } from "./CurrentCloneSessionEntityPoolsTab";
+import { CurrentCloneSessionLeaderboardDefinitionsTab } from "./CurrentCloneSessionLeaderboardDefinitionsTab";
 import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 import type { CurrentCloneSessionProgressTabsProps } from "./currentCloneSessionProgressTabs.types";
 import { formatDurationCompact, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
@@ -149,6 +150,9 @@ export function CurrentCloneSessionProgressTabs({
     entityPools, entityPoolsTotal, entityPoolsOffset, entityPoolsSearchInput, entityPoolsSearchName,
     entityPoolsLoading, entityPoolsError, onEntityPoolsSearchInputChange, onEntityPoolsSearch,
     onEntityPoolsClearSearch, onEntityPoolsPreviousPage, onEntityPoolsNextPage,
+    leaderboardDefinitions, leaderboardDefinitionsTotal, leaderboardDefinitionsOffset, leaderboardDefinitionsSearchInput, leaderboardDefinitionsSearchName,
+    leaderboardDefinitionsLoading, leaderboardDefinitionsError, onLeaderboardDefinitionsSearchInputChange, onLeaderboardDefinitionsSearch,
+    onLeaderboardDefinitionsClearSearch, onLeaderboardDefinitionsPreviousPage, onLeaderboardDefinitionsNextPage,
     getManualOverwriteTargetId,
     onManualOverwriteSuccess,
 }: CurrentCloneSessionProgressTabsProps) {
@@ -604,6 +608,25 @@ export function CurrentCloneSessionProgressTabs({
                                         onCraftingRecipesClearSearch={onCraftingRecipesClearSearch}
                                         onCraftingRecipesPreviousPage={onCraftingRecipesPreviousPage}
                                         onCraftingRecipesNextPage={onCraftingRecipesNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "leaderboards" || phaseKey === "leaderboard_definitions" ? (
+                                    <CurrentCloneSessionLeaderboardDefinitionsTab
+                                        t={t}
+                                        leaderboardDefinitions={leaderboardDefinitions}
+                                        sessionId={currentSession.session_id}
+                                        leaderboardDefinitionsTotal={leaderboardDefinitionsTotal}
+                                        leaderboardDefinitionsOffset={leaderboardDefinitionsOffset}
+                                        leaderboardDefinitionsSearchInput={leaderboardDefinitionsSearchInput}
+                                        leaderboardDefinitionsSearchName={leaderboardDefinitionsSearchName}
+                                        leaderboardDefinitionsLoading={leaderboardDefinitionsLoading}
+                                        leaderboardDefinitionsError={leaderboardDefinitionsError}
+                                        onLeaderboardDefinitionsSearchInputChange={onLeaderboardDefinitionsSearchInputChange}
+                                        onLeaderboardDefinitionsSearch={onLeaderboardDefinitionsSearch}
+                                        onLeaderboardDefinitionsClearSearch={onLeaderboardDefinitionsClearSearch}
+                                        onLeaderboardDefinitionsPreviousPage={onLeaderboardDefinitionsPreviousPage}
+                                        onLeaderboardDefinitionsNextPage={onLeaderboardDefinitionsNextPage}
                                         getManualOverwriteTargetId={getManualOverwriteTargetId}
                                         onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />

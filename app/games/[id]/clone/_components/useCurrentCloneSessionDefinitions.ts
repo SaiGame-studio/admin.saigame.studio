@@ -18,6 +18,8 @@ import {
     type CloneSessionCurrentEntityDefinition,
     getCurrentCloneSessionEntityPools,
     type CloneSessionCurrentEntityPool,
+    getCurrentCloneSessionLeaderboardDefinitions,
+    type CloneSessionCurrentLeaderboardDefinition,
 } from "@/lib/game-api";
 
 export const CLONE_SESSION_PAGE_SIZE = 12;
@@ -50,6 +52,7 @@ type UseCurrentCloneSessionDefinitionsParams = {
     isCraftingRecipesTab: boolean;
     isEntityDefinitionsTab: boolean;
     isEntityPoolsTab: boolean;
+    isLeaderboardDefinitionsTab: boolean;
     refreshNonce: number;
     formatError: (error: unknown) => string;
 };
@@ -133,6 +136,7 @@ export function useCurrentCloneSessionDefinitions({
     isCraftingRecipesTab,
     isEntityDefinitionsTab,
     isEntityPoolsTab,
+    isLeaderboardDefinitionsTab,
     refreshNonce,
     formatError,
 }: UseCurrentCloneSessionDefinitionsParams) {
@@ -144,6 +148,7 @@ export function useCurrentCloneSessionDefinitions({
     const craftingRecipesState = useCloneSessionPagedState<CloneSessionCurrentCraftingRecipe>();
     const entityDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentEntityDefinition>();
     const entityPoolsState = useCloneSessionPagedState<CloneSessionCurrentEntityPool>();
+    const leaderboardDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentLeaderboardDefinition>();
 
     useEffect(() => {
         if (!currentSessionId || !isEquipmentSlotDefinitionsTab) {
@@ -556,6 +561,55 @@ export function useCurrentCloneSessionDefinitions({
         };
     }, [currentSessionId, formatError, entityPoolsState.offset, entityPoolsState.searchId, entityPoolsState.searchName, isEntityPoolsTab, refreshNonce, targetGameId]);
 
+    useEffect(() => {
+        if (!currentSessionId || !isLeaderboardDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadLeaderboardDefinitions = async () => {
+            leaderboardDefinitionsState.setLoading(true);
+            leaderboardDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionLeaderboardDefinitions(targetGameId, {
+                    id: leaderboardDefinitionsState.searchId || undefined,
+                    name: leaderboardDefinitionsState.searchId ? undefined : leaderboardDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: leaderboardDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextLeaderboards = Array.isArray(response.items) ? response.items : [];
+
+                leaderboardDefinitionsState.setItems(nextLeaderboards);
+                leaderboardDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                leaderboardDefinitionsState.setItems([]);
+                leaderboardDefinitionsState.setTotal(0);
+                leaderboardDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    leaderboardDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadLeaderboardDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, leaderboardDefinitionsState.offset, leaderboardDefinitionsState.searchId, leaderboardDefinitionsState.searchName, isLeaderboardDefinitionsTab, refreshNonce, targetGameId]);
+
     return {
         equipmentSlotDefinitionsState: toPagedResult(equipmentSlotDefinitionsState),
         questsState: toPagedResult(questsState),
@@ -565,5 +619,6 @@ export function useCurrentCloneSessionDefinitions({
         craftingRecipesState: toPagedResult(craftingRecipesState),
         entityDefinitionsState: toPagedResult(entityDefinitionsState),
         entityPoolsState: toPagedResult(entityPoolsState),
+        leaderboardDefinitionsState: toPagedResult(leaderboardDefinitionsState),
     };
 }
