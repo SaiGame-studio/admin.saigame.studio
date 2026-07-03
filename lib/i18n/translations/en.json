@@ -494,6 +494,8 @@
     "sourceGameCurrentSessionPresetDefinitionsTabLabel": "Presets",
     "sourceGameCurrentSessionGachaPacksTabLabel": "Gacha Packs",
     "sourceGameCurrentSessionCraftingRecipesTabLabel": "Crafting",
+    "sourceGameCurrentSessionCraftingRecipeKeyLabel": "Recipe Key",
+    "sourceGameCurrentSessionCraftingRecipeSearchPlaceholder": "Search by ID or name...",
     "sourceGameCurrentSessionItemRarityLabel": "Rarity",
     "sourceGameCurrentSessionItemCategoryLabel": "Category",
     "sourceGameCurrentSessionItemSearchLabel": "Search item definitions",

@@ -121,6 +121,28 @@ export interface CloneSessionCurrentItemsResponse {
     items?: CloneSessionCurrentItemDefinition[];
 }
 
+export interface CloneSessionCurrentCraftingRecipe {
+    id: string;
+    game_id: string;
+    recipe_key: string;
+    name: string;
+    category?: string;
+    previously_cloned?: boolean;
+    ignored?: boolean;
+    is_ignored?: boolean;
+}
+
+export interface CloneSessionCurrentCraftingRecipesResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    crafting_recipes?: CloneSessionCurrentCraftingRecipe[];
+}
+
 export interface CloneSessionCurrentItemContainer {
     id: string;
     game_id: string;
@@ -324,6 +346,13 @@ export interface CloneSessionCurrentItemsParams {
     offset?: number;
 }
 
+export interface CloneSessionCurrentCraftingRecipesParams {
+    id?: string;
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
 export interface CloneSessionCurrentItemContainersParams {
     id?: string;
     name?: string;
@@ -381,7 +410,8 @@ export type CloneSessionIgnoreContentType =
     | "quest_definition"
     | "shop_definition"
     | "preset_definition"
-    | "gacha_pack";
+    | "gacha_pack"
+    | "crafting_recipe";
 
 export interface CloneSessionManualOverwritePairPayload {
     content_type: CloneSessionIgnoreContentType;
@@ -623,6 +653,30 @@ export async function getCurrentCloneSessionItems(gameId: string, params?: Clone
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/items${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionCraftingRecipes(gameId: string, params?: CloneSessionCurrentCraftingRecipesParams): Promise<CloneSessionCurrentCraftingRecipesResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    const response = await api.get(`/api/v1/games/${gameId}/clone-sessions/current/crafting-recipes${query ? `?${query}` : ""}`, { suppressToast: true });
+    return response as CloneSessionCurrentCraftingRecipesResponse;
 }
 
 export async function getCurrentCloneSessionItemContainers(gameId: string, params?: CloneSessionCurrentItemContainersParams): Promise<CloneSessionCurrentItemContainersResponse> {

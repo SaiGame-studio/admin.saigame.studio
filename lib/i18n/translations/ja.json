@@ -494,6 +494,8 @@
     "sourceGameCurrentSessionPresetDefinitionsTabLabel": "プリセット",
     "sourceGameCurrentSessionGachaPacksTabLabel": "ガチャパック",
     "sourceGameCurrentSessionCraftingRecipesTabLabel": "クラフト",
+    "sourceGameCurrentSessionCraftingRecipeKeyLabel": "レシピキー",
+    "sourceGameCurrentSessionCraftingRecipeSearchPlaceholder": "IDまたは名前で検索...",
     "sourceGameCurrentSessionItemRarityLabel": "レアリティ",
     "sourceGameCurrentSessionItemCategoryLabel": "カテゴリ",
     "sourceGameCurrentSessionItemSearchLabel": "アイテム定義を検索",

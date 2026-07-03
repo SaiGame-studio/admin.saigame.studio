@@ -10,6 +10,7 @@ import type {
     CloneSessionCurrentQuestDefinition,
     CloneSessionCurrentShopDefinition,
     CloneSessionSnapshot,
+    CloneSessionCurrentCraftingRecipe,
 } from "@/lib/game-api";
 
 type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
@@ -118,8 +119,20 @@ export type CurrentCloneSessionProgressTabsProps = {
     onGachaPacksClearSearch: () => void;
     onGachaPacksPreviousPage: () => void;
     onGachaPacksNextPage: () => void;
+    craftingRecipes: CloneSessionCurrentCraftingRecipe[];
+    craftingRecipesTotal: number;
+    craftingRecipesOffset: number;
+    craftingRecipesSearchInput: string;
+    craftingRecipesSearchName: string;
+    craftingRecipesLoading: boolean;
+    craftingRecipesError: string | null;
+    onCraftingRecipesSearchInputChange: (value: string) => void;
+    onCraftingRecipesSearch: () => void;
+    onCraftingRecipesClearSearch: () => void;
+    onCraftingRecipesPreviousPage: () => void;
+    onCraftingRecipesNextPage: () => void;
     getManualOverwriteTargetId: (
-        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition",
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe",
         sourceId: string,
     ) => string | null;
     onManualOverwriteSuccess: () => Promise<void>;

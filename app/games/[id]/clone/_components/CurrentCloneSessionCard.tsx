@@ -103,6 +103,7 @@ export function CurrentCloneSessionCard({
     const isShopDefinitionsTab = activeProgressTab === "shop_definitions";
     const isPresetDefinitionsTab = activeProgressTab === "preset_definitions";
     const isGachaPacksTab = activeProgressTab === "gacha_packs" || activeProgressTab === "gacha_pack_definitions";
+    const isCraftingRecipesTab = activeProgressTab === "crafting_recipes" || activeProgressTab === "crafting_recipe_definitions";
     const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
 
     useEffect(() => {
@@ -288,6 +289,7 @@ export function CurrentCloneSessionCard({
         shopDefinitionsState,
         presetDefinitionsState,
         gachaPacksState,
+        craftingRecipesState,
     } = useCurrentCloneSessionDefinitions({
         currentSessionId,
         targetGameId,
@@ -296,6 +298,7 @@ export function CurrentCloneSessionCard({
         isShopDefinitionsTab,
         isPresetDefinitionsTab,
         isGachaPacksTab,
+        isCraftingRecipesTab,
         refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
@@ -431,6 +434,8 @@ export function CurrentCloneSessionCard({
             presetDefinitionsState.onApplySearchValue(searchValue);
         } else if (nextTab === "gacha_packs" || nextTab === "gacha_pack_definitions") {
             gachaPacksState.onApplySearchValue(searchValue);
+        } else if (nextTab === "crafting_recipes" || nextTab === "crafting_recipe_definitions") {
+            craftingRecipesState.onApplySearchValue(searchValue);
         }
     };
 
@@ -571,6 +576,18 @@ export function CurrentCloneSessionCard({
         onGachaPacksClearSearch: gachaPacksState.onClearSearch,
         onGachaPacksPreviousPage: gachaPacksState.onPreviousPage,
         onGachaPacksNextPage: gachaPacksState.onNextPage,
+        craftingRecipes: craftingRecipesState.items,
+        craftingRecipesTotal: craftingRecipesState.total,
+        craftingRecipesOffset: craftingRecipesState.offset,
+        craftingRecipesSearchInput: craftingRecipesState.searchInput,
+        craftingRecipesSearchName: craftingRecipesState.searchName,
+        craftingRecipesLoading: craftingRecipesState.loading,
+        craftingRecipesError: craftingRecipesState.error,
+        onCraftingRecipesSearchInputChange: craftingRecipesState.onSearchInputChange,
+        onCraftingRecipesSearch: craftingRecipesState.onSearch,
+        onCraftingRecipesClearSearch: craftingRecipesState.onClearSearch,
+        onCraftingRecipesPreviousPage: craftingRecipesState.onPreviousPage,
+        onCraftingRecipesNextPage: craftingRecipesState.onNextPage,
         getManualOverwriteTargetId,
         onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };
