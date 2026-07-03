@@ -499,6 +499,9 @@
     "sourceGameCurrentSessionEntityDefinitionsTabLabel": "Entities",
     "sourceGameCurrentSessionEntityKeyLabel": "Entity Key",
     "sourceGameCurrentSessionEntityDefinitionSearchPlaceholder": "Search by ID or name...",
+    "sourceGameCurrentSessionEntityPoolsTabLabel": "Entity Pools",
+    "sourceGameCurrentSessionEntityPoolKeyLabel": "Pool Key",
+    "sourceGameCurrentSessionEntityPoolSearchPlaceholder": "Search by pool key or name...",
     "sourceGameCurrentSessionTypeLabel": "Type",
     "sourceGameCurrentSessionRarityLabel": "Rarity",
     "sourceGameCurrentSessionItemRarityLabel": "Rarity",
@@ -570,7 +573,8 @@
     "warnings": {
       "clone_quota_quest_definitions": "Target quota may not fit all quest definitions. Available slots: {available_slot} / {required_total}.",
       "clone_warning_shop_source_item_definition_missing": "Source shop item {shop_item_id} references missing source item definition {missing_source_item_definition_id}.",
-      "clone_quota_entity_definitions": "Target quota may not fit all entity definitions.\n- Missing slots: {missing_slot}\n- Required: {required_clone_count}\n- Available: {available_slot}"
+      "clone_quota_entity_definitions": "Target quota may not fit all entity definitions.\n- Missing slots: {missing_slot}\n- Required: {required_clone_count}\n- Available: {available_slot}",
+      "clone_quota_entity_pools": "Target quota may not fit all entity pools.\n- Missing slots: {missing_slot}\n- Required: {required_clone_count}\n- Available: {available_slot}"
     },
     "sourceGameCurrentSessionProgressLabel": "Progress"
   },
@@ -4047,6 +4051,10 @@
     "entityUsername": "Username",
     "entityActive": "Active",
     "entityInactive": "Inactive",
+    "cloneGame.sourceGameCurrentSessionEntityPoolsTabLabel": "Entity Pools",
+    "cloneGame.sourceGameCurrentSessionEntityPoolKeyLabel": "Pool Key",
+    "cloneGame.sourceGameCurrentSessionEntityPoolSearchPlaceholder": "Search by pool key or name...",
+    "cloneGame.warnings.clone_quota_entity_pools": "Target quota is not enough to clone all entity pools.\n- Required: {required_clone_count}\n- Available: {available_slot}\n- Missing slots: {missing_slot}",
     "entityVerified": "Verified",
     "entityUnverified": "Unverified",
     "entityLastLogin": "Last Login",

@@ -92,6 +92,8 @@ export function getCloneSessionPhaseLabel(phaseKey: string | undefined, t: Trans
             return t("cloneGame.sourceGameCurrentSessionCraftingRecipesTabLabel");
         case "entity_definitions":
             return t("cloneGame.sourceGameCurrentSessionEntityDefinitionsTabLabel");
+        case "entity_pools":
+            return t("cloneGame.sourceGameCurrentSessionEntityPoolsTabLabel");
         default:
             return formatTechnicalLabel(phaseKey) || t("common.unknown");
     }

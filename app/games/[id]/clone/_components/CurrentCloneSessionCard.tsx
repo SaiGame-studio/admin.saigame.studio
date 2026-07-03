@@ -105,6 +105,7 @@ export function CurrentCloneSessionCard({
     const isGachaPacksTab = activeProgressTab === "gacha_packs" || activeProgressTab === "gacha_pack_definitions";
     const isCraftingRecipesTab = activeProgressTab === "crafting_recipes" || activeProgressTab === "crafting_recipe_definitions";
     const isEntityDefinitionsTab = activeProgressTab === "entity_definitions";
+    const isEntityPoolsTab = activeProgressTab === "entity_pools";
     const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
 
     useEffect(() => {
@@ -296,6 +297,7 @@ export function CurrentCloneSessionCard({
         gachaPacksState,
         craftingRecipesState,
         entityDefinitionsState,
+        entityPoolsState,
     } = useCurrentCloneSessionDefinitions({
         currentSessionId,
         targetGameId,
@@ -306,6 +308,7 @@ export function CurrentCloneSessionCard({
         isGachaPacksTab,
         isCraftingRecipesTab,
         isEntityDefinitionsTab,
+        isEntityPoolsTab,
         refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
@@ -445,6 +448,8 @@ export function CurrentCloneSessionCard({
             craftingRecipesState.onApplySearchValue(searchValue);
         } else if (nextTab === "entity_definitions") {
             entityDefinitionsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "entity_pools") {
+            entityPoolsState.onApplySearchValue(searchValue);
         }
     };
 
@@ -609,6 +614,18 @@ export function CurrentCloneSessionCard({
         onEntityDefinitionsClearSearch: entityDefinitionsState.onClearSearch,
         onEntityDefinitionsPreviousPage: entityDefinitionsState.onPreviousPage,
         onEntityDefinitionsNextPage: entityDefinitionsState.onNextPage,
+        entityPools: entityPoolsState.items,
+        entityPoolsTotal: entityPoolsState.total,
+        entityPoolsOffset: entityPoolsState.offset,
+        entityPoolsSearchInput: entityPoolsState.searchInput,
+        entityPoolsSearchName: entityPoolsState.searchName,
+        entityPoolsLoading: entityPoolsState.loading,
+        entityPoolsError: entityPoolsState.error,
+        onEntityPoolsSearchInputChange: entityPoolsState.onSearchInputChange,
+        onEntityPoolsSearch: entityPoolsState.onSearch,
+        onEntityPoolsClearSearch: entityPoolsState.onClearSearch,
+        onEntityPoolsPreviousPage: entityPoolsState.onPreviousPage,
+        onEntityPoolsNextPage: entityPoolsState.onNextPage,
         getManualOverwriteTargetId,
         onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };

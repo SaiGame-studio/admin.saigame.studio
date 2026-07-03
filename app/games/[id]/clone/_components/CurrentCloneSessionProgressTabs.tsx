@@ -20,6 +20,7 @@ import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
 import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
 import { CurrentCloneSessionCraftingRecipesTab } from "./CurrentCloneSessionCraftingRecipesTab";
 import { CurrentCloneSessionEntityDefinitionsTab } from "./CurrentCloneSessionEntityDefinitionsTab";
+import { CurrentCloneSessionEntityPoolsTab } from "./CurrentCloneSessionEntityPoolsTab";
 import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 import type { CurrentCloneSessionProgressTabsProps } from "./currentCloneSessionProgressTabs.types";
 import { formatDurationCompact, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
@@ -145,6 +146,9 @@ export function CurrentCloneSessionProgressTabs({
     entityDefinitions, entityDefinitionsTotal, entityDefinitionsOffset, entityDefinitionsSearchInput, entityDefinitionsSearchName,
     entityDefinitionsLoading, entityDefinitionsError, onEntityDefinitionsSearchInputChange, onEntityDefinitionsSearch,
     onEntityDefinitionsClearSearch, onEntityDefinitionsPreviousPage, onEntityDefinitionsNextPage,
+    entityPools, entityPoolsTotal, entityPoolsOffset, entityPoolsSearchInput, entityPoolsSearchName,
+    entityPoolsLoading, entityPoolsError, onEntityPoolsSearchInputChange, onEntityPoolsSearch,
+    onEntityPoolsClearSearch, onEntityPoolsPreviousPage, onEntityPoolsNextPage,
     getManualOverwriteTargetId,
     onManualOverwriteSuccess,
 }: CurrentCloneSessionProgressTabsProps) {
@@ -562,6 +566,25 @@ export function CurrentCloneSessionProgressTabs({
                                         onItemTagsClearSearch={onItemTagsClearSearch}
                                         onItemTagsPreviousPage={onItemTagsPreviousPage}
                                         onItemTagsNextPage={onItemTagsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "entity_pools" ? (
+                                    <CurrentCloneSessionEntityPoolsTab
+                                        t={t}
+                                        entityPools={entityPools}
+                                        sessionId={currentSession.session_id}
+                                        entityPoolsTotal={entityPoolsTotal}
+                                        entityPoolsOffset={entityPoolsOffset}
+                                        entityPoolsSearchInput={entityPoolsSearchInput}
+                                        entityPoolsSearchName={entityPoolsSearchName}
+                                        entityPoolsLoading={entityPoolsLoading}
+                                        entityPoolsError={entityPoolsError}
+                                        onEntityPoolsSearchInputChange={onEntityPoolsSearchInputChange}
+                                        onEntityPoolsSearch={onEntityPoolsSearch}
+                                        onEntityPoolsClearSearch={onEntityPoolsClearSearch}
+                                        onEntityPoolsPreviousPage={onEntityPoolsPreviousPage}
+                                        onEntityPoolsNextPage={onEntityPoolsNextPage}
                                         getManualOverwriteTargetId={getManualOverwriteTargetId}
                                         onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />
