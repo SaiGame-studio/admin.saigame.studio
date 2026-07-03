@@ -214,16 +214,6 @@ export function CurrentCloneSessionProgressTabs({
                             {currentSession.source_game_name || t("common.unknown")}
                         </p>
                     </div>
-                    <div id="clone-game-source-current-session-batch" className="space-y-1">
-                        <p id="clone-game-source-current-session-batch-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                            {t("cloneGame.sourceGameCurrentSessionBatchLabel")}
-                        </p>
-                        <p id="clone-game-source-current-session-batch-value" className="font-medium">
-                            {currentSession.current_batch_index ?? 0} / {currentSession.batch_size ?? 0}
-                        </p>
-                    </div>
-                </div>
-                <div id="clone-game-source-current-session-meta-right" className="space-y-3">
                     <div id="clone-game-source-current-session-same-studio" className="space-y-1">
                         <p id="clone-game-source-current-session-same-studio-label" className="text-xs uppercase tracking-wide text-muted-foreground">
                             {t("cloneGame.sourceGameCurrentSessionSameStudioLabel")}
@@ -239,6 +229,8 @@ export function CurrentCloneSessionProgressTabs({
                                     : t("common.no")}
                         </Badge>
                     </div>
+                </div>
+                <div id="clone-game-source-current-session-meta-right" className="space-y-3">
                     {currentSessionEstimatedCost ? (
                         <div id="clone-game-source-current-session-cost" className="space-y-1">
                             <p id="clone-game-source-current-session-cost-label" className="text-xs uppercase tracking-wide text-muted-foreground">
