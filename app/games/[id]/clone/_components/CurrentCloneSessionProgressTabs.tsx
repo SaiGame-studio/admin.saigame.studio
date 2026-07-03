@@ -18,6 +18,7 @@ import { CurrentCloneSessionItemTagsTab } from "./CurrentCloneSessionItemTagsTab
 import { CurrentCloneSessionPresetDefinitionsTab } from "./CurrentCloneSessionPresetDefinitionsTab";
 import { CurrentCloneSessionQuestsTab } from "./CurrentCloneSessionQuestsTab";
 import { CurrentCloneSessionShopDefinitionsTab } from "./CurrentCloneSessionShopDefinitionsTab";
+import { CurrentCloneSessionCraftingRecipesTab } from "./CurrentCloneSessionCraftingRecipesTab";
 import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 import type { CurrentCloneSessionProgressTabsProps } from "./currentCloneSessionProgressTabs.types";
 import { formatDurationCompact, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
@@ -137,6 +138,9 @@ export function CurrentCloneSessionProgressTabs({
     gachaPacks, gachaPacksSessionId, gachaPacksTotal, gachaPacksOffset, gachaPacksSearchInput, gachaPacksSearchName,
     gachaPacksLoading, gachaPacksError, onGachaPacksSearchInputChange, onGachaPacksSearch,
     onGachaPacksClearSearch, onGachaPacksPreviousPage, onGachaPacksNextPage,
+    craftingRecipes, craftingRecipesTotal, craftingRecipesOffset, craftingRecipesSearchInput, craftingRecipesSearchName,
+    craftingRecipesLoading, craftingRecipesError, onCraftingRecipesSearchInputChange, onCraftingRecipesSearch,
+    onCraftingRecipesClearSearch, onCraftingRecipesPreviousPage, onCraftingRecipesNextPage,
     getManualOverwriteTargetId,
     onManualOverwriteSuccess,
 }: CurrentCloneSessionProgressTabsProps) {
@@ -562,6 +566,25 @@ export function CurrentCloneSessionProgressTabs({
                                         onItemTagsClearSearch={onItemTagsClearSearch}
                                         onItemTagsPreviousPage={onItemTagsPreviousPage}
                                         onItemTagsNextPage={onItemTagsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "crafting_recipes" || phaseKey === "crafting_recipe_definitions" ? (
+                                    <CurrentCloneSessionCraftingRecipesTab
+                                        t={t}
+                                        craftingRecipes={craftingRecipes}
+                                        sessionId={currentSession.session_id}
+                                        craftingRecipesTotal={craftingRecipesTotal}
+                                        craftingRecipesOffset={craftingRecipesOffset}
+                                        craftingRecipesSearchInput={craftingRecipesSearchInput}
+                                        craftingRecipesSearchName={craftingRecipesSearchName}
+                                        craftingRecipesLoading={craftingRecipesLoading}
+                                        craftingRecipesError={craftingRecipesError}
+                                        onCraftingRecipesSearchInputChange={onCraftingRecipesSearchInputChange}
+                                        onCraftingRecipesSearch={onCraftingRecipesSearch}
+                                        onCraftingRecipesClearSearch={onCraftingRecipesClearSearch}
+                                        onCraftingRecipesPreviousPage={onCraftingRecipesPreviousPage}
+                                        onCraftingRecipesNextPage={onCraftingRecipesNextPage}
                                         getManualOverwriteTargetId={getManualOverwriteTargetId}
                                         onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />

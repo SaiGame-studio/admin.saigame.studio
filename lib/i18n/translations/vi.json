@@ -494,6 +494,8 @@
     "sourceGameCurrentSessionPresetDefinitionsTabLabel": "Preset",
     "sourceGameCurrentSessionGachaPacksTabLabel": "Gacha Pack",
     "sourceGameCurrentSessionCraftingRecipesTabLabel": "Chế tạo",
+    "sourceGameCurrentSessionCraftingRecipeKeyLabel": "Khóa công thức",
+    "sourceGameCurrentSessionCraftingRecipeSearchPlaceholder": "Tìm theo ID hoặc tên...",
     "sourceGameCurrentSessionItemRarityLabel": "Độ hiếm",
     "sourceGameCurrentSessionItemCategoryLabel": "Danh mục",
     "sourceGameCurrentSessionItemSearchLabel": "Tìm định nghĩa vật phẩm",

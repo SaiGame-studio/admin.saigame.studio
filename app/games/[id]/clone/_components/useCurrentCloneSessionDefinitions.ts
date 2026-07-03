@@ -7,11 +7,13 @@ import {
     getCurrentCloneSessionPresetDefinitions,
     getCurrentCloneSessionQuests,
     getCurrentCloneSessionShopDefinitions,
+    getCurrentCloneSessionCraftingRecipes,
     type CloneSessionCurrentEquipmentSlotDefinition,
     type CloneSessionCurrentGachaPack,
     type CloneSessionCurrentPresetDefinition,
     type CloneSessionCurrentQuestDefinition,
     type CloneSessionCurrentShopDefinition,
+    type CloneSessionCurrentCraftingRecipe,
 } from "@/lib/game-api";
 
 export const CLONE_SESSION_PAGE_SIZE = 12;
@@ -41,6 +43,7 @@ type UseCurrentCloneSessionDefinitionsParams = {
     isShopDefinitionsTab: boolean;
     isPresetDefinitionsTab: boolean;
     isGachaPacksTab: boolean;
+    isCraftingRecipesTab: boolean;
     refreshNonce: number;
     formatError: (error: unknown) => string;
 };
@@ -121,6 +124,7 @@ export function useCurrentCloneSessionDefinitions({
     isShopDefinitionsTab,
     isPresetDefinitionsTab,
     isGachaPacksTab,
+    isCraftingRecipesTab,
     refreshNonce,
     formatError,
 }: UseCurrentCloneSessionDefinitionsParams) {
@@ -129,6 +133,7 @@ export function useCurrentCloneSessionDefinitions({
     const shopDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentShopDefinition>();
     const presetDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentPresetDefinition>();
     const gachaPacksState = useCloneSessionPagedState<CloneSessionCurrentGachaPack>();
+    const craftingRecipesState = useCloneSessionPagedState<CloneSessionCurrentCraftingRecipe>();
 
     useEffect(() => {
         if (!currentSessionId || !isEquipmentSlotDefinitionsTab) {
@@ -392,11 +397,59 @@ export function useCurrentCloneSessionDefinitions({
         };
     }, [currentSessionId, formatError, gachaPacksState.offset, gachaPacksState.searchId, gachaPacksState.searchName, isGachaPacksTab, refreshNonce, targetGameId]);
 
+    useEffect(() => {
+        if (!currentSessionId || !isCraftingRecipesTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadCraftingRecipes = async () => {
+            craftingRecipesState.setLoading(true);
+            craftingRecipesState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionCraftingRecipes(targetGameId, {
+                    id: craftingRecipesState.searchId || undefined,
+                    name: craftingRecipesState.searchId ? undefined : craftingRecipesState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: craftingRecipesState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                craftingRecipesState.setItems(Array.isArray(response.crafting_recipes) ? response.crafting_recipes : []);
+                craftingRecipesState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                craftingRecipesState.setItems([]);
+                craftingRecipesState.setTotal(0);
+                craftingRecipesState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    craftingRecipesState.setLoading(false);
+                }
+            }
+        };
+
+        void loadCraftingRecipes();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, craftingRecipesState.offset, craftingRecipesState.searchId, craftingRecipesState.searchName, isCraftingRecipesTab, refreshNonce, targetGameId]);
+
     return {
         equipmentSlotDefinitionsState: toPagedResult(equipmentSlotDefinitionsState),
         questsState: toPagedResult(questsState),
         shopDefinitionsState: toPagedResult(shopDefinitionsState),
         presetDefinitionsState: toPagedResult(presetDefinitionsState),
         gachaPacksState: toPagedResult(gachaPacksState),
+        craftingRecipesState: toPagedResult(craftingRecipesState),
     };
 }
