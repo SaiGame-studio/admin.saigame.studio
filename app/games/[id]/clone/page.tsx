@@ -408,7 +408,7 @@ export default function GameClonePage() {
                               {t("cloneGame.visibilityPublicDesc")}
                             </p>
                             <p id="clone-game-current-visibility-public-price" className="text-xs text-muted-foreground">
-                              {t("cloneGame.clonePricePublicDesc").replace("{unit}", cloneCostCurrencyLabel)}
+                              {t("cloneGame.clonePrice")}: {formatCloneCost(game.clone_cost ?? 7, game.clone_cost_currency)}
                             </p>
                             <p id="clone-game-current-visibility-public-payout" className="text-xs text-muted-foreground">
                               {t("cloneGame.clonePricePayoutDesc").replace("{unit}", cloneCostCurrencyLabel)}
@@ -443,9 +443,6 @@ export default function GameClonePage() {
                             className="w-28"
                           />
                           <div id="clone-game-current-clone-cost-currency-wrap" className="flex flex-col gap-1">
-                            <span id="clone-game-current-clone-cost-currency-label" className="text-xs text-muted-foreground">
-                              {t("cloneGame.clonePriceCurrency")}
-                            </span>
                             <Select
                               value={cloneCostCurrencyDraft}
                               onValueChange={(value) => setCloneCostCurrencyDraft(value as "sGem" | "sCoin")}

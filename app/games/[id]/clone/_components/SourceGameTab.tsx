@@ -512,6 +512,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                     <div id="clone-game-source-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {games.map((game) => {
                             const isSelected = selectedGameId === game.id;
+                            const isTargetGame = game.id === targetGameId;
                             const visibilityLabel = getVisibilityLabel(game, t);
                             const visibilityPriceLabel = getVisibilityPriceLabel(game, t);
                             const visibilityStatusStyle = getVisibilityStatusStyle(game.share_level);
@@ -559,6 +560,15 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                 <Badge id={`clone-game-source-card-selected-status-${game.id}`} variant="secondary">
                                                     {t("cloneGame.sourceGameSelected")}
                                                 </Badge>
+                                            ) : isTargetGame ? (
+                                                <Button
+                                                    id={`clone-game-source-card-select-btn-${game.id}`}
+                                                    type="button"
+                                                    disabled
+                                                    className="self-center"
+                                                >
+                                                    {t("cloneGame.sourceGameIsTarget")}
+                                                </Button>
                                             ) : (
                                                 <Button
                                                     id={`clone-game-source-card-select-btn-${game.id}`}
