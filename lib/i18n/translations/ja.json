@@ -499,6 +499,8 @@
     "sourceGameCurrentSessionEntityDefinitionsTabLabel": "エンティティ",
     "sourceGameCurrentSessionEntityKeyLabel": "エンティティキー",
     "sourceGameCurrentSessionEntityDefinitionSearchPlaceholder": "IDまたは名前で検索...",
+    "sourceGameCurrentSessionTypeLabel": "タイプ",
+    "sourceGameCurrentSessionRarityLabel": "レアリティ",
     "sourceGameCurrentSessionItemRarityLabel": "レアリティ",
     "sourceGameCurrentSessionItemCategoryLabel": "カテゴリ",
     "sourceGameCurrentSessionItemSearchLabel": "アイテム定義を検索",

@@ -499,6 +499,8 @@
     "sourceGameCurrentSessionEntityDefinitionsTabLabel": "Thực thể",
     "sourceGameCurrentSessionEntityKeyLabel": "Khóa thực thể",
     "sourceGameCurrentSessionEntityDefinitionSearchPlaceholder": "Tìm theo ID hoặc tên...",
+    "sourceGameCurrentSessionTypeLabel": "Loại",
+    "sourceGameCurrentSessionRarityLabel": "Độ hiếm",
     "sourceGameCurrentSessionItemRarityLabel": "Độ hiếm",
     "sourceGameCurrentSessionItemCategoryLabel": "Danh mục",
     "sourceGameCurrentSessionItemSearchLabel": "Tìm định nghĩa vật phẩm",

@@ -109,15 +109,19 @@ export function CurrentCloneSessionCard({
 
     useEffect(() => {
         if (!currentSessionId || currentSessionProgressEntries.length === 0) {
-            previousSessionIdRef.current = currentSessionId;
             return;
         }
 
-        if (previousSessionIdRef.current === currentSessionId) {
+        const previousSessionId = previousSessionIdRef.current;
+        if (previousSessionId === currentSessionId) {
             return;
         }
 
         previousSessionIdRef.current = currentSessionId;
+
+        if (!previousSessionId) {
+            return;
+        }
 
         const nextParams = new URLSearchParams(searchParams.toString());
         nextParams.set("subTab", currentSessionProgressEntries[0]?.[0] ?? "");

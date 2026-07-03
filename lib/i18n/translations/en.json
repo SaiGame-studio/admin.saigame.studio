@@ -499,6 +499,8 @@
     "sourceGameCurrentSessionEntityDefinitionsTabLabel": "Entities",
     "sourceGameCurrentSessionEntityKeyLabel": "Entity Key",
     "sourceGameCurrentSessionEntityDefinitionSearchPlaceholder": "Search by ID or name...",
+    "sourceGameCurrentSessionTypeLabel": "Type",
+    "sourceGameCurrentSessionRarityLabel": "Rarity",
     "sourceGameCurrentSessionItemRarityLabel": "Rarity",
     "sourceGameCurrentSessionItemCategoryLabel": "Category",
     "sourceGameCurrentSessionItemSearchLabel": "Search item definitions",
