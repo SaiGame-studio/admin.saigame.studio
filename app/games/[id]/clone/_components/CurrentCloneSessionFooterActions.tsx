@@ -60,7 +60,6 @@ export function CurrentCloneSessionFooterActions({
     const confirmCompleteCloneSession = async () => {
         setCompleteConfirmOpen(false);
         await onRunCloneSession();
-        window.location.reload();
     };
 
     return (
