@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Globe, Loader2, Lock, RefreshCw, Search, Shield, X } from "lucide-react";
 import { CopyButton } from "@/components/CopyButton";
@@ -58,6 +59,8 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [startConfirmOpen, setStartConfirmOpen] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const requestSeqRef = useRef(0);
+    const hadSessionRef = useRef(false);
+    const router = useRouter();
 
     const selectedGame = games.find((game) => game.id === selectedGameId) ?? null;
     const selectedGameCurrency = getCloneCostCurrencyMeta(selectedGame?.clone_cost_currency);
@@ -144,6 +147,9 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         try {
             const session = await getCurrentCloneSession(targetGameId);
             setCurrentSession(session ?? null);
+            if (session) {
+                hadSessionRef.current = true;
+            }
             if (session?.source_game_id) {
                 setSelectedGameId(session.source_game_id);
             }
@@ -154,6 +160,11 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                 setCurrentSession(null);
             }
 
+            if (status === 404 && hadSessionRef.current) {
+                window.location.reload();
+                return;
+            }
+
             if (!silent && status && status !== 404) {
                 setCurrentSessionError(t("cloneGame.sourceGameCurrentSessionLoadError"));
             }
@@ -162,7 +173,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                 setCurrentSessionLoading(false);
             }
         }
-    }, [targetGameId, t]);
+    }, [targetGameId, t, router]);
 
     useEffect(() => {
         const timer = window.setTimeout(() => {

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { formatTimestamp } from "@/lib/utils/date-utils";
 import { CurrentCloneSessionItemContainerList, CurrentCloneSessionItemList } from "./CurrentCloneSessionLists";
 import { CurrentCloneSessionGachaPacksTab } from "./CurrentCloneSessionGachaPacksTab";
@@ -299,24 +300,43 @@ export function CurrentCloneSessionProgressTabs({
                     </p>
                     <Tabs id="clone-game-source-current-session-progress-tabs" value={activeProgressTab ?? currentSessionProgressEntries[0]?.[0] ?? ""} onValueChange={handleProgressTabChange} className="w-full">
                         <div id="clone-game-source-current-session-progress-tabs-wrap" className="w-full">
-                            <TabsList id="clone-game-source-current-session-progress-tabs-list" className="mb-3 flex h-auto flex-wrap justify-start gap-1">
-                                {currentSessionProgressEntries.map(([phaseKey], index) => (
-                                    <TabsTrigger
-                                        id={`clone-game-source-current-session-progress-tab-trigger-${toKebabIdSegment(phaseKey)}`}
-                                        key={phaseKey}
-                                        value={phaseKey}
-                                        href={buildProgressTabHref(phaseKey)}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <span id={`clone-game-source-current-session-progress-tab-index-${toKebabIdSegment(phaseKey)}`} className="text-xs font-semibold tabular-nums">
-                                            {index + 1}
-                                        </span>
-                                        <span id={`clone-game-source-current-session-progress-tab-label-${toKebabIdSegment(phaseKey)}`} className="whitespace-nowrap">
-                                            {getCloneSessionPhaseLabel(phaseKey, t)}
-                                        </span>
-                                    </TabsTrigger>
-                                ))}
-                            </TabsList>
+                            {(() => {
+                                const currentPhaseIndex = currentSessionProgressEntries.findIndex(([phaseKey]) => phaseKey === currentSession.current_phase);
+                                const isAllPhasesCompleted = currentSession.status === "completed" || currentSession.current_phase === "finalization";
+                                return (
+                                <TabsList id="clone-game-source-current-session-progress-tabs-list" className="mb-3 flex h-auto flex-wrap justify-start gap-1">
+                                    {currentSessionProgressEntries.map(([phaseKey], index) => {
+                                        const isHighlighted = isAllPhasesCompleted || (currentPhaseIndex !== -1 && index <= currentPhaseIndex);
+                                        return (
+                                            <TabsTrigger
+                                                id={`clone-game-source-current-session-progress-tab-trigger-${toKebabIdSegment(phaseKey)}`}
+                                                key={phaseKey}
+                                                value={phaseKey}
+                                                href={buildProgressTabHref(phaseKey)}
+                                                className={cn(
+                                                    "flex items-center gap-2 transition-colors",
+                                                    isHighlighted && "text-foreground",
+                                                    !isHighlighted && "opacity-50"
+                                                )}
+                                            >
+                                                <span
+                                                    id={`clone-game-source-current-session-progress-tab-index-${toKebabIdSegment(phaseKey)}`}
+                                                    className={cn(
+                                                        "flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums",
+                                                        isHighlighted ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {index + 1}
+                                                </span>
+                                                <span id={`clone-game-source-current-session-progress-tab-label-${toKebabIdSegment(phaseKey)}`} className="whitespace-nowrap">
+                                                    {getCloneSessionPhaseLabel(phaseKey, t)}
+                                                </span>
+                                            </TabsTrigger>
+                                        );
+                                    })}
+                                </TabsList>
+                                );
+                            })()}
                         </div>
                         {currentSessionProgressEntries.map(([phaseKey, progress]) => (
                             <TabsContent

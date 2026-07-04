@@ -1,32 +1,22 @@
-# Repository Instructions for Coding Agents
+# Agent Rules
 
-These rules apply to any coding agent working in this repository.
+## Files
+- `.tsx` ≤ 700 lines; others ≤ 1000 lines. Refactor/split before finishing if near limit.
+- Keep root files thin; move UI, logic, hooks, API, types into focused modules.
 
-## File Size Limits
-- Keep every `.tsx` file at or below 700 lines.
-- Keep every other source file at or below 1000 lines.
-- If a file is close to or over the limit, refactor and split it before finishing the change.
-- Keep root files thin and move heavy UI, logic, hooks, API calls, and types into focused modules.
+## UI/DOM
+- Every HTML/JSX element needs a unique, kebab-case `id` scoped to the feature.
+- List items: include record identifier in `id` (e.g. `user-row-{id}`).
+- Refresh buttons: icon-only, no "Refresh" text label.
+- Search codebase for existing component/pattern before creating new ones.
 
-## UI and DOM Rules
-- Every rendered HTML/JSX element must have a unique `id` attribute.
-- Use descriptive, kebab-case IDs scoped to the feature.
-- Include the record identifier in IDs for repeated list items.
-- Render refresh buttons as icon-only controls; do not show visible `Refresh` text in the button label.
-- Reuse existing UI patterns before inventing a new one.
-- Search the codebase first for a similar component, page section, dialog, table pattern, or badge style.
-- Follow the existing convention unless there is a clear reason not to.
+## Localization
+- Code, comments, identifiers, docs: **English only**.
+- UI text changes → update all translation files in the same change. No single-language text.
+- Translation files (`vi.json`, `ja.json`, etc.): always read/write as **UTF-8**.
+- Tooltips: `side="top"`.
 
-## Text and Localization
-- Write code, comments, identifiers, and documentation in English only.
-- When adding or changing UI text, update translations in the same change.
-- Do not ship new single-language UI text.
-- Always read and write multilingual text files as UTF-8, and preserve UTF-8 encoding when editing translations to avoid mojibake or corrupted characters.
-- For translation files such as `vi.json`, `ja.json`, and other localized resources, always open, edit, and save them explicitly as UTF-8.
-- Keep tooltip content positioned above the trigger.
-- Use `side="top"` for tooltip content.
-
-## Agent Behavior
-- Prefer small, focused changes that fit the existing architecture.
-- If a rule conflicts with framework constraints or an existing implementation detail, call it out before proceeding.
-- Preserve user changes outside the scope of the task.
+## Behavior
+- Prefer small, focused changes fitting the existing architecture.
+- Call out rule/constraint conflicts before proceeding.
+- Preserve user changes outside the task scope.

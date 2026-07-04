@@ -45,6 +45,7 @@ export function CurrentCloneSessionFooterActions({
 }: CurrentCloneSessionFooterActionsProps) {
     const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
 
+
     const handlePrimaryAction = () => {
         if (canCompleteCloneSession) {
             setCompleteConfirmOpen(true);
@@ -57,6 +58,7 @@ export function CurrentCloneSessionFooterActions({
     const confirmCompleteCloneSession = async () => {
         setCompleteConfirmOpen(false);
         await onRunCloneSession();
+        window.location.reload();
     };
 
     return (
