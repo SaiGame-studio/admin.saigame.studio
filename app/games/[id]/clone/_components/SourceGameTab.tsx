@@ -63,7 +63,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const router = useRouter();
 
     const selectedGame = games.find((game) => game.id === selectedGameId) ?? null;
-    const selectedGameCurrency = getCloneCostCurrencyMeta(selectedGame?.clone_cost_currency);
+    const selectedGameCurrency = getCloneCostCurrencyMeta(selectedGame?.settings?.clone_cost_currency);
     const hasCurrentCloneSession = Boolean(currentSession);
     const requiredCloneCost = getRequiredCloneCost(selectedGame);
     const selectedCurrencyBalance = selectedGameCurrency.code === "sCoin" ? scoinBalance : sgemBalance;

@@ -65,7 +65,7 @@ export async function updateGame(gameId: string, gameData: {
     is_active?: boolean;
     status?: string;
     share_level?: "private" | "protected" | "public";
-    clone_cost?: number;
+
     tags?: string[];
     config?: {
         max_players?: number;
@@ -74,6 +74,9 @@ export async function updateGame(gameId: string, gameData: {
     };
     settings?: {
         allow_player_trading?: boolean;
+        clone_cost?: number;
+        clone_cost_currency?: "sGem" | "sCoin" | string;
+        buyer_clone_cost?: number;
         [key: string]: any;
     };
 }, options?: { suppressToast?: boolean }): Promise<Game> {

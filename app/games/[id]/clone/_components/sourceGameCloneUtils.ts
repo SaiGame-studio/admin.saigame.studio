@@ -83,7 +83,7 @@ export function getVisibilityPriceLabel(game: Game, t: TranslationFn) {
         return null;
     }
 
-    return formatCloneCost(game.clone_cost ?? 7, game.clone_cost_currency);
+    return formatCloneCost(game.settings?.clone_cost ?? 7, game.settings?.clone_cost_currency);
 }
 
 export function getRequiredCloneCost(game: Game | null) {
@@ -95,13 +95,13 @@ export function getRequiredCloneCost(game: Game | null) {
         return 0;
     }
 
-    return game.share_level === "public" ? game.clone_cost ?? 7 : 0;
+    return game.share_level === "public" ? game.buyer_clone_cost ?? game.settings?.clone_cost ?? 7 : 0;
 }
 
 export function getStartConfirmBillingDetails(game: Game, t: TranslationFn): StartConfirmBillingDetails {
     const requiredCloneCost = getRequiredCloneCost(game);
-    const cloneCostLabel = formatCloneCost(requiredCloneCost, game.clone_cost_currency);
-    const currencyLabel = getCloneCostCurrencyMeta(game.clone_cost_currency).label;
+    const cloneCostLabel = formatCloneCost(requiredCloneCost, game.settings?.clone_cost_currency);
+    const currencyLabel = getCloneCostCurrencyMeta(game.settings?.clone_cost_currency).label;
 
     if (!game.is_my_game && !game.same_studio && requiredCloneCost > 0) {
         return {
