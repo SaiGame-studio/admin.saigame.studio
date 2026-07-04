@@ -18,6 +18,9 @@ export async function createCloneSession(targetGameId: string, sourceGameId: str
         window.dispatchEvent(new CustomEvent("sgem-wallet:refresh", {
             detail: { skipSourceGameWalletRefresh: true },
         }));
+        window.dispatchEvent(new CustomEvent("wallet:refresh", {
+            detail: { skipSourceGameWalletRefresh: true },
+        }));
     }
 
     return response;
