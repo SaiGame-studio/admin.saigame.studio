@@ -131,7 +131,10 @@ export function CurrentCloneSessionFooterActions({
                     <Button
                         id="clone-game-source-current-session-run-btn"
                         type="button"
-                        className="min-w-[9rem] justify-center"
+                        className={canCompleteCloneSession
+                            ? "min-w-[9rem] justify-center bg-blue-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
+                            : "min-w-[9rem] justify-center"
+                        }
                         onClick={handlePrimaryAction}
                         disabled={!sessionId || runningCloneSession || deletingCurrentSession}
                     >
