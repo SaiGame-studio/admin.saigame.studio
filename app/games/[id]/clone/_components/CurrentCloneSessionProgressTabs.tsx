@@ -23,6 +23,7 @@ import { CurrentCloneSessionCraftingRecipesTab } from "./CurrentCloneSessionCraf
 import { CurrentCloneSessionEntityDefinitionsTab } from "./CurrentCloneSessionEntityDefinitionsTab";
 import { CurrentCloneSessionEntityPoolsTab } from "./CurrentCloneSessionEntityPoolsTab";
 import { CurrentCloneSessionLeaderboardDefinitionsTab } from "./CurrentCloneSessionLeaderboardDefinitionsTab";
+import { CurrentCloneSessionScriptsTab } from "./CurrentCloneSessionScriptsTab";
 import { CurrentCloneSessionTableRefreshButton } from "./CurrentCloneSessionTableRefreshButton";
 import type { CurrentCloneSessionProgressTabsProps } from "./currentCloneSessionProgressTabs.types";
 import { formatDurationCompact, getCloneSessionPhaseLabel, getProgressValue } from "./cloneSessionProgressUtils";
@@ -154,6 +155,9 @@ export function CurrentCloneSessionProgressTabs({
     leaderboardDefinitions, leaderboardDefinitionsTotal, leaderboardDefinitionsOffset, leaderboardDefinitionsSearchInput, leaderboardDefinitionsSearchName,
     leaderboardDefinitionsLoading, leaderboardDefinitionsError, onLeaderboardDefinitionsSearchInputChange, onLeaderboardDefinitionsSearch,
     onLeaderboardDefinitionsClearSearch, onLeaderboardDefinitionsPreviousPage, onLeaderboardDefinitionsNextPage,
+    scripts, scriptsTotal, scriptsOffset, scriptsSearchInput, scriptsSearchName,
+    scriptsLoading, scriptsError, onScriptsSearchInputChange, onScriptsSearch,
+    onScriptsClearSearch, onScriptsPreviousPage, onScriptsNextPage,
     getManualOverwriteTargetId,
     onManualOverwriteSuccess,
 }: CurrentCloneSessionProgressTabsProps) {
@@ -751,6 +755,25 @@ export function CurrentCloneSessionProgressTabs({
                                         onEntityDefinitionsClearSearch={onEntityDefinitionsClearSearch}
                                         onEntityDefinitionsPreviousPage={onEntityDefinitionsPreviousPage}
                                         onEntityDefinitionsNextPage={onEntityDefinitionsNextPage}
+                                        getManualOverwriteTargetId={getManualOverwriteTargetId}
+                                        onManualOverwriteSuccess={onManualOverwriteSuccess}
+                                    />
+                                ) : phaseKey === "scripts" ? (
+                                    <CurrentCloneSessionScriptsTab
+                                        t={t}
+                                        scripts={scripts}
+                                        sessionId={currentSession.session_id}
+                                        scriptsTotal={scriptsTotal}
+                                        scriptsOffset={scriptsOffset}
+                                        scriptsSearchInput={scriptsSearchInput}
+                                        scriptsSearchName={scriptsSearchName}
+                                        scriptsLoading={scriptsLoading}
+                                        scriptsError={scriptsError}
+                                        onScriptsSearchInputChange={onScriptsSearchInputChange}
+                                        onScriptsSearch={onScriptsSearch}
+                                        onScriptsClearSearch={onScriptsClearSearch}
+                                        onScriptsPreviousPage={onScriptsPreviousPage}
+                                        onScriptsNextPage={onScriptsNextPage}
                                         getManualOverwriteTargetId={getManualOverwriteTargetId}
                                         onManualOverwriteSuccess={onManualOverwriteSuccess}
                                     />

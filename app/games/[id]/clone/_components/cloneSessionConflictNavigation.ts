@@ -11,6 +11,7 @@ export function getConflictProgressTab(conflict: CloneSessionConflict) {
     if (hint.includes("gacha")) return "gacha_packs";
     if (hint.includes("crafting") || hint.includes("recipe")) return "crafting_recipes";
     if (hint.includes("entity")) return "entity_definitions";
+    if (hint.includes("script")) return "scripts";
     return "item_definitions";
 }
 
@@ -25,7 +26,7 @@ export function getConflictSearchId(conflict: CloneSessionConflict, tab: string)
         return (conflict.source_item_definitions_id || "").trim();
     }
 
-    if (tab === "item_container_definitions" || tab === "equipment_slot_definitions" || tab === "item_tags" || tab === "item_tag_definitions" || tab === "quest_definitions" || tab === "shop_definitions" || tab === "preset_definitions" || tab === "gacha_packs" || tab === "gacha_pack_definitions" || tab === "crafting_recipes" || tab === "crafting_recipe_definitions" || tab === "entity_definitions") {
+    if (tab === "item_container_definitions" || tab === "equipment_slot_definitions" || tab === "item_tags" || tab === "item_tag_definitions" || tab === "quest_definitions" || tab === "shop_definitions" || tab === "preset_definitions" || tab === "gacha_packs" || tab === "gacha_pack_definitions" || tab === "crafting_recipes" || tab === "crafting_recipe_definitions" || tab === "entity_definitions" || tab === "scripts") {
         return (conflict.source_id || "").trim();
     }
 

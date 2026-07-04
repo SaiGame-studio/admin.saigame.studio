@@ -434,7 +434,8 @@ export type CloneSessionIgnoreContentType =
     | "crafting_recipe"
     | "entity_definition"
     | "entity_pool"
-    | "leaderboard_definition";
+    | "leaderboard_definition"
+    | "script";
 
 export interface CloneSessionManualOverwritePairPayload {
     content_type: CloneSessionIgnoreContentType;
@@ -498,6 +499,43 @@ export interface CloneSessionCurrentLeaderboardDefinitionsResponse {
 }
 
 export interface CloneSessionCurrentLeaderboardDefinitionsParams {
+    id?: string;
+    name?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface CloneSessionCurrentScript {
+    id: string;
+    game_id: string;
+    name: string;
+    description?: string;
+    script_body?: string;
+    version?: number;
+    is_active?: boolean;
+    is_library?: boolean;
+    created_by?: string;
+    created_at?: string;
+    updated_at?: string;
+    ignored?: boolean;
+    is_ignored?: boolean;
+    previously_cloned?: boolean;
+    cloned_target_id?: string | null;
+    clone_adoption_kind?: string | null;
+}
+
+export interface CloneSessionCurrentScriptsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    limit?: number;
+    offset?: number;
+    total?: number;
+    scripts?: CloneSessionCurrentScript[];
+}
+
+export interface CloneSessionCurrentScriptsParams {
     id?: string;
     name?: string;
     limit?: number;

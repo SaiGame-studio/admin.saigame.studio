@@ -572,7 +572,8 @@
       "clone_conflict_unknown": "Content with the same code already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content.",
       "clone_conflict_container_code_name_exists": "Container code name already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content.",
       "clone_conflict_quest_code_name_exists": "Quest code name already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content.",
-      "clone_conflict_equipment_slot_key_exists": "Equipment slot key already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content."
+      "clone_conflict_equipment_slot_key_exists": "Equipment slot key already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content.",
+      "clone_conflict_script_name_exists": "Script name '{{script_name}}' already exists in the target game. Enable auto overwrite conflict content to overwrite matching code-based content."
     },
     "sourceGameCurrentSessionWarningsLabel": "Warnings",
     "warnings": {

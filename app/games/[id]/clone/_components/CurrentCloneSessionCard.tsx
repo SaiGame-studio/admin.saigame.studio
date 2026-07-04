@@ -119,6 +119,7 @@ export function CurrentCloneSessionCard({
     const isCraftingRecipesTab = activeProgressTab === "crafting_recipes" || activeProgressTab === "crafting_recipe_definitions";
     const isEntityDefinitionsTab = activeProgressTab === "entity_definitions";
     const isEntityPoolsTab = activeProgressTab === "entity_pools";
+    const isScriptsTab = activeProgressTab === "scripts";
     const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
 
     useEffect(() => {
@@ -312,6 +313,7 @@ export function CurrentCloneSessionCard({
         entityDefinitionsState,
         entityPoolsState,
         leaderboardDefinitionsState,
+        scriptsState,
     } = useCurrentCloneSessionDefinitions({
         currentSessionId,
         targetGameId,
@@ -324,12 +326,13 @@ export function CurrentCloneSessionCard({
         isEntityDefinitionsTab,
         isEntityPoolsTab,
         isLeaderboardDefinitionsTab: activeProgressTab === "leaderboards" || activeProgressTab === "leaderboard_definitions",
+        isScriptsTab,
         refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
 
     const getManualOverwriteTargetId = useCallback((
-        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition",
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition" | "entity_pool" | "leaderboard_definition" | "script",
         sourceId: string,
     ) => findCloneSessionManualOverwriteTargetId(currentSessionConflicts, contentType, sourceId), [currentSessionConflicts]);
 
@@ -490,7 +493,13 @@ export function CurrentCloneSessionCard({
             entityPoolsState.onApplySearchValue(searchValue);
         } else if (nextTab === "leaderboards" || nextTab === "leaderboard_definitions") {
             leaderboardDefinitionsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "scripts") {
+            scriptsState.onApplySearchValue(searchValue);
         }
+
+        setTimeout(() => {
+            document.getElementById("clone-game-source-current-session-progress")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
     };
 
     const handleWarningClick = (warning: CloneSessionWarning) => {
@@ -678,6 +687,18 @@ export function CurrentCloneSessionCard({
         onLeaderboardDefinitionsClearSearch: leaderboardDefinitionsState.onClearSearch,
         onLeaderboardDefinitionsPreviousPage: leaderboardDefinitionsState.onPreviousPage,
         onLeaderboardDefinitionsNextPage: leaderboardDefinitionsState.onNextPage,
+        scripts: scriptsState.items,
+        scriptsTotal: scriptsState.total,
+        scriptsOffset: scriptsState.offset,
+        scriptsSearchInput: scriptsState.searchInput,
+        scriptsSearchName: scriptsState.searchName,
+        scriptsLoading: scriptsState.loading,
+        scriptsError: scriptsState.error,
+        onScriptsSearchInputChange: scriptsState.onSearchInputChange,
+        onScriptsSearch: scriptsState.onSearch,
+        onScriptsClearSearch: scriptsState.onClearSearch,
+        onScriptsPreviousPage: scriptsState.onPreviousPage,
+        onScriptsNextPage: scriptsState.onNextPage,
         getManualOverwriteTargetId,
         onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };

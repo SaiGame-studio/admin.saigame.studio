@@ -23,6 +23,8 @@ import type {
     CloneSessionCurrentLeaderboardDefinitionsParams,
     CloneSessionCurrentLeaderboardDefinitionsResponse,
     CloneSessionCurrentEntityPoolsResponse,
+    CloneSessionCurrentScriptsParams,
+    CloneSessionCurrentScriptsResponse,
 } from "./clone-session-types";
 
 export async function getCurrentCloneSessionItems(gameId: string, params?: CloneSessionCurrentItemsParams): Promise<CloneSessionCurrentItemsResponse> {
@@ -299,4 +301,27 @@ export async function getCurrentCloneSessionLeaderboardDefinitions(gameId: strin
 
     const query = searchParams.toString();
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/leaderboard-definitions${query ? `?${query}` : ""}`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionScripts(gameId: string, params?: CloneSessionCurrentScriptsParams): Promise<CloneSessionCurrentScriptsResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.id) {
+        searchParams.set("id", params.id);
+    }
+
+    if (params?.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (typeof params?.limit === "number") {
+        searchParams.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+        searchParams.set("offset", String(params.offset));
+    }
+
+    const query = searchParams.toString();
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/scripts${query ? `?${query}` : ""}`, { suppressToast: true });
 }
