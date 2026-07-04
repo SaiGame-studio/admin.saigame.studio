@@ -76,7 +76,8 @@
     "title": "タイトル",
     "summary": "要約",
     "content": "コンテンツ",
-    "select": "選択"
+    "select": "選択",
+    "stop": "停止"
   },
   "shop": {
     "title": "ゲームショップ",

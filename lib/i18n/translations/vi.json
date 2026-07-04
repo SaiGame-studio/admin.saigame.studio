@@ -76,7 +76,8 @@
     "validation": "Kiểm tra",
     "title": "Tiêu đề",
     "summary": "Tóm tắt",
-    "content": "Nội dung"
+    "content": "Nội dung",
+    "stop": "Dừng"
   },
   "shop": {
     "title": "Cửa hàng Game",

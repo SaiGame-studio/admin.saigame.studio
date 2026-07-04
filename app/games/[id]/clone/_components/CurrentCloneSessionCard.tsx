@@ -9,6 +9,7 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/comp
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { cn } from "@/lib/utils";
 import {
+    getCurrentCloneSession,
     getCurrentCloneSessionItemContainers,
     getCurrentCloneSessionItems,
     getCurrentCloneSessionItemTags,
@@ -33,6 +34,17 @@ import { formatTechnicalLabel, getCloneSessionErrorMessage, getCloneSessionStatu
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
 
 const ITEMS_PAGE_SIZE = 12;
+const MAX_POLL_ATTEMPTS = 150; // max run iterations
+
+function isCloneSessionDone(snapshot: CloneSessionSnapshot): boolean {
+    const status = snapshot.status ?? "";
+    const warnings = snapshot.last_run_response?.warnings ?? [];
+    const conflicts = snapshot.last_run_response?.conflicts ?? [];
+    const isFinalizationPending =
+        status === "review_pending" && snapshot.current_phase === "finalization";
+    const isTerminal = ["completed", "failed", "error", "cancelled"].includes(status);
+    return isTerminal || isFinalizationPending || warnings.length > 0 || conflicts.length > 0;
+}
 
 type CurrentCloneSessionCardProps = {
     targetGameId: string;
@@ -87,6 +99,7 @@ export function CurrentCloneSessionCard({
     const [runCloneSessionError, setRunCloneSessionError] = useState<string | null>(null);
     const [contentRefreshNonce, setContentRefreshNonce] = useState(0);
     const previousSessionIdRef = useRef<string | null>(null);
+    const stopLoopRef = useRef(false);
     const currentSessionId = currentSession?.session_id ?? null;
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
@@ -382,32 +395,55 @@ export function CurrentCloneSessionCard({
         setItemTagsOffset((current) => current + ITEMS_PAGE_SIZE);
     };
 
+    const handleStopCloneSession = () => {
+        stopLoopRef.current = true;
+    };
+
     const handleRunCloneSession = async () => {
         if (!currentSession?.session_id || runningCloneSession) {
             return;
         }
 
+        stopLoopRef.current = false;
         setRunningCloneSession(true);
         setRunCloneSessionError(null);
         let nextRunCloneSessionError: string | null = null;
+        const sessionId = currentSession.session_id;
 
         try {
             if (canCompleteCloneSession) {
-                await completeCloneSession(currentSession.session_id);
+                // Complete flow: single call then refresh
+                await completeCloneSession(sessionId);
+                await onRefreshCurrentSession();
             } else {
-                await runCloneSession(currentSession.session_id);
+                // Run loop: /run → /current → delay → repeat until done or stopped
+                let iterations = 0;
+                while (iterations < MAX_POLL_ATTEMPTS && !stopLoopRef.current) {
+                    iterations++;
+
+                    // Step 1: call /run
+                    await runCloneSession(sessionId);
+
+                    // Step 2: call /current to check state
+                    const snapshot = await getCurrentCloneSession(targetGameId);
+                    await onRefreshCurrentSession();
+
+                    if (isCloneSessionDone(snapshot)) {
+                        break;
+                    }
+
+                    // Step 3: wait 1s before next iteration
+                    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+                }
             }
         } catch (error) {
             nextRunCloneSessionError = getCloneSessionErrorMessage(error, t);
-        } finally {
             try {
                 await onRefreshCurrentSession();
-            } catch (error) {
-                if (!nextRunCloneSessionError) {
-                    nextRunCloneSessionError = getCloneSessionErrorMessage(error, t);
-                }
+            } catch {
+                // ignore secondary refresh error
             }
-
+        } finally {
             setRunCloneSessionError(nextRunCloneSessionError);
             setRunningCloneSession(false);
         }
@@ -700,6 +736,7 @@ export function CurrentCloneSessionCard({
                 onDelete={onDelete}
                 onRefreshCurrentSession={onRefreshCurrentSession}
                 onRunCloneSession={handleRunCloneSession}
+                onStopCloneSession={handleStopCloneSession}
             />
 
             <div id="clone-game-source-current-session-alerts-wrap" className="px-6 pb-6">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Square } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -29,6 +29,7 @@ type CurrentCloneSessionFooterActionsProps = {
     onDelete: () => void;
     onRefreshCurrentSession: () => Promise<void>;
     onRunCloneSession: () => Promise<void>;
+    onStopCloneSession: () => void;
 };
 
 export function CurrentCloneSessionFooterActions({
@@ -42,6 +43,7 @@ export function CurrentCloneSessionFooterActions({
     onDelete,
     onRefreshCurrentSession,
     onRunCloneSession,
+    onStopCloneSession,
 }: CurrentCloneSessionFooterActionsProps) {
     const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
 
@@ -114,8 +116,23 @@ export function CurrentCloneSessionFooterActions({
                         onUpdated={onRefreshCurrentSession}
                     />
                     <Button
+                        id="clone-game-source-current-session-stop-btn"
+                        type="button"
+                        variant="outline"
+                        disabled={!runningCloneSession}
+                        className={runningCloneSession
+                            ? "min-w-[5rem] justify-center border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                            : "min-w-[5rem] justify-center border-muted text-muted-foreground opacity-50"
+                        }
+                        onClick={onStopCloneSession}
+                    >
+                        <Square id="clone-game-source-current-session-stop-icon" className="h-3.5 w-3.5 fill-current" />
+                        {t("common.stop")}
+                    </Button>
+                    <Button
                         id="clone-game-source-current-session-run-btn"
                         type="button"
+                        className="min-w-[9rem] justify-center"
                         onClick={handlePrimaryAction}
                         disabled={!sessionId || runningCloneSession || deletingCurrentSession}
                     >

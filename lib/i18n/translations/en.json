@@ -76,7 +76,8 @@
     "validation": "Validation",
     "title": "Title",
     "summary": "Summary",
-    "content": "Content"
+    "content": "Content",
+    "stop": "Stop"
   },
   "shop": {
     "title": "Game Shops",
