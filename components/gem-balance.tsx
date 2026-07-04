@@ -91,8 +91,8 @@ export function GemBalance() {
         {/* Float texts rendered via portal to escape nav stacking context */}
         {typeof window !== "undefined" && floats.map(({ id, delta }) => {
             const rect = anchorRef.current?.getBoundingClientRect();
-            const top = rect ? rect.bottom + window.scrollY + 4 : 0;
-            const left = rect ? rect.left + rect.width / 2 + window.scrollX : 0;
+            const top = rect ? rect.bottom + 4 : 0;
+            const left = rect ? rect.left + rect.width / 2 : 0;
             return createPortal(<span key={id} id={`gem-float-${id}`} className="gem-float fixed text-sm font-bold tabular-nums whitespace-nowrap select-none pointer-events-none" style={{
                     top,
                     left,
