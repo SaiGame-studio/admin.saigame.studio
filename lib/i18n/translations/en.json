@@ -503,6 +503,7 @@
     "sourceGameCurrentSessionEntityPoolsTabLabel": "Entity Pools",
     "sourceGameCurrentSessionEntityPoolKeyLabel": "Pool Key",
     "sourceGameCurrentSessionEntityPoolSearchPlaceholder": "Search by pool key or name...",
+    "sourceGameCurrentSessionScriptSearchPlaceholder": "Search scripts by name...",
     "sourceGameCurrentSessionLeaderboardsTabLabel": "Leaderboards",
     "sourceGameCurrentSessionLeaderboardScoreModeLabel": "Score Mode",
     "sourceGameCurrentSessionLeaderboardResetScheduleLabel": "Reset Schedule",

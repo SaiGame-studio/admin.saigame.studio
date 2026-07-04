@@ -503,6 +503,7 @@
     "sourceGameCurrentSessionEntityPoolsTabLabel": "エンティティプール",
     "sourceGameCurrentSessionEntityPoolKeyLabel": "プールキー",
     "sourceGameCurrentSessionEntityPoolSearchPlaceholder": "プールキーまたは名前で検索...",
+    "sourceGameCurrentSessionScriptSearchPlaceholder": "スクリプト名で検索...",
     "sourceGameCurrentSessionLeaderboardsTabLabel": "リーダーボード",
     "sourceGameCurrentSessionLeaderboardScoreModeLabel": "スコアモード",
     "sourceGameCurrentSessionLeaderboardResetScheduleLabel": "リセットスケジュール",
