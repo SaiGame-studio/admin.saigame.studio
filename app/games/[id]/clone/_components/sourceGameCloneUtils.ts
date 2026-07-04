@@ -83,7 +83,7 @@ export function getVisibilityPriceLabel(game: Game, t: TranslationFn) {
         return null;
     }
 
-    return formatCloneCost(game.settings?.clone_cost ?? 7, game.settings?.clone_cost_currency);
+    return formatCloneCost(game.buyer_clone_cost ?? 11, game.settings?.clone_cost_currency);
 }
 
 export function getRequiredCloneCost(game: Game | null) {
