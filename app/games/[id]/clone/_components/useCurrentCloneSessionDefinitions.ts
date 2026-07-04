@@ -1,0 +1,679 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+    getCurrentCloneSessionEquipmentSlotDefinitions,
+    getCurrentCloneSessionGachaPacks,
+    getCurrentCloneSessionPresetDefinitions,
+    getCurrentCloneSessionQuests,
+    getCurrentCloneSessionShopDefinitions,
+    getCurrentCloneSessionCraftingRecipes,
+    type CloneSessionCurrentEquipmentSlotDefinition,
+    type CloneSessionCurrentGachaPack,
+    type CloneSessionCurrentPresetDefinition,
+    type CloneSessionCurrentQuestDefinition,
+    type CloneSessionCurrentShopDefinition,
+    type CloneSessionCurrentCraftingRecipe,
+    getCurrentCloneSessionEntityDefinitions,
+    type CloneSessionCurrentEntityDefinition,
+    getCurrentCloneSessionEntityPools,
+    type CloneSessionCurrentEntityPool,
+    getCurrentCloneSessionLeaderboardDefinitions,
+    type CloneSessionCurrentLeaderboardDefinition,
+    getCurrentCloneSessionScripts,
+    type CloneSessionCurrentScript,
+} from "@/lib/game-api";
+
+export const CLONE_SESSION_PAGE_SIZE = 12;
+
+type CloneSessionPagedState<TItem> = {
+    items: TItem[];
+    total: number;
+    offset: number;
+    searchInput: string;
+    searchId: string;
+    searchName: string;
+    loading: boolean;
+    error: string | null;
+    onSearchInputChange: (value: string) => void;
+    onApplySearchValue: (value: string) => void;
+    onSearch: () => void;
+    onClearSearch: () => void;
+    onPreviousPage: () => void;
+    onNextPage: () => void;
+};
+
+type UseCurrentCloneSessionDefinitionsParams = {
+    currentSessionId: string | null;
+    targetGameId: string;
+    isEquipmentSlotDefinitionsTab: boolean;
+    isQuestDefinitionsTab: boolean;
+    isShopDefinitionsTab: boolean;
+    isPresetDefinitionsTab: boolean;
+    isGachaPacksTab: boolean;
+    isCraftingRecipesTab: boolean;
+    isEntityDefinitionsTab: boolean;
+    isEntityPoolsTab: boolean;
+    isLeaderboardDefinitionsTab: boolean;
+    isScriptsTab: boolean;
+    refreshNonce: number;
+    formatError: (error: unknown) => string;
+};
+
+function useCloneSessionPagedState<TItem>() {
+    const [items, setItems] = useState<TItem[]>([]);
+    const [total, setTotal] = useState(0);
+    const [offset, setOffset] = useState(0);
+    const [searchInput, setSearchInput] = useState("");
+    const [searchId, setSearchId] = useState("");
+    const [searchName, setSearchName] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    return {
+        items,
+        setItems,
+        total,
+        setTotal,
+        offset,
+        setOffset,
+        searchInput,
+        setSearchInput,
+        searchId,
+        setSearchId,
+        searchName,
+        setSearchName,
+        loading,
+        setLoading,
+        error,
+        setError,
+    };
+}
+
+function toPagedResult<TItem>(state: ReturnType<typeof useCloneSessionPagedState<TItem>>): CloneSessionPagedState<TItem> {
+    return {
+        items: state.items,
+        total: state.total,
+        offset: state.offset,
+        searchInput: state.searchInput,
+        searchId: state.searchId,
+        searchName: state.searchName,
+        loading: state.loading,
+        error: state.error,
+        onSearchInputChange: state.setSearchInput,
+        onApplySearchValue: (value: string) => {
+            const nextValue = value.trim();
+            state.setSearchInput(nextValue);
+            state.setSearchId(nextValue);
+            state.setSearchName("");
+            state.setOffset(0);
+        },
+        onSearch: () => {
+            state.setOffset(0);
+            state.setSearchId("");
+            state.setSearchName(state.searchInput.trim());
+        },
+        onClearSearch: () => {
+            state.setSearchInput("");
+            state.setSearchId("");
+            state.setSearchName("");
+            state.setOffset(0);
+        },
+        onPreviousPage: () => {
+            state.setOffset((current) => Math.max(0, current - CLONE_SESSION_PAGE_SIZE));
+        },
+        onNextPage: () => {
+            state.setOffset((current) => current + CLONE_SESSION_PAGE_SIZE);
+        },
+    };
+}
+
+export function useCurrentCloneSessionDefinitions({
+    currentSessionId,
+    targetGameId,
+    isEquipmentSlotDefinitionsTab,
+    isQuestDefinitionsTab,
+    isShopDefinitionsTab,
+    isPresetDefinitionsTab,
+    isGachaPacksTab,
+    isCraftingRecipesTab,
+    isEntityDefinitionsTab,
+    isEntityPoolsTab,
+    isLeaderboardDefinitionsTab,
+    isScriptsTab,
+    refreshNonce,
+    formatError,
+}: UseCurrentCloneSessionDefinitionsParams) {
+    const equipmentSlotDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentEquipmentSlotDefinition>();
+    const questsState = useCloneSessionPagedState<CloneSessionCurrentQuestDefinition>();
+    const shopDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentShopDefinition>();
+    const presetDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentPresetDefinition>();
+    const gachaPacksState = useCloneSessionPagedState<CloneSessionCurrentGachaPack>();
+    const craftingRecipesState = useCloneSessionPagedState<CloneSessionCurrentCraftingRecipe>();
+    const entityDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentEntityDefinition>();
+    const entityPoolsState = useCloneSessionPagedState<CloneSessionCurrentEntityPool>();
+    const leaderboardDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentLeaderboardDefinition>();
+    const scriptsState = useCloneSessionPagedState<CloneSessionCurrentScript>();
+
+    useEffect(() => {
+        if (!currentSessionId || !isEquipmentSlotDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadEquipmentSlotDefinitions = async () => {
+            equipmentSlotDefinitionsState.setLoading(true);
+            equipmentSlotDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionEquipmentSlotDefinitions(targetGameId, {
+                    id: equipmentSlotDefinitionsState.searchId || undefined,
+                    name: equipmentSlotDefinitionsState.searchId ? undefined : equipmentSlotDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: equipmentSlotDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                equipmentSlotDefinitionsState.setItems(Array.isArray(response.equipment_slot_definitions) ? response.equipment_slot_definitions : []);
+                equipmentSlotDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                equipmentSlotDefinitionsState.setItems([]);
+                equipmentSlotDefinitionsState.setTotal(0);
+                equipmentSlotDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    equipmentSlotDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadEquipmentSlotDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        currentSessionId,
+        equipmentSlotDefinitionsState.offset,
+        equipmentSlotDefinitionsState.searchId,
+        equipmentSlotDefinitionsState.searchName,
+        formatError,
+        isEquipmentSlotDefinitionsTab,
+        refreshNonce,
+        targetGameId,
+    ]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isQuestDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadQuests = async () => {
+            questsState.setLoading(true);
+            questsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionQuests(targetGameId, {
+                    id: questsState.searchId || undefined,
+                    name: questsState.searchId ? undefined : questsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: questsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextQuests = Array.isArray(response.quests)
+                    ? response.quests
+                    : Array.isArray(response.quest_definitions)
+                        ? response.quest_definitions
+                        : [];
+
+                questsState.setItems(nextQuests);
+                questsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                questsState.setItems([]);
+                questsState.setTotal(0);
+                questsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    questsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadQuests();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, isQuestDefinitionsTab, questsState.offset, questsState.searchId, questsState.searchName, refreshNonce, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isShopDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadShopDefinitions = async () => {
+            shopDefinitionsState.setLoading(true);
+            shopDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionShopDefinitions(targetGameId, {
+                    id: shopDefinitionsState.searchId || undefined,
+                    name: shopDefinitionsState.searchId ? undefined : shopDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: shopDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextShopDefinitions = Array.isArray(response.shop_definitions)
+                    ? response.shop_definitions
+                    : Array.isArray(response.shops)
+                        ? response.shops
+                        : [];
+
+                shopDefinitionsState.setItems(nextShopDefinitions);
+                shopDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                shopDefinitionsState.setItems([]);
+                shopDefinitionsState.setTotal(0);
+                shopDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    shopDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadShopDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, isShopDefinitionsTab, refreshNonce, shopDefinitionsState.offset, shopDefinitionsState.searchId, shopDefinitionsState.searchName, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isPresetDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadPresetDefinitions = async () => {
+            presetDefinitionsState.setLoading(true);
+            presetDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionPresetDefinitions(targetGameId, {
+                    id: presetDefinitionsState.searchId || undefined,
+                    name: presetDefinitionsState.searchId ? undefined : presetDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: presetDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextPresetDefinitions = Array.isArray(response.preset_definitions)
+                    ? response.preset_definitions
+                    : Array.isArray(response.presets)
+                        ? response.presets
+                        : [];
+
+                presetDefinitionsState.setItems(nextPresetDefinitions);
+                presetDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                presetDefinitionsState.setItems([]);
+                presetDefinitionsState.setTotal(0);
+                presetDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    presetDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadPresetDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, isPresetDefinitionsTab, presetDefinitionsState.offset, presetDefinitionsState.searchId, presetDefinitionsState.searchName, refreshNonce, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isGachaPacksTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadGachaPacks = async () => {
+            gachaPacksState.setLoading(true);
+            gachaPacksState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionGachaPacks(targetGameId, {
+                    id: gachaPacksState.searchId || undefined,
+                    name: gachaPacksState.searchId ? undefined : gachaPacksState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: gachaPacksState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                gachaPacksState.setItems(Array.isArray(response.gacha_packs) ? response.gacha_packs : []);
+                gachaPacksState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                gachaPacksState.setItems([]);
+                gachaPacksState.setTotal(0);
+                gachaPacksState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    gachaPacksState.setLoading(false);
+                }
+            }
+        };
+
+        void loadGachaPacks();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, gachaPacksState.offset, gachaPacksState.searchId, gachaPacksState.searchName, isGachaPacksTab, refreshNonce, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isCraftingRecipesTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadCraftingRecipes = async () => {
+            craftingRecipesState.setLoading(true);
+            craftingRecipesState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionCraftingRecipes(targetGameId, {
+                    id: craftingRecipesState.searchId || undefined,
+                    name: craftingRecipesState.searchId ? undefined : craftingRecipesState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: craftingRecipesState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                craftingRecipesState.setItems(Array.isArray(response.crafting_recipes) ? response.crafting_recipes : []);
+                craftingRecipesState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                craftingRecipesState.setItems([]);
+                craftingRecipesState.setTotal(0);
+                craftingRecipesState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    craftingRecipesState.setLoading(false);
+                }
+            }
+        };
+
+        void loadCraftingRecipes();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, craftingRecipesState.offset, craftingRecipesState.searchId, craftingRecipesState.searchName, isCraftingRecipesTab, refreshNonce, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isEntityDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadEntityDefinitions = async () => {
+            entityDefinitionsState.setLoading(true);
+            entityDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionEntityDefinitions(targetGameId, {
+                    id: entityDefinitionsState.searchId || undefined,
+                    name: entityDefinitionsState.searchId ? undefined : entityDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: entityDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextEntityDefinitions = Array.isArray(response.entity_definitions)
+                    ? response.entity_definitions
+                    : Array.isArray(response.entities)
+                        ? response.entities
+                        : [];
+
+                entityDefinitionsState.setItems(nextEntityDefinitions);
+                entityDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                entityDefinitionsState.setItems([]);
+                entityDefinitionsState.setTotal(0);
+                entityDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    entityDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadEntityDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, entityDefinitionsState.offset, entityDefinitionsState.searchId, entityDefinitionsState.searchName, isEntityDefinitionsTab, refreshNonce, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isEntityPoolsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadEntityPools = async () => {
+            entityPoolsState.setLoading(true);
+            entityPoolsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionEntityPools(targetGameId, {
+                    id: entityPoolsState.searchId || undefined,
+                    name: entityPoolsState.searchId ? undefined : entityPoolsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: entityPoolsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextEntityPools = Array.isArray(response.entity_pools) ? response.entity_pools : [];
+
+                entityPoolsState.setItems(nextEntityPools);
+                entityPoolsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                entityPoolsState.setItems([]);
+                entityPoolsState.setTotal(0);
+                entityPoolsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    entityPoolsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadEntityPools();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, entityPoolsState.offset, entityPoolsState.searchId, entityPoolsState.searchName, isEntityPoolsTab, refreshNonce, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isLeaderboardDefinitionsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadLeaderboardDefinitions = async () => {
+            leaderboardDefinitionsState.setLoading(true);
+            leaderboardDefinitionsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionLeaderboardDefinitions(targetGameId, {
+                    id: leaderboardDefinitionsState.searchId || undefined,
+                    name: leaderboardDefinitionsState.searchId ? undefined : leaderboardDefinitionsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: leaderboardDefinitionsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextLeaderboards = Array.isArray(response.leaderboard_definitions) ? response.leaderboard_definitions : [];
+
+                leaderboardDefinitionsState.setItems(nextLeaderboards);
+                leaderboardDefinitionsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                leaderboardDefinitionsState.setItems([]);
+                leaderboardDefinitionsState.setTotal(0);
+                leaderboardDefinitionsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    leaderboardDefinitionsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadLeaderboardDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, leaderboardDefinitionsState.offset, leaderboardDefinitionsState.searchId, leaderboardDefinitionsState.searchName, isLeaderboardDefinitionsTab, refreshNonce, targetGameId]);
+
+    useEffect(() => {
+        if (!currentSessionId || !isScriptsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadScripts = async () => {
+            scriptsState.setLoading(true);
+            scriptsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionScripts(targetGameId, {
+                    id: scriptsState.searchId || undefined,
+                    name: scriptsState.searchId ? undefined : scriptsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: scriptsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextScripts = Array.isArray(response.scripts) ? response.scripts : [];
+
+                scriptsState.setItems(nextScripts);
+                scriptsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                scriptsState.setItems([]);
+                scriptsState.setTotal(0);
+                scriptsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    scriptsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadScripts();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, isScriptsTab, refreshNonce, scriptsState.offset, scriptsState.searchId, scriptsState.searchName, targetGameId]);
+
+    return {
+        equipmentSlotDefinitionsState: toPagedResult(equipmentSlotDefinitionsState),
+        questsState: toPagedResult(questsState),
+        shopDefinitionsState: toPagedResult(shopDefinitionsState),
+        presetDefinitionsState: toPagedResult(presetDefinitionsState),
+        gachaPacksState: toPagedResult(gachaPacksState),
+        craftingRecipesState: toPagedResult(craftingRecipesState),
+        entityDefinitionsState: toPagedResult(entityDefinitionsState),
+        entityPoolsState: toPagedResult(entityPoolsState),
+        leaderboardDefinitionsState: toPagedResult(leaderboardDefinitionsState),
+        scriptsState: toPagedResult(scriptsState),
+    };
+}

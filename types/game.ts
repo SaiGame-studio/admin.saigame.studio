@@ -35,6 +35,13 @@ export interface Game {
     slug: string;
     description?: string;
     game_type: string;
+    share_level?: "private" | "protected" | "public";
+
+    is_cloned_game?: boolean;
+    buyer_clone_cost?: number;
+    same_studio?: boolean;
+    is_my_game?: boolean;
+    is_purchased?: boolean;
     tags?: string[];
     config: {
         max_players: number;
@@ -48,6 +55,8 @@ export interface Game {
         quest_reward_delivery?: "mailbox" | "direct" | "";
         quest_mailbox_title?: string;
         quest_mailbox_body?: string;
+        clone_cost?: number;
+        clone_cost_currency?: "sGem" | "sCoin" | string;
         [key: string]: any;
     };
     is_active: boolean;

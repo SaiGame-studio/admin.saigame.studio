@@ -287,7 +287,6 @@ export default function GameDetailsPage({ params }: {
                                 {game.is_active ? "Active" : "Inactive"}
                             </Badge>
                         </div>
-                        <GameDescriptionEditable game={game} gameId={game.id} onDescriptionUpdate={newDescription => setGame(prev => prev ? { ...prev, description: newDescription } : prev)}/>
                     </div>
                 </div>
                 <div className="flex flex-col gap-2 items-start md:items-end">
@@ -368,33 +367,7 @@ export default function GameDetailsPage({ params }: {
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                <div>
-                                    <h3 className="text-sm font-medium ">{t('game.shopCount')}</h3>
-                                    <p className="text-lg">
-                                        <Link href={`/games/${game.id}/shops`} className="text-primary hover:text-primary/80 flex items-center gap-1">
-                                            {game.shop_count ?? 0}
-                                            <ExternalLink className="inline-block h-4 w-4 ml-1"/>
-                                        </Link>
-                                    </p>
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-medium ">{t('game.totalPlayer')}</h3>
-                                    <p className="text-lg">
-                                        <Link href={`/games/${game.id}/players`} className="text-primary hover:text-primary/80 flex items-center gap-1">
-                                            {game.usage?.player_profiles ?? game.player_count ?? 0}
-                                            <ExternalLink className="inline-block h-4 w-4 ml-1"/>
-                                        </Link>
-                                    </p>
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-medium ">{t('game.itemProfileCount')}</h3>
-                                    <p className="text-lg">
-                                        <Link href={`/games/${game.id}/items`} className="text-primary hover:text-primary/80 flex items-center gap-1">
-                                            {game.usage?.items ?? 0}
-                                            <ExternalLink className="inline-block h-4 w-4 ml-1"/>
-                                        </Link>
-                                    </p>
-                                </div>
+                                <GameDescriptionEditable game={game} gameId={game.id} onDescriptionUpdate={newDescription => setGame(prev => prev ? { ...prev, description: newDescription } : prev)}/>
                                 <div>
                                     <h3 className="text-sm font-medium flex items-center gap-1 mb-2">
                                         <Tag className="h-3.5 w-3.5"/>

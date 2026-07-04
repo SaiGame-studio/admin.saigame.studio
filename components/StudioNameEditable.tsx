@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Pencil, Save, X } from "lucide-react";
 import { updateStudio } from "@/lib/studio-api";
@@ -126,23 +127,29 @@ export function GameDescriptionEditable({ game, gameId, onDescriptionUpdate }: G
             setLoading(false);
         }
     };
-    return (<div className="group flex items-center gap-2 mt-1 flex-wrap">
-      {editing ? (<>
-          <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Add game description..." className="flex-1 min-w-0 h-8 px-2 text-sm sm:w-96 sm:flex-none" disabled={loading}/>
-          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4"/>
-          </Button>
-          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setDescription(game.description || ""); }} disabled={loading}>
-            <X className="w-4 h-4"/>
-          </Button>
-        </>) : (<>
-          <span className="text-sm text-muted-foreground break-words min-w-0">
+    return (<div className="group mt-1 space-y-1">
+      <div id={`game-description-editable-header-${gameId}`} className="flex items-center gap-2">
+        <h3 id={`game-description-editable-label-${gameId}`} className="text-sm font-medium">Description</h3>
+        {editing ? (<>
+            <Button id={`game-description-editable-save-${gameId}`} size="icon" variant="ghost" onClick={handleSave} disabled={loading} className="h-7 w-7">
+              <Save id={`game-description-editable-save-icon-${gameId}`} className="w-4 h-4"/>
+            </Button>
+            <Button id={`game-description-editable-cancel-${gameId}`} size="icon" variant="ghost" onClick={() => { setEditing(false); setDescription(game.description || ""); }} disabled={loading} className="h-7 w-7">
+              <X id={`game-description-editable-cancel-icon-${gameId}`} className="w-4 h-4"/>
+            </Button>
+          </>) : (
+            <Button id={`game-description-editable-edit-${gameId}`} size="icon" variant="ghost" onClick={() => setEditing(true)} className="h-7 w-7 shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+              <Pencil id={`game-description-editable-edit-icon-${gameId}`} className="w-4 h-4"/>
+            </Button>
+          )}
+      </div>
+      {editing ? (
+          <Textarea id={`game-description-editable-input-${gameId}`} value={description} onChange={e => setDescription(e.target.value)} placeholder="Add game description..." className="min-h-40 resize-y text-sm" disabled={loading}/>
+        ) : (
+          <span id={`game-description-editable-value-${gameId}`} className="block text-sm text-muted-foreground break-words min-w-0">
             {description || "Add game description..."}
           </span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-            <Pencil className="w-4 h-4"/>
-          </Button>
-        </>)}
+        )}
       {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
     </div>);
 }

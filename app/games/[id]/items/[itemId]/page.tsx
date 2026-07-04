@@ -22,7 +22,6 @@ import { getItemDefinition, updateItemDefinition, deleteItemDefinition, createIt
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { getCraftingRecipe } from "@/lib/crafting-api";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, } from "@/components/ui/alert-dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, } from "@/components/ui/sheet";
 import type { ItemDefinition, ItemCategory, ItemRarity, UpdateItemRequest, GachaPack, ContainerDefinition } from "@/types/inventory";
 import { RARITY_COLORS } from "@/types/inventory";
 import { GameNavButtons } from "@/components/GameNavButtons";
@@ -32,6 +31,9 @@ import { SseUpdateSheet } from "@/components/SseUpdateSheet";
 import type { CreateItemInitialValues } from "@/components/CreateItemDefinitionDialog";
 import { createConversation, linkConversationContent } from "@/lib/llm-conversation-api";
 import { safeGetItem } from "@/lib/storage-utils";
+import { BaseStatsSection } from "./_components/BaseStatsSection";
+import { ItemExplanationSheet, type ItemExplanationTopic } from "./_components/ItemExplanationSheet";
+import { MetadataSection } from "./_components/MetadataSection";
 // ─── helpers ─────────────────────────────────────────────────────────────────
 function trimStrings<T>(obj: T): T {
     if (typeof obj === 'string')
@@ -82,33 +84,6 @@ function CopyUUID({ value }: {
       {copied
             ? <Check className="h-3.5 w-3.5 text-green-500 shrink-0"/>
             : <Copy className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0"/>}
-    </button>);
-}
-function CopyIconButton({ value }: {
-    value: string;
-}) {
-    const [copied, setCopied] = useState(false);
-    const copy = () => {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(value);
-        }
-        else {
-            const textarea = document.createElement("textarea");
-            textarea.value = value;
-            textarea.style.position = "fixed";
-            textarea.style.opacity = "0";
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textarea);
-        }
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-    return (<button onClick={copy} className="inline-flex items-center opacity-0 group-hover:opacity-100 transition-opacity" title="Copy">
-      {copied
-            ? <Check className="h-3 w-3 text-green-500 shrink-0"/>
-            : <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground shrink-0"/>}
     </button>);
 }
 // ─── main page ───────────────────────────────────────────────────────────────
@@ -208,7 +183,7 @@ export default function ItemDefinitionDetailPage() {
     const [savingGenConfig, setSavingGenConfig] = useState(false);
     // explanation panel state
     const [showExplanationPanel, setShowExplanationPanel] = useState(false);
-    const [explanationTopic, setExplanationTopic] = useState<'write_props' | 'update_qty' | null>(null);
+    const [explanationTopic, setExplanationTopic] = useState<ItemExplanationTopic>(null);
     useEffect(() => {
         Promise.all([fetchItemCategories(), fetchItemRarities()])
             .then(([cats, rars]) => { setCategories(cats); setRarities(rars); })
@@ -519,7 +494,7 @@ export default function ItemDefinitionDetailPage() {
         setEditingStats(true);
     }
     // Keys managed separately (read-only in the UI)
-    const RESERVED_META_KEYS = ["gacha_pack_ids", "gacha_pack_id", "linked_container_definition_id", "generator_config", "craft_recipe_input_ids", "craft_recipe_output_ids"];
+    const RESERVED_META_KEYS = ["_clone", "gacha_pack_ids", "gacha_pack_id", "linked_container_definition_id", "generator_config", "craft_recipe_input_ids", "craft_recipe_output_ids"];
     function startEditGenConfig() {
         if (!item)
             return;
@@ -1107,153 +1082,36 @@ export default function ItemDefinitionDetailPage() {
         </Card>
 
         {/* ── Base Stats ────────────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('items.baseStats')}</CardTitle>
-            {!editingStats ? (<Button size="icon" variant="ghost" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={startEditStats}>
-                <Pencil className="h-3.5 w-3.5"/>
-              </Button>) : (<div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={saveStats}>
-                  <Save className="h-3.5 w-3.5"/>
-                </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingStats(false)}>
-                  <X className="h-3.5 w-3.5"/>
-                </Button>
-              </div>)}
-          </CardHeader>
-          <CardContent>
-            {editingStats ? (<div className="space-y-2">
-                {tmpStats.map((entry, i) => (<div key={i} className="flex gap-1 items-center">
-                    <Input className="h-7 text-xs flex-1" placeholder="key" value={entry.key} onChange={(e) => { const a = [...tmpStats]; a[i] = { ...a[i], key: e.target.value }; setTmpStats(a); }}/>
-                    <span className="text-muted-foreground text-xs">=</span>
-                    <Input className="h-7 text-xs w-20" placeholder="0" type="number" value={entry.value} onChange={(e) => { const a = [...tmpStats]; a[i] = { ...a[i], value: e.target.value }; setTmpStats(a); }}/>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setTmpStats(tmpStats.filter((_, j) => j !== i))}>
-                      <Trash2 className="h-3.5 w-3.5"/>
-                    </Button>
-                  </div>))}
-                <Button size="sm" variant="outline" className="h-7 text-xs mt-1 w-full" onClick={() => setTmpStats([...tmpStats, { key: "", value: "0" }])}>
-                  <Plus className="h-3 w-3 mr-1"/> {t('items.detailAddStat')}
-                </Button>
-              </div>) : Object.keys(item.base_stats ?? {}).length === 0 ? (<p className="text-sm text-muted-foreground">{t('items.detailNoBaseStats')}</p>) : (<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                {Object.entries(item.base_stats).map(([key, value]) => (<div key={key} className="group flex justify-between text-sm border-b border-muted/50 pb-1.5">
-                    <span className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                      {key}
-                      <CopyIconButton value={key}/>
-                    </span>
-                    <span className="text-xs font-semibold">{value}</span>
-                  </div>))}
-              </div>)}
-          </CardContent>
-        </Card>
+        <BaseStatsSection
+          item={item}
+          editingStats={editingStats}
+          tmpStats={tmpStats}
+          setTmpStats={setTmpStats}
+          saving={saving}
+          onStartEdit={startEditStats}
+          onSave={saveStats}
+          onCancel={() => setEditingStats(false)}
+        />
 
         {/* ── Metadata ──────────────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('items.metadata')}</CardTitle>
-            {!editingMeta ? (<Button size="icon" variant="ghost" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={startEditMeta}>
-                <Pencil className="h-3.5 w-3.5"/>
-              </Button>) : (<div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={saveMeta}>
-                  <Save className="h-3.5 w-3.5"/>
-                </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingMeta(false)}>
-                  <X className="h-3.5 w-3.5"/>
-                </Button>
-              </div>)}
-          </CardHeader>
-          <CardContent>
-            {/* ── Linked Container Definition (read-only) ────────── */}
-            {linkedContainerInfo && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
-                <span className="text-muted-foreground font-mono text-xs">linked_container_definition_id</span>
-                <div className="flex items-center gap-1.5 ml-1">
-                  <Link href={`/games/${gameId}/items?tab=containers&q=${linkedContainerInfo.id}`} title={t('items.goToItemDef')} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
-                    <ExternalLink className="h-3 w-3 shrink-0"/>
-                    <span className="font-medium">{linkedContainerInfo.name || t('items.detailUnknownContainer')}</span>
-                    <span className="font-mono text-[10px] opacity-60">{linkedContainerInfo.id.slice(0, 8)}…</span>
-                  </Link>
-                </div>
-              </div>)}
-            {/* ── Craft Recipe Input IDs (read-only) ──────────────── */}
-            {craftInputIds.length > 0 && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
-                <span className="text-muted-foreground font-mono text-xs">craft_recipe_input_ids</span>
-                <div className="flex flex-col gap-1 ml-1">
-                  {craftInputIds.map((rid) => {
-                const recipe = craftRecipeInfo[rid];
-                return (<div key={rid} className="inline-flex items-center gap-1.5 text-xs">
-                        <Link href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`} title={t('items.detailOpenRecipe')} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
-                          <ExternalLink className="h-3 w-3 shrink-0"/>
-                          <span className="font-medium">{recipe?.name || "…"}</span>
-                          <span className="font-mono text-[10px] opacity-60">{rid.slice(0, 8)}…</span>
-                        </Link>
-                      </div>);
-            })}
-                </div>
-              </div>)}
-            {/* ── Craft Recipe Output IDs (read-only) ─────────────── */}
-            {craftOutputIds.length > 0 && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
-                <span className="text-muted-foreground font-mono text-xs">craft_recipe_output_ids</span>
-                <div className="flex flex-col gap-1 ml-1">
-                  {craftOutputIds.map((rid) => {
-                const recipe = craftRecipeInfo[rid];
-                return (<div key={rid} className="inline-flex items-center gap-1.5 text-xs">
-                        <Link href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`} title={t('items.detailOpenRecipe')} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
-                          <ExternalLink className="h-3 w-3 shrink-0"/>
-                          <span className="font-medium">{recipe?.name || "…"}</span>
-                          <span className="font-mono text-[10px] opacity-60">{rid.slice(0, 8)}…</span>
-                        </Link>
-                      </div>);
-            })}
-                </div>
-              </div>)}
-            {/* ── Gacha Pack IDs (read-only) ────────────────────────── */}
-            {linkedPackIds.length > 0 && (<div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
-                <span className="text-muted-foreground font-mono text-xs">gacha_pack_ids</span>
-                <div className="flex flex-col gap-1 ml-1">
-                  {linkedPackIds.map((packId) => {
-                const pack = gachaPackInfo[packId];
-                return (<div key={packId} className="inline-flex items-center gap-1.5 text-xs">
-                        {pack && (<span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${pack.is_enabled
-                            ? "bg-green-500/15 text-green-500 border border-green-500/30"
-                            : "bg-red-500/15 text-red-500 border border-red-500/30"}`}>
-                            {pack.is_enabled ? t('items.enabled') : t('items.disabled')}
-                          </span>)}
-                        <Link href={`/games/${gameId}/items?tab=gacha&editPack=${packId}`} title={t('items.detailOpenGachaPackEditor')} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
-                          <ExternalLink className="h-3 w-3 shrink-0"/>
-                          <span className="font-medium">{pack?.name || "…"}</span>
-                          <span className="font-mono text-[10px] opacity-60">{packId.slice(0, 8)}…</span>
-                        </Link>
-                      </div>);
-            })}
-                </div>
-              </div>)}
-            {editingMeta ? (<div className="space-y-2">
-                {tmpMeta.map((entry, i) => (<div key={i} className="flex gap-1 items-center">
-                    <Input className="h-7 text-xs flex-1 font-mono" placeholder="key" value={entry.key} onChange={(e) => { const a = [...tmpMeta]; a[i] = { ...a[i], key: e.target.value }; setTmpMeta(a); }}/>
-                    <span className="text-muted-foreground text-xs">=</span>
-                    <Input className="h-7 text-xs flex-1" placeholder="value" value={entry.value} onChange={(e) => { const a = [...tmpMeta]; a[i] = { ...a[i], value: e.target.value }; setTmpMeta(a); }}/>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setTmpMeta(tmpMeta.filter((_, j) => j !== i))}>
-                      <Trash2 className="h-3.5 w-3.5"/>
-                    </Button>
-                  </div>))}
-                <Button size="sm" variant="outline" className="h-7 text-xs mt-1 w-full" onClick={() => setTmpMeta([...tmpMeta, { key: "", value: "" }])}>
-                  <Plus className="h-3 w-3 mr-1"/> {t('items.addEntry')}
-                </Button>
-              </div>) : Object.keys(item.metadata ?? {}).filter((k) => !RESERVED_META_KEYS.includes(k)).length === 0 ? (<p className="text-sm text-muted-foreground">{t('items.detailNoMetadata')}</p>) : (<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                {Object.entries(item.metadata)
-                .filter(([key]) => !RESERVED_META_KEYS.includes(key))
-                .map(([key, value]) => (<div key={key} className="group flex justify-between text-sm border-b border-muted/50 pb-1.5">
-                    <span className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                      {key}
-                      <CopyIconButton value={key}/>
-                    </span>
-                    <span className="text-xs font-medium max-w-[200px] truncate text-right" title={String(value)}>
-                      {typeof value === "boolean" ? (value ? "true" : "false") : String(value)}
-                    </span>
-                  </div>))}
-              </div>)}
-          </CardContent>
-        </Card>
-
+        <MetadataSection
+          item={item}
+          gameId={gameId}
+          editingMeta={editingMeta}
+          saving={saving}
+          tmpMeta={tmpMeta}
+          setTmpMeta={setTmpMeta}
+          onStartEdit={startEditMeta}
+          onSave={saveMeta}
+          onCancel={() => setEditingMeta(false)}
+          reservedMetaKeys={RESERVED_META_KEYS}
+          linkedContainerInfo={linkedContainerInfo}
+          craftInputIds={craftInputIds}
+          craftOutputIds={craftOutputIds}
+          linkedPackIds={linkedPackIds}
+          craftRecipeInfo={craftRecipeInfo}
+          gachaPackInfo={gachaPackInfo}
+        />
         {/* ── Generator Config (for generator items) ──────────────────── */}
         {item.category === "generator" && (() => {
             const gc = (item.metadata?.generator_config ?? {}) as Record<string, unknown>;
@@ -1530,89 +1388,7 @@ export default function ItemDefinitionDetailPage() {
       </div>
 
       {/* ── Explanation Panel ───────────────────────────────────────────────── */}
-      <Sheet open={showExplanationPanel} onOpenChange={setShowExplanationPanel}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto flex flex-col">
-          <SheetHeader>
-            <SheetTitle>
-              {explanationTopic === 'write_props'
-            ? t('items.explanation.writeProps.title')
-            : explanationTopic === 'update_qty'
-                ? t('items.explanation.updateQty.title')
-                : t('common.support')}
-            </SheetTitle>
-          </SheetHeader>
-
-          <div className="space-y-4 py-4 flex-1 overflow-y-auto">
-            {explanationTopic === 'write_props' && (<div className="space-y-3 text-sm">
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1.5">{t('items.explanation.writeProps.title')}</h3>
-                  <p className="text-muted-foreground">
-                    {t('items.explanation.writeProps.description')}
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.writeProps.whenEnabled')}</h4>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>{t('items.explanation.writeProps.enabled1')}</li>
-                    <li>{t('items.explanation.writeProps.enabled2')}</li>
-                    <li>{t('items.explanation.writeProps.enabled3')}</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.writeProps.whenDisabled')}</h4>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>{t('items.explanation.writeProps.disabled1')}</li>
-                    <li>{t('items.explanation.writeProps.disabled2')}</li>
-                    <li>{t('items.explanation.writeProps.disabled3')}</li>
-                  </ul>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2 text-xs text-blue-800 dark:text-blue-200">
-                  💡 <strong>{t('items.explanation.writeProps.tip')}</strong> {t('items.explanation.writeProps.tipContent')}
-                </div>
-              </div>)}
-
-            {explanationTopic === 'update_qty' && (<div className="space-y-3 text-sm">
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1.5">{t('items.explanation.updateQty.title')}</h3>
-                  <p className="text-muted-foreground">
-                    {t('items.explanation.updateQty.description')}
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.updateQty.whenEnabled')}</h4>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>{t('items.explanation.updateQty.enabled1')}</li>
-                    <li>{t('items.explanation.updateQty.enabled2')}</li>
-                    <li>{t('items.explanation.updateQty.enabled3')}</li>
-                    <li>{t('items.explanation.updateQty.enabled4')}</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.updateQty.whenDisabled')}</h4>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>{t('items.explanation.updateQty.disabled1')}</li>
-                    <li>{t('items.explanation.updateQty.disabled2')}</li>
-                    <li>{t('items.explanation.updateQty.disabled3')}</li>
-                    <li>{t('items.explanation.updateQty.disabled4')}</li>
-                  </ul>
-                </div>
-
-                <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded p-2 text-xs text-amber-800 dark:text-amber-200">
-                  ⚠️ <strong>{t('items.explanation.updateQty.warning')}</strong> {t('items.explanation.updateQty.warningContent')}
-                </div>
-              </div>)}
-          </div>
-
-          <SheetFooter className="pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowExplanationPanel(false)}>{t('common.close')}</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <ItemExplanationSheet open={showExplanationPanel} onOpenChange={setShowExplanationPanel} topic={explanationTopic} />
       {item && ssePrefillData && (<SseUpdateSheet open={sseSheetOpen} onClose={() => { setSseSheetOpen(false); setSsePrefillData(null); }} onApplied={(updated) => { setItem(updated); setSseSheetOpen(false); setSsePrefillData(null); }} item={item} gameId={gameId} sseData={ssePrefillData}/>)}
     </div>);
 }

@@ -41,6 +41,26 @@ interface TransactionsResponse {
     total: number;
     transactions: Transaction[];
 }
+interface SGemTransaction {
+    id: string;
+    user_id: string;
+    amount: number;
+    type: string;
+    status: string;
+    balance_before: number;
+    balance_after: number;
+    reference_id?: string;
+    reference_type?: string;
+    description?: string;
+    created_at: string;
+    processed_at?: string;
+}
+interface SGemTransactionsResponse {
+    limit: number;
+    offset: number;
+    total: number;
+    transactions: SGemTransaction[];
+}
 interface PaymentTransaction {
     id: string;
     user_id: string;
@@ -188,7 +208,7 @@ function PaymentPageContent() {
             : (["transactions", "redeem", "buy-sgem", "buy-scoin", "buy-token"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin");
         setActiveTab(tab);
     }, [searchParams]);
-    const [txSubTab, setTxSubTab] = useState<"buy" | "use">((["buy", "use"].includes(searchParams.get("subtab") ?? "") ? searchParams.get("subtab")! : "buy") as "buy" | "use");
+    const [txSubTab, setTxSubTab] = useState<"buy" | "use" | "use-sgem">((["buy", "use", "use-sgem"].includes(searchParams.get("subtab") ?? "") ? searchParams.get("subtab")! : "buy") as "buy" | "use" | "use-sgem");
     const [expandedPayTxId, setExpandedPayTxIdState] = useState<string | null>(searchParams.get("txid") ?? null);
     function handleTabChange(value: string) {
         setActiveTab(value);
@@ -201,7 +221,7 @@ function PaymentPageContent() {
         });
     }
     function handleTxSubTabChange(value: string) {
-        setTxSubTab(value as "buy" | "use");
+        setTxSubTab(value as "buy" | "use" | "use-sgem");
         replaceParams((params) => params.set("subtab", value));
     }
     function setExpandedPayTxId(id: string | null) {
@@ -284,6 +304,27 @@ function PaymentPageContent() {
             setTxLoading(false);
         }
     }, []);
+
+    // ---------- sGem transactions (Use sGem) ----------
+    const [sgemTxData, setSgemTxData] = useState<SGemTransactionsResponse | null>(null);
+    const [sgemTxLoading, setSgemTxLoading] = useState(false);
+    const [sgemTxError, setSgemTxError] = useState(false);
+
+    const fetchSgemTransactions = useCallback(async () => {
+        setSgemTxLoading(true);
+        setSgemTxError(false);
+        try {
+            const data = await api.get("/api/v1/me/sgem-transactions?limit=20&offset=0");
+            setSgemTxData(data);
+        }
+        catch {
+            setSgemTxError(true);
+        }
+        finally {
+            setSgemTxLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         if (txSubTab === "buy" && !payTxFetched) {
             setPayTxFetched(true);
@@ -307,6 +348,16 @@ function PaymentPageContent() {
             fetchTransactions();
         }
     }, [txSubTab, txFetched, fetchTransactions]);
+
+    // Lazy-load sGem transactions only when "sGem Transactions" sub-tab is first opened
+    const [sgemTxFetched, setSgemTxFetched] = useState(false);
+    useEffect(() => {
+        if (txSubTab === "use-sgem" && !sgemTxFetched) {
+            setSgemTxFetched(true);
+            fetchSgemTransactions();
+        }
+    }, [txSubTab, sgemTxFetched, fetchSgemTransactions]);
+
     // ---------- packages & methods state ----------
     const [packages, setPackages] = useState<CoinPackage[]>([]);
     const [packagesLoading, setPackagesLoading] = useState(false);
@@ -744,10 +795,15 @@ function PaymentPageContent() {
               <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
                 <TabsList>
                   <TabsTrigger value="buy">{t('payment.subTabBuyCoin')}</TabsTrigger>
+                  <TabsTrigger value="use-sgem">sGem Transactions</TabsTrigger>
                   <TabsTrigger value="use">{t('payment.subTabUseCoin')}</TabsTrigger>
                 </TabsList>
-                <Button variant="outline" size="icon" onClick={txSubTab === "buy" ? fetchPaymentTransactions : fetchTransactions} disabled={txSubTab === "buy" ? payTxLoading : txLoading}>
-                  <RefreshCw className={`h-4 w-4 ${(txSubTab === "buy" ? payTxLoading : txLoading) ? "animate-spin" : ""}`}/>
+                <Button variant="outline" size="icon" onClick={() => {
+                  if (txSubTab === "buy") fetchPaymentTransactions();
+                  else if (txSubTab === "use") fetchTransactions();
+                  else fetchSgemTransactions();
+                }} disabled={txSubTab === "buy" ? payTxLoading : txSubTab === "use" ? txLoading : sgemTxLoading}>
+                  <RefreshCw className={`h-4 w-4 ${(txSubTab === "buy" ? payTxLoading : txSubTab === "use" ? txLoading : sgemTxLoading) ? "animate-spin" : ""}`}/>
                 </Button>
               </div>
 
@@ -895,10 +951,10 @@ function PaymentPageContent() {
                             </div>
 
                             <div className="flex-1 min-w-0">
-                              <p className="truncate text-sm font-medium">
+                              <p className="text-sm font-medium break-words whitespace-pre-wrap">
                                 {tx.description ?? getTypeLabel(tx.type)}
                               </p>
-                              <p className="text-xs text-muted-foreground truncate">
+                              <p className="text-xs text-muted-foreground">
                                 {formatDate(tx.created_at)}
                               </p>
                             </div>
@@ -920,6 +976,67 @@ function PaymentPageContent() {
                                 → {tx.balance_after.toLocaleString()}
                               </p>
                               <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="mt-1 text-[10px] h-4 sm:hidden">
+                                {tx.status}
+                              </Badge>
+                            </div>
+                          </CardContent>
+                        </Card>);
+            })}
+                  </div>)}
+              </TabsContent>
+
+              {/* ---- Sub-tab: Use sGem ---- */}
+              <TabsContent value="use-sgem" id="payment-subtab-use-sgem-content" className="mt-0">
+                {sgemTxLoading && !sgemTxData ? (<div id="payment-use-sgem-loading" className="flex items-center justify-center py-16">
+                    <Loader2 id="payment-use-sgem-loading-icon" className="h-6 w-6 animate-spin text-muted-foreground"/>
+                  </div>) : sgemTxError ? (<Card id="payment-use-sgem-error-card">
+                    <CardContent id="payment-use-sgem-error-content" className="flex flex-col items-center gap-3 py-10 text-center">
+                      <p id="payment-use-sgem-error-text" className="text-sm text-destructive">{t('payment.loadError')}</p>
+                      <Button id="payment-use-sgem-retry-btn" variant="outline" size="sm" onClick={fetchSgemTransactions}>
+                        {t('payment.tryAgain')}
+                      </Button>
+                    </CardContent>
+                  </Card>) : sgemTxData?.transactions?.length === 0 ? (<Card id="payment-use-sgem-empty-card">
+                    <CardContent id="payment-use-sgem-empty-content" className="py-10 text-center text-sm text-muted-foreground">
+                      <span id="payment-use-sgem-empty-text">{t('payment.noTransactions')}</span>
+                    </CardContent>
+                  </Card>) : (<div id="payment-use-sgem-list" className="space-y-2">
+                    {sgemTxData?.transactions?.map((tx) => {
+                const isCredit = tx.amount > 0;
+                return (<Card id={`payment-use-sgem-row-${tx.id}`} key={tx.id}>
+                          <CardContent id={`payment-use-sgem-row-content-${tx.id}`} className="flex items-center gap-2 p-3 sm:gap-4 sm:p-4">
+                            <div id={`payment-use-sgem-icon-container-${tx.id}`} className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${isCredit
+                        ? "bg-green-500/10 text-green-500"
+                        : "bg-destructive/10 text-destructive"}`}>
+                              {isCredit ? (<ArrowDownLeft id={`payment-use-sgem-icon-credit-${tx.id}`} className="h-4 w-4"/>) : (<ArrowUpRight id={`payment-use-sgem-icon-debit-${tx.id}`} className="h-4 w-4"/>)}
+                            </div>
+
+                            <div id={`payment-use-sgem-info-${tx.id}`} className="flex-1 min-w-0">
+                              <p id={`payment-use-sgem-desc-${tx.id}`} className="text-sm font-medium break-words whitespace-pre-wrap">
+                                {tx.description ?? getTypeLabel(tx.type)}
+                              </p>
+                              <p id={`payment-use-sgem-date-${tx.id}`} className="text-xs text-muted-foreground">
+                                {formatDate(tx.created_at)}
+                              </p>
+                            </div>
+
+                            <Badge id={`payment-use-sgem-type-${tx.id}`} variant="outline" className="hidden md:inline-flex text-xs shrink-0">
+                              {getTypeLabel(tx.type)}
+                            </Badge>
+
+                            <Badge id={`payment-use-sgem-status-${tx.id}`} variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="hidden text-xs shrink-0 sm:inline-flex">
+                              {tx.status}
+                            </Badge>
+
+                            <div id={`payment-use-sgem-amount-container-${tx.id}`} className="text-right shrink-0">
+                              <p id={`payment-use-sgem-amount-${tx.id}`} className={`font-semibold tabular-nums text-sm sm:text-base ${isCredit ? "text-green-500" : "text-destructive"}`}>
+                                {isCredit ? "+" : ""}
+                                {tx.amount.toLocaleString()} 💎
+                              </p>
+                              <p id={`payment-use-sgem-balance-${tx.id}`} className="text-xs text-muted-foreground tabular-nums">
+                                → {tx.balance_after.toLocaleString()}
+                              </p>
+                              <Badge id={`payment-use-sgem-status-mobile-${tx.id}`} variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="mt-1 text-[10px] h-4 sm:hidden">
                                 {tx.status}
                               </Badge>
                             </div>
