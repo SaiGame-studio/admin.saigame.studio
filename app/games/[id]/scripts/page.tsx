@@ -75,14 +75,9 @@ function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested }:
         </div>
 
         {/* Name */}
-        <div className="w-[180px] shrink-0 min-w-0 flex items-center gap-1">
+        <div className="flex-1 min-w-0 flex items-center gap-1">
           <p className="font-semibold text-sm truncate">{script.name}</p>
           <CopyButton text={script.name}/>
-        </div>
-
-        {/* Description */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-muted-foreground truncate">{script.description || <span className="italic opacity-50">—</span>}</p>
         </div>
 
         {/* Updated at */}
@@ -110,9 +105,14 @@ function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested }:
           </Button>
         </div>
       </div>
-
       {/* Expanded script preview */}
-      {expanded && (<div className="px-4 pb-4 pt-0">
+      {expanded && (<div className="px-4 pb-4 pt-0 space-y-2">
+          {script.description && (
+            <div id={`script-row-${script.id}-description`} className="text-xs text-muted-foreground bg-muted/20 px-3 py-2 rounded border border-border/50">
+              <span className="font-semibold text-foreground mr-1.5">{t('scripts.labelDescription')}:</span>
+              {script.description}
+            </div>
+          )}
           <div style={{
                 all: "initial",
                 display: "block",
@@ -123,7 +123,7 @@ function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested }:
                 overflow: "hidden",
                 border: "1px solid #3c3c3c",
             }}>
-            <CodeMirror value={script.script_body || "-- (empty)"} readOnly editable={false} theme={vscodeDark} extensions={[StreamLanguage.define(lua)]} basicSetup={{
+             <CodeMirror value={script.script_body || "-- (empty)"} readOnly editable={false} theme={vscodeDark} extensions={[StreamLanguage.define(lua)]} basicSetup={{
                 lineNumbers: true,
                 foldGutter: false,
                 dropCursor: false,
@@ -357,8 +357,7 @@ export default function ScriptsPage() {
           <div className="flex items-center gap-3 px-4 py-2 bg-muted/40 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             <div className="w-[20px] shrink-0"/>
             <div className="w-[36px] shrink-0 text-center">{t('scripts.tableHeaderVer')}</div>
-            <div className="w-[180px] shrink-0">{t('scripts.tableHeaderName')}</div>
-            <div className="flex-1">{t('scripts.tableHeaderDescription')}</div>
+            <div className="flex-1">{t('scripts.tableHeaderName')}</div>
             <div className="w-[130px] shrink-0">{t('scripts.tableHeaderUpdatedAt')}</div>
             <div className="w-[48px] shrink-0 text-center">{t('scripts.tableHeaderActive')}</div>
             <div className="w-[48px] shrink-0 text-center">{t('scripts.tableHeaderLibrary')}</div>
