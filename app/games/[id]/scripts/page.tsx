@@ -38,10 +38,8 @@ interface ScriptRowProps {
     onToggle: () => void;
     onUpdated: (s: GameScript) => void;
     onDeleteRequested: (s: GameScript) => void;
-    libCount: number;
-    maxLibs: number;
 }
-function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested, libCount, maxLibs }: ScriptRowProps) {
+function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested }: ScriptRowProps) {
     const { toast } = useToast();
     const { locale } = useLanguage();
     const { t } = useTranslation(locale);
@@ -56,10 +54,6 @@ function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested, l
         }
     }
     async function toggleLibrary() {
-        if (!script.is_library && libCount >= maxLibs) {
-            toast({ variant: "destructive", title: t('scripts.toastLibraryLimit', { max: maxLibs }) });
-            return;
-        }
         try {
             const updated = await updateScript(script.game_id, script.id, { is_library: !script.is_library });
             onUpdated(updated);
@@ -68,7 +62,7 @@ function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested, l
             toast({ variant: "destructive", title: t('scripts.toastFailedToggleLibrary'), description: err instanceof Error ? err.message : undefined });
         }
     }
-    return (<div className={`bg-card transition-opacity ${!script.is_active ? "opacity-55" : ""}`}>
+    return (<div id={`script-row-${script.id}`} className={`bg-card transition-opacity ${!script.is_active ? "opacity-55" : ""}`}>
       <div className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none" onClick={onToggle}>
         {/* Expand toggle */}
         <div className="w-[20px] shrink-0 flex justify-center">
@@ -98,20 +92,20 @@ function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested, l
 
         {/* Active switch */}
         <div className="w-[48px] shrink-0 flex justify-center" onClick={e => e.stopPropagation()}>
-          <Switch checked={script.is_active} onCheckedChange={toggleActive}/>
+          <Switch id={`script-row-${script.id}-active-switch`} checked={script.is_active} onCheckedChange={toggleActive}/>
         </div>
 
         {/* Library toggle */}
         <div className="w-[48px] shrink-0 flex justify-center" onClick={e => e.stopPropagation()}>
-          <Switch checked={script.is_library} onCheckedChange={toggleLibrary} disabled={!script.is_library && libCount >= maxLibs} title={script.is_library ? t('scripts.demoteLibrary') : (!script.is_library && libCount >= maxLibs ? t('scripts.libraryLimitReached', { max: maxLibs }) : t('scripts.promoteLibrary'))}/>
+          <Switch id={`script-row-${script.id}-library-switch`} checked={script.is_library} onCheckedChange={toggleLibrary} title={script.is_library ? t('scripts.demoteLibrary') : t('scripts.promoteLibrary')}/>
         </div>
 
         {/* Actions column */}
         <div className="w-16 shrink-0 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={t('scripts.editScript')} onClick={() => router.push(`/games/${script.game_id}/scripts/${script.id}`)}>
+          <Button id={`script-row-${script.id}-edit-btn`} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={t('scripts.editScript')} onClick={() => router.push(`/games/${script.game_id}/scripts/${script.id}`)}>
             <Pencil className="h-4 w-4"/>
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={t('common.delete')} onClick={() => onDeleteRequested(script)}>
+          <Button id={`script-row-${script.id}-delete-btn`} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={t('common.delete')} onClick={() => onDeleteRequested(script)}>
             <Trash2 className="h-4 w-4"/>
           </Button>
         </div>
@@ -146,7 +140,6 @@ function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested, l
     </div>);
 }
 const DEFAULT_SCRIPT_BODY = "-- Lua script";
-const MAX_LIBS = 7;
 const defaultForm: CreateScriptRequest = {
     name: "",
     description: "",
@@ -325,13 +318,11 @@ export default function ScriptsPage() {
             ? `${scripts.length} ${scripts.length !== 1 ? t('scripts.scriptsDefinedPlural') : t('scripts.scriptsDefinedSingular')}`
             : t('scripts.noScriptsYet')}
           </span>
-          {scripts.length > 0 && (<span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${libCount >= MAX_LIBS
-                ? "border-destructive/50 text-destructive bg-destructive/10"
-                : libCount > 0
+          {scripts.length > 0 && (<span id="scripts-library-counter-badge" className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${libCount > 0
                     ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
                     : "border-border text-muted-foreground"}`}>
               <BookMarked className="h-3 w-3"/>
-              {libCount} / {MAX_LIBS} {t('scripts.libraryCounter')}
+              {libCount} {t('scripts.libraryCounter')}
             </span>)}
         </div>
         <div className="flex gap-2">
@@ -374,7 +365,7 @@ export default function ScriptsPage() {
             <div className="w-16 shrink-0"/>
           </div>
           <div className="divide-y">
-            {scripts.map(script => (<ScriptRow key={script.id} script={script} expanded={expandedId === script.id} onToggle={() => setExpandedId(id => id === script.id ? null : script.id)} onUpdated={handleUpdated} onDeleteRequested={setDeletingScript} libCount={libCount} maxLibs={MAX_LIBS}/>))}
+            {scripts.map(script => (<ScriptRow key={script.id} script={script} expanded={expandedId === script.id} onToggle={() => setExpandedId(id => id === script.id ? null : script.id)} onUpdated={handleUpdated} onDeleteRequested={setDeletingScript}/>))}
           </div>
         </div>)}
 
