@@ -55,6 +55,7 @@ export function ItemsPageTagsSection({
   const [autoSlug, setAutoSlug] = useState(true);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [hasFetched, setHasFetched] = useState(false);
 
   const fetchTags = useCallback(() => {
     if (!gameId) {
@@ -65,7 +66,10 @@ export function ItemsPageTagsSection({
     setError(null);
 
     listItemTags({ gameId }, { limit: 100, offset: 0 })
-      .then((res) => setTags(res.tags ?? []))
+      .then((res) => {
+        setTags(res.tags ?? []);
+        setHasFetched(true);
+      })
       .catch((e) => setError(e?.message ?? "Failed to load item tags"))
       .finally(() => setLoading(false));
   }, [gameId, setError, setLoading, setTags]);
@@ -74,11 +78,11 @@ export function ItemsPageTagsSection({
     if (activeTab !== "tags" || !gameId) {
       return;
     }
-    if (tags.length > 0 || loading) {
+    if (tags.length > 0 || loading || hasFetched) {
       return;
     }
     fetchTags();
-  }, [activeTab, fetchTags, gameId, loading, tags.length]);
+  }, [activeTab, fetchTags, gameId, loading, tags.length, hasFetched]);
 
   function openCreate() {
     setEditingTag(null);
