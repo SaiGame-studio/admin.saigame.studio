@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } fr
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, CircleHelp, } from "lucide-react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ import { fetchStudioWithCache } from "@/lib/studio-api";
 import { ApiError } from "@/lib/api-client";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils";
 import type { Studio } from "@/types/studio";
-import { listQuestDefinitions, listQuestTypes, createQuestDefinition, updateQuestDefinition, deleteQuestDefinition, isConditionLeaf, type QuestDefinition, type QuestType, type QuestReward, type QuestConditionLeaf, type QuestConditionGroup, type ItemRequirement, type CreateQuestDefinitionRequest, type UpdateQuestDefinitionRequest, } from "@/lib/quest-api";
+import { listQuestDefinitions, listQuestTypes, listQuestConditionTypes, createQuestDefinition, updateQuestDefinition, deleteQuestDefinition, isConditionLeaf, type QuestDefinition, type QuestType, type QuestReward, type QuestConditionLeaf, type QuestConditionGroup, type ItemRequirement, type CreateQuestDefinitionRequest, type UpdateQuestDefinitionRequest, type QuestConditionTypeOption, } from "@/lib/quest-api";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { DailyTab } from "./DailyTab";
@@ -91,10 +91,11 @@ const QUEST_TYPES: {
     { value: "battle_pass_task", labelKey: "quest.typeBattlePassTask", descKey: "quest.typeBattlePassTaskDesc" },
     { value: "chain", labelKey: "quest.typeChain", descKey: "quest.typeChainDesc" },
 ];
-const CONDITION_TYPE_OPTIONS = [
+const KNOWN_CONDITION_TYPES = [
     { value: "login", labelKey: "quest.condLogin", descKey: "quest.condLoginDesc" },
     { value: "collect_and_keep", labelKey: "quest.condCollectAndKeep", descKey: "quest.condCollectAndKeepDesc" },
     { value: "collect_and_submit", labelKey: "quest.condCollectAndSubmit", descKey: "quest.condCollectAndSubmitDesc" },
+    { value: "collect_and_submit_all", labelKey: "quest.condCollectAndSubmitAll", descKey: "quest.condCollectAndSubmitAllDesc" },
     { value: "not_have_item", labelKey: "quest.condNotHaveItem", descKey: "quest.condNotHaveItemDesc" },
     { value: "gacha_opened", labelKey: "quest.condGachaOpened", descKey: "quest.condGachaOpenedDesc" },
 ];
@@ -190,6 +191,8 @@ function newLeaf(): QuestConditionLeaf {
 }
 function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = [] }: ConditionEditorProps) {
     const { t } = useTranslation();
+    const [conditionTypes, setConditionTypes] = useState<QuestConditionTypeOption[]>([]);
+    const [helpConditionType, setHelpConditionType] = useState<QuestConditionTypeOption | null>(null);
     const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([]);
     const [gachaPacksLoading, setGachaPacksLoading] = useState(false);
     const [gachaPopoverOpen, setGachaPopoverOpen] = useState<number | null>(null);
@@ -199,6 +202,13 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
         clause: number;
         item: number;
     } | null>(null);
+    useEffect(() => {
+        if (!gameId)
+            return;
+        listQuestConditionTypes(gameId)
+            .then((res) => setConditionTypes(res.condition_types ?? []))
+            .catch(() => setConditionTypes([]));
+    }, [gameId]);
     useEffect(() => {
         if (!gameId)
             return;
@@ -263,7 +273,7 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
         updateLeaf(clauseIdx, { items: (clause.items ?? []).filter((_, ii) => ii !== itemIdx) });
     };
     useEffect(() => {
-        const collectTypes = new Set(["collect_and_keep", "collect_and_submit", "not_have_item"]);
+        const collectTypes = new Set(conditionTypes.filter((option) => option.uses_items).map((option) => option.type));
         for (let i = 0; i < conditions.clauses.length; i++) {
             const clause = conditions.clauses[i];
             if (!isConditionLeaf(clause))
@@ -310,13 +320,14 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
                 updateLeaf(i, { items: normalizedItems as ItemRequirement[] });
             }
         }
-    }, [conditions, resolveItemDef, updateLeaf]);
+    }, [conditionTypes, conditions, resolveItemDef, updateLeaf]);
     const handleTypeChange = (i: number, v: string) => {
         const clause = conditions.clauses[i];
         if (!isConditionLeaf(clause))
             return;
         const clause_id = genClauseId(v);
-        if (v === "collect_and_keep" || v === "collect_and_submit" || v === "not_have_item") {
+        const selectedType = conditionTypes.find((option) => option.type === v);
+        if (selectedType?.uses_items) {
             updateLeaf(i, { type: v, clause_id, target: undefined, items: clause.items ?? [], packs: undefined, details: undefined });
         }
         else if (v === "gacha_opened") {
@@ -361,14 +372,23 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
             <div className="flex gap-2 items-end">
               <div className="flex-1 space-y-1">
                 <Label className="text-xs text-muted-foreground">{t('quest.type')}</Label>
-                <Select value={clause.type} onValueChange={(v) => handleTypeChange(i, v)}>
-                  <SelectTrigger className="h-7">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CONDITION_TYPE_OPTIONS.map((o) => (<SelectItem key={o.value} value={o.value}>{t(o.labelKey)}</SelectItem>))}
-                  </SelectContent>
-                </Select>
+                <div id={`quest-condition-${i}-type-controls`} className="flex items-center gap-1">
+                  <Select value={clause.type} onValueChange={(v) => handleTypeChange(i, v)}>
+                    <SelectTrigger className="h-7">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {conditionTypes.map((option) => {
+                          const known = KNOWN_CONDITION_TYPES.find((item) => item.value === option.type);
+                          const label = known ? t(known.labelKey) : option.type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+                          return <SelectItem id={`quest-condition-${i}-type-option-${option.type}`} key={option.type} value={option.type}>{label}</SelectItem>;
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <Button id={`quest-condition-${i}-help-button`} type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={t('quest.conditionHelp')} disabled={!conditionTypes.some((option) => option.type === clause.type)} onClick={() => setHelpConditionType(conditionTypes.find((option) => option.type === clause.type) ?? null)}>
+                    <CircleHelp id={`quest-condition-${i}-help-icon`} className="h-4 w-4"/>
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1 w-32 shrink-0">
                 <Label className="text-xs text-muted-foreground">
@@ -382,7 +402,7 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
             </div>
 
             {/* Row 2: type-specific fields */}
-            {(clause.type === "collect_and_keep" || clause.type === "collect_and_submit" || clause.type === "not_have_item") ? (<div className="space-y-2">
+            {conditionTypes.find((option) => option.type === clause.type)?.uses_items ? (<div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">{t('quest.requiredItems')}</Label>
                   <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => addItem(i)}>
@@ -503,6 +523,28 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
                 <p className="text-xs text-muted-foreground">{t('quest.noExtraFields')}</p>)}
           </div>);
         })}
+      <Sheet open={!!helpConditionType} onOpenChange={(open) => {
+            if (!open)
+                setHelpConditionType(null);
+        }}>
+        <SheetContent id="quest-condition-help-panel" side="right" className="w-full sm:max-w-md">
+          <SheetHeader id="quest-condition-help-header">
+            <SheetTitle id="quest-condition-help-title">
+              {helpConditionType ? (() => {
+                    const known = KNOWN_CONDITION_TYPES.find((item) => item.value === helpConditionType.type);
+                    return known ? t(known.labelKey) : helpConditionType.type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+                })() : t('quest.conditionHelp')}
+            </SheetTitle>
+          </SheetHeader>
+          {helpConditionType && (() => {
+            const translationKey = `quest.conditionMessages.${helpConditionType.message_code}`;
+            const translatedDescription = t(translationKey);
+            return (<p id="quest-condition-help-description" className="mt-6 text-sm leading-6 text-muted-foreground">
+              {translatedDescription === translationKey ? helpConditionType.description : translatedDescription}
+            </p>);
+        })()}
+        </SheetContent>
+      </Sheet>
     </div>);
 }
 // ─── Reward Editor ─────────────────────────────────────────────────────────────
@@ -1655,7 +1697,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                             if (!isConditionLeaf(clause)) {
                                 return <div key={ci} className="text-xs text-muted-foreground border rounded px-2 py-1">{t('quest.nestedGroup')} ({(clause as QuestConditionGroup).operator})</div>;
                             }
-                            const typeOpt = CONDITION_TYPE_OPTIONS.find(o => o.value === clause.type);
+                            const typeOpt = KNOWN_CONDITION_TYPES.find(o => o.value === clause.type);
                             const typeLabel = typeOpt ? t(typeOpt.labelKey) : clause.type;
                             return (<div key={ci} className="border rounded px-3 py-2 bg-background text-sm space-y-1">
                                       <div className="flex items-center gap-2">
