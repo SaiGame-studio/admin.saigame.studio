@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } fr
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, CircleHelp, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, } from "lucide-react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -192,7 +192,6 @@ function newLeaf(): QuestConditionLeaf {
 function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = [] }: ConditionEditorProps) {
     const { t } = useTranslation();
     const [conditionTypes, setConditionTypes] = useState<QuestConditionTypeOption[]>([]);
-    const [helpConditionType, setHelpConditionType] = useState<QuestConditionTypeOption | null>(null);
     const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([]);
     const [gachaPacksLoading, setGachaPacksLoading] = useState(false);
     const [gachaPopoverOpen, setGachaPopoverOpen] = useState<number | null>(null);
@@ -372,23 +371,18 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
             <div className="flex gap-2 items-end">
               <div className="flex-1 space-y-1">
                 <Label className="text-xs text-muted-foreground">{t('quest.type')}</Label>
-                <div id={`quest-condition-${i}-type-controls`} className="flex items-center gap-1">
-                  <Select value={clause.type} onValueChange={(v) => handleTypeChange(i, v)}>
-                    <SelectTrigger className="h-7">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {conditionTypes.map((option) => {
-                          const known = KNOWN_CONDITION_TYPES.find((item) => item.value === option.type);
-                          const label = known ? t(known.labelKey) : option.type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-                          return <SelectItem id={`quest-condition-${i}-type-option-${option.type}`} key={option.type} value={option.type}>{label}</SelectItem>;
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <Button id={`quest-condition-${i}-help-button`} type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={t('quest.conditionHelp')} disabled={!conditionTypes.some((option) => option.type === clause.type)} onClick={() => setHelpConditionType(conditionTypes.find((option) => option.type === clause.type) ?? null)}>
-                    <CircleHelp id={`quest-condition-${i}-help-icon`} className="h-4 w-4"/>
-                  </Button>
-                </div>
+                <Select value={clause.type} onValueChange={(v) => handleTypeChange(i, v)}>
+                  <SelectTrigger className="h-7">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {conditionTypes.map((option) => {
+                        const known = KNOWN_CONDITION_TYPES.find((item) => item.value === option.type);
+                        const label = known ? t(known.labelKey) : option.type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+                        return <SelectItem id={`quest-condition-${i}-type-option-${option.type}`} key={option.type} value={option.type}>{label}</SelectItem>;
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1 w-32 shrink-0">
                 <Label className="text-xs text-muted-foreground">
@@ -400,6 +394,16 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
                 <Trash2 className="h-3.5 w-3.5"/>
               </Button>
             </div>
+            {(() => {
+                const selectedType = conditionTypes.find((option) => option.type === clause.type);
+                if (!selectedType)
+                    return null;
+                const translationKey = `quest.conditionMessages.${selectedType.message_code}`;
+                const translatedDescription = t(translationKey);
+                return (<p id={`quest-condition-${i}-type-description-${clause.clause_id || "new"}`} className="mr-9 text-xs leading-5 text-muted-foreground">
+                  {translatedDescription === translationKey ? selectedType.description : translatedDescription}
+                </p>);
+            })()}
 
             {/* Row 2: type-specific fields */}
             {conditionTypes.find((option) => option.type === clause.type)?.uses_items ? (<div className="space-y-2">
@@ -523,28 +527,6 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
                 <p className="text-xs text-muted-foreground">{t('quest.noExtraFields')}</p>)}
           </div>);
         })}
-      <Sheet open={!!helpConditionType} onOpenChange={(open) => {
-            if (!open)
-                setHelpConditionType(null);
-        }}>
-        <SheetContent id="quest-condition-help-panel" side="right" className="w-full sm:max-w-md">
-          <SheetHeader id="quest-condition-help-header">
-            <SheetTitle id="quest-condition-help-title">
-              {helpConditionType ? (() => {
-                    const known = KNOWN_CONDITION_TYPES.find((item) => item.value === helpConditionType.type);
-                    return known ? t(known.labelKey) : helpConditionType.type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-                })() : t('quest.conditionHelp')}
-            </SheetTitle>
-          </SheetHeader>
-          {helpConditionType && (() => {
-            const translationKey = `quest.conditionMessages.${helpConditionType.message_code}`;
-            const translatedDescription = t(translationKey);
-            return (<p id="quest-condition-help-description" className="mt-6 text-sm leading-6 text-muted-foreground">
-              {translatedDescription === translationKey ? helpConditionType.description : translatedDescription}
-            </p>);
-        })()}
-        </SheetContent>
-      </Sheet>
     </div>);
 }
 // ─── Reward Editor ─────────────────────────────────────────────────────────────

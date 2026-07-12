@@ -3232,7 +3232,6 @@
       "QUEST_CONDITION_GACHA_OPENED_DESCRIPTION": "Người chơi phải mở một gói gacha cụ thể ít nhất số lần được yêu cầu.",
       "QUEST_CONDITION_NOT_HAVE_ITEM_DESCRIPTION": "Thỏa mãn khi người chơi không sở hữu bất kỳ vật phẩm nào được chỉ định. Có thể dùng cho việc phân nhánh nhiệm vụ."
     },
-    "conditionHelp": "Giải thích điều kiện",
     "name": "Tên",
     "codeName": "Mã định danh",
     "codeNameHint": "vd: daily_login",

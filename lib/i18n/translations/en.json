@@ -3270,7 +3270,6 @@
       "QUEST_CONDITION_GACHA_OPENED_DESCRIPTION": "The player must have opened a specific gacha pack at least the required number of times.",
       "QUEST_CONDITION_NOT_HAVE_ITEM_DESCRIPTION": "Satisfied when the player does not possess any specified item. This can be used for quest branching."
     },
-    "conditionHelp": "Condition explanation",
     "name": "Name",
     "codeName": "Code Name",
     "codeNameHint": "e.g. daily_login",

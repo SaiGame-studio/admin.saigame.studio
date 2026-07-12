@@ -3230,7 +3230,6 @@
       "QUEST_CONDITION_GACHA_OPENED_DESCRIPTION": "プレイヤーは指定されたガチャパックを必要回数以上開封する必要があります。",
       "QUEST_CONDITION_NOT_HAVE_ITEM_DESCRIPTION": "指定されたアイテムを一つも所持していない場合に達成されます。クエストの分岐に使用できます。"
     },
-    "conditionHelp": "条件の説明",
     "name": "名前",
     "codeName": "コード名",
     "codeNameHint": "例: daily_login",
