@@ -500,21 +500,46 @@ export function CurrentCloneSessionCard({
         }, 100);
     };
 
-    const handleWarningClick = (warning: CloneSessionWarning) => {
+    const handleManualOverwriteSuccess = useCallback(async () => {
+        await onRefreshCurrentSession();
+        setContentRefreshNonce((current) => current + 1);
+    }, [onRefreshCurrentSession]);
+
+    const handleShopWarningClick = (warning: CloneSessionWarning) => {
+        const searchValue = (warning.source_id || "").trim();
+        const nextTab = normalizeProgressTab("shop_definitions", currentSessionProgressEntries);
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", nextTab);
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+
+        if (!searchValue) {
+            return;
+        }
+
+        setRunCloneSessionError(null);
+        shopDefinitionsState.onApplySearchValue(searchValue);
+        setTimeout(() => {
+            document.getElementById("clone-game-source-current-session-progress")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+    };
+
+    const handleQuestWarningClick = (warning: CloneSessionWarning) => {
         const searchValue = (warning.source_id || "").trim();
         const nextTab = normalizeProgressTab("quest_definitions", currentSessionProgressEntries);
         const nextParams = new URLSearchParams(searchParams.toString());
         nextParams.set("subTab", nextTab);
         router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
-        if (!searchValue) return setRunCloneSessionError(t("cloneGame.sourceGameCurrentSessionConflictMissingItemDefinitionId"));
+
+        if (!searchValue) {
+            return;
+        }
+
         setRunCloneSessionError(null);
         questsState.onApplySearchValue(searchValue);
+        setTimeout(() => {
+            document.getElementById("clone-game-source-current-session-progress")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
     };
-
-    const handleManualOverwriteSuccess = useCallback(async () => {
-        await onRefreshCurrentSession();
-        setContentRefreshNonce((current) => current + 1);
-    }, [onRefreshCurrentSession]);
 
     if (currentSessionLoading) {
         return <CurrentCloneSessionLoadingCard />;
@@ -766,7 +791,8 @@ export function CurrentCloneSessionCard({
                     warnings={currentSessionWarnings}
                     conflicts={currentSessionConflicts}
                     onConflictClick={handleConflictClick}
-                    onWarningClick={handleWarningClick}
+                    onShopWarningClick={handleShopWarningClick}
+                    onQuestWarningClick={handleQuestWarningClick}
                 />
             </div>
 
