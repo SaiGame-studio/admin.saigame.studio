@@ -16,7 +16,8 @@ type CurrentCloneSessionAlertsProps = {
     warnings: CloneSessionWarning[];
     conflicts: CloneSessionConflict[];
     onConflictClick: (conflict: CloneSessionConflict) => void;
-    onWarningClick: (warning: CloneSessionWarning) => void;
+    onShopWarningClick: (warning: CloneSessionWarning) => void;
+    onQuestWarningClick: (warning: CloneSessionWarning) => void;
 };
 
 function formatTechnicalLabel(value?: string) {
@@ -61,7 +62,8 @@ export function CurrentCloneSessionAlerts({
     warnings,
     conflicts,
     onConflictClick,
-    onWarningClick,
+    onShopWarningClick,
+    onQuestWarningClick,
 }: CurrentCloneSessionAlertsProps) {
     if (warnings.length === 0 && conflicts.length === 0) {
         return null;
@@ -775,10 +777,18 @@ export function CurrentCloneSessionAlerts({
                         {warnings.map((warning, index) => {
                             const idSegment = toKebabIdSegment(warning.field);
                             const shopKey = `${warning.message_params?.shop_key ?? ""}`.trim();
+                            const shopName = `${warning.message_params?.shop_name ?? ""}`.trim();
+                            const missingSourceItemDefinitionId = `${warning.message_params?.missing_source_item_definition_id ?? ""}`.trim();
                             const hasShopMissingSourceItemDefinitionWarning = warning.field === "shop_definitions"
                                 && warning.message_code === "clone_warning_shop_source_item_definition_missing"
-                                && Boolean(shopKey)
-                                && Boolean(warning.source_id);
+                                && Boolean(sourceGameId)
+                                && Boolean(warning.source_id)
+                                && Boolean(missingSourceItemDefinitionId);
+                            const hasQuestMissingSourceItemDefinitionWarning = warning.field === "quest_definitions"
+                                && warning.message_code === "clone_warning_quest_source_item_definition_missing"
+                                && Boolean(sourceGameId)
+                                && Boolean(warning.source_id)
+                                && Boolean(missingSourceItemDefinitionId);
 
                             return (
                                 <div
@@ -793,17 +803,17 @@ export function CurrentCloneSessionAlerts({
                                             </p>
                                             <div id={`clone-game-source-current-session-warning-source-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
                                                 <span id={`clone-game-source-current-session-warning-source-label-${idSegment}-${index}`} className="text-muted-foreground">
-                                                    Source:
+                                                    {t("cloneGame.conflictContentTypes.shop_definition")}:
                                                 </span>
                                                 <Button
                                                     id={`clone-game-source-current-session-warning-source-link-${idSegment}-${index}`}
                                                     type="button"
                                                     variant="link"
                                                     className="h-auto p-0 text-xs font-medium text-foreground underline-offset-4 hover:underline"
-                                                    onClick={() => onWarningClick(warning)}
+                                                    onClick={() => onShopWarningClick(warning)}
                                                 >
                                                     <span id={`clone-game-source-current-session-warning-source-value-${idSegment}-${index}`}>
-                                                        {shopKey}
+                                                        {shopName || shopKey || warning.source_id}
                                                     </span>
                                                 </Button>
                                                 <span id={`clone-game-source-current-session-warning-source-id-${idSegment}-${index}`} className="font-mono break-all">
@@ -817,22 +827,89 @@ export function CurrentCloneSessionAlerts({
                                                     className="ml-0"
                                                 />
                                             </div>
+                                            {missingSourceItemDefinitionId ? (
+                                                <div id={`clone-game-source-current-session-warning-missing-item-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
+                                                    <span id={`clone-game-source-current-session-warning-missing-item-label-${idSegment}-${index}`} className="text-muted-foreground">
+                                                        {t("cloneGame.conflictContentTypes.item_definition")}:
+                                                    </span>
+                                                    <Link
+                                                        id={`clone-game-source-current-session-warning-missing-item-link-${idSegment}-${index}`}
+                                                        href={`/games/${sourceGameId}/items/${missingSourceItemDefinitionId}`}
+                                                        className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                                                    >
+                                                        <span id={`clone-game-source-current-session-warning-missing-item-value-${idSegment}-${index}`} className="font-mono break-all">
+                                                            {missingSourceItemDefinitionId}
+                                                        </span>
+                                                        <ExternalLink
+                                                            id={`clone-game-source-current-session-warning-missing-item-link-icon-${idSegment}-${index}`}
+                                                            className="h-3.5 w-3.5"
+                                                            aria-hidden="true"
+                                                        />
+                                                    </Link>
+                                                    <CopyButton
+                                                        id={`clone-game-source-current-session-warning-missing-item-copy-btn-${idSegment}-${index}`}
+                                                        iconId={`clone-game-source-current-session-warning-missing-item-copy-icon-${idSegment}-${index}`}
+                                                        text={missingSourceItemDefinitionId}
+                                                        size="h-3 w-3"
+                                                        className="ml-0"
+                                                    />
+                                                </div>
+                                            ) : null}
                                         </div>
-                                    ) : warning.field === "quest_definitions" && targetGameId ? (
-                                        <Link
-                                            id={`clone-game-source-current-session-warning-field-link-${idSegment}-${index}`}
-                                            href={`/games/${targetGameId}/quests`}
-                                            className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline"
-                                        >
-                                            <span id={`clone-game-source-current-session-warning-field-${idSegment}-${index}`}>
+                                    ) : hasQuestMissingSourceItemDefinitionWarning ? (
+                                        <div id={`clone-game-source-current-session-warning-quest-wrap-${idSegment}-${index}`} className="space-y-1">
+                                            <p id={`clone-game-source-current-session-warning-field-${idSegment}-${index}`} className="font-medium text-foreground">
                                                 {formatTechnicalLabel(warning.field) || t("common.unknown")}
-                                            </span>
-                                            <ExternalLink
-                                                id={`clone-game-source-current-session-warning-field-link-icon-${idSegment}-${index}`}
-                                                className="h-3.5 w-3.5"
-                                                aria-hidden="true"
-                                            />
-                                        </Link>
+                                            </p>
+                                            <div id={`clone-game-source-current-session-warning-quest-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
+                                                <span id={`clone-game-source-current-session-warning-quest-label-${idSegment}-${index}`} className="text-muted-foreground">
+                                                    {t("cloneGame.conflictContentTypes.quest_definition")}:
+                                                </span>
+                                                <Button
+                                                    id={`clone-game-source-current-session-warning-quest-link-${idSegment}-${index}`}
+                                                    type="button"
+                                                    variant="link"
+                                                    className="h-auto p-0 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                                                    onClick={() => onQuestWarningClick(warning)}
+                                                >
+                                                    <span id={`clone-game-source-current-session-warning-quest-value-${idSegment}-${index}`}>
+                                                        {`${warning.message_params?.quest_name ?? warning.message_params?.quest_code_name ?? warning.source_id}`}
+                                                    </span>
+                                                </Button>
+                                                <span id={`clone-game-source-current-session-warning-quest-id-${idSegment}-${index}`} className="font-mono break-all">
+                                                    {warning.source_id}
+                                                </span>
+                                                <CopyButton
+                                                    id={`clone-game-source-current-session-warning-quest-copy-btn-${idSegment}-${index}`}
+                                                    iconId={`clone-game-source-current-session-warning-quest-copy-icon-${idSegment}-${index}`}
+                                                    text={warning.source_id ?? ""}
+                                                    size="h-3 w-3"
+                                                    className="ml-0"
+                                                />
+                                            </div>
+                                            <div id={`clone-game-source-current-session-warning-quest-missing-item-row-${idSegment}-${index}`} className="flex flex-wrap items-center gap-2">
+                                                <span id={`clone-game-source-current-session-warning-quest-missing-item-label-${idSegment}-${index}`} className="text-muted-foreground">
+                                                    {t("cloneGame.conflictContentTypes.item_definition")}:
+                                                </span>
+                                                <Link
+                                                    id={`clone-game-source-current-session-warning-quest-missing-item-link-${idSegment}-${index}`}
+                                                    href={`/games/${sourceGameId}/items/${missingSourceItemDefinitionId}`}
+                                                    className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                                                >
+                                                    <span id={`clone-game-source-current-session-warning-quest-missing-item-value-${idSegment}-${index}`} className="font-mono break-all">
+                                                        {missingSourceItemDefinitionId}
+                                                    </span>
+                                                    <ExternalLink id={`clone-game-source-current-session-warning-quest-missing-item-link-icon-${idSegment}-${index}`} className="h-3.5 w-3.5" aria-hidden="true" />
+                                                </Link>
+                                                <CopyButton
+                                                    id={`clone-game-source-current-session-warning-quest-missing-item-copy-btn-${idSegment}-${index}`}
+                                                    iconId={`clone-game-source-current-session-warning-quest-missing-item-copy-icon-${idSegment}-${index}`}
+                                                    text={missingSourceItemDefinitionId}
+                                                    size="h-3 w-3"
+                                                    className="ml-0"
+                                                />
+                                            </div>
+                                        </div>
                                     ) : (
                                         <p id={`clone-game-source-current-session-warning-field-${idSegment}-${index}`} className="font-medium text-foreground">
                                             {formatTechnicalLabel(warning.field) || t("common.unknown")}

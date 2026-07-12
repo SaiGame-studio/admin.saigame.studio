@@ -108,6 +108,20 @@ export interface ListQuestTypesResponse {
 export async function listQuestTypes(): Promise<ListQuestTypesResponse> {
     return api.get('/api/v1/quest-types');
 }
+export interface QuestConditionTypeOption {
+    type: string;
+    message_code: string;
+    description: string;
+    uses_items: boolean;
+    auto_check: boolean;
+    sample_clause: QuestConditionLeaf;
+}
+export interface ListQuestConditionTypesResponse {
+    condition_types: QuestConditionTypeOption[];
+}
+export async function listQuestConditionTypes(gameId: string): Promise<ListQuestConditionTypesResponse> {
+    return api.get(`/api/v1/games/${gameId}/quests/condition-types`);
+}
 // ─── API Functions ─────────────────────────────────────────────────────────────
 export async function listQuestDefinitions(studioId: string, gameId: string, params?: {
     status?: boolean;

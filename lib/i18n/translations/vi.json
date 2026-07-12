@@ -580,6 +580,7 @@
     "warnings": {
       "clone_quota_quest_definitions": "Quota của game đích có thể không đủ cho tất cả quest definitions. Slot trống: {available_slot} / {required_total}.",
       "clone_warning_shop_source_item_definition_missing": "Shop item nguồn {shop_item_id} đang tham chiếu tới source item definition bị thiếu {missing_source_item_definition_id}.",
+      "clone_warning_quest_source_item_definition_missing": "Quest nguồn đang tham chiếu tới source item definition bị thiếu {missing_source_item_definition_id}.",
       "clone_quota_entity_definitions": "Quota của game đích có thể không đủ cho tất cả thực thể.\n- Thiếu: {missing_slot} ô\n- Cần: {required_clone_count}\n- Hiện có: {available_slot}",
       "clone_quota_entity_pools": "Quota của game đích có thể không đủ cho tất cả entity pool.\n- Thiếu: {missing_slot} ô\n- Cần: {required_clone_count}\n- Hiện có: {available_slot}"
     },
@@ -3218,10 +3219,20 @@
     "condCollectAndKeepDesc": "Người chơi phải giữ vật phẩm (không bị xóa)",
     "condCollectAndSubmit": "Thu thập & Nộp",
     "condCollectAndSubmitDesc": "Người chơi phải có vật phẩm (bị trừ khi hoàn thành)",
+    "condCollectAndSubmitAll": "Thu thập & Nộp tất cả",
+    "condCollectAndSubmitAllDesc": "Người chơi nộp toàn bộ số lượng đang giữ của các vật phẩm yêu cầu",
     "condNotHaveItem": "Không có vật phẩm",
     "condNotHaveItemDesc": "Người chơi KHÔNG được sở hữu vật phẩm chỉ định",
     "condGachaOpened": "Mở Gacha",
     "condGachaOpenedDesc": "Người chơi phải mở gói gacha N lần",
+    "conditionMessages": {
+      "QUEST_CONDITION_LOGIN_DESCRIPTION": "Tự động thỏa mãn khi người chơi đã xác thực kiểm tra tiến trình nhiệm vụ. Không cần trường bổ sung.",
+      "QUEST_CONDITION_COLLECT_AND_KEEP_DESCRIPTION": "Người chơi phải giữ đủ số lượng vật phẩm yêu cầu. Vật phẩm không bị trừ khi điều kiện được thỏa mãn.",
+      "QUEST_CONDITION_COLLECT_AND_SUBMIT_DESCRIPTION": "Người chơi phải giữ đủ số lượng vật phẩm yêu cầu. Số lượng yêu cầu được trừ đồng thời khi tất cả yêu cầu được đáp ứng.",
+      "QUEST_CONDITION_COLLECT_AND_SUBMIT_ALL_DESCRIPTION": "Người chơi phải giữ đủ số lượng vật phẩm yêu cầu. Khi tất cả yêu cầu được đáp ứng, toàn bộ số lượng đang giữ của các vật phẩm chỉ định, kể cả phần dư, sẽ được trừ đồng thời.",
+      "QUEST_CONDITION_GACHA_OPENED_DESCRIPTION": "Người chơi phải mở một gói gacha cụ thể ít nhất số lần được yêu cầu.",
+      "QUEST_CONDITION_NOT_HAVE_ITEM_DESCRIPTION": "Thỏa mãn khi người chơi không sở hữu bất kỳ vật phẩm nào được chỉ định. Có thể dùng cho việc phân nhánh nhiệm vụ."
+    },
     "name": "Tên",
     "codeName": "Mã định danh",
     "codeNameHint": "vd: daily_login",

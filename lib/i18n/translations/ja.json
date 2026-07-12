@@ -580,6 +580,7 @@
     "warnings": {
       "clone_quota_quest_definitions": "コピー先の上限では、すべてのクエスト定義を収められない可能性があります。空きスロット: {available_slot} / {required_total}。",
       "clone_warning_shop_source_item_definition_missing": "ソースショップ項目 {shop_item_id} は、見つからないソース item definition {missing_source_item_definition_id} を参照しています。",
+      "clone_warning_quest_source_item_definition_missing": "ソースクエストは、見つからないソースアイテム定義 {missing_source_item_definition_id} を参照しています。",
       "clone_quota_entity_definitions": "コピー先の上限では、すべてのエンティティ定義を収められない可能性があります。\n- 不足スロット：{missing_slot}\n- 必要数：{required_clone_count}\n- 利用可能：{available_slot}",
       "clone_quota_entity_pools": "コピー先の上限では、すべてのエンティティプールを収められない可能性があります。\n- 不足スロット：{missing_slot}\n- 必要数：{required_clone_count}\n- 利用可能：{available_slot}"
     },
@@ -3216,10 +3217,20 @@
     "condCollectAndKeepDesc": "プレイヤーがアイテムを保持する必要あり（削除されない）",
     "condCollectAndSubmit": "収集＆提出",
     "condCollectAndSubmitDesc": "プレイヤーがアイテムを所持する必要あり（完了時に差し引かれる）",
+    "condCollectAndSubmitAll": "収集＆すべて提出",
+    "condCollectAndSubmitAllDesc": "必要アイテムの現在の所持数をすべて提出する",
     "condNotHaveItem": "アイテム未所持",
     "condNotHaveItemDesc": "プレイヤーが指定アイテムを所持していないこと",
     "condGachaOpened": "ガチャ開封",
     "condGachaOpenedDesc": "プレイヤーがガチャパックをN回開封する必要あり",
+    "conditionMessages": {
+      "QUEST_CONDITION_LOGIN_DESCRIPTION": "認証済みのプレイヤーがクエスト進行状況を確認すると自動的に達成されます。追加項目は不要です。",
+      "QUEST_CONDITION_COLLECT_AND_KEEP_DESCRIPTION": "プレイヤーは必要数のアイテムを所持する必要があります。条件達成時にアイテムは消費されません。",
+      "QUEST_CONDITION_COLLECT_AND_SUBMIT_DESCRIPTION": "プレイヤーは必要数のアイテムを所持する必要があります。すべての条件を満たすと、必要数が一括で差し引かれます。",
+      "QUEST_CONDITION_COLLECT_AND_SUBMIT_ALL_DESCRIPTION": "プレイヤーは必要数のアイテムを所持する必要があります。すべての条件を満たすと、余剰分を含む指定アイテムの全所持数が一括で差し引かれます。",
+      "QUEST_CONDITION_GACHA_OPENED_DESCRIPTION": "プレイヤーは指定されたガチャパックを必要回数以上開封する必要があります。",
+      "QUEST_CONDITION_NOT_HAVE_ITEM_DESCRIPTION": "指定されたアイテムを一つも所持していない場合に達成されます。クエストの分岐に使用できます。"
+    },
     "name": "名前",
     "codeName": "コード名",
     "codeNameHint": "例: daily_login",
