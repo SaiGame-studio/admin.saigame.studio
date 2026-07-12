@@ -9,7 +9,6 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/comp
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { cn } from "@/lib/utils";
 import {
-    getCurrentCloneSession,
     getCurrentCloneSessionItemContainers,
     getCurrentCloneSessionItems,
     getCurrentCloneSessionItemTags,
@@ -52,7 +51,7 @@ type CurrentCloneSessionCardProps = {
     currentSessionLoading: boolean;
     currentSessionError: string | null;
     deletingCurrentSession: boolean;
-    onRefreshCurrentSession: () => Promise<void>;
+    onRefreshCurrentSession: () => Promise<CloneSessionSnapshot | null>;
     onRetry: () => Promise<void>;
     onDelete: () => void;
 };
@@ -428,10 +427,9 @@ export function CurrentCloneSessionCard({
                     await runCloneSession(sessionId);
 
                     // Step 2: call /current to check state
-                    const snapshot = await getCurrentCloneSession(targetGameId);
-                    await onRefreshCurrentSession();
+                    const snapshot = await onRefreshCurrentSession();
 
-                    if (isCloneSessionDone(snapshot)) {
+                    if (!snapshot || isCloneSessionDone(snapshot)) {
                         break;
                     }
 

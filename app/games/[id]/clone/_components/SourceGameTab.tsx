@@ -136,7 +136,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         }
     }, []);
 
-    const loadCurrentSession = useCallback(async (options?: LoadCurrentSessionOptions) => {
+    const loadCurrentSession = useCallback(async (options?: LoadCurrentSessionOptions): Promise<CloneSessionSnapshot | null> => {
         const silent = options?.silent === true;
 
         if (!silent) {
@@ -153,6 +153,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
             if (session?.source_game_id) {
                 setSelectedGameId(session.source_game_id);
             }
+            return session ?? null;
         } catch (error) {
             const status = (error as { status?: number } | null | undefined)?.status;
 
@@ -162,12 +163,13 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
 
             if (status === 404 && hadSessionRef.current) {
                 window.location.reload();
-                return;
+                return null;
             }
 
             if (!silent && status && status !== 404) {
                 setCurrentSessionError(t("cloneGame.sourceGameCurrentSessionLoadError"));
             }
+            return null;
         } finally {
             if (!silent) {
                 setCurrentSessionLoading(false);
@@ -232,8 +234,8 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         await loadGames(offset, searchInput);
     };
 
-    const handleRefreshCurrentSessionSilently = useCallback(async () => {
-        await loadCurrentSession({ silent: true });
+    const handleRefreshCurrentSessionSilently = useCallback(async (): Promise<CloneSessionSnapshot | null> => {
+        return await loadCurrentSession({ silent: true });
     }, [loadCurrentSession]);
 
     const handleLoadMore = () => {
