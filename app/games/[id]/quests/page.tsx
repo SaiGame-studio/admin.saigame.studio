@@ -38,7 +38,7 @@ import { DailyTab } from "./DailyTab";
 import { ChainTab } from "./ChainTab";
 import { SettingsTab } from "./SettingsTab";
 import { QuestDeliveryOverride } from "./QuestDeliveryOverride";
-import { QuestExpirationField } from "./QuestExpirationField";
+import { QuestExpirationSettings, QuestExpirationToggle } from "./QuestExpirationField";
 import { stripQuestUiFields } from "./questPayloadUtils";
 import { getQuestApiErrorMessage } from "./questApiErrorUtils";
 import type { Game } from "@/types/game";
@@ -1403,6 +1403,19 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         }
     };
     // ── Form shared part ─────────────────────────────────────────────────────────
+    const questFormScope = editQuest ? "edit" : "create";
+    const selectedQuestTypeDescription = questTypeOptions.find((option) => option.value === form.quest_type)?.description ?? "";
+    const updateQuestExpiration = (expireAfterMinutes?: number) => setForm((currentForm) => {
+        if (expireAfterMinutes === undefined && !editQuest) {
+            const nextForm = { ...currentForm };
+            delete nextForm.expire_after_minutes;
+            return nextForm;
+        }
+        return {
+            ...currentForm,
+            expire_after_minutes: expireAfterMinutes ?? null,
+        };
+    });
     const QuestForm = (<div className="space-y-5">
       {/* Name */}
       <div className="space-y-1">
@@ -1446,58 +1459,65 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
       </div>
 
       {/* Quest Type */}
-      <div className="space-y-1">
-        <Label>{t('quest.questType')} <span className="text-red-500">*</span></Label>
-        <Select value={form.quest_type} onValueChange={(value) => {
-            const questType = value as QuestType;
-            setForm((currentForm) => {
-                const nextForm = { ...currentForm, quest_type: questType };
-                if (questType === "daily") {
-                    if (editQuest && typeof editQuest.expire_after_minutes === "number") {
-                        nextForm.expire_after_minutes = null;
-                    }
-                    else {
-                        delete nextForm.expire_after_minutes;
-                    }
-                }
-                return nextForm;
-            });
-        }}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {questTypeOptions.map((t) => (<SelectItem key={t.value} value={t.value}>
-                <div>
-                  <span>{t.label}</span>
-                  {t.description && (<span className="ml-2 text-xs text-muted-foreground">{t.description}</span>)}
-                </div>
-              </SelectItem>))}
-          </SelectContent>
-        </Select>
-        {(form.quest_type === "chain") && (<p className="text-xs text-muted-foreground">{t('quest.storyChainHint')}</p>)}
+      <div id={`quest-type-field-${questFormScope}`} className="space-y-1">
+        <Label id={`quest-type-label-${questFormScope}`}>{t('quest.questType')} <span id={`quest-type-required-${questFormScope}`} className="text-red-500">*</span></Label>
+        <div id={`quest-type-control-row-${questFormScope}`} className="grid grid-cols-[minmax(0,1fr)_280px] items-center gap-4">
+          <Select value={form.quest_type} onValueChange={(value) => {
+              const questType = value as QuestType;
+              setForm((currentForm) => {
+                  const nextForm = { ...currentForm, quest_type: questType };
+                  if (questType === "daily") {
+                      if (editQuest && typeof editQuest.expire_after_minutes === "number") {
+                          nextForm.expire_after_minutes = null;
+                      }
+                      else {
+                          delete nextForm.expire_after_minutes;
+                      }
+                  }
+                  return nextForm;
+              });
+          }}>
+            <SelectTrigger id={`quest-type-trigger-${questFormScope}`}>
+              <SelectValue id={`quest-type-value-${questFormScope}`} />
+            </SelectTrigger>
+            <SelectContent id={`quest-type-content-${questFormScope}`}>
+              {questTypeOptions.map((option) => (
+                <SelectItem id={`quest-type-option-${questFormScope}-${option.value}`} key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {form.quest_type === "daily" ? (
+            <p id={`quest-expiration-daily-unavailable-${questFormScope}`} className="text-xs leading-tight text-muted-foreground">
+              {t('quest.expirationUnavailableDaily')}
+            </p>
+          ) : (
+            <QuestExpirationToggle
+              idScope={questFormScope}
+              checked={typeof form.expire_after_minutes === "number"}
+              onCheckedChange={(checked) => updateQuestExpiration(checked ? 7200 : undefined)}
+              t={t}
+            />
+          )}
+        </div>
+        {selectedQuestTypeDescription && (
+          <p id={`quest-type-description-${questFormScope}`} className="text-xs text-muted-foreground">
+            {selectedQuestTypeDescription}
+          </p>
+        )}
+        {(form.quest_type === "chain") && (<p id={`quest-type-chain-hint-${questFormScope}`} className="text-xs text-muted-foreground">{t('quest.storyChainHint')}</p>)}
       </div>
 
       {/* Expiration */}
-      {form.quest_type === "daily"
-        ? (<p id={`quest-expiration-daily-unavailable-${editQuest ? "edit" : "create"}`} className="text-xs text-muted-foreground">
-            {t('quest.expirationUnavailableDaily')}
-          </p>)
-        : (<QuestExpirationField
-            idScope={editQuest ? "edit" : "create"}
-            value={form.expire_after_minutes}
-            onChange={(expireAfterMinutes) => setForm((currentForm) => {
-                if (expireAfterMinutes === undefined && !editQuest) {
-                    const { expire_after_minutes: _removedExpiration, ...formWithoutExpiration } = currentForm;
-                    return formWithoutExpiration;
-                }
-                return {
-                    ...currentForm,
-                    expire_after_minutes: expireAfterMinutes ?? null,
-                };
-            })}
-            t={t}
-          />)}
+      {form.quest_type !== "daily" && typeof form.expire_after_minutes === "number" && (
+        <QuestExpirationSettings
+          idScope={questFormScope}
+          value={form.expire_after_minutes}
+          onChange={updateQuestExpiration}
+          t={t}
+        />
+      )}
 
       {/* Conditions */}
       <ConditionEditor conditions={form.conditions ?? DEFAULT_CONDITIONS} onChange={(c) => setForm((f) => ({ ...f, conditions: c }))} gameId={gameId} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>

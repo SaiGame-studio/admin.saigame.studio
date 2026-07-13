@@ -3282,7 +3282,7 @@
     "hasExpiration": "Has expiration",
     "expireAfter": "Expires after",
     "expireAfterHint": "The quest expires this long after it is assigned. One month equals 30 days.",
-    "expirationUnavailableDaily": "Daily quests cannot configure expiration. Their lifetime is controlled by the daily reset window.",
+    "expirationUnavailableDaily": "Daily quests cannot have expiration.",
     "expirationUnit": "Expiration unit",
     "expirationUnitMinute": "Minutes",
     "expirationUnitHour": "Hours",

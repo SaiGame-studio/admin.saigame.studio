@@ -3242,7 +3242,7 @@
     "hasExpiration": "有効期限あり",
     "expireAfter": "有効期限",
     "expireAfterHint": "クエストは割り当てからこの期間が経過すると期限切れになります。1か月は30日として計算されます。",
-    "expirationUnavailableDaily": "デイリークエストには有効期限を設定できません。存続期間はデイリーリセット期間によって制御されます。",
+    "expirationUnavailableDaily": "デイリークエストに有効期限は設定できません。",
     "expirationUnit": "有効期限の単位",
     "expirationUnitMinute": "分",
     "expirationUnitHour": "時間",

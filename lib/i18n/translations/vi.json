@@ -3244,7 +3244,7 @@
     "hasExpiration": "Có thời hạn",
     "expireAfter": "Hết hạn sau",
     "expireAfterHint": "Nhiệm vụ hết hạn sau khoảng thời gian này kể từ khi được giao. Một tháng được tính là 30 ngày.",
-    "expirationUnavailableDaily": "Nhiệm vụ hằng ngày không thể cấu hình thời hạn. Vòng đời của chúng được kiểm soát bởi cửa sổ reset hằng ngày.",
+    "expirationUnavailableDaily": "Nhiệm vụ Daily không thể có thời hạn.",
     "expirationUnit": "Đơn vị hết hạn",
     "expirationUnitMinute": "Phút",
     "expirationUnitHour": "Giờ",
