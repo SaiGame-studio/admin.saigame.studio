@@ -66,6 +66,7 @@ export interface QuestDefinition {
     conditions: QuestConditionGroup;
     is_active: boolean;
     sort_order: number;
+    expire_after_minutes?: number | null;
     rewards: QuestReward[];
     metadata?: Record<string, unknown>;
     created_at: string;
@@ -82,7 +83,7 @@ export interface CreateQuestDefinitionRequest {
     quest_type: QuestType;
     conditions: QuestConditionGroup;
     is_active?: boolean;
-    sort_order?: number;
+    expire_after_minutes?: number | null;
     rewards?: QuestReward[];
     metadata?: Record<string, unknown>;
 }
@@ -94,6 +95,7 @@ export interface UpdateQuestDefinitionRequest {
     conditions?: QuestConditionGroup;
     is_active?: boolean;
     sort_order?: number;
+    expire_after_minutes?: number | null;
     rewards?: QuestReward[];
     metadata?: Record<string, unknown>;
 }
@@ -150,8 +152,10 @@ export async function getQuestDefinition(studioId: string, gameId: string, quest
 export async function createQuestDefinition(studioId: string, gameId: string, data: CreateQuestDefinitionRequest): Promise<QuestDefinition> {
     return api.post(`/api/v1/studios/${studioId}/games/${gameId}/quest-definitions`, data);
 }
-export async function updateQuestDefinition(studioId: string, gameId: string, questId: string, data: UpdateQuestDefinitionRequest): Promise<QuestDefinition> {
-    return api.patch(`/api/v1/studios/${studioId}/games/${gameId}/quest-definitions/${questId}`, data);
+export async function updateQuestDefinition(studioId: string, gameId: string, questId: string, data: UpdateQuestDefinitionRequest, options?: {
+    suppressToast?: boolean;
+}): Promise<QuestDefinition> {
+    return api.patch(`/api/v1/studios/${studioId}/games/${gameId}/quest-definitions/${questId}`, data, options);
 }
 export async function deleteQuestDefinition(studioId: string, gameId: string, questId: string): Promise<void> {
     return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/quest-definitions/${questId}`);
