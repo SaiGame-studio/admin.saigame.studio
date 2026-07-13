@@ -38,7 +38,11 @@ import { DailyTab } from "./DailyTab";
 import { ChainTab } from "./ChainTab";
 import { SettingsTab } from "./SettingsTab";
 import { QuestDeliveryOverride } from "./QuestDeliveryOverride";
-import { QuestExpirationSettings, QuestExpirationToggle } from "./QuestExpirationField";
+import {
+    DEFAULT_QUEST_EXPIRATION_MINUTES,
+    QuestExpirationSettings,
+    QuestExpirationToggle,
+} from "./QuestExpirationField";
 import { stripQuestUiFields } from "./questPayloadUtils";
 import { getQuestApiErrorMessage } from "./questApiErrorUtils";
 import type { Game } from "@/types/game";
@@ -1496,7 +1500,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             <QuestExpirationToggle
               idScope={questFormScope}
               checked={typeof form.expire_after_minutes === "number"}
-              onCheckedChange={(checked) => updateQuestExpiration(checked ? 7200 : undefined)}
+              onCheckedChange={(checked) => updateQuestExpiration(checked ? DEFAULT_QUEST_EXPIRATION_MINUTES : undefined)}
               t={t}
             />
           )}
