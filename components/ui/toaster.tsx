@@ -3,6 +3,7 @@ import * as React from "react";
 import { Check, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport, } from "@/components/ui/toast";
+const TOAST_DURATION_MS = 5000;
 function reactNodeToText(node: React.ReactNode): string {
     if (node == null || typeof node === "boolean")
         return "";
@@ -88,7 +89,7 @@ function ToastCopyButton({ text }: {
 }
 export function Toaster() {
     const { toasts } = useToast();
-    return (<ToastProvider swipeDirection="left">
+    return (<ToastProvider swipeDirection="left" duration={TOAST_DURATION_MS}>
       {toasts.map(function ({ id, title, description, action, ...props }) {
             const copyText = [reactNodeToText(title), reactNodeToText(description)]
                 .filter(Boolean)
