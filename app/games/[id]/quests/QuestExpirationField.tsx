@@ -9,6 +9,8 @@ import { QuestExpirationHelpSheet } from "./QuestExpirationHelpSheet";
 
 type ExpirationUnit = "minute" | "hour" | "day" | "week" | "month";
 
+export const DEFAULT_QUEST_EXPIRATION_MINUTES = 7 * 24 * 60;
+
 const EXPIRATION_UNITS: Array<{
     value: ExpirationUnit;
     minutes: number;
@@ -22,6 +24,9 @@ const EXPIRATION_UNITS: Array<{
 ];
 
 function getDisplayUnit(minutes: number): ExpirationUnit {
+    if (minutes === DEFAULT_QUEST_EXPIRATION_MINUTES) {
+        return "day";
+    }
     for (const unit of [...EXPIRATION_UNITS].reverse()) {
         if (minutes >= unit.minutes && minutes % unit.minutes === 0) {
             return unit.value;

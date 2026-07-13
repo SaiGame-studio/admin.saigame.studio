@@ -3324,7 +3324,8 @@
     "failedCreateQuest": "Không thể tạo nhiệm vụ",
     "failedUpdateQuest": "Không thể cập nhật nhiệm vụ",
     "errors": {
-      "QUEST_HAS_PLAYER_PROGRESS": "Không thể thay đổi loại nhiệm vụ vì đã có ít nhất một người chơi bắt đầu, hoàn thành hoặc nhận thưởng nhiệm vụ này. Chỉ có thể sửa loại nhiệm vụ trước khi có bất kỳ hoạt động nào của người chơi."
+      "QUEST_HAS_PLAYER_PROGRESS": "Không thể thay đổi loại nhiệm vụ vì đã có ít nhất một người chơi bắt đầu, hoàn thành hoặc nhận thưởng nhiệm vụ này. Chỉ có thể sửa loại nhiệm vụ trước khi có bất kỳ hoạt động nào của người chơi.",
+      "QUEST_IN_CHAIN_CANNOT_CHANGE_TYPE": "Không thể thay đổi loại nhiệm vụ vì nhiệm vụ này đang thuộc một hoặc nhiều chuỗi nhiệm vụ. Hãy xóa nhiệm vụ khỏi tất cả các chuỗi trước."
     },
     "questCodeConflictTitle": "Mã quest đã tồn tại",
     "questCodeConflictDesc": "Một quest với code name \"{code}\" đã tồn tại. Bạn muốn làm gì?",

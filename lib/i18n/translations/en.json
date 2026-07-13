@@ -3362,7 +3362,8 @@
     "failedCreateQuest": "Failed to create quest",
     "failedUpdateQuest": "Failed to update quest",
     "errors": {
-      "QUEST_HAS_PLAYER_PROGRESS": "Quest type cannot be changed because at least one player has started, completed, or claimed this quest. Quest type is editable only before any player activity."
+      "QUEST_HAS_PLAYER_PROGRESS": "Quest type cannot be changed because at least one player has started, completed, or claimed this quest. Quest type is editable only before any player activity.",
+      "QUEST_IN_CHAIN_CANNOT_CHANGE_TYPE": "Quest type cannot be changed because this quest belongs to one or more quest chains. Remove it from all chains first."
     },
     "questCodeConflictTitle": "Quest Code Already Exists",
     "questCodeConflictDesc": "A quest with code name \"{code}\" already exists. What would you like to do?",
