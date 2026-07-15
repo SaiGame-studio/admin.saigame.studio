@@ -4095,5 +4095,13 @@
     "toastInsufficientDesc": "このパッケージを購入するのに十分なsGemがありません。",
     "toastFailedTitle": "購入失敗",
     "toastFailedDesc": "エラーが発生しました。もう一度お試しください。"
+  },
+  "playerPresets": {
+    "tableName": "名前",
+    "tableDefinition": "定義名",
+    "tableInstanceId": "インスタンスID",
+    "tableType": "タイプ",
+    "tableMaxSlots": "最大スロット数",
+    "tableCreated": "作成日時"
   }
 }

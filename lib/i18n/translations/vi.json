@@ -4158,5 +4158,13 @@
     "toastInsufficientDesc": "Bạn không có đủ sGem để mua gói này.",
     "toastFailedTitle": "Mua thất bại",
     "toastFailedDesc": "Đã xảy ra lỗi. Vui lòng thử lại."
+  },
+  "playerPresets": {
+    "tableName": "Tên",
+    "tableDefinition": "Định nghĩa",
+    "tableInstanceId": "Instance ID",
+    "tableType": "Loại",
+    "tableMaxSlots": "Số ô tối đa",
+    "tableCreated": "Ngày tạo"
   }
 }

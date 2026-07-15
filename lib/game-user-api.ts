@@ -338,6 +338,8 @@ export async function getContainerItems(progressId: string, containerId: string,
 // ─── Player Presets ───────────────────────────────────────────────────────────
 export interface PlayerPresetContainer {
     id: string;
+    definition_id?: string;
+    definition?: PlayerPresetDefinition;
     preset_type: string;
     name: string;
     max_slots: number;

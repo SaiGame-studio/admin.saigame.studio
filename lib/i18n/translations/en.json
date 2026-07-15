@@ -4137,5 +4137,13 @@
     "toastInsufficientDesc": "You don't have enough sGem to purchase this package.",
     "toastFailedTitle": "Purchase failed",
     "toastFailedDesc": "Something went wrong. Please try again."
+  },
+  "playerPresets": {
+    "tableName": "Name",
+    "tableDefinition": "Definition Name",
+    "tableInstanceId": "Instance ID",
+    "tableType": "Type",
+    "tableMaxSlots": "Max Slots",
+    "tableCreated": "Created"
   }
 }

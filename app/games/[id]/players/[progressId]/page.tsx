@@ -2863,54 +2863,52 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-30"/>
                   <p className="text-lg font-medium">No presets</p>
                   <p className="text-sm mt-1">This player has no preset containers.</p>
-                </div>) : (<Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Instance ID</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Max Slots</TableHead>
-                      <TableHead>Temp</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Updated</TableHead>
+                </div>) : (<Table id="player-presets-table">
+                  <TableHeader id="player-presets-table-header">
+                    <TableRow id="player-presets-header-row">
+                      <TableHead id="player-presets-th-name">{t("playerPresets.tableName")}</TableHead>
+                      <TableHead id="player-presets-th-definition">{t("playerPresets.tableDefinition")}</TableHead>
+                      <TableHead id="player-presets-th-instance-id">{t("playerPresets.tableInstanceId")}</TableHead>
+                      <TableHead id="player-presets-th-type">{t("playerPresets.tableType")}</TableHead>
+                      <TableHead id="player-presets-th-max-slots" className="text-right">{t("playerPresets.tableMaxSlots")}</TableHead>
+                      <TableHead id="player-presets-th-created">{t("playerPresets.tableCreated")}</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
+                  <TableBody id="player-presets-table-body">
                     {presets.map((p) => {
                 const pExpanded = expandedPresetIds.has(p.id);
                 return (<Fragment key={p.id}>
-                          <TableRow className={`cursor-pointer hover:bg-muted/40 ${pExpanded ? "bg-muted/30" : ""}`} onClick={() => togglePresetRow(p.id)}>
-                            <TableCell className="text-sm font-medium">
-                              <span className="flex items-center gap-1">
+                          <TableRow id={`player-preset-row-${p.id}`} className={`cursor-pointer hover:bg-muted/40 ${pExpanded ? "bg-muted/30" : ""}`} onClick={() => togglePresetRow(p.id)}>
+                            <TableCell id={`player-preset-name-cell-${p.id}`} className="text-sm font-medium">
+                              <span id={`player-preset-name-span-${p.id}`} className="flex items-center gap-1">
                                 {pExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground"/> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground"/>}
-                                {presetDetails[p.id]?.container.definition?.name || p.name || "—"}
+                                {p.name || p.definition?.name || presetDetails[p.id]?.container.definition?.name || "—"}
                               </span>
                             </TableCell>
-                            <TableCell className="font-mono text-xs">
-                              <span className="flex items-center gap-1">
+                            <TableCell id={`player-preset-definition-cell-${p.id}`} className="text-sm font-medium text-muted-foreground">
+                              <span id={`player-preset-definition-span-${p.id}`}>
+                                {p.definition?.name || presetDetails[p.id]?.container.definition?.name || "—"}
+                              </span>
+                            </TableCell>
+                            <TableCell id={`player-preset-instance-cell-${p.id}`} className="font-mono text-xs">
+                              <span id={`player-preset-instance-span-${p.id}`} className="flex items-center gap-1">
                                 {p.id.slice(0, 8)}…
-                                <CopyButton text={p.id} size="h-3 w-3"/>
+                                <CopyButton id={`player-preset-instance-copy-${p.id}`} text={p.id} size="h-3 w-3"/>
                               </span>
                             </TableCell>
-                            <TableCell>
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize bg-orange-500/10 text-orange-400 border-orange-400/30">
+                            <TableCell id={`player-preset-type-cell-${p.id}`}>
+                              <span id={`player-preset-type-span-${p.id}`} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize bg-orange-500/10 text-orange-400 border-orange-400/30">
                                 <Package className="h-3 w-3 shrink-0"/>
                                 {p.preset_type || "—"}
                               </span>
                             </TableCell>
-                            <TableCell className="text-right text-sm font-mono">{p.max_slots}</TableCell>
-                            <TableCell className="text-sm">
-                              {p.is_temp
-                        ? <span className="text-yellow-500">Yes</span>
-                        : <span className="text-muted-foreground">No</span>}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{p.created_at ? formatISODate(p.created_at) : "—"}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{p.updated_at ? formatISODate(p.updated_at) : "—"}</TableCell>
+                            <TableCell id={`player-preset-slots-cell-${p.id}`} className="text-right text-sm font-mono">{p.max_slots}</TableCell>
+                            <TableCell id={`player-preset-created-cell-${p.id}`} className="text-sm text-muted-foreground">{p.created_at ? formatISODate(p.created_at) : "—"}</TableCell>
                           </TableRow>
 
                           {/* Expanded detail row */}
-                          {pExpanded && (<TableRow className="bg-muted/30 hover:bg-muted/40">
-                              <TableCell colSpan={7} className="p-0">
+                          {pExpanded && (<TableRow id={`player-preset-expanded-row-${p.id}`} className="bg-muted/30 hover:bg-muted/40">
+                              <TableCell id={`player-preset-expanded-cell-${p.id}`} colSpan={6} className="p-0">
                                 <div className="px-6 py-4 space-y-4">
                                   {/* Instance ID */}
                                   <div className="flex items-center gap-2">
