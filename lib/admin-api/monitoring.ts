@@ -60,3 +60,17 @@ export async function triggerPlatformReport(date?: string): Promise<void> {
 export async function triggerReportBackfill(body: BackfillRequest): Promise<void> {
     return api.post(`/api/v1/admin/reports/backfill`, body);
 }
+
+export interface SystemStats {
+    cpu_pct: number;
+    ram_pct: number;
+    ram_used_mb: number;
+    ram_total_mb: number;
+    disk_pct: number;
+    disk_used_gb: number;
+    disk_total_gb: number;
+}
+
+export async function getSystemStats(): Promise<SystemStats> {
+    return api.get(`/api/v1/admin/system-monitor/stats`);
+}
