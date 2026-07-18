@@ -4176,7 +4176,6 @@
     "confirmCancel": "Cancel",
     "confirmAction": "Confirm Backup",
     "resourceTitle": "Server Resource Monitor",
-    "resourceDesc": "Real-time CPU, RAM, and Disk utilization (polled every 2s).",
     "cpuUsage": "CPU Usage",
     "ramUsage": "RAM Usage",
     "loading": "Loading...",

@@ -4134,7 +4134,6 @@
     "confirmCancel": "キャンセル",
     "confirmAction": "バックアップ実行",
     "resourceTitle": "サーバーリソースモニター",
-    "resourceDesc": "リアルタイムのCPU、RAM、およびディスク使用率（2秒ごとに更新されます）。",
     "cpuUsage": "CPU使用率",
     "ramUsage": "RAM使用率",
     "loading": "読み込み中...",
