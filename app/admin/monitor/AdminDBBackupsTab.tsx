@@ -11,7 +11,9 @@ import {
   RefreshCw, 
   Clock,
   Settings,
-  Cpu
+  Cpu,
+  Terminal,
+  Trash2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   getDBBackups, 
   downloadDBBackup, 
+  deleteDBBackup,
   getWorkersStatus, 
   triggerWorker, 
   getSystemStats,
@@ -46,6 +49,7 @@ import {
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { formatISODate } from "@/lib/utils/date-utils";
 import { safeGetItem, safeSetItem } from "@/lib/storage-utils";
+import { DBBackupDeleteDialog } from "./DBBackupDeleteDialog";
 
 const AUTO_REFRESH_STORAGE_KEY = "db-backups-auto-refresh";
 
@@ -77,6 +81,7 @@ export function AdminDBBackupsTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(() => {
     const saved = safeGetItem(AUTO_REFRESH_STORAGE_KEY);
@@ -161,6 +166,31 @@ export function AdminDBBackupsTab() {
         variant: "destructive",
         title: "Error",
         description: t("dbBackups.downloadError") || "Failed to download backup file."
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    const fileName = deleteTarget;
+    setActionLoading(`delete:${fileName}`);
+    try {
+      await deleteDBBackup(fileName);
+      setBackups((current) => current.filter((backup) => backup.file_name !== fileName));
+      setDeleteTarget(null);
+      toast({
+        title: "Success",
+        description: t("dbBackups.deleteSuccess") || "Backup file deleted successfully."
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: t("dbBackups.deleteError") || "Failed to delete backup file."
       });
     } finally {
       setActionLoading(null);
@@ -509,7 +539,7 @@ export function AdminDBBackupsTab() {
                         <TableHead id="db-backups-th-name">{t("dbBackups.fileName") || "File Name"}</TableHead>
                         <TableHead id="db-backups-th-modified">{t("dbBackups.modifiedAt") || "Modified Date"}</TableHead>
                         <TableHead id="db-backups-th-size" className="text-right">{t("dbBackups.size") || "Size"}</TableHead>
-                        <TableHead id="db-backups-th-actions" className="w-[100px]"></TableHead>
+                        <TableHead id="db-backups-th-actions" className="w-[120px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody id="db-backups-table-body">
@@ -525,6 +555,7 @@ export function AdminDBBackupsTab() {
                             {formatBytes(item.size_bytes)}
                           </TableCell>
                           <TableCell id={`backup-cell-actions-${item.file_name}`} className="text-right">
+                            <div id={`backup-actions-${item.file_name}`} className="flex items-center justify-end gap-1">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -548,6 +579,30 @@ export function AdminDBBackupsTab() {
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    id={`backup-delete-btn-${item.file_name}`}
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setDeleteTarget(item.file_name)}
+                                    disabled={actionLoading !== null}
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  >
+                                    {actionLoading === `delete:${item.file_name}` ? (
+                                      <Loader2 id={`backup-delete-loader-${item.file_name}`} className="h-4 w-4 animate-spin text-destructive" />
+                                    ) : (
+                                      <Trash2 id={`backup-delete-icon-${item.file_name}`} className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p id={`backup-delete-tooltip-${item.file_name}`}>{t("dbBackups.delete") || "Delete"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -557,6 +612,59 @@ export function AdminDBBackupsTab() {
               </CardContent>
             </Card>
           </div>
+
+          <DBBackupDeleteDialog
+            id="db-backups-delete-dialog"
+            fileName={deleteTarget}
+            loading={actionLoading === `delete:${deleteTarget}`}
+            onCancel={() => setDeleteTarget(null)}
+            onConfirm={() => void handleDelete()}
+          />
+
+          {/* Operational Restore & Upload Guide Card */}
+          <Card id="db-backups-guide-card" className="lg:col-span-3">
+            <CardHeader id="db-backups-guide-header" className="pb-3">
+              <CardTitle id="db-backups-guide-title" className="flex items-center gap-2 text-base">
+                <Terminal id="db-backups-guide-icon" className="h-5 w-5 text-primary" />
+                <span>{t("dbBackups.guideTitle") || "Operational Restore & Upload Guide"}</span>
+              </CardTitle>
+              <CardDescription id="db-backups-guide-desc" className="text-xs mt-1.5 leading-relaxed">
+                {t("dbBackups.guideDesc") || "The backup system does not expose database upload or restore actions over HTTP APIs for security reasons. To upload a new dump file to the environment's backup folder, or to restore a backup to another database, run the operational CLI commands from your local machine:"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent id="db-backups-guide-content" className="space-y-4 text-xs">
+              {/* Upload Instructions */}
+              <div id="db-backups-guide-upload-step1" className="space-y-1.5">
+                <p className="font-semibold text-muted-foreground">{t("dbBackups.guideUploadSyntax") || "Upload Command Syntax (searches local ./backups/db/ by default):"}</p>
+                <pre className="bg-muted p-2.5 rounded break-all font-mono border text-[10px] select-all">
+                  ENV=&lt;env&gt; make upload-db &lt;file-name-or-path&gt;
+                </pre>
+              </div>
+              <div id="db-backups-guide-upload-step2" className="space-y-1.5 border-b pb-3">
+                <p className="font-semibold text-muted-foreground">{t("dbBackups.guideUploadExample") || "Example (Upload to QA):"}</p>
+                <pre className="bg-muted p-2.5 rounded break-all font-mono border text-[10px] select-all">
+                  ENV=qa make upload-db backup-file.dump
+                </pre>
+              </div>
+
+              {/* Restore Instructions */}
+              <div id="db-backups-guide-step1" className="space-y-1.5">
+                <p className="font-semibold text-muted-foreground">{t("dbBackups.guideSyntax") || "Restore Command Syntax:"}</p>
+                <pre className="bg-muted p-2.5 rounded break-all font-mono border text-[10px] select-all">
+                  ENV=&lt;env&gt; make restore &lt;local-file-path&gt; &lt;new-db-name&gt;
+                </pre>
+              </div>
+              <div id="db-backups-guide-step2" className="space-y-1.5">
+                <p className="font-semibold text-muted-foreground">{t("dbBackups.guideExample") || "Example (Restore to QA with new DB):"}</p>
+                <pre className="bg-muted p-2.5 rounded break-all font-mono border text-[10px] select-all">
+                  ENV=qa make restore ./backup-file.dump ss_game_new_db
+                </pre>
+              </div>
+              <div id="db-backups-guide-note" className="text-[10px] text-amber-500 dark:text-amber-400 font-medium border-l-2 border-amber-500 pl-2 leading-relaxed">
+                {t("dbBackups.guideNote") || "The target database name argument is mandatory. The make command automatically uploads (via SCP) and executes pg_restore inside the container. If the database does not exist yet, it will be automatically created first."}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

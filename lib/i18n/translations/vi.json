@@ -4168,6 +4168,12 @@
     "tableCreated": "Ngày tạo"
   },
   "dbBackups": {
+    "delete": "Xóa",
+    "deleteConfirmTitle": "Xóa tệp sao lưu?",
+    "deleteConfirmDescription": "Bạn có chắc muốn xóa {file}? Hành động này không thể hoàn tác.",
+    "deleteConfirmAction": "Xóa tệp",
+    "deleteSuccess": "Đã xóa tệp sao lưu thành công.",
+    "deleteError": "Không thể xóa tệp sao lưu.",
     "title": "Sao lưu Cơ sở dữ liệu",
     "description": "Xem, quản lý và tải về các bản sao lưu cơ sở dữ liệu. Bản sao lưu được tự động tạo hàng ngày vào lúc 4:00 AM (GMT+7).",
     "fileName": "Tên tệp",
@@ -4202,6 +4208,13 @@
     "loading": "Đang tải...",
     "autoRefreshOn": "Tự động",
     "autoRefreshOff": "Tạm dừng",
-    "diskUsage": "Sử dụng Ổ đĩa"
+    "diskUsage": "Sử dụng Ổ đĩa",
+    "guideTitle": "Hướng Dẫn Khôi Phục (Restore) & Tải Lên (Upload)",
+    "guideDesc": "Vì lý do bảo mật, hệ thống sao lưu không hỗ trợ tải lên hoặc khôi phục trực tiếp qua API web. Để tải lên một file dump mới lên thư mục backup của môi trường, hoặc để khôi phục nó, hãy chạy các lệnh vận hành CLI từ máy cá nhân của bạn:",
+    "guideUploadSyntax": "Cú pháp Lệnh Upload (mặc định tìm trong ./backups/db/ ở local):",
+    "guideUploadExample": "Ví dụ (Upload lên QA):",
+    "guideSyntax": "Cú pháp Lệnh Restore:",
+    "guideExample": "Ví dụ (Restore lên QA vào DB mới):",
+    "guideNote": "Tham số tên database mới là bắt buộc. Lệnh make sẽ tự động upload (qua SCP) và chạy pg_restore trong container. Nếu database chưa tồn tại trên môi trường đó, nó sẽ tự động được tạo mới."
   }
 }
