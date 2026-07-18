@@ -102,8 +102,12 @@ export function getCloneSessionPhaseLabel(phaseKey: string | undefined, t: Trans
     }
 }
 
-export function getProgressValue(processed?: number, total?: number) {
-    if (!total || total <= 0) {
+export function getProgressValue(processed?: number, total?: number, completed?: boolean) {
+    if (total === 0) {
+        return completed ? 100 : 0;
+    }
+    
+    if (!total || total < 0) {
         return 0;
     }
 

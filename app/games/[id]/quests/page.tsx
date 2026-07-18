@@ -31,13 +31,20 @@ import { fetchStudioWithCache } from "@/lib/studio-api";
 import { ApiError } from "@/lib/api-client";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils";
 import type { Studio } from "@/types/studio";
-import { listQuestDefinitions, listQuestTypes, createQuestDefinition, updateQuestDefinition, deleteQuestDefinition, isConditionLeaf, type QuestDefinition, type QuestType, type QuestReward, type QuestConditionLeaf, type QuestConditionGroup, type ItemRequirement, type CreateQuestDefinitionRequest, type UpdateQuestDefinitionRequest, } from "@/lib/quest-api";
+import { listQuestDefinitions, listQuestTypes, listQuestConditionTypes, createQuestDefinition, updateQuestDefinition, deleteQuestDefinition, isConditionLeaf, type QuestDefinition, type QuestType, type QuestReward, type QuestConditionLeaf, type QuestConditionGroup, type ItemRequirement, type CreateQuestDefinitionRequest, type UpdateQuestDefinitionRequest, type QuestConditionTypeOption, } from "@/lib/quest-api";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { DailyTab } from "./DailyTab";
 import { ChainTab } from "./ChainTab";
 import { SettingsTab } from "./SettingsTab";
 import { QuestDeliveryOverride } from "./QuestDeliveryOverride";
+import {
+    DEFAULT_QUEST_EXPIRATION_MINUTES,
+    QuestExpirationSettings,
+    QuestExpirationToggle,
+} from "./QuestExpirationField";
+import { stripQuestUiFields } from "./questPayloadUtils";
+import { getQuestApiErrorMessage } from "./questApiErrorUtils";
 import type { Game } from "@/types/game";
 import { lsPendingQuestCreate, lsPendingQuestEdit } from "@/components/llm-conversations/conversation-panel-utils";
 // ─── Tab config ────────────────────────────────────────────────────────────────
@@ -91,15 +98,17 @@ const QUEST_TYPES: {
     { value: "battle_pass_task", labelKey: "quest.typeBattlePassTask", descKey: "quest.typeBattlePassTaskDesc" },
     { value: "chain", labelKey: "quest.typeChain", descKey: "quest.typeChainDesc" },
 ];
-const CONDITION_TYPE_OPTIONS = [
+const KNOWN_CONDITION_TYPES = [
     { value: "login", labelKey: "quest.condLogin", descKey: "quest.condLoginDesc" },
     { value: "collect_and_keep", labelKey: "quest.condCollectAndKeep", descKey: "quest.condCollectAndKeepDesc" },
     { value: "collect_and_submit", labelKey: "quest.condCollectAndSubmit", descKey: "quest.condCollectAndSubmitDesc" },
+    { value: "collect_and_submit_all", labelKey: "quest.condCollectAndSubmitAll", descKey: "quest.condCollectAndSubmitAllDesc" },
     { value: "not_have_item", labelKey: "quest.condNotHaveItem", descKey: "quest.condNotHaveItemDesc" },
     { value: "gacha_opened", labelKey: "quest.condGachaOpened", descKey: "quest.condGachaOpenedDesc" },
 ];
 const DEFAULT_CONDITIONS: QuestConditionGroup = { operator: "AND", clauses: [] };
-const DEFAULT_FORM: CreateQuestDefinitionRequest = {
+type QuestDefinitionForm = CreateQuestDefinitionRequest & Pick<UpdateQuestDefinitionRequest, "sort_order">;
+const DEFAULT_FORM: QuestDefinitionForm = {
     name: "",
     code_name: "",
     description: "",
@@ -109,52 +118,6 @@ const DEFAULT_FORM: CreateQuestDefinitionRequest = {
     sort_order: 0,
     rewards: [],
 };
-function stripQuestUiFields<T>(value: T): T {
-    if (!value || typeof value !== "object" || Array.isArray(value))
-        return value;
-    const record = value as Record<string, unknown>;
-    if (Array.isArray(record.clauses)) {
-        return {
-            ...record,
-            clauses: record.clauses.map((clause) => stripQuestUiFields(clause)),
-        } as T;
-    }
-    if (Array.isArray(record.items)) {
-        return {
-            ...record,
-            items: record.items.map((item) => {
-                if (!item || typeof item !== "object" || Array.isArray(item))
-                    return item;
-                const itemRecord = item as Record<string, unknown>;
-                const { item_definition_name: _ignoredName, item_definition_code: _ignoredCode, ...rest } = itemRecord;
-                return rest;
-            }),
-        } as T;
-    }
-    if (Array.isArray(record.rewards)) {
-        return {
-            ...record,
-            rewards: record.rewards.map((reward) => {
-                if (!reward || typeof reward !== "object" || Array.isArray(reward))
-                    return reward;
-                const rewardRecord = reward as Record<string, unknown>;
-                const { item_definition_name: _ignoredName, item_definition_code: _ignoredCode, ...rest } = rewardRecord;
-                return rest;
-            }),
-        } as T;
-    }
-    if (record.conditions) {
-        return {
-            ...record,
-            conditions: stripQuestUiFields(record.conditions),
-        } as T;
-    }
-    if (typeof record.item_definition_id === "string") {
-        const { item_definition_id: _ignoredId, item_definition_name: _ignoredName, item_definition_code: _ignoredCode, ...rest } = record;
-        return rest as T;
-    }
-    return record as T;
-}
 // ─── Helper ────────────────────────────────────────────────────────────────────
 function questTypeBadgeVariant(type: QuestType) {
     switch (type) {
@@ -190,6 +153,7 @@ function newLeaf(): QuestConditionLeaf {
 }
 function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = [] }: ConditionEditorProps) {
     const { t } = useTranslation();
+    const [conditionTypes, setConditionTypes] = useState<QuestConditionTypeOption[]>([]);
     const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([]);
     const [gachaPacksLoading, setGachaPacksLoading] = useState(false);
     const [gachaPopoverOpen, setGachaPopoverOpen] = useState<number | null>(null);
@@ -199,6 +163,13 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
         clause: number;
         item: number;
     } | null>(null);
+    useEffect(() => {
+        if (!gameId)
+            return;
+        listQuestConditionTypes(gameId)
+            .then((res) => setConditionTypes(res.condition_types ?? []))
+            .catch(() => setConditionTypes([]));
+    }, [gameId]);
     useEffect(() => {
         if (!gameId)
             return;
@@ -263,7 +234,7 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
         updateLeaf(clauseIdx, { items: (clause.items ?? []).filter((_, ii) => ii !== itemIdx) });
     };
     useEffect(() => {
-        const collectTypes = new Set(["collect_and_keep", "collect_and_submit", "not_have_item"]);
+        const collectTypes = new Set(conditionTypes.filter((option) => option.uses_items).map((option) => option.type));
         for (let i = 0; i < conditions.clauses.length; i++) {
             const clause = conditions.clauses[i];
             if (!isConditionLeaf(clause))
@@ -310,13 +281,14 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
                 updateLeaf(i, { items: normalizedItems as ItemRequirement[] });
             }
         }
-    }, [conditions, resolveItemDef, updateLeaf]);
+    }, [conditionTypes, conditions, resolveItemDef, updateLeaf]);
     const handleTypeChange = (i: number, v: string) => {
         const clause = conditions.clauses[i];
         if (!isConditionLeaf(clause))
             return;
         const clause_id = genClauseId(v);
-        if (v === "collect_and_keep" || v === "collect_and_submit" || v === "not_have_item") {
+        const selectedType = conditionTypes.find((option) => option.type === v);
+        if (selectedType?.uses_items) {
             updateLeaf(i, { type: v, clause_id, target: undefined, items: clause.items ?? [], packs: undefined, details: undefined });
         }
         else if (v === "gacha_opened") {
@@ -366,7 +338,11 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CONDITION_TYPE_OPTIONS.map((o) => (<SelectItem key={o.value} value={o.value}>{t(o.labelKey)}</SelectItem>))}
+                    {conditionTypes.map((option) => {
+                        const known = KNOWN_CONDITION_TYPES.find((item) => item.value === option.type);
+                        const label = known ? t(known.labelKey) : option.type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+                        return <SelectItem id={`quest-condition-${i}-type-option-${option.type}`} key={option.type} value={option.type}>{label}</SelectItem>;
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -380,9 +356,19 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
                 <Trash2 className="h-3.5 w-3.5"/>
               </Button>
             </div>
+            {(() => {
+                const selectedType = conditionTypes.find((option) => option.type === clause.type);
+                if (!selectedType)
+                    return null;
+                const translationKey = `quest.conditionMessages.${selectedType.message_code}`;
+                const translatedDescription = t(translationKey);
+                return (<p id={`quest-condition-${i}-type-description-${clause.clause_id || "new"}`} className="mr-9 text-xs leading-5 text-muted-foreground">
+                  {translatedDescription === translationKey ? selectedType.description : translatedDescription}
+                </p>);
+            })()}
 
             {/* Row 2: type-specific fields */}
-            {(clause.type === "collect_and_keep" || clause.type === "collect_and_submit" || clause.type === "not_have_item") ? (<div className="space-y-2">
+            {conditionTypes.find((option) => option.type === clause.type)?.uses_items ? (<div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">{t('quest.requiredItems')}</Label>
                   <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => addItem(i)}>
@@ -644,7 +630,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const [editQuest, setEditQuest] = useState<QuestDefinition | null>(null);
     const [deleteQuest, setDeleteQuest] = useState<QuestDefinition | null>(null);
     // Form state
-    const [form, setForm] = useState<CreateQuestDefinitionRequest>({ ...DEFAULT_FORM });
+    const [form, setForm] = useState<QuestDefinitionForm>({ ...DEFAULT_FORM });
     const [autoSlug, setAutoSlug] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -792,7 +778,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         loadQuests(0).finally(() => setLoading(false));
     }, [game, loadQuests]);
     // ── Edit ─────────────────────────────────────────────────────────────────────
-    const openEdit = useCallback(async (q: QuestDefinition, draft?: Partial<CreateQuestDefinitionRequest>, turnContext?: {
+    const openEdit = useCallback(async (q: QuestDefinition, draft?: Partial<QuestDefinitionForm>, turnContext?: {
         turnId: string;
         responseIdx: number;
         questDefinitionIdx: number;
@@ -806,11 +792,16 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         const nextConditions = (draft?.conditions ?? q.conditions ?? { operator: "AND", clauses: [] }) as QuestConditionGroup;
         const nextIsActive = typeof draft?.is_active === "boolean" ? draft.is_active : q.is_active;
         const nextSortOrder = typeof draft?.sort_order === "number" ? draft.sort_order : q.sort_order;
+        const nextExpireAfterMinutes = nextQuestType === "daily"
+            ? (typeof q.expire_after_minutes === "number" ? null : undefined)
+            : (typeof draft?.expire_after_minutes === "number" || draft?.expire_after_minutes === null
+                ? draft.expire_after_minutes
+                : q.expire_after_minutes);
         const nextRewards = Array.isArray(draft?.rewards) ? (draft.rewards as QuestReward[]) : (q.rewards ?? []);
         const nextMetadata = draft?.metadata && typeof draft.metadata === "object" && !Array.isArray(draft.metadata)
             ? draft.metadata as Record<string, unknown>
             : (q.metadata ?? undefined);
-        const nextForm: CreateQuestDefinitionRequest = {
+        const nextForm: QuestDefinitionForm = {
             name: nextName,
             code_name: nextCodeName,
             description: nextDescription,
@@ -818,6 +809,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             conditions: nextConditions,
             is_active: nextIsActive,
             sort_order: nextSortOrder,
+            expire_after_minutes: nextExpireAfterMinutes,
             rewards: nextRewards,
             metadata: nextMetadata as Record<string, unknown> | undefined,
         };
@@ -846,8 +838,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             try {
                 const detail = JSON.parse(pendingRaw) as Record<string, unknown>;
                 const draft = (detail.questDefinition && typeof detail.questDefinition === "object" && !Array.isArray(detail.questDefinition))
-                    ? detail.questDefinition as Partial<CreateQuestDefinitionRequest>
-                    : (detail as Partial<CreateQuestDefinitionRequest>);
+                    ? detail.questDefinition as Partial<QuestDefinitionForm>
+                    : (detail as Partial<QuestDefinitionForm>);
                 const turnContext = {
                     turnId: typeof detail.turnId === "string" ? detail.turnId : "",
                     responseIdx: typeof detail.responseIdx === "number" ? detail.responseIdx : Number(detail.responseIdx ?? 0),
@@ -875,7 +867,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         setRefreshing(false);
     };
     // ── Create ───────────────────────────────────────────────────────────────────
-    const resolveQuestDraftForCreate = useCallback(async (questDefinition: CreateQuestDefinitionRequest) => {
+    const resolveQuestDraftForCreate = useCallback(async (questDefinition: QuestDefinitionForm) => {
         if (!gameId) {
             return { draft: questDefinition, resolvedItemDefs: [] as ItemDefinition[] };
         }
@@ -1020,18 +1012,18 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             return record;
         };
         return {
-            draft: replaceRefs(questDefinition) as CreateQuestDefinitionRequest,
+            draft: replaceRefs(questDefinition) as QuestDefinitionForm,
             resolvedItemDefs: [...codeToItem.values()],
         };
     }, [gameId]);
-    const openCreate = useCallback(async (initialValues?: Partial<CreateQuestDefinitionRequest>, turnContext?: {
+    const openCreate = useCallback(async (initialValues?: Partial<QuestDefinitionForm>, turnContext?: {
         turnId: string;
         responseIdx: number;
         questDefinitionIdx: number;
         convId: string;
         gameId: string;
     } | null) => {
-        const nextForm: CreateQuestDefinitionRequest = {
+        const nextForm: QuestDefinitionForm = {
             ...DEFAULT_FORM,
             ...(initialValues ?? {}),
             name: typeof initialValues?.name === "string" ? initialValues.name : DEFAULT_FORM.name,
@@ -1041,11 +1033,17 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             conditions: (initialValues?.conditions ?? DEFAULT_FORM.conditions) as QuestConditionGroup,
             is_active: typeof initialValues?.is_active === "boolean" ? initialValues.is_active : DEFAULT_FORM.is_active,
             sort_order: typeof initialValues?.sort_order === "number" ? initialValues.sort_order : DEFAULT_FORM.sort_order,
+            expire_after_minutes: typeof initialValues?.expire_after_minutes === "number"
+                ? initialValues.expire_after_minutes
+                : undefined,
             rewards: Array.isArray(initialValues?.rewards) ? (initialValues.rewards as QuestReward[]) : DEFAULT_FORM.rewards,
             metadata: initialValues?.metadata && typeof initialValues.metadata === "object" && !Array.isArray(initialValues.metadata)
                 ? initialValues.metadata as Record<string, unknown>
                 : initialValues?.metadata,
         };
+        if (nextForm.quest_type === "daily") {
+            delete nextForm.expire_after_minutes;
+        }
         if (!nextForm.code_name?.trim() && nextForm.name.trim()) {
             nextForm.code_name = toSlugUnderscore(nextForm.name);
         }
@@ -1074,8 +1072,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             try {
                 const detail = JSON.parse(pendingRaw) as Record<string, unknown>;
                 const draft = (detail.questDefinition && typeof detail.questDefinition === "object" && !Array.isArray(detail.questDefinition))
-                    ? detail.questDefinition as Partial<CreateQuestDefinitionRequest>
-                    : (detail as Partial<CreateQuestDefinitionRequest>);
+                    ? detail.questDefinition as Partial<QuestDefinitionForm>
+                    : (detail as Partial<QuestDefinitionForm>);
                 openCreate(draft, {
                     turnId: typeof detail.turnId === "string" ? detail.turnId : "",
                     responseIdx: typeof detail.responseIdx === "number" ? detail.responseIdx : Number(detail.responseIdx ?? 0),
@@ -1094,8 +1092,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             if (!detail)
                 return;
             const draft = (detail.questDefinition && typeof detail.questDefinition === "object" && !Array.isArray(detail.questDefinition))
-                ? detail.questDefinition as Partial<CreateQuestDefinitionRequest>
-                : (detail as Partial<CreateQuestDefinitionRequest>);
+                ? detail.questDefinition as Partial<QuestDefinitionForm>
+                : (detail as Partial<QuestDefinitionForm>);
             openCreate(draft, {
                 turnId: typeof detail.turnId === "string" ? detail.turnId : "",
                 responseIdx: typeof detail.responseIdx === "number" ? detail.responseIdx : Number(detail.responseIdx ?? 0),
@@ -1121,8 +1119,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 return;
             const existingQuestId = typeof detail.existingQuestId === "string" ? detail.existingQuestId : "";
             const draft = (detail.questDefinition && typeof detail.questDefinition === "object" && !Array.isArray(detail.questDefinition))
-                ? detail.questDefinition as Partial<CreateQuestDefinitionRequest>
-                : (detail as Partial<CreateQuestDefinitionRequest>);
+                ? detail.questDefinition as Partial<QuestDefinitionForm>
+                : (detail as Partial<QuestDefinitionForm>);
             const turnContext = {
                 turnId: typeof detail.turnId === "string" ? detail.turnId : "",
                 responseIdx: typeof detail.responseIdx === "number" ? detail.responseIdx : Number(detail.responseIdx ?? 0),
@@ -1151,7 +1149,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             window.removeEventListener('ss:open-edit-quest-definition', handleOpenEditQuestDefinition as EventListener);
         };
     }, [gameId, openEdit, quests, router, searchParams]);
-    const resolveQuestDefinitionDraft = async (questDefinition: CreateQuestDefinitionRequest): Promise<CreateQuestDefinitionRequest> => {
+    const resolveQuestDefinitionDraft = async (questDefinition: QuestDefinitionForm): Promise<QuestDefinitionForm> => {
         if (!gameId)
             return questDefinition;
         const refs = new Set<string>();
@@ -1256,7 +1254,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             }
             return record;
         };
-        return replaceRefs(questDefinition) as CreateQuestDefinitionRequest;
+        return replaceRefs(questDefinition) as QuestDefinitionForm;
     };
     const handleCreate = async () => {
         if (!game)
@@ -1269,8 +1267,13 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         setSaving(true);
         try {
             const resolvedForm = await resolveQuestDefinitionDraft(form);
+            const createFields = { ...stripQuestUiFields(resolvedForm) };
+            delete createFields.sort_order;
+            if (createFields.quest_type === "daily") {
+                delete createFields.expire_after_minutes;
+            }
             const payload: CreateQuestDefinitionRequest = {
-                ...stripQuestUiFields(resolvedForm),
+                ...createFields,
                 code_name: codeName,
             };
             const created = await createQuestDefinition(game.studio_id, gameId, payload);
@@ -1328,7 +1331,15 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 ...stripQuestUiFields(form),
                 code_name: codeName,
             };
-            const updated = await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch);
+            if (form.quest_type === "daily") {
+                if (typeof editQuest.expire_after_minutes === "number") {
+                    patch.expire_after_minutes = null;
+                }
+                else {
+                    delete patch.expire_after_minutes;
+                }
+            }
+            const updated = await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch, { suppressToast: true });
             toast({ title: t('quest.questUpdated'), description: form.name });
             window.dispatchEvent(new CustomEvent('ss:quest-created', {
                 detail: {
@@ -1349,7 +1360,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             toast({
                 variant: "destructive",
                 title: t('common.error'),
-                description: e instanceof ApiError ? e.message : t('quest.failedUpdateQuest'),
+                description: getQuestApiErrorMessage(e, t, 'quest.failedUpdateQuest'),
             });
         }
         finally {
@@ -1396,6 +1407,19 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         }
     };
     // ── Form shared part ─────────────────────────────────────────────────────────
+    const questFormScope = editQuest ? "edit" : "create";
+    const selectedQuestTypeDescription = questTypeOptions.find((option) => option.value === form.quest_type)?.description ?? "";
+    const updateQuestExpiration = (expireAfterMinutes?: number) => setForm((currentForm) => {
+        if (expireAfterMinutes === undefined && !editQuest) {
+            const nextForm = { ...currentForm };
+            delete nextForm.expire_after_minutes;
+            return nextForm;
+        }
+        return {
+            ...currentForm,
+            expire_after_minutes: expireAfterMinutes ?? null,
+        };
+    });
     const QuestForm = (<div className="space-y-5">
       {/* Name */}
       <div className="space-y-1">
@@ -1439,23 +1463,65 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
       </div>
 
       {/* Quest Type */}
-      <div className="space-y-1">
-        <Label>{t('quest.questType')} <span className="text-red-500">*</span></Label>
-        <Select value={form.quest_type} onValueChange={(v) => setForm((f) => ({ ...f, quest_type: v as QuestType }))}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {questTypeOptions.map((t) => (<SelectItem key={t.value} value={t.value}>
-                <div>
-                  <span>{t.label}</span>
-                  {t.description && (<span className="ml-2 text-xs text-muted-foreground">{t.description}</span>)}
-                </div>
-              </SelectItem>))}
-          </SelectContent>
-        </Select>
-        {(form.quest_type === "chain") && (<p className="text-xs text-muted-foreground">{t('quest.storyChainHint')}</p>)}
+      <div id={`quest-type-field-${questFormScope}`} className="space-y-1">
+        <Label id={`quest-type-label-${questFormScope}`}>{t('quest.questType')} <span id={`quest-type-required-${questFormScope}`} className="text-red-500">*</span></Label>
+        <div id={`quest-type-control-row-${questFormScope}`} className="grid grid-cols-[minmax(0,1fr)_280px] items-center gap-4">
+          <Select value={form.quest_type} onValueChange={(value) => {
+              const questType = value as QuestType;
+              setForm((currentForm) => {
+                  const nextForm = { ...currentForm, quest_type: questType };
+                  if (questType === "daily") {
+                      if (editQuest && typeof editQuest.expire_after_minutes === "number") {
+                          nextForm.expire_after_minutes = null;
+                      }
+                      else {
+                          delete nextForm.expire_after_minutes;
+                      }
+                  }
+                  return nextForm;
+              });
+          }}>
+            <SelectTrigger id={`quest-type-trigger-${questFormScope}`}>
+              <SelectValue id={`quest-type-value-${questFormScope}`} />
+            </SelectTrigger>
+            <SelectContent id={`quest-type-content-${questFormScope}`}>
+              {questTypeOptions.map((option) => (
+                <SelectItem id={`quest-type-option-${questFormScope}-${option.value}`} key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {form.quest_type === "daily" ? (
+            <p id={`quest-expiration-daily-unavailable-${questFormScope}`} className="text-xs leading-tight text-muted-foreground">
+              {t('quest.expirationUnavailableDaily')}
+            </p>
+          ) : (
+            <QuestExpirationToggle
+              idScope={questFormScope}
+              checked={typeof form.expire_after_minutes === "number"}
+              onCheckedChange={(checked) => updateQuestExpiration(checked ? DEFAULT_QUEST_EXPIRATION_MINUTES : undefined)}
+              t={t}
+            />
+          )}
+        </div>
+        {selectedQuestTypeDescription && (
+          <p id={`quest-type-description-${questFormScope}`} className="text-xs text-muted-foreground">
+            {selectedQuestTypeDescription}
+          </p>
+        )}
+        {(form.quest_type === "chain") && (<p id={`quest-type-chain-hint-${questFormScope}`} className="text-xs text-muted-foreground">{t('quest.storyChainHint')}</p>)}
       </div>
+
+      {/* Expiration */}
+      {form.quest_type !== "daily" && typeof form.expire_after_minutes === "number" && (
+        <QuestExpirationSettings
+          idScope={questFormScope}
+          value={form.expire_after_minutes}
+          onChange={updateQuestExpiration}
+          t={t}
+        />
+      )}
 
       {/* Conditions */}
       <ConditionEditor conditions={form.conditions ?? DEFAULT_CONDITIONS} onChange={(c) => setForm((f) => ({ ...f, conditions: c }))} gameId={gameId} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
@@ -1655,7 +1721,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                             if (!isConditionLeaf(clause)) {
                                 return <div key={ci} className="text-xs text-muted-foreground border rounded px-2 py-1">{t('quest.nestedGroup')} ({(clause as QuestConditionGroup).operator})</div>;
                             }
-                            const typeOpt = CONDITION_TYPE_OPTIONS.find(o => o.value === clause.type);
+                            const typeOpt = KNOWN_CONDITION_TYPES.find(o => o.value === clause.type);
                             const typeLabel = typeOpt ? t(typeOpt.labelKey) : clause.type;
                             return (<div key={ci} className="border rounded px-3 py-2 bg-background text-sm space-y-1">
                                       <div className="flex items-center gap-2">

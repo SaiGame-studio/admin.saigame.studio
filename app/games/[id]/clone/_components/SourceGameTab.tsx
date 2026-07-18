@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Globe, Loader2, Lock, RefreshCw, Search, Shield, X } from "lucide-react";
 import { CopyButton } from "@/components/CopyButton";
@@ -58,9 +59,11 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [startConfirmOpen, setStartConfirmOpen] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const requestSeqRef = useRef(0);
+    const hadSessionRef = useRef(false);
+    const router = useRouter();
 
     const selectedGame = games.find((game) => game.id === selectedGameId) ?? null;
-    const selectedGameCurrency = getCloneCostCurrencyMeta(selectedGame?.clone_cost_currency);
+    const selectedGameCurrency = getCloneCostCurrencyMeta(selectedGame?.settings?.clone_cost_currency);
     const hasCurrentCloneSession = Boolean(currentSession);
     const requiredCloneCost = getRequiredCloneCost(selectedGame);
     const selectedCurrencyBalance = selectedGameCurrency.code === "sCoin" ? scoinBalance : sgemBalance;
@@ -133,7 +136,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         }
     }, []);
 
-    const loadCurrentSession = useCallback(async (options?: LoadCurrentSessionOptions) => {
+    const loadCurrentSession = useCallback(async (options?: LoadCurrentSessionOptions): Promise<CloneSessionSnapshot | null> => {
         const silent = options?.silent === true;
 
         if (!silent) {
@@ -144,9 +147,13 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         try {
             const session = await getCurrentCloneSession(targetGameId);
             setCurrentSession(session ?? null);
+            if (session) {
+                hadSessionRef.current = true;
+            }
             if (session?.source_game_id) {
                 setSelectedGameId(session.source_game_id);
             }
+            return session ?? null;
         } catch (error) {
             const status = (error as { status?: number } | null | undefined)?.status;
 
@@ -154,15 +161,21 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                 setCurrentSession(null);
             }
 
+            if (status === 404 && hadSessionRef.current) {
+                window.location.reload();
+                return null;
+            }
+
             if (!silent && status && status !== 404) {
                 setCurrentSessionError(t("cloneGame.sourceGameCurrentSessionLoadError"));
             }
+            return null;
         } finally {
             if (!silent) {
                 setCurrentSessionLoading(false);
             }
         }
-    }, [targetGameId, t]);
+    }, [targetGameId, t, router]);
 
     useEffect(() => {
         const timer = window.setTimeout(() => {
@@ -221,8 +234,8 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         await loadGames(offset, searchInput);
     };
 
-    const handleRefreshCurrentSessionSilently = useCallback(async () => {
-        await loadCurrentSession({ silent: true });
+    const handleRefreshCurrentSessionSilently = useCallback(async (): Promise<CloneSessionSnapshot | null> => {
+        return await loadCurrentSession({ silent: true });
     }, [loadCurrentSession]);
 
     const handleLoadMore = () => {

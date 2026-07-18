@@ -70,7 +70,8 @@ export function CurrentCloneSessionFooterProgress({
 
     const totalProcessed = progressEntries.reduce((sum, [, progress]) => sum + (progress.processed ?? 0), 0);
     const totalItems = progressEntries.reduce((sum, [, progress]) => sum + (progress.total ?? 0), 0);
-    const totalProgressValue = getProgressValue(totalProcessed, totalItems);
+    const allCompleted = progressEntries.length > 0 && progressEntries.every(([, progress]) => progress.completed);
+    const totalProgressValue = getProgressValue(totalProcessed, totalItems, allCompleted);
 
     return (
         <div id="clone-game-source-current-session-footer-progress" className="space-y-3 border-t px-6 pt-4 pb-4">
@@ -114,7 +115,7 @@ export function CurrentCloneSessionFooterProgress({
             <div id="clone-game-source-current-session-footer-progress-list" className="grid grid-cols-2 gap-3">
                 {progressEntries.map(([phaseKey, progress], index) => {
                     const idSegment = toKebabIdSegment(phaseKey);
-                    const progressValue = getProgressValue(progress.processed, progress.total);
+                    const progressValue = getProgressValue(progress.processed, progress.total, progress.completed);
 
                     return (
                         <div

@@ -20,6 +20,8 @@ import {
     type CloneSessionCurrentEntityPool,
     getCurrentCloneSessionLeaderboardDefinitions,
     type CloneSessionCurrentLeaderboardDefinition,
+    getCurrentCloneSessionScripts,
+    type CloneSessionCurrentScript,
 } from "@/lib/game-api";
 
 export const CLONE_SESSION_PAGE_SIZE = 12;
@@ -53,6 +55,7 @@ type UseCurrentCloneSessionDefinitionsParams = {
     isEntityDefinitionsTab: boolean;
     isEntityPoolsTab: boolean;
     isLeaderboardDefinitionsTab: boolean;
+    isScriptsTab: boolean;
     refreshNonce: number;
     formatError: (error: unknown) => string;
 };
@@ -137,6 +140,7 @@ export function useCurrentCloneSessionDefinitions({
     isEntityDefinitionsTab,
     isEntityPoolsTab,
     isLeaderboardDefinitionsTab,
+    isScriptsTab,
     refreshNonce,
     formatError,
 }: UseCurrentCloneSessionDefinitionsParams) {
@@ -149,6 +153,7 @@ export function useCurrentCloneSessionDefinitions({
     const entityDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentEntityDefinition>();
     const entityPoolsState = useCloneSessionPagedState<CloneSessionCurrentEntityPool>();
     const leaderboardDefinitionsState = useCloneSessionPagedState<CloneSessionCurrentLeaderboardDefinition>();
+    const scriptsState = useCloneSessionPagedState<CloneSessionCurrentScript>();
 
     useEffect(() => {
         if (!currentSessionId || !isEquipmentSlotDefinitionsTab) {
@@ -610,6 +615,55 @@ export function useCurrentCloneSessionDefinitions({
         };
     }, [currentSessionId, formatError, leaderboardDefinitionsState.offset, leaderboardDefinitionsState.searchId, leaderboardDefinitionsState.searchName, isLeaderboardDefinitionsTab, refreshNonce, targetGameId]);
 
+    useEffect(() => {
+        if (!currentSessionId || !isScriptsTab) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadScripts = async () => {
+            scriptsState.setLoading(true);
+            scriptsState.setError(null);
+
+            try {
+                const response = await getCurrentCloneSessionScripts(targetGameId, {
+                    id: scriptsState.searchId || undefined,
+                    name: scriptsState.searchId ? undefined : scriptsState.searchName || undefined,
+                    limit: CLONE_SESSION_PAGE_SIZE,
+                    offset: scriptsState.offset,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                const nextScripts = Array.isArray(response.scripts) ? response.scripts : [];
+
+                scriptsState.setItems(nextScripts);
+                scriptsState.setTotal(Number(response.total ?? 0));
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                scriptsState.setItems([]);
+                scriptsState.setTotal(0);
+                scriptsState.setError(formatError(error));
+            } finally {
+                if (!cancelled) {
+                    scriptsState.setLoading(false);
+                }
+            }
+        };
+
+        void loadScripts();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentSessionId, formatError, isScriptsTab, refreshNonce, scriptsState.offset, scriptsState.searchId, scriptsState.searchName, targetGameId]);
+
     return {
         equipmentSlotDefinitionsState: toPagedResult(equipmentSlotDefinitionsState),
         questsState: toPagedResult(questsState),
@@ -620,5 +674,6 @@ export function useCurrentCloneSessionDefinitions({
         entityDefinitionsState: toPagedResult(entityDefinitionsState),
         entityPoolsState: toPagedResult(entityPoolsState),
         leaderboardDefinitionsState: toPagedResult(leaderboardDefinitionsState),
+        scriptsState: toPagedResult(scriptsState),
     };
 }

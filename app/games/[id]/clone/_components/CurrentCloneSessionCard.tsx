@@ -33,6 +33,17 @@ import { formatTechnicalLabel, getCloneSessionErrorMessage, getCloneSessionStatu
 import { useCurrentCloneSessionDefinitions } from "./useCurrentCloneSessionDefinitions";
 
 const ITEMS_PAGE_SIZE = 12;
+const MAX_POLL_ATTEMPTS = 150; // max run iterations
+
+function isCloneSessionDone(snapshot: CloneSessionSnapshot): boolean {
+    const status = snapshot.status ?? "";
+    const warnings = snapshot.last_run_response?.warnings ?? [];
+    const conflicts = snapshot.last_run_response?.conflicts ?? [];
+    const isFinalizationPending =
+        status === "review_pending" && snapshot.current_phase === "finalization";
+    const isTerminal = ["completed", "failed", "error", "cancelled"].includes(status);
+    return isTerminal || isFinalizationPending || warnings.length > 0 || conflicts.length > 0;
+}
 
 type CurrentCloneSessionCardProps = {
     targetGameId: string;
@@ -40,7 +51,7 @@ type CurrentCloneSessionCardProps = {
     currentSessionLoading: boolean;
     currentSessionError: string | null;
     deletingCurrentSession: boolean;
-    onRefreshCurrentSession: () => Promise<void>;
+    onRefreshCurrentSession: () => Promise<CloneSessionSnapshot | null>;
     onRetry: () => Promise<void>;
     onDelete: () => void;
 };
@@ -87,6 +98,7 @@ export function CurrentCloneSessionCard({
     const [runCloneSessionError, setRunCloneSessionError] = useState<string | null>(null);
     const [contentRefreshNonce, setContentRefreshNonce] = useState(0);
     const previousSessionIdRef = useRef<string | null>(null);
+    const stopLoopRef = useRef(false);
     const currentSessionId = currentSession?.session_id ?? null;
     const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
     const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
@@ -106,6 +118,7 @@ export function CurrentCloneSessionCard({
     const isCraftingRecipesTab = activeProgressTab === "crafting_recipes" || activeProgressTab === "crafting_recipe_definitions";
     const isEntityDefinitionsTab = activeProgressTab === "entity_definitions";
     const isEntityPoolsTab = activeProgressTab === "entity_pools";
+    const isScriptsTab = activeProgressTab === "scripts";
     const formatCloneSessionError = useCallback((error: unknown) => getCloneSessionErrorMessage(error, t), [t]);
 
     useEffect(() => {
@@ -299,6 +312,7 @@ export function CurrentCloneSessionCard({
         entityDefinitionsState,
         entityPoolsState,
         leaderboardDefinitionsState,
+        scriptsState,
     } = useCurrentCloneSessionDefinitions({
         currentSessionId,
         targetGameId,
@@ -311,12 +325,13 @@ export function CurrentCloneSessionCard({
         isEntityDefinitionsTab,
         isEntityPoolsTab,
         isLeaderboardDefinitionsTab: activeProgressTab === "leaderboards" || activeProgressTab === "leaderboard_definitions",
+        isScriptsTab,
         refreshNonce: contentRefreshNonce,
         formatError: formatCloneSessionError,
     });
 
     const getManualOverwriteTargetId = useCallback((
-        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition",
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition" | "entity_pool" | "leaderboard_definition" | "script",
         sourceId: string,
     ) => findCloneSessionManualOverwriteTargetId(currentSessionConflicts, contentType, sourceId), [currentSessionConflicts]);
 
@@ -382,32 +397,54 @@ export function CurrentCloneSessionCard({
         setItemTagsOffset((current) => current + ITEMS_PAGE_SIZE);
     };
 
+    const handleStopCloneSession = () => {
+        stopLoopRef.current = true;
+    };
+
     const handleRunCloneSession = async () => {
         if (!currentSession?.session_id || runningCloneSession) {
             return;
         }
 
+        stopLoopRef.current = false;
         setRunningCloneSession(true);
         setRunCloneSessionError(null);
         let nextRunCloneSessionError: string | null = null;
+        const sessionId = currentSession.session_id;
 
         try {
             if (canCompleteCloneSession) {
-                await completeCloneSession(currentSession.session_id);
+                // Complete flow: single call then refresh
+                await completeCloneSession(sessionId);
+                await onRefreshCurrentSession();
             } else {
-                await runCloneSession(currentSession.session_id);
+                // Run loop: /run → /current → delay → repeat until done or stopped
+                let iterations = 0;
+                while (iterations < MAX_POLL_ATTEMPTS && !stopLoopRef.current) {
+                    iterations++;
+
+                    // Step 1: call /run
+                    await runCloneSession(sessionId);
+
+                    // Step 2: call /current to check state
+                    const snapshot = await onRefreshCurrentSession();
+
+                    if (!snapshot || isCloneSessionDone(snapshot)) {
+                        break;
+                    }
+
+                    // Step 3: wait 1s before next iteration
+                    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+                }
             }
         } catch (error) {
             nextRunCloneSessionError = getCloneSessionErrorMessage(error, t);
-        } finally {
             try {
                 await onRefreshCurrentSession();
-            } catch (error) {
-                if (!nextRunCloneSessionError) {
-                    nextRunCloneSessionError = getCloneSessionErrorMessage(error, t);
-                }
+            } catch {
+                // ignore secondary refresh error
             }
-
+        } finally {
             setRunCloneSessionError(nextRunCloneSessionError);
             setRunningCloneSession(false);
         }
@@ -454,24 +491,55 @@ export function CurrentCloneSessionCard({
             entityPoolsState.onApplySearchValue(searchValue);
         } else if (nextTab === "leaderboards" || nextTab === "leaderboard_definitions") {
             leaderboardDefinitionsState.onApplySearchValue(searchValue);
+        } else if (nextTab === "scripts") {
+            scriptsState.onApplySearchValue(searchValue);
         }
-    };
 
-    const handleWarningClick = (warning: CloneSessionWarning) => {
-        const searchValue = (warning.source_id || "").trim();
-        const nextTab = normalizeProgressTab("quest_definitions", currentSessionProgressEntries);
-        const nextParams = new URLSearchParams(searchParams.toString());
-        nextParams.set("subTab", nextTab);
-        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
-        if (!searchValue) return setRunCloneSessionError(t("cloneGame.sourceGameCurrentSessionConflictMissingItemDefinitionId"));
-        setRunCloneSessionError(null);
-        questsState.onApplySearchValue(searchValue);
+        setTimeout(() => {
+            document.getElementById("clone-game-source-current-session-progress")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
     };
 
     const handleManualOverwriteSuccess = useCallback(async () => {
         await onRefreshCurrentSession();
         setContentRefreshNonce((current) => current + 1);
     }, [onRefreshCurrentSession]);
+
+    const handleShopWarningClick = (warning: CloneSessionWarning) => {
+        const searchValue = (warning.source_id || "").trim();
+        const nextTab = normalizeProgressTab("shop_definitions", currentSessionProgressEntries);
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", nextTab);
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+
+        if (!searchValue) {
+            return;
+        }
+
+        setRunCloneSessionError(null);
+        shopDefinitionsState.onApplySearchValue(searchValue);
+        setTimeout(() => {
+            document.getElementById("clone-game-source-current-session-progress")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+    };
+
+    const handleQuestWarningClick = (warning: CloneSessionWarning) => {
+        const searchValue = (warning.source_id || "").trim();
+        const nextTab = normalizeProgressTab("quest_definitions", currentSessionProgressEntries);
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("subTab", nextTab);
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+
+        if (!searchValue) {
+            return;
+        }
+
+        setRunCloneSessionError(null);
+        questsState.onApplySearchValue(searchValue);
+        setTimeout(() => {
+            document.getElementById("clone-game-source-current-session-progress")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+    };
 
     if (currentSessionLoading) {
         return <CurrentCloneSessionLoadingCard />;
@@ -642,6 +710,18 @@ export function CurrentCloneSessionCard({
         onLeaderboardDefinitionsClearSearch: leaderboardDefinitionsState.onClearSearch,
         onLeaderboardDefinitionsPreviousPage: leaderboardDefinitionsState.onPreviousPage,
         onLeaderboardDefinitionsNextPage: leaderboardDefinitionsState.onNextPage,
+        scripts: scriptsState.items,
+        scriptsTotal: scriptsState.total,
+        scriptsOffset: scriptsState.offset,
+        scriptsSearchInput: scriptsState.searchInput,
+        scriptsSearchName: scriptsState.searchName,
+        scriptsLoading: scriptsState.loading,
+        scriptsError: scriptsState.error,
+        onScriptsSearchInputChange: scriptsState.onSearchInputChange,
+        onScriptsSearch: scriptsState.onSearch,
+        onScriptsClearSearch: scriptsState.onClearSearch,
+        onScriptsPreviousPage: scriptsState.onPreviousPage,
+        onScriptsNextPage: scriptsState.onNextPage,
         getManualOverwriteTargetId,
         onManualOverwriteSuccess: handleManualOverwriteSuccess,
     };
@@ -700,6 +780,7 @@ export function CurrentCloneSessionCard({
                 onDelete={onDelete}
                 onRefreshCurrentSession={onRefreshCurrentSession}
                 onRunCloneSession={handleRunCloneSession}
+                onStopCloneSession={handleStopCloneSession}
             />
 
             <div id="clone-game-source-current-session-alerts-wrap" className="px-6 pb-6">
@@ -710,7 +791,8 @@ export function CurrentCloneSessionCard({
                     warnings={currentSessionWarnings}
                     conflicts={currentSessionConflicts}
                     onConflictClick={handleConflictClick}
-                    onWarningClick={handleWarningClick}
+                    onShopWarningClick={handleShopWarningClick}
+                    onQuestWarningClick={handleQuestWarningClick}
                 />
             </div>
 

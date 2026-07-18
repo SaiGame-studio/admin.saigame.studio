@@ -14,6 +14,7 @@ import type {
     CloneSessionCurrentEntityDefinition,
     CloneSessionCurrentEntityPool,
     CloneSessionCurrentLeaderboardDefinition,
+    CloneSessionCurrentScript,
 } from "@/lib/game-api";
 
 type TranslationFn = (key: string, params?: Record<string, string | number | boolean | null | undefined>) => string;
@@ -170,8 +171,20 @@ export type CurrentCloneSessionProgressTabsProps = {
     onLeaderboardDefinitionsClearSearch: () => void;
     onLeaderboardDefinitionsPreviousPage: () => void;
     onLeaderboardDefinitionsNextPage: () => void;
+    scripts: CloneSessionCurrentScript[];
+    scriptsTotal: number;
+    scriptsOffset: number;
+    scriptsSearchInput: string;
+    scriptsSearchName: string;
+    scriptsLoading: boolean;
+    scriptsError: string | null;
+    onScriptsSearchInputChange: (value: string) => void;
+    onScriptsSearch: () => void;
+    onScriptsClearSearch: () => void;
+    onScriptsPreviousPage: () => void;
+    onScriptsNextPage: () => void;
     getManualOverwriteTargetId: (
-        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition" | "entity_pool" | "leaderboard_definition",
+        contentType: "item_definition" | "item_container_definition" | "equipment_slot_definition" | "item_tag" | "quest_definition" | "shop_definition" | "preset_definition" | "crafting_recipe" | "entity_definition" | "entity_pool" | "leaderboard_definition" | "script",
         sourceId: string,
     ) => string | null;
     onManualOverwriteSuccess: () => Promise<void>;

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
@@ -27,6 +28,7 @@ export function CoinBalance() {
     const [error, setError] = useState(false);
     const [visible, setVisible] = useState<boolean | null>(null);
     const [floats, setFloats] = useState<FloatItem[]>([]);
+    const anchorRef = useRef<HTMLDivElement | null>(null);
     const prevBalanceRef = useRef<number | null>(null);
     const isFirstLoad = useRef(true);
     const { t } = useTranslation();
@@ -85,11 +87,23 @@ export function CoinBalance() {
         }
         .coin-float { animation: coin-float-down 5s ease-out forwards; pointer-events: none; }
       `}</style>
-      <div className="relative flex items-center gap-1 rounded-md border bg-background px-2 h-10 text-sm">
-        {/* Float texts */}
-        {floats.map(({ id, delta }) => (<span key={id} className="coin-float absolute top-full mt-1 left-1/2 -translate-x-1/2 text-sm font-bold tabular-nums whitespace-nowrap select-none z-50" style={{ color: delta > 0 ? "#22c55e" : "#ef4444", textShadow: "0 0 3px #000, 0 0 3px #000, 0 0 3px #000, 0 0 6px #000" }}>
+      <div ref={anchorRef} className="relative flex items-center gap-1 rounded-md border bg-background px-2 h-10 text-sm">
+        {/* Float texts rendered via portal to escape nav stacking context */}
+        {typeof window !== "undefined" && floats.map(({ id, delta }) => {
+            const rect = anchorRef.current?.getBoundingClientRect();
+            const top = rect ? rect.bottom + 4 : 0;
+            const left = rect ? rect.left + rect.width / 2 : 0;
+            return createPortal(<span key={id} className="coin-float fixed text-sm font-bold tabular-nums whitespace-nowrap select-none pointer-events-none" style={{
+                    top,
+                    left,
+                    transform: "translateX(-50%)",
+                    zIndex: 9999,
+                    color: delta > 0 ? "#22c55e" : "#ef4444",
+                    textShadow: "0 0 3px #000, 0 0 3px #000, 0 0 3px #000, 0 0 6px #000"
+                }}>
             {delta > 0 ? `🪙 +${delta.toLocaleString()}` : `🪙 ${delta.toLocaleString()}`}
-          </span>))}
+          </span>, document.body);
+        })}
 
         {/* Coin icon + balance — click to toggle */}
         <button onClick={toggleVisible} className="flex items-center gap-1 cursor-pointer select-none focus-visible:outline-none rounded px-1.5 py-0.5 transition-colors hover:bg-muted active:bg-muted/80" aria-label={visible ? "Hide balance" : "Show balance"}>
