@@ -6,10 +6,11 @@ interface CopyButtonProps {
     className?: string;
     id?: string;
     iconId?: string;
+    label?: string;
     /** Icon size class (default: "h-3.5 w-3.5") */
     size?: string;
 }
-export function CopyButton({ text, className, id, iconId, size = "h-3.5 w-3.5" }: CopyButtonProps) {
+export function CopyButton({ text, className, id, iconId, label = "Copy", size = "h-3.5 w-3.5" }: CopyButtonProps) {
     const [copied, setCopied] = useState(false);
     function handleCopy(e: React.MouseEvent) {
         e.stopPropagation();
@@ -37,7 +38,7 @@ export function CopyButton({ text, className, id, iconId, size = "h-3.5 w-3.5" }
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     }
-    return (<button id={id} onClick={handleCopy} className={`ml-1 inline-flex items-center text-muted-foreground hover:text-foreground transition-colors${className ? ` ${className}` : ""}`} title="Copy" type="button">
+    return (<button id={id} onClick={handleCopy} className={`ml-1 inline-flex items-center text-muted-foreground hover:text-foreground transition-colors${className ? ` ${className}` : ""}`} title={label} aria-label={label} type="button">
       {copied
             ? <Check id={iconId} className={`${size} text-green-500`}/>
             : <Copy id={iconId} className={size}/>}
