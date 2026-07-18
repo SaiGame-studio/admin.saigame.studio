@@ -474,7 +474,7 @@ export function AdminDBBackupsTab() {
                   {renderStateBadge(worker?.state)}
                 </CardTitle>
                 <CardDescription id="db-backups-worker-desc">
-                  PostgreSQL database daily backup service.
+                  {t("dbBackups.workerDescription")}
                 </CardDescription>
               </CardHeader>
               <CardContent id="db-backups-worker-content" className="space-y-4">
