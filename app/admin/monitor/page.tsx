@@ -30,6 +30,7 @@ import { AdminGameLimitsDialog } from "@/components/AdminGameLimitsDialog";
 import { LLMTokenQuotaDialog } from "@/components/LLMTokenQuotaDialog";
 import { TokenStatsTab } from "@/components/TokenStatsTab";
 import { AdminSystemPromptsList } from "./AdminSystemPromptsList";
+import { AdminDBBackupsTab } from "./AdminDBBackupsTab";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig, } from "@/components/ui/chart";
 // ---------------------------------------------------------------------------
@@ -2482,7 +2483,7 @@ function SystemPromptsTab() {
 // ---------------------------------------------------------------------------
 // Tabs shell
 // ---------------------------------------------------------------------------
-const VALID_TABS = ["ccu", "workers", "mailblock", "users", "studios", "games", "charts", "sysprompts", "tokenstats"] as const;
+const VALID_TABS = ["ccu", "workers", "mailblock", "users", "studios", "games", "charts", "sysprompts", "tokenstats", "dbbackups"] as const;
 type TabValue = (typeof VALID_TABS)[number];
 function MonitorTabs() {
     const router = useRouter();
@@ -2549,6 +2550,10 @@ function MonitorTabs() {
             <TrendingUp className="h-4 w-4"/>
             Token Stats
           </TabsTrigger>
+          <TabsTrigger value="dbbackups" className="flex items-center gap-2">
+            <Database className="h-4 w-4"/>
+            DB Backups
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="ccu" className="mt-0">
@@ -2577,6 +2582,9 @@ function MonitorTabs() {
         </TabsContent>
         <TabsContent value="tokenstats" className="mt-0">
           <TokenStatsTab />
+        </TabsContent>
+        <TabsContent value="dbbackups" className="mt-0">
+          <AdminDBBackupsTab />
         </TabsContent>
       </Tabs>
     </div>);

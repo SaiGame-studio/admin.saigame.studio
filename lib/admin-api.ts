@@ -239,3 +239,4 @@ export * from "./admin-api/monitoring";
 export * from "./admin-api/content-management";
 export * from "./admin-api/system-prompts";
 export * from "./admin-api/llm-admin";
+export * from "./admin-api/db-backups";
