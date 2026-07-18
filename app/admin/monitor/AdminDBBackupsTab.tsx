@@ -324,9 +324,6 @@ export function AdminDBBackupsTab() {
                     />
                   </div>
                 </div>
-                <CardDescription id="db-backups-resource-desc" className="mt-1.5">
-                  {t("dbBackups.resourceDesc") || "Real-time CPU and RAM utilization (polled every 2s)."}
-                </CardDescription>
               </CardHeader>
               <CardContent id="db-backups-resource-content" className="space-y-4">
                 {/* CPU Progress */}

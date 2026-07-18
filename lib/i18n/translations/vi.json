@@ -4197,7 +4197,6 @@
     "confirmCancel": "Hủy bỏ",
     "confirmAction": "Xác nhận Sao lưu",
     "resourceTitle": "Giám sát Tài nguyên Server",
-    "resourceDesc": "Tải lượng CPU, RAM và Ổ đĩa thời gian thực (cập nhật mỗi 2 giây).",
     "cpuUsage": "Sử dụng CPU",
     "ramUsage": "Sử dụng RAM",
     "loading": "Đang tải...",
