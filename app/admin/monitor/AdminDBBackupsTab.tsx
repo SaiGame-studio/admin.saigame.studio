@@ -62,6 +62,16 @@ export function AdminDBBackupsTab() {
   const { toast } = useToast();
   const capabilities = useCapabilities();
 
+  const getDisabledReason = () => {
+    if (worker?.state === "running") {
+      return "A database backup is currently in progress.";
+    }
+    if (worker?.state === "disabled" || worker?.state === "pending" || !worker) {
+      return "Database backup worker is disabled in configuration.";
+    }
+    return "";
+  };
+
   const [backups, setBackups] = useState<DBBackupItem[]>([]);
   const [worker, setWorker] = useState<Worker | null>(null);
   const [loading, setLoading] = useState(true);
@@ -250,41 +260,64 @@ export function AdminDBBackupsTab() {
             </Tooltip>
           </TooltipProvider>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                id="db-backups-trigger-btn"
-                variant="default"
-                disabled={loading || actionLoading !== null || worker?.state === "running"}
-                className="flex items-center gap-2"
-              >
-                {actionLoading === "trigger" ? (
-                  <Loader2 id="db-backups-trigger-loader" className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Database id="db-backups-trigger-icon" className="h-4 w-4" />
-                )}
-                Backup Now
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent id="db-backups-confirm-dialog">
-              <AlertDialogHeader id="db-backups-confirm-header">
-                <AlertDialogTitle id="db-backups-confirm-title">
-                  {t("dbBackups.confirmTitle") || "Trigger Database Backup"}
-                </AlertDialogTitle>
-                <AlertDialogDescription id="db-backups-confirm-desc">
-                  {t("dbBackups.confirmDescription") || "Are you sure you want to trigger a database backup? This will execute a logical dump of the entire PostgreSQL database. Running this during peak hours can impact database CPU and I/O performance."}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter id="db-backups-confirm-footer">
-                <AlertDialogCancel id="db-backups-confirm-cancel-btn">
-                  {t("dbBackups.confirmCancel") || "Cancel"}
-                </AlertDialogCancel>
-                <AlertDialogAction id="db-backups-confirm-confirm-btn" onClick={() => void handleTriggerBackup()}>
-                  {t("dbBackups.confirmAction") || "Confirm Backup"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {worker?.state !== "idle" ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block cursor-not-allowed">
+                    <Button
+                      id="db-backups-trigger-btn"
+                      variant="default"
+                      disabled={true}
+                      className="flex items-center gap-2 pointer-events-none"
+                    >
+                      <Database id="db-backups-trigger-icon" className="h-4 w-4" />
+                      Backup Now
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p id="db-backups-trigger-disabled-tooltip">{getDisabledReason()}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  id="db-backups-trigger-btn"
+                  variant="default"
+                  disabled={loading || actionLoading !== null}
+                  className="flex items-center gap-2"
+                >
+                  {actionLoading === "trigger" ? (
+                    <Loader2 id="db-backups-trigger-loader" className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Database id="db-backups-trigger-icon" className="h-4 w-4" />
+                  )}
+                  Backup Now
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent id="db-backups-confirm-dialog">
+                <AlertDialogHeader id="db-backups-confirm-header">
+                  <AlertDialogTitle id="db-backups-confirm-title">
+                    {t("dbBackups.confirmTitle") || "Trigger Database Backup"}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription id="db-backups-confirm-desc">
+                    {t("dbBackups.confirmDescription") || "Are you sure you want to trigger a database backup? This will execute a logical dump of the entire PostgreSQL database. Running this during peak hours can impact database CPU and I/O performance."}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter id="db-backups-confirm-footer">
+                  <AlertDialogCancel id="db-backups-confirm-cancel-btn">
+                    {t("dbBackups.confirmCancel") || "Cancel"}
+                  </AlertDialogCancel>
+                  <AlertDialogAction id="db-backups-confirm-confirm-btn" onClick={() => void handleTriggerBackup()}>
+                    {t("dbBackups.confirmAction") || "Confirm Backup"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
 
