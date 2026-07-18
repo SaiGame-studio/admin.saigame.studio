@@ -2485,21 +2485,29 @@ function SystemPromptsTab() {
 // ---------------------------------------------------------------------------
 const VALID_TABS = ["ccu", "workers", "mailblock", "users", "studios", "games", "charts", "sysprompts", "tokenstats", "dbbackups"] as const;
 type TabValue = (typeof VALID_TABS)[number];
+function parseMonitorTab(value: string | null): TabValue {
+    return VALID_TABS.includes(value as TabValue) ? (value as TabValue) : "ccu";
+}
 function MonitorTabs() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const capabilities = useCapabilities();
+    const [activeTab, setActiveTab] = useState<TabValue>(() => parseMonitorTab(searchParams.get("tab")));
     useEffect(() => {
         if (!capabilities.is_super_admin) {
             router.push("/");
         }
     }, [capabilities, router]);
-    const rawTab = searchParams.get("tab");
-    const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "ccu";
+    useEffect(() => {
+        setActiveTab(parseMonitorTab(searchParams.get("tab")));
+    }, [searchParams]);
     function handleTabChange(value: string) {
+        const nextTab = parseMonitorTab(value);
+        setActiveTab(nextTab);
         const params = new URLSearchParams(searchParams.toString());
-        params.set("tab", value);
-        router.replace(`?${params.toString()}`, { scroll: false });
+        params.set("tab", nextTab);
+        const query = params.toString();
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}?${query}${window.location.hash}`);
     }
     if (!capabilities.is_super_admin)
         return null;
