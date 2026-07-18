@@ -4105,6 +4105,12 @@
     "tableCreated": "作成日時"
   },
   "dbBackups": {
+    "delete": "削除",
+    "deleteConfirmTitle": "バックアップファイルを削除しますか？",
+    "deleteConfirmDescription": "{file} を削除しますか？この操作は元に戻せません。",
+    "deleteConfirmAction": "ファイルを削除",
+    "deleteSuccess": "バックアップファイルを削除しました。",
+    "deleteError": "バックアップファイルを削除できませんでした。",
     "title": "データベースバックアップ",
     "description": "データベースのバックアップスナップショットの表示、管理、およびダウンロードを行います。バックアップは毎日午前4:00（GMT+7）に自動的に実行されます。",
     "fileName": "ファイル名",
@@ -4139,6 +4145,13 @@
     "loading": "読み込み中...",
     "autoRefreshOn": "ライブ",
     "autoRefreshOff": "一時停止",
-    "diskUsage": "ディスク使用量"
+    "diskUsage": "ディスク使用量",
+    "guideTitle": "オペレーショナルリストア＆アップロードガイド",
+    "guideDesc": "セキュリティ上の理由から、バックアップシステムはHTTP API経由でのデータベースのアップロードや復元のアクションを提供していません。新しいダンプファイルを環境のバックアップフォルダにアップロードするか、別のデータベースに復元するには、ローカルマシンからCLIコマンドを実行します。",
+    "guideUploadSyntax": "アップロードコマンド構文（デフォルトでローカルの./backups/db/を検索）：",
+    "guideUploadExample": "例（QAにアップロード）：",
+    "guideSyntax": "リストアコマンド構文：",
+    "guideExample": "例（新しいDBを使用してQAに復元）：",
+    "guideNote": "ターゲットデータベース名引数は必須です。makeコマンドは自動的にアップロード（SCP経由）し、コンテナ内でpg_restoreを実行します。データベースがまだ存在しない場合は、自動的に作成されます。"
   }
 }

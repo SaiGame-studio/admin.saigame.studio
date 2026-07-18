@@ -4147,6 +4147,12 @@
     "tableCreated": "Created"
   },
   "dbBackups": {
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete backup file?",
+    "deleteConfirmDescription": "Delete {file}? This action cannot be undone.",
+    "deleteConfirmAction": "Delete file",
+    "deleteSuccess": "Backup file deleted successfully.",
+    "deleteError": "Failed to delete backup file.",
     "title": "Database Backups",
     "description": "View, manage, and download database backup snapshots. Backups are automatically taken daily at 4:00 AM (GMT+7).",
     "fileName": "File Name",
@@ -4181,6 +4187,13 @@
     "loading": "Loading...",
     "autoRefreshOn": "Live",
     "autoRefreshOff": "Paused",
-    "diskUsage": "Disk Usage"
+    "diskUsage": "Disk Usage",
+    "guideTitle": "Operational Restore & Upload Guide",
+    "guideDesc": "The backup system does not expose database upload or restore actions over HTTP APIs for security reasons. To upload a new dump file to the environment's backup folder, or to restore a backup to another database, run the operational CLI commands from your local machine:",
+    "guideUploadSyntax": "Upload Command Syntax (searches local ./backups/db/ by default):",
+    "guideUploadExample": "Example (Upload to QA):",
+    "guideSyntax": "Restore Command Syntax:",
+    "guideExample": "Example (Restore to QA with new DB):",
+    "guideNote": "The target database name argument is mandatory. The make command automatically uploads (via SCP) and executes pg_restore inside the container. If the database does not exist yet, it will be automatically created first."
   }
 }

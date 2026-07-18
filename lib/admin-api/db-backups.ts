@@ -20,6 +20,13 @@ export async function getDBBackups(): Promise<DBBackupsResult> {
 }
 
 /**
+ * Delete a database backup file
+ */
+export async function deleteDBBackup(fileName: string): Promise<void> {
+    return api.delete(`/api/v1/admin/db-backups/${encodeURIComponent(fileName)}`);
+}
+
+/**
  * Helper to download a backup file using fetch to handle JWT Authorization
  */
 export async function downloadDBBackup(fileName: string): Promise<void> {
