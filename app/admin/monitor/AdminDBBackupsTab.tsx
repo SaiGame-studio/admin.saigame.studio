@@ -12,13 +12,13 @@ import {
   Clock,
   Settings,
   Cpu,
-  Terminal,
   Trash2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
@@ -50,6 +50,9 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { formatISODate } from "@/lib/utils/date-utils";
 import { safeGetItem, safeSetItem } from "@/lib/storage-utils";
 import { DBBackupDeleteDialog } from "./DBBackupDeleteDialog";
+import { DBBackupOperationsGuide } from "./DBBackupOperationsGuide";
+import { CurrentDatabaseInfoTab } from "./CurrentDatabaseInfoTab";
+import { CopyButton } from "@/components/CopyButton";
 
 const AUTO_REFRESH_STORAGE_KEY = "db-backups-auto-refresh";
 
@@ -59,6 +62,10 @@ function formatBytes(bytes: number): string {
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
+function getBackupDomId(fileName: string): string {
+  return fileName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "file";
 }
 
 export function AdminDBBackupsTab() {
@@ -255,6 +262,20 @@ export function AdminDBBackupsTab() {
 
   return (
     <div id="db-backups-tab-container" className="space-y-6">
+      <Tabs id="db-backups-subtabs" defaultValue="overview" className="space-y-4">
+        <TabsList id="db-backups-subtabs-list">
+          <TabsTrigger id="db-backups-subtab-overview-trigger" value="overview">
+            {t("dbBackups.overviewTab") || "Backups & Worker"}
+          </TabsTrigger>
+          <TabsTrigger id="db-backups-subtab-guide-trigger" value="guide">
+            {t("dbBackups.guideTab") || "Database Operations Guide"}
+          </TabsTrigger>
+          <TabsTrigger id="db-backups-subtab-current-trigger" value="current">
+            {t("dbBackups.currentInfoTab") || "Current Database Info"}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent id="db-backups-subtab-overview-content" value="overview" className="space-y-6">
       {/* Header section inside tab */}
       <div id="db-backups-header" className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div id="db-backups-header-titles">
@@ -543,10 +564,17 @@ export function AdminDBBackupsTab() {
                       </TableRow>
                     </TableHeader>
                     <TableBody id="db-backups-table-body">
-                      {backups.map((item) => (
+                      {backups.map((item, index) => (
                         <TableRow id={`backup-row-${item.file_name}`} key={item.file_name} className="hover:bg-muted/50">
                           <TableCell id={`backup-cell-name-${item.file_name}`} className="font-mono font-medium text-xs break-all max-w-[250px] sm:max-w-none">
                             {item.file_name}
+                            <CopyButton
+                              id={`db-backups-copy-file-name-button-${getBackupDomId(item.file_name)}-${index}`}
+                              iconId={`db-backups-copy-file-name-icon-${getBackupDomId(item.file_name)}-${index}`}
+                              text={item.file_name}
+                              label={t("dbBackups.copyFileName") || "Copy file name"}
+                              className="align-middle shrink-0"
+                            />
                           </TableCell>
                           <TableCell id={`backup-cell-date-${item.file_name}`} className="text-xs text-muted-foreground">
                             {formatISODate(item.modified_at)}
@@ -621,52 +649,18 @@ export function AdminDBBackupsTab() {
             onConfirm={() => void handleDelete()}
           />
 
-          {/* Operational Restore & Upload Guide Card */}
-          <Card id="db-backups-guide-card" className="lg:col-span-3">
-            <CardHeader id="db-backups-guide-header" className="pb-3">
-              <CardTitle id="db-backups-guide-title" className="flex items-center gap-2 text-base">
-                <Terminal id="db-backups-guide-icon" className="h-5 w-5 text-primary" />
-                <span>{t("dbBackups.guideTitle") || "Operational Restore & Upload Guide"}</span>
-              </CardTitle>
-              <CardDescription id="db-backups-guide-desc" className="text-xs mt-1.5 leading-relaxed">
-                {t("dbBackups.guideDesc") || "The backup system does not expose database upload or restore actions over HTTP APIs for security reasons. To upload a new dump file to the environment's backup folder, or to restore a backup to another database, run the operational CLI commands from your local machine:"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent id="db-backups-guide-content" className="space-y-4 text-xs">
-              {/* Upload Instructions */}
-              <div id="db-backups-guide-upload-step1" className="space-y-1.5">
-                <p className="font-semibold text-muted-foreground">{t("dbBackups.guideUploadSyntax") || "Upload Command Syntax (searches local ./backups/db/ by default):"}</p>
-                <pre className="bg-muted p-2.5 rounded break-all font-mono border text-[10px] select-all">
-                  ENV=&lt;env&gt; make upload-db &lt;file-name-or-path&gt;
-                </pre>
-              </div>
-              <div id="db-backups-guide-upload-step2" className="space-y-1.5 border-b pb-3">
-                <p className="font-semibold text-muted-foreground">{t("dbBackups.guideUploadExample") || "Example (Upload to QA):"}</p>
-                <pre className="bg-muted p-2.5 rounded break-all font-mono border text-[10px] select-all">
-                  ENV=qa make upload-db backup-file.dump
-                </pre>
-              </div>
-
-              {/* Restore Instructions */}
-              <div id="db-backups-guide-step1" className="space-y-1.5">
-                <p className="font-semibold text-muted-foreground">{t("dbBackups.guideSyntax") || "Restore Command Syntax:"}</p>
-                <pre className="bg-muted p-2.5 rounded break-all font-mono border text-[10px] select-all">
-                  ENV=&lt;env&gt; make restore &lt;local-file-path&gt; &lt;new-db-name&gt;
-                </pre>
-              </div>
-              <div id="db-backups-guide-step2" className="space-y-1.5">
-                <p className="font-semibold text-muted-foreground">{t("dbBackups.guideExample") || "Example (Restore to QA with new DB):"}</p>
-                <pre className="bg-muted p-2.5 rounded break-all font-mono border text-[10px] select-all">
-                  ENV=qa make restore ./backup-file.dump ss_game_new_db
-                </pre>
-              </div>
-              <div id="db-backups-guide-note" className="text-[10px] text-amber-500 dark:text-amber-400 font-medium border-l-2 border-amber-500 pl-2 leading-relaxed">
-                {t("dbBackups.guideNote") || "The target database name argument is mandatory. The make command automatically uploads (via SCP) and executes pg_restore inside the container. If the database does not exist yet, it will be automatically created first."}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent id="db-backups-subtab-guide-content" value="guide">
+          <DBBackupOperationsGuide id="db-backups-guide-card" />
+        </TabsContent>
+
+        <TabsContent id="db-backups-subtab-current-content" value="current">
+          <CurrentDatabaseInfoTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

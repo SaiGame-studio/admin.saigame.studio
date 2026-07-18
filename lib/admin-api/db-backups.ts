@@ -12,11 +12,28 @@ export interface DBBackupsResult {
     total: number;
 }
 
+export interface CurrentDatabaseInfo {
+    database_name: string;
+    user_count: number;
+    latest_user_name: string;
+    latest_user_created_at: string | null;
+    item_definition_count: number;
+    latest_item_definition_name: string;
+    latest_item_definition_created_at: string | null;
+}
+
 /**
  * Get all database backup files
  */
 export async function getDBBackups(): Promise<DBBackupsResult> {
     return api.get("/api/v1/admin/db-backups");
+}
+
+/**
+ * Get summary information for the database used by the running backend.
+ */
+export async function getCurrentDatabaseInfo(): Promise<CurrentDatabaseInfo> {
+    return api.get("/api/v1/admin/db-backups/current-database");
 }
 
 /**
