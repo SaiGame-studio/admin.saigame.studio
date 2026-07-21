@@ -294,7 +294,7 @@ export function GachaPackSheet({
                         <ChevronsUpDown id={`gacha-pack-sheet-keyreq-trigger-icon-${row.item_definition_id || i}`} className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent id={`gacha-pack-sheet-keyreq-popover-${row.item_definition_id || i}`} className="w-[280px] p-0" align="start">
+                    <PopoverContent id={`gacha-pack-sheet-keyreq-popover-${row.item_definition_id || i}`} className="w-[440px] max-w-[calc(100vw-2rem)] p-0" align="start">
                       <Command id={`gacha-pack-sheet-keyreq-command-${row.item_definition_id || i}`} shouldFilter={false}>
                         <CommandInput id={`gacha-pack-sheet-keyreq-search-${row.item_definition_id || i}`} placeholder={t("items.searchByNameOrIdPlaceholder")} value={gachaComboSearch} onValueChange={setGachaComboSearch} />
                         <CommandList id={`gacha-pack-sheet-keyreq-listbox-${row.item_definition_id || i}`}>
@@ -388,7 +388,7 @@ export function GachaPackSheet({
                           <ChevronsUpDown id={`gacha-pack-sheet-pool-trigger-icon-${row.item_definition_id || i}`} className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent id={`gacha-pack-sheet-pool-popover-${row.item_definition_id || i}`} className="w-[280px] p-0" align="start">
+                      <PopoverContent id={`gacha-pack-sheet-pool-popover-${row.item_definition_id || i}`} className="w-[440px] max-w-[calc(100vw-2rem)] p-0" align="start">
                         <Command id={`gacha-pack-sheet-pool-command-${row.item_definition_id || i}`} shouldFilter={false}>
                           <CommandInput id={`gacha-pack-sheet-pool-search-${row.item_definition_id || i}`} placeholder={t("items.searchByNameOrIdPlaceholder")} value={gachaComboSearch} onValueChange={setGachaComboSearch} />
                           <CommandList id={`gacha-pack-sheet-pool-listbox-${row.item_definition_id || i}`}>
