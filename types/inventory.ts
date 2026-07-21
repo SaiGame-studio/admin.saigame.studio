@@ -67,6 +67,7 @@ export interface GachaPack {
     studio_id: string;
     game_id: string;
     name: string;
+    description: string;
     code_name?: string;
     collect_destination?: 'mailbox' | 'inventory';
     item_pool: GachaPoolEntry[];
@@ -78,6 +79,7 @@ export interface GachaPack {
 }
 export interface CreateGachaPackRequest {
     name: string;
+    description?: string;
     code_name?: string;
     collect_destination: 'mailbox' | 'inventory';
     is_enabled?: boolean;
@@ -87,6 +89,7 @@ export interface CreateGachaPackRequest {
 }
 export interface UpdateGachaPackRequest {
     name?: string;
+    description?: string;
     code_name?: string;
     collect_destination?: 'mailbox' | 'inventory';
     is_enabled?: boolean;

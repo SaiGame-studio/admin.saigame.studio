@@ -35,6 +35,7 @@ export const EMPTY_KEY_ROW = (): KeyReqRow => ({
 export function emptyGachaForm() {
     return {
         name: "",
+        description: "",
         code_name: "",
         collect_destination: "mailbox" as "mailbox" | "inventory",
         is_enabled: true,
@@ -85,4 +86,3 @@ export function normalizeContainerDraftValues(draft: Record<string, unknown> | n
         metadata,
     };
 }
-

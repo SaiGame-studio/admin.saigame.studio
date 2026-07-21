@@ -192,6 +192,18 @@ export function GachaPackSheet({
             </TooltipProvider>
           </div>
 
+          <div id="gacha-pack-sheet-description-field" className="space-y-1.5">
+            <Label id="gacha-pack-sheet-description-label" htmlFor="gacha-description">{t("items.gachaDescriptionLabel")}</Label>
+            <Textarea
+              id="gacha-description"
+              value={gachaForm.description}
+              onChange={(e) => setGachaForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder={t("items.gachaDescriptionPlaceholder")}
+              disabled={formSaving}
+              rows={3}
+            />
+          </div>
+
           <div id="gacha-pack-sheet-code-field" className="space-y-1.5">
             <Label id="gacha-pack-sheet-code-label" htmlFor="gacha-code-name">
               {t("items.gachaCodeNameLabel")} <span className="text-muted-foreground text-xs font-normal">({t("items.gachaCodeNameHint")})</span>

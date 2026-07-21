@@ -11,6 +11,7 @@ type ToastFn = (options: { title?: string; description?: string; variant?: "defa
 
 type GachaForm = {
   name: string;
+  description: string;
   code_name: string;
   collect_destination: "mailbox" | "inventory";
   is_enabled: boolean;
@@ -136,6 +137,7 @@ export function useGachaPage({
     const meta = (pack.metadata ?? {}) as Record<string, unknown>;
     setGachaForm({
       name: pack.name,
+      description: pack.description ?? "",
       code_name: pack.code_name ?? "",
       collect_destination: pack.collect_destination ?? "mailbox",
       is_enabled: pack.is_enabled,
@@ -157,9 +159,11 @@ export function useGachaPage({
         : [emptyKeyRow()],
     });
     setGachaSheetOpen(true);
-    const newParams = new URLSearchParams(searchParams.toString());
-    newParams.set("editPack", pack.id);
-    router.replace(`${window.location.pathname}?${newParams.toString()}`);
+    if (searchParams.get("editPack") !== pack.id) {
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.set("editPack", pack.id);
+      router.replace(`${window.location.pathname}?${newParams.toString()}`);
+    }
   }, [emptyKeyRow, emptyRow, router, searchParams, setEditingPack, setGachaForm, setGachaSheetOpen]);
 
   useEffect(() => {
@@ -268,6 +272,7 @@ export function useGachaPage({
       if (editingPack) {
         const res = await updateGachaPack(ctx, editingPack.id, {
           name,
+          description: gachaForm.description.trim(),
           ...(codeName && { code_name: codeName }),
           collect_destination: gachaForm.collect_destination,
           is_enabled: gachaForm.is_enabled,
@@ -286,6 +291,7 @@ export function useGachaPage({
       } else {
         const res = await createGachaPack(ctx, {
           name,
+          description: gachaForm.description.trim(),
           ...(codeName && { code_name: codeName }),
           collect_destination: gachaForm.collect_destination,
           is_enabled: gachaForm.is_enabled,
@@ -366,4 +372,3 @@ export function useGachaPage({
     gachaItemShortName,
   };
 }
-

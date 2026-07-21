@@ -319,6 +319,16 @@ export function ItemsPageGachaSection({
                   <>
                     <Separator />
                     <CardContent id={`${packDomId}-expand-content`} className="gacha-pack-expand-content pt-4 pb-4">
+                      {pack.description && (
+                        <div id={`${packDomId}-description-section`} className="mb-4">
+                          <p id={`${packDomId}-description-heading`} className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                            {t("items.gachaDescriptionLabel")}
+                          </p>
+                          <p id={`${packDomId}-description-text`} className="text-sm whitespace-pre-wrap break-words">
+                            {pack.description}
+                          </p>
+                        </div>
+                      )}
                       <div id={`${packDomId}-expand-grid`} className="gacha-pack-expand-grid grid grid-cols-5 gap-4 items-start">
                         <div id={`${packDomId}-key-requirements-section`} className="gacha-pack-key-requirements-section col-span-2">
                           <p id={`${packDomId}-key-requirements-heading`} className="gacha-pack-key-requirements-heading text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">

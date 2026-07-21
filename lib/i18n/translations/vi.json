@@ -2492,6 +2492,8 @@
     "searchByNameOrIdPlaceholder": "Tìm theo tên hoặc ID…",
     "playersCanOpen": "Người chơi có thể mở gói này khi được bật.",
     "gachaNamePlaceholder": "Gói Tiêu Chuẩn",
+    "gachaDescriptionLabel": "Mô tả",
+    "gachaDescriptionPlaceholder": "Mô tả gói gacha này…",
     "gachaCodeNameLabel": "Tên mã",
     "gachaCodeNameHint": "tùy chọn, vd. standard_pack",
     "gachaCodeNamePlaceholder": "vd. standard_pack",
