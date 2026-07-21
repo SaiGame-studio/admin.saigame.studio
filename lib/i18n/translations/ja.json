@@ -2490,6 +2490,8 @@
     "searchByNameOrIdPlaceholder": "Search by name or ID…",
     "playersCanOpen": "有効時にプレイヤーがこのパックを開封できます。",
     "gachaNamePlaceholder": "スタンダードパック",
+    "gachaDescriptionLabel": "説明",
+    "gachaDescriptionPlaceholder": "このガチャパックの説明を入力…",
     "gachaCodeNameLabel": "コード名",
     "gachaCodeNameHint": "任意（例: standard_pack）",
     "gachaCodeNamePlaceholder": "例: standard_pack",

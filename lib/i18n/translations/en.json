@@ -2530,6 +2530,8 @@
     "searchByNameOrIdPlaceholder": "Search by name or ID…",
     "playersCanOpen": "Players can open this pack when enabled.",
     "gachaNamePlaceholder": "Standard Pack",
+    "gachaDescriptionLabel": "Description",
+    "gachaDescriptionPlaceholder": "Describe this gacha pack…",
     "gachaCodeNameLabel": "Code Name",
     "gachaCodeNameHint": "optional, e.g. standard_pack",
     "gachaCodeNamePlaceholder": "e.g. standard_pack",

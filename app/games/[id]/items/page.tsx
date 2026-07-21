@@ -402,6 +402,7 @@ export default function GameItemsPage() {
             setEditingPack(null);
             setGachaForm({
                 name: typeof detail.name === 'string' ? detail.name : '',
+                description: typeof detail.description === 'string' ? detail.description : '',
                 code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
                 collect_destination: detail.collect_destination === 'inventory' ? 'inventory' : 'mailbox',
                 is_enabled: detail.is_enabled !== false,
@@ -462,6 +463,7 @@ export default function GameItemsPage() {
             setEditingPack(existingPack);
             setGachaForm({
                 name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
+                description: typeof llmData.description === 'string' ? llmData.description : existingPack.description ?? '',
                 code_name: existingPack.code_name ?? '',
                 collect_destination: llmData.collect_destination === 'inventory' || llmData.collect_destination === 'mailbox'
                     ? llmData.collect_destination
@@ -637,6 +639,7 @@ export default function GameItemsPage() {
                         setEditingPack(null);
                         setGachaForm({
                             name: typeof detail.name === 'string' ? detail.name : '',
+                            description: typeof detail.description === 'string' ? detail.description : '',
                             code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
                             collect_destination: detail.collect_destination === 'inventory' ? 'inventory' : 'mailbox',
                             is_enabled: detail.is_enabled !== false,
@@ -725,6 +728,7 @@ export default function GameItemsPage() {
                             setEditingPack(existingPack);
                             setGachaForm({
                                 name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
+                                description: typeof llmData.description === 'string' ? llmData.description : existingPack.description ?? '',
                                 code_name: existingPack.code_name ?? '',
                                 collect_destination: llmData.collect_destination === 'inventory' || llmData.collect_destination === 'mailbox'
                                     ? llmData.collect_destination
