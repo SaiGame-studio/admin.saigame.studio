@@ -2250,6 +2250,7 @@
     "tabTags": "Tags",
     "tabGenerators": "Generators",
     "tabGacha": "Gacha",
+    "tabGiftCode": "Giftcodes",
     "tabPreset": "Preset",
     "tabCrafting": "Crafting",
     "subTabDefinitions": "Definitions",
@@ -2983,7 +2984,9 @@
             "loreGameDesc": "Manage game lore, stories, and background information",
             "llmConversation": "LLM Conversation",
             "llmConversationDesc": "Integrate LLM for game content generation and game balancing",
-            "gameDev": "Game Dev Level Up"
+            "gameDev": "Game Dev Level Up",
+            "gameGiftCode": "Game Gift Code",
+            "gameGiftCodeDesc": "Create and manage gift codes for specific games to reward players with gacha packs"
           }
         },
         "3": {

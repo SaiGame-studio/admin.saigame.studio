@@ -47,6 +47,7 @@ import { ItemsPageGachaSection } from "./_components/items-page-gacha-section";
 import { ItemsPageGeneratorSection } from "./_components/items-page-generator-section";
 import { ItemsPagePresetsSection } from "./_components/items-page-presets-section";
 import { ItemsPageTagsSection } from "./_components/items-page-tags-section";
+import { ItemsPageGiftCodesSection } from "./_components/items-page-giftcodes-section";
 import { ItemsPageCatalogueSection } from "./_components/items-page-catalogue-section";
 import { useContainerPageState } from "./_hooks/use-container-page-state";
 import { useContainerPage } from "./_hooks/use-container-page";
@@ -496,7 +497,7 @@ export default function GameItemsPage() {
     // initialize tab from URL params
     useEffect(() => {
         const tab = searchParams.get("tab");
-        if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags" || tab === "preset" || tab === "crafting") {
+        if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags" || tab === "preset" || tab === "crafting" || tab === "giftcode") {
             setActiveTab(tab);
         }
         const cst = searchParams.get("csubtab");
@@ -1073,6 +1074,13 @@ export default function GameItemsPage() {
 
         <TabsContent value="crafting" className="space-y-4">
           <CraftingTab gameId={gameId} studioId={studioId}/>
+        </TabsContent>
+
+        <TabsContent value="giftcode" className="space-y-4">
+          <ItemsPageGiftCodesSection
+            gameId={gameId}
+            activeTab={activeTab}
+          />
         </TabsContent>
 
         <TabsContent value="catalogue" className="space-y-4">

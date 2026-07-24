@@ -114,6 +114,7 @@ export default function RoadmapPage() {
                 { name: t('roadmap.page.phases.2.items.loreGame'), description: t('roadmap.page.phases.2.items.loreGameDesc'), completed: "Jul 2026" },
                 { name: t('roadmap.page.phases.2.items.llmConversation'), description: t('roadmap.page.phases.2.items.llmConversationDesc'), completed: "Jul 2026" },
                 { name: t('roadmap.page.phases.2.items.cloneGame'), description: t('roadmap.page.phases.2.items.cloneGameDesc'), completed: "Jul 2026" },
+                { name: t('roadmap.page.phases.2.items.gameGiftCode'), description: t('roadmap.page.phases.2.items.gameGiftCodeDesc'), completed: "Jul 2026" },
             ],
             planned: [
                 { name: t('roadmap.page.phases.2.items.battlePass'), group: "Progression" },
