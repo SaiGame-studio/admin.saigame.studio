@@ -2938,6 +2938,13 @@
             "worldZone": "World Zone",
             "iap": "IAP (Apple + Google Play)",
             "cloneGame": "Sao chép Dữ liệu Game",
+            "cloneGameDesc": "Sao chép cấu hình và dữ liệu game giữa các môi trường",
+            "luaScript": "Mã kịch bản Lua",
+            "luaScriptDesc": "Viết và thực thi mã kịch bản Lua tùy chỉnh cho logic game",
+            "loreGame": "Hệ thống Cốt truyện",
+            "loreGameDesc": "Quản lý cốt truyện, thông tin bối cảnh game",
+            "llmConversation": "Hội thoại LLM",
+            "llmConversationDesc": "Tích hợp LLM để tạo nội dung và cân bằng game",
             "gameDev": "Tăng cấp Nhà Phát triển"
           }
         },

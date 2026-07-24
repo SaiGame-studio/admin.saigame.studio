@@ -2976,6 +2976,13 @@
             "worldZone": "World Zone",
             "iap": "IAP (Apple + Google Play)",
             "cloneGame": "Clone Game Data",
+            "cloneGameDesc": "Clone game configuration and data between environments",
+            "luaScript": "Lua Scripting",
+            "luaScriptDesc": "Write and execute custom Lua scripts for game logic",
+            "loreGame": "Lore System",
+            "loreGameDesc": "Manage game lore, stories, and background information",
+            "llmConversation": "LLM Conversation",
+            "llmConversationDesc": "Integrate LLM for game content generation and game balancing",
             "gameDev": "Game Dev Level Up"
           }
         },
