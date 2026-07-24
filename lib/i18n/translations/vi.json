@@ -1946,6 +1946,9 @@
     "rankingEntriesLabel": "Các mục xếp hạng",
     "rawDataLabel": "Dữ liệu raw",
     "rawEntriesLabel": "Các mục raw",
+    "tabCrafting": "Chế tạo",
+    "tabGiftCode": "Giftcodes",
+    "emptyItems": "Chưa có vật phẩm nào được định nghĩa trong game này.",
     "noEntriesYet": "Chưa có mục nào.",
     "showingEntries": "Hiển thị",
     "ofEntries": "trong",
@@ -2214,6 +2217,7 @@
     "tabGacha": "Gacha",
     "tabPreset": "Cấu hình sẵn",
     "tabCrafting": "Chế tạo",
+    "tabGiftCode": "Giftcodes",
     "subTabDefinitions": "Định nghĩa",
     "subTabSlotGuide": "Hướng dẫn Slot",
     "itemCatalogue": "Danh mục Vật phẩm",
@@ -2945,7 +2949,9 @@
             "loreGameDesc": "Quản lý cốt truyện, thông tin bối cảnh game",
             "llmConversation": "Hội thoại LLM",
             "llmConversationDesc": "Tích hợp LLM để tạo nội dung và cân bằng game",
-            "gameDev": "Tăng cấp Nhà Phát triển"
+            "gameDev": "Tăng cấp Nhà Phát triển",
+            "gameGiftCode": "Mã Quà tặng Game",
+            "gameGiftCodeDesc": "Tạo và quản lý mã quà tặng cho các game cụ thể để thưởng gói gacha cho người chơi"
           }
         },
         "3": {
