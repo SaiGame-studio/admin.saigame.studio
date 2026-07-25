@@ -699,8 +699,11 @@ export function DailyTab({ game, onGameUpdate }: {
                             {strategyLabel(pool.assignment_strategy, t)}
                           </Badge>
                         </CardTitle>
-                        <CardDescription id={`daily-pool-card-desc-${pool.id}`} className="daily-pool-card-desc mt-1">
-                          <span id={`daily-pool-card-key-${pool.id}`} className="daily-pool-card-key font-mono text-xs">{pool.pool_key}</span>
+                        <CardDescription id={`daily-pool-card-desc-${pool.id}`} className="daily-pool-card-desc mt-1 flex items-center flex-wrap">
+                          <span id={`daily-pool-card-key-${pool.id}`} className="daily-pool-card-key font-mono text-xs inline-flex items-center gap-1">
+                            {pool.pool_key}
+                            <CopyButton text={pool.pool_key} id={`daily-pool-card-key-copy-${pool.id}`} />
+                          </span>
                           <span className="mx-2">·</span>
                           <span id={`daily-pool-card-slots-${pool.id}`} className="daily-pool-card-slots">{pool.slots_per_day} {t('quest.daily.slotsPerDayUnit')}</span>
                           <span className="mx-2">·</span>
