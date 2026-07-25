@@ -1207,7 +1207,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadSelectedPoolId) {
             loadDailyAheadPreview(dailyAheadSelectedPoolId);
         }
-    }, [activeTab, questSubTab, dailyAheadSelectedPoolId, dailyAheadDays]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [activeTab, questSubTab, dailyAheadSelectedPoolId, dailyAheadDays, game?.studio_id, detail?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
     const RARITY_STYLE: Record<string, string> = {
         common: "bg-gray-500/15 text-gray-400 border-gray-400/40",
         uncommon: "bg-green-500/15 text-green-500 border-green-500/40",
