@@ -3493,6 +3493,7 @@
       "resetAt": "リセット",
       "loadingPoolDetails": "プール詳細を読み込み中...",
       "questsInPool": "プール内クエスト",
+      "weightedRandomNoteExpanded": "プレイヤーは毎日ランダムに{{count}}個のクエストを受け取ります。",
       "noQuestsYetSelectRight": "まだクエストがありません。右側から選択してください ->",
       "questActivated": "クエストを有効化しました",
       "questDeactivated": "クエストを無効化しました",

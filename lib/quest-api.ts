@@ -306,6 +306,7 @@ export interface DailyQuestPool {
     is_active: boolean;
     created_at: string;
     updated_at: string;
+    quest_count: number;
 }
 export interface CreateDailyQuestPoolRequest {
     pool_key: string;

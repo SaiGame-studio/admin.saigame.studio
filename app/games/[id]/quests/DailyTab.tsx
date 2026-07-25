@@ -690,21 +690,23 @@ export function DailyTab({ game, onGameUpdate }: {
                     <div className="flex items-center gap-3">
                       {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground"/> : <ChevronRight className="h-4 w-4 text-muted-foreground"/>}
                       <div>
-                        <CardTitle className="text-base flex items-center gap-2">
+                        <CardTitle id={`daily-pool-card-title-${pool.id}`} className="daily-pool-card-title text-base flex items-center gap-2">
                           {pool.display_name}
-                          <Badge variant={pool.is_active ? "default" : "secondary"} className="text-xs">
+                          <Badge id={`daily-pool-card-badge-active-${pool.id}`} variant={pool.is_active ? "default" : "secondary"} className="daily-pool-card-badge-active text-xs">
                             {pool.is_active ? t('quest.activeStatus') : t('quest.inactiveStatus')}
                           </Badge>
-                          <Badge variant={strategyBadgeVariant(pool.assignment_strategy)} className="text-xs">
+                          <Badge id={`daily-pool-card-badge-strategy-${pool.id}`} variant={strategyBadgeVariant(pool.assignment_strategy)} className="daily-pool-card-badge-strategy text-xs">
                             {strategyLabel(pool.assignment_strategy, t)}
                           </Badge>
                         </CardTitle>
-                        <CardDescription className="mt-1">
-                          <span className="font-mono text-xs">{pool.pool_key}</span>
+                        <CardDescription id={`daily-pool-card-desc-${pool.id}`} className="daily-pool-card-desc mt-1">
+                          <span id={`daily-pool-card-key-${pool.id}`} className="daily-pool-card-key font-mono text-xs">{pool.pool_key}</span>
                           <span className="mx-2">·</span>
-                          <span>{pool.slots_per_day} {t('quest.daily.slotsPerDayUnit')}</span>
+                          <span id={`daily-pool-card-slots-${pool.id}`} className="daily-pool-card-slots">{pool.slots_per_day} {t('quest.daily.slotsPerDayUnit')}</span>
                           <span className="mx-2">·</span>
-                          <span>{t('quest.daily.resetAt')} {pool.reset_hour_utc}:00 UTC</span>
+                          <span id={`daily-pool-card-reset-${pool.id}`} className="daily-pool-card-reset">{t('quest.daily.resetAt')} {pool.reset_hour_utc}:00 UTC</span>
+                          <span className="mx-2">·</span>
+                          <span id={`daily-pool-card-quest-count-${pool.id}`} className="daily-pool-card-quest-count">{pool.quest_count || 0} {(pool.quest_count || 0) !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}</span>
                         </CardDescription>
                       </div>
                     </div>
@@ -732,6 +734,11 @@ export function DailyTab({ game, onGameUpdate }: {
                             {t('quest.daily.questsInPool')}
                             <Badge variant="outline" className="text-xs">{expandedQuests.length}</Badge>
                           </h4>
+                          {pool.assignment_strategy === "weighted_random" && (
+                              <p className="text-xs text-muted-foreground mb-3 -mt-1.5">
+                                {t('quest.daily.weightedRandomNoteExpanded', { count: pool.slots_per_day })}
+                              </p>
+                          )}
                           {pool.assignment_strategy === "weekly_schedule" ? (
                             /* 7-day drag-drop grid */
                             (() => {

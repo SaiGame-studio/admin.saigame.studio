@@ -3500,6 +3500,7 @@
       "resetAt": "Reset",
       "loadingPoolDetails": "Đang tải chi tiết nhóm...",
       "questsInPool": "Nhiệm vụ trong nhóm",
+      "weightedRandomNoteExpanded": "Mỗi ngày người chơi sẽ nhận được ngẫu nhiên {{count}} quest.",
       "noQuestsYetSelectRight": "Chưa có nhiệm vụ. Chọn một nhiệm vụ ở panel bên phải ->",
       "questActivated": "Đã bật nhiệm vụ",
       "questDeactivated": "Đã tắt nhiệm vụ",

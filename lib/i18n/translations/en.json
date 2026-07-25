@@ -3535,6 +3535,7 @@
       "resetAt": "Reset",
       "loadingPoolDetails": "Loading pool details...",
       "questsInPool": "Quests in Pool",
+      "weightedRandomNoteExpanded": "Players will receive a random {{count}} quests each day.",
       "noQuestsYetSelectRight": "No quests yet. Select one from the right ->",
       "questActivated": "Quest activated",
       "questDeactivated": "Quest deactivated",

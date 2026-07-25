@@ -1652,7 +1652,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               </TableHeader>
               <TableBody>
                 {filteredQuests.map((q) => (<React.Fragment key={q.id}>
-                  <TableRow className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setExpandedQuestId(expandedQuestId === q.id ? null : q.id)}>
+                  <TableRow id={`quest-list-item-${q.id}`} className="quest-list-item cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setExpandedQuestId(expandedQuestId === q.id ? null : q.id)}>
                     <TableCell>
                       <div className="flex items-start gap-1.5">
                         {expandedQuestId === q.id
@@ -1698,14 +1698,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                     </TableCell>
 
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Switch checked={q.is_active} onCheckedChange={() => toggleActive(q)}/>
+                      <Switch id={`quest-list-item-active-toggle-${q.id}`} className="quest-list-item-active-toggle" checked={q.is_active} onCheckedChange={() => toggleActive(q)}/>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
+                        <Button id={`quest-list-item-edit-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-edit-btn h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
                           <Pencil className="h-4 w-4"/>
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
+                        <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
                           <Trash2 className="h-4 w-4"/>
                         </Button>
                       </div>
