@@ -25,6 +25,7 @@ import { GameNavButtons } from "@/components/GameNavButtons";
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PlayerQuestHistorySearch } from "./PlayerQuestHistorySearch";
 // ── Quest progress data pretty-printer ──────────────────────────────────────
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type ResolvedEntity = {
@@ -685,6 +686,8 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         const status = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_status") : null;
         return status === "all" || QUEST_STATUS_FILTERS.includes(status as Exclude<QuestStatusFilter, "all">) ? status as QuestStatusFilter : "all";
     });
+    const [questSearch, setQuestSearch] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_q") ?? "" : "");
+    const [questSearchQuery, setQuestSearchQuery] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_q")?.trim() ?? "" : "");
     const [questExpandedRows, setQuestExpandedRows] = useState<Set<string>>(new Set());
     const [questItemNames, setQuestItemNames] = useState<Record<string, string>>({});
     const [maxAdvanceDaysHelpHovered, setMaxAdvanceDaysHelpHovered] = useState(false);
@@ -978,7 +981,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         setQuestError(null);
         setQuestExpandedRows(new Set());
         try {
-            const res = await getPlayerQuestHistory(game.studio_id, gameId, detail.user_id, { limit: QUEST_LIMIT });
+            const res = await getPlayerQuestHistory(game.studio_id, gameId, detail.user_id, { limit: QUEST_LIMIT, q: questSearchQuery || undefined });
             setQuestHistory({
                 ...res,
                 claims: res.claims ?? [],
@@ -1042,7 +1045,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         finally {
             setQuestLoading(false);
         }
-    }, [game, gameId, detail]);
+    }, [game, gameId, detail, questSearchQuery]);
     const loadDailyAheadPools = useCallback(async () => {
         if (!game?.studio_id)
             return;
@@ -1190,6 +1193,17 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         status === "all" ? params.delete("quest_status") : params.set("quest_status", status);
         router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
     };
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            const trimmedSearch = questSearch.trim();
+            setQuestSearchQuery(trimmedSearch);
+            const params = new URLSearchParams(window.location.search);
+            trimmedSearch ? params.set("quest_q", trimmedSearch) : params.delete("quest_q");
+            const query = params.toString();
+            router.replace(`${window.location.pathname}${query ? `?${query}` : ""}`, { scroll: false });
+        }, 350);
+        return () => window.clearTimeout(timer);
+    }, [questSearch, router]);
     useEffect(() => {
         const legacySubTab = searchParams.get("quest_sub");
         if (activeTab !== "quests" || (legacySubTab !== "completed" && legacySubTab !== "inprogress"))
@@ -2163,8 +2177,10 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                       <h2 id="player-quest-history-title" className="text-lg font-semibold">{t("playerQuestHistory.allQuests")}</h2>
                       <p id="player-quest-history-count" className="text-sm text-muted-foreground">{rows.length} {t("playerQuestHistory.records")}</p>
                     </div>
-                    <div id="player-quest-history-status-filter" className="flex items-center gap-2">
-                      <Select value={questStatusFilter} onValueChange={value => handleQuestStatusFilterChange(value as QuestStatusFilter)}>
+                    <div id="player-quest-history-controls" className="flex flex-wrap items-center justify-end gap-2">
+                      <PlayerQuestHistorySearch value={questSearch} onChange={setQuestSearch} placeholder={t("playerQuestHistory.searchPlaceholder")} clearLabel={t("playerQuestHistory.clearSearch")}/>
+                      <div id="player-quest-history-status-filter" className="flex items-center gap-2">
+                        <Select value={questStatusFilter} onValueChange={value => handleQuestStatusFilterChange(value as QuestStatusFilter)}>
                         <SelectTrigger id="player-quest-history-status-filter-trigger" className="w-44">
                           <SelectValue />
                         </SelectTrigger>
@@ -2172,10 +2188,11 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                           <SelectItem id="player-quest-history-status-all" value="all">{t("playerQuestHistory.allStatuses")}</SelectItem>
                           {QUEST_STATUS_FILTERS.map(status => (<SelectItem id={`player-quest-history-status-${status.replace(/_/g, "-")}`} key={status} value={status}>{t(`playerQuestHistory.statuses.${status}`)}</SelectItem>))}
                         </SelectContent>
-                      </Select>
-                      <Button id="btn-refresh-quests-all" variant="outline" size="icon" onClick={loadQuestHistory} disabled={questLoading} title={t("common.refresh")}>
-                        <RefreshCw id="btn-refresh-quests-all-icon" className={`h-4 w-4 ${questLoading ? "animate-spin" : ""}`}/>
-                      </Button>
+                        </Select>
+                        <Button id="btn-refresh-quests-all" variant="outline" size="icon" onClick={loadQuestHistory} disabled={questLoading} title={t("common.refresh")}>
+                          <RefreshCw id="btn-refresh-quests-all-icon" className={`h-4 w-4 ${questLoading ? "animate-spin" : ""}`}/>
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   <Card id="player-quest-history-card">

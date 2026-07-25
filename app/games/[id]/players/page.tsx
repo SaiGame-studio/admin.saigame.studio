@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from '@/lib/i18n/use-translation';
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { CopyButton } from "@/components/CopyButton";
+import { createGamerProgress } from "@/lib/script-api";
 export default function GameUserProfilesPage({ params }: {
     params: Promise<{
         id: string;
@@ -30,6 +31,8 @@ export default function GameUserProfilesPage({ params }: {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchInput, setSearchInput] = useState("");
     const [playerIdentityMap, setPlayerIdentityMap] = useState<Record<string, PlayerIdentity>>({});
+    const [addingCurrentUser, setAddingCurrentUser] = useState(false);
+    const [addCurrentUserError, setAddCurrentUserError] = useState<string | null>(null);
     const loadData = useCallback(async (displayName?: string) => {
         try {
             setLoading(true);
@@ -69,6 +72,20 @@ export default function GameUserProfilesPage({ params }: {
         setSearchInput("");
         setSearchQuery("");
         loadData();
+    };
+    const handleAddCurrentUser = async () => {
+        setAddingCurrentUser(true);
+        setAddCurrentUserError(null);
+        try {
+            await createGamerProgress(gameId);
+            await loadData();
+        }
+        catch (err) {
+            setAddCurrentUserError(err instanceof Error ? err.message : t('gameUsers.addMeFailed'));
+        }
+        finally {
+            setAddingCurrentUser(false);
+        }
     };
     return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       {game && (<div className="mb-2">
@@ -147,16 +164,22 @@ export default function GameUserProfilesPage({ params }: {
               {t('gameUsers.tryAgain')}
             </Button>
           </CardContent>
-        </Card>) : progressList.length === 0 ? (<Card className="text-center p-6">
-          <CardHeader>
-            <User className="mx-auto h-12 w-12 text-muted-foreground"/>
-            <CardTitle className="mt-4">{t('gameUsers.noPlayers')}</CardTitle>
-            {searchQuery && (<p className="text-muted-foreground mt-2">
+        </Card>) : progressList.length === 0 ? (<Card id="game-players-empty-card" className="text-center p-6">
+          <CardHeader id="game-players-empty-header">
+            <User id="game-players-empty-icon" className="mx-auto h-12 w-12 text-muted-foreground"/>
+            <CardTitle id="game-players-empty-title" className="mt-4">{t('gameUsers.noPlayers')}</CardTitle>
+            {searchQuery && (<p id="game-players-empty-search-message" className="text-muted-foreground mt-2">
                 {t('gameUsers.noResults')} &quot;{searchQuery}&quot;.{" "}
-                <button className="text-primary hover:underline" onClick={handleClearSearch}>
+                <button id="game-players-empty-clear-search" className="text-primary hover:underline" onClick={handleClearSearch}>
                   {t('gameUsers.clearSearch')}
                 </button>
               </p>)}
+            {!searchQuery && totalCount === 0 && (<div id="game-players-add-me-container" className="mt-4 flex flex-col items-center gap-2">
+                <Button id="game-players-add-me-button" onClick={handleAddCurrentUser} disabled={addingCurrentUser}>
+                  {addingCurrentUser ? t('gameUsers.addingMe') : t('gameUsers.addMeAsPlayer')}
+                </Button>
+                {addCurrentUserError && (<p id="game-players-add-me-error" className="text-sm text-destructive">{addCurrentUserError}</p>)}
+              </div>)}
           </CardHeader>
         </Card>) : (<>
           <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">

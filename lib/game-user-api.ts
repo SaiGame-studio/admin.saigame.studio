@@ -479,12 +479,15 @@ export interface QuestHistoryResult {
 export async function getPlayerQuestHistory(studioId: string, gameId: string, userId: string, params?: {
     limit?: number;
     offset?: number;
+    q?: string;
 }): Promise<QuestHistoryResult> {
     const qs = new URLSearchParams();
     if (params?.limit != null)
         qs.set("limit", String(params.limit));
     if (params?.offset != null)
         qs.set("offset", String(params.offset));
+    if (params?.q)
+        qs.set("q", params.q);
     const query = qs.toString();
     return api.get(`/api/v1/studios/${studioId}/games/${gameId}/players/${userId}/quest-history${query ? `?${query}` : ""}`);
 }
