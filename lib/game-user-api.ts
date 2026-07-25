@@ -442,6 +442,7 @@ export async function getGachaTransactions(progressId: string, params?: {
 export interface QuestDefinitionSummary {
     id: string;
     name: string;
+    quest_type?: string;
     [key: string]: unknown;
 }
 export interface QuestProgressData {
@@ -449,6 +450,7 @@ export interface QuestProgressData {
     quest_definition_id: string;
     status: string;
     progress_data?: Record<string, unknown>;
+    completed_at?: string;
     updated_at?: string;
     [key: string]: unknown;
 }

@@ -310,33 +310,38 @@ function QuestDefinitionPanel({ quest, gameId, itemNames }: {
       </div>
     </div>);
 }
-function ProgressMetaPanel({ progress, gameId }: {
+function ProgressMetaPanel({ progress, gameId, idPrefix }: {
     progress: any;
     gameId: string;
+    idPrefix: string;
 }) {
     if (!progress)
         return null;
     const status = progress.status as string | undefined;
-    return (<div className="space-y-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase">Progress</p>
-      <div className="space-y-1">
-        {progress.id && <IdField label="id" value={progress.id}/>}
-        {progress.game_id && <IdField label="game_id" value={progress.game_id}/>}
-        {progress.user_id && <IdField label="user_id" value={progress.user_id}/>}
-        {progress.quest_definition_id && <IdField label="quest_definition_id" value={progress.quest_definition_id}/>}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        {status && (<span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize ${status === "claimed" || status === "completed"
+    return (<div id={`${idPrefix}-panel`} className="player-quest-progress-panel space-y-2">
+      <p id={`${idPrefix}-title`} className="player-quest-progress-title text-xs font-semibold text-muted-foreground uppercase">Progress</p>
+      <div id={`${idPrefix}-columns`} className="player-quest-progress-columns grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-2">
+        <div id={`${idPrefix}-primary-column`} className="player-quest-progress-primary-column space-y-2">
+          <div id={`${idPrefix}-identifiers`} className="player-quest-progress-identifiers space-y-1">
+            {progress.id && <IdField label="id" value={progress.id}/>}
+            {progress.game_id && <IdField label="game_id" value={progress.game_id}/>}
+            {progress.user_id && <IdField label="user_id" value={progress.user_id}/>}
+            {progress.quest_definition_id && <IdField label="quest_definition_id" value={progress.quest_definition_id}/>}
+          </div>
+          {status && (<span id={`${idPrefix}-status`} className={`player-quest-progress-status inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize ${status === "claimed" || status === "completed"
                 ? "bg-green-500/10 text-green-500 border-green-500/30"
                 : status === "failed"
                     ? "bg-red-500/10 text-red-400 border-red-400/30"
                     : "bg-blue-500/10 text-blue-400 border-blue-400/30"}`}>{status}</span>)}
-        {progress.version != null && <InfoField label="version" value={progress.version}/>}
-        {progress.created_at && <InfoField label="created" value={formatISODate(progress.created_at)}/>}
-        {progress.updated_at && <InfoField label="updated" value={formatISODate(progress.updated_at)}/>}
-        {progress.completed_at && <InfoField label="completed" value={formatISODate(progress.completed_at)}/>}
-        {progress.claimed_at && <InfoField label="claimed" value={formatISODate(progress.claimed_at)}/>}
-        {progress.reset_at && <InfoField label="reset" value={formatISODate(progress.reset_at)}/>}
+        </div>
+        <div id={`${idPrefix}-timeline-column`} className="player-quest-progress-timeline-column flex flex-col gap-1">
+          {progress.version != null && <InfoField label="version" value={progress.version}/>}
+          {progress.created_at && <InfoField label="created" value={formatISODate(progress.created_at)}/>}
+          {progress.updated_at && <InfoField label="updated" value={formatISODate(progress.updated_at)}/>}
+          {progress.completed_at && <InfoField label="completed" value={formatISODate(progress.completed_at)}/>}
+          {progress.claimed_at && <InfoField label="claimed" value={formatISODate(progress.claimed_at)}/>}
+          {progress.reset_at && <InfoField label="reset" value={formatISODate(progress.reset_at)}/>}
+        </div>
       </div>
     </div>);
 }
@@ -1997,12 +2002,6 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
               {t("playerQuestHistory.allQuests")}
               {questHistory && (<span id="tab-quest-all-count" className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{questHistory.starts_total}</span>)}
             </button>
-            <button id="tab-quest-daily-ahead" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead"
-            ? "border-primary text-foreground"
-            : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              <CalendarDays className="h-3.5 w-3.5"/>
-              Daily Ahead
-            </button>
             <button id="tab-quest-this-week" onClick={() => handleQuestSubTabChange("this-week")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "this-week"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
@@ -2014,6 +2013,12 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
               <CalendarDays className="h-3.5 w-3.5"/>
               This Month
+            </button>
+            <button id="tab-quest-daily-ahead" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead"
+            ? "border-primary text-foreground"
+            : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              <CalendarDays className="h-3.5 w-3.5"/>
+              Daily Ahead
             </button>
           </div>
 
@@ -2163,6 +2168,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
             </div>) : (<>
               {questSubTab === "all" && (() => {
                 const claimedProgressIds = new Set(questHistory.claims.map(claim => claim.progress_id));
+                const progressById = new Map(questHistory.starts.map(start => [start.progress.id, start.progress]));
                 const rows = [
                     ...questHistory.claims.map(claim => ({ kind: "claim" as const, id: `claim-${claim.id}`, status: "claimed", timestamp: claim.claimed_at, claim })),
                     ...questHistory.starts
@@ -2206,9 +2212,9 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                             <TableRow>
                               <TableHead className="w-8"/>
                               <TableHead>{t("playerQuestHistory.quest")}</TableHead>
+                              <TableHead>{t("quest.questType")}</TableHead>
                               <TableHead>{t("playerQuestHistory.status")}</TableHead>
-                              <TableHead>{t("playerQuestHistory.rewards")}</TableHead>
-                              <TableHead>{t("playerQuestHistory.updatedAt")}</TableHead>
+                              <TableHead>{t("common.completed")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -2217,8 +2223,9 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                             if (row.kind === "claim") {
                                 const { claim } = row;
                                 const rewards = ((claim.rewards_granted ?? []) as any[]).filter(reward => reward.reward_type === "item" || reward.item_definition_id);
+                                const completedAt = progressById.get(claim.progress_id)?.completed_at;
                                 return (<Fragment key={row.id}>
-                                  <TableRow id={`player-quest-history-row-${row.id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleQuestRow(row.id)}>
+                                  <TableRow id={`player-quest-history-row-${row.id}`} className="player-quest-history-row cursor-pointer text-[18px] hover:bg-muted/50 [&_*]:!text-[18px]" onClick={() => toggleQuestRow(row.id)}>
                                     <TableCell className="text-muted-foreground">{expanded ? <ChevronDown className="h-4 w-4 shrink-0"/> : <ChevronRight className="h-4 w-4 shrink-0"/>}</TableCell>
                                     <TableCell className="text-sm font-medium">
                                       <a id={`player-quest-history-link-${row.id}`} href={`/games/${gameId}/quests?q=${claim.quest_definition_id}`} className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground" onClick={event => event.stopPropagation()}>
@@ -2226,13 +2233,13 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                         <ExternalLink className="h-3 w-3 text-muted-foreground"/>
                                       </a>
                                     </TableCell>
+                                    <TableCell id={`player-quest-history-type-${row.id}`} className="player-quest-history-type capitalize text-muted-foreground">{claim.quest_definition?.quest_type || "—"}</TableCell>
                                     <TableCell><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getQuestStatusBadgeClass(row.status)}`}>{t("playerQuestHistory.statuses.claimed")}</span></TableCell>
-                                    <TableCell className="text-sm">{rewards.length > 0 ? (<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border bg-muted/50">{rewards.length} {t("playerQuestHistory.rewards")}</span>) : (<span className="text-muted-foreground text-xs">—</span>)}</TableCell>
-                                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatISODate(claim.claimed_at)}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{completedAt ? formatISODate(completedAt) : "—"}</TableCell>
                                   </TableRow>
                                   {expanded && (<TableRow id={`player-quest-history-detail-${row.id}`} className="bg-muted/20 hover:bg-muted/20">
                                       <TableCell />
-                                      <TableCell colSpan={4} className="py-3">
+                                      <TableCell colSpan={4} className="py-3 text-[18px] [&_*]:!text-[18px]">
                                         <div className="space-y-3">
                                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <ClaimMetaPanel claim={claim}/>
@@ -2250,7 +2257,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                             }
                             const { start } = row;
                             return (<Fragment key={row.id}>
-                              <TableRow id={`player-quest-history-row-${row.id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleQuestRow(row.id)}>
+                              <TableRow id={`player-quest-history-row-${row.id}`} className="player-quest-history-row cursor-pointer text-[18px] hover:bg-muted/50 [&_*]:!text-[18px]" onClick={() => toggleQuestRow(row.id)}>
                                 <TableCell className="text-muted-foreground">{expanded ? <ChevronDown className="h-4 w-4 shrink-0"/> : <ChevronRight className="h-4 w-4 shrink-0"/>}</TableCell>
                                 <TableCell className="text-sm font-medium">
                                   <a id={`player-quest-history-link-${row.id}`} href={`/games/${gameId}/quests?q=${start.progress.quest_definition_id}`} className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground" onClick={event => event.stopPropagation()}>
@@ -2258,17 +2265,21 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                     <ExternalLink className="h-3 w-3 text-muted-foreground"/>
                                   </a>
                                 </TableCell>
+                                <TableCell id={`player-quest-history-type-${row.id}`} className="player-quest-history-type capitalize text-muted-foreground">{start.quest?.quest_type || "—"}</TableCell>
                                 <TableCell><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getQuestStatusBadgeClass(row.status)}`}>{t(`playerQuestHistory.statuses.${row.status}`)}</span></TableCell>
-                                <TableCell className="text-xs text-muted-foreground">—</TableCell>
-                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{start.progress.updated_at ? formatISODate(start.progress.updated_at) : "—"}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{start.progress.completed_at ? formatISODate(start.progress.completed_at) : "—"}</TableCell>
                               </TableRow>
-                              {expanded && (<TableRow id={`player-quest-history-detail-${row.id}`} className="bg-muted/20 hover:bg-muted/20">
-                                  <TableCell />
-                                  <TableCell colSpan={4} className="py-3">
-                                    <div className="space-y-3">
-                                      <ProgressMetaPanel progress={start.progress} gameId={gameId}/>
-                                      {start.progress.progress_data && Object.keys(start.progress.progress_data).length > 0 && (<div><QuestProgressDisplay data={start.progress.progress_data} gameId={gameId}/></div>)}
-                                      <QuestDefinitionPanel quest={start.quest} gameId={gameId} itemNames={questItemNames}/>
+                              {expanded && (<TableRow id={`player-quest-history-detail-${row.id}`} className="player-quest-history-detail player-quest-history-detail-start bg-muted/20 hover:bg-muted/20">
+                                  <TableCell id={`player-quest-history-detail-${row.id}-spacer`} className="player-quest-history-detail-spacer" />
+                                  <TableCell id={`player-quest-history-detail-${row.id}-content`} colSpan={4} className="player-quest-history-detail-content py-3 text-[18px] [&_*]:!text-[18px]">
+                                    <div id={`player-quest-history-detail-${row.id}-body`} className="player-quest-history-detail-body space-y-3">
+                                      <div id={`player-quest-history-detail-${row.id}-progress-meta`} className="player-quest-history-detail-progress-meta">
+                                        <ProgressMetaPanel progress={start.progress} gameId={gameId} idPrefix={`player-quest-history-detail-${row.id}-progress`}/>
+                                      </div>
+                                      {start.progress.progress_data && Object.keys(start.progress.progress_data).length > 0 && (<div id={`player-quest-history-detail-${row.id}-progress-data`} className="player-quest-history-detail-progress-data"><QuestProgressDisplay data={start.progress.progress_data} gameId={gameId}/></div>)}
+                                      <div id={`player-quest-history-detail-${row.id}-quest-definition`} className="player-quest-history-detail-quest-definition">
+                                        <QuestDefinitionPanel quest={start.quest} gameId={gameId} itemNames={questItemNames}/>
+                                      </div>
                                     </div>
                                   </TableCell>
                                 </TableRow>)}
