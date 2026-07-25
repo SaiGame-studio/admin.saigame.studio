@@ -128,7 +128,7 @@ export async function listQuestConditionTypes(gameId: string): Promise<ListQuest
 export async function listQuestDefinitions(studioId: string, gameId: string, params?: {
     status?: boolean;
     limit?: number;
-    offset?: number;
+    after?: string;
     sort_by?: string;
     order?: string;
 }): Promise<ListQuestDefinitionsResponse> {
@@ -137,8 +137,8 @@ export async function listQuestDefinitions(studioId: string, gameId: string, par
         qs.set('status', String(params.status));
     if (params?.limit !== undefined)
         qs.set('limit', String(params.limit));
-    if (params?.offset !== undefined)
-        qs.set('offset', String(params.offset));
+    if (params?.after !== undefined)
+        qs.set('after', params.after);
     if (params?.sort_by)
         qs.set('sort_by', params.sort_by);
     if (params?.order)
@@ -306,6 +306,7 @@ export interface DailyQuestPool {
     is_active: boolean;
     created_at: string;
     updated_at: string;
+    quest_count: number;
 }
 export interface CreateDailyQuestPoolRequest {
     pool_key: string;
@@ -420,4 +421,23 @@ export async function getPlayerDailyQuestAheadPreview(studioId: string, gameId: 
         qs.set('days_ahead', String(params.days_ahead));
     const query = qs.toString() ? `?${qs}` : '';
     return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/players/${playerId}/assign-ahead${query}`);
+}
+
+/**
+ * GET /api/v1/studios/{studio_id}/games/{game_id}/daily-quest-pools/{pool_id}/players/{player_id}/assigned-timeframe
+ * Read-only. Returns quests assigned within a specific timeframe.
+ */
+export async function getPlayerDailyQuestTimeframe(studioId: string, gameId: string, poolId: string, playerId: string, params: {
+    start_date: string;
+    end_date: string;
+}): Promise<DailyQuestFuturePreview> {
+    const qs = new URLSearchParams();
+    qs.set('start_date', params.start_date);
+    qs.set('end_date', params.end_date);
+    const query = `?${qs.toString()}`;
+    return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/players/${playerId}/assigned-timeframe${query}`);
+}
+
+export async function deleteDailyQuestPool(studioId: string, gameId: string, poolId: string): Promise<void> {
+    return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}`);
 }

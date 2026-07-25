@@ -16,7 +16,7 @@ import { formatTimestamp, formatISODate, getUserTimezone } from "@/lib/utils/dat
 import { getGame } from "@/lib/game-api";
 import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, getBattleSessions, getJourneySessions, getJourneySessionEvents, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, BattleSession, BattleSessionsResult, JourneySession, JourneySessionsResult, JourneyEvent, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api";
 import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack, getContainerDefinition } from "@/lib/inventory-api";
-import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api";
+import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, getPlayerDailyQuestTimeframe, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { CopyButton } from "@/components/CopyButton";
@@ -656,16 +656,27 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     const [questHistory, setQuestHistory] = useState<QuestHistoryResult | null>(null);
     const [questLoading, setQuestLoading] = useState(false);
     const [questError, setQuestError] = useState<string | null>(null);
-    const [questSubTab, setQuestSubTab] = useState<"inprogress" | "completed" | "daily-ahead">(() => {
+    const [questSubTab, setQuestSubTab] = useState<"inprogress" | "completed" | "daily-ahead" | "this-week" | "this-month">(() => {
         const sub = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_sub") : null;
-        return sub === "inprogress" || sub === "completed" || sub === "daily-ahead" ? sub : "completed";
+        return sub === "inprogress" || sub === "completed" || sub === "daily-ahead" || sub === "this-week" || sub === "this-month" ? sub : "completed";
     });
     const [questExpandedRows, setQuestExpandedRows] = useState<Set<string>>(new Set());
     const [questItemNames, setQuestItemNames] = useState<Record<string, string>>({});
     // Daily Ahead sub-tab
     const [dailyAheadPools, setDailyAheadPools] = useState<DailyQuestPool[]>([]);
     const [dailyAheadPoolsLoading, setDailyAheadPoolsLoading] = useState(false);
-    const [dailyAheadSelectedPoolId, setDailyAheadSelectedPoolId] = useState<string>("");
+    const [dailyAheadSelectedPoolId, setDailyAheadSelectedPoolIdState] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("saigame_selected_quest_pool_id") || "";
+        }
+        return "";
+    });
+    const setDailyAheadSelectedPoolId = useCallback((val: string) => {
+        setDailyAheadSelectedPoolIdState(val);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("saigame_selected_quest_pool_id", val);
+        }
+    }, []);
     const [dailyAheadPreview, setDailyAheadPreview] = useState<DailyQuestFuturePreview | null>(null);
     const [dailyAheadLoading, setDailyAheadLoading] = useState(false);
     const [dailyAheadError, setDailyAheadError] = useState<string | null>(null);
@@ -997,8 +1008,10 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         try {
             const res = await listDailyQuestPools(game.studio_id, gameId);
             setDailyAheadPools(res.pools ?? []);
-            if (res.pools?.length && !dailyAheadSelectedPoolId) {
-                setDailyAheadSelectedPoolId(res.pools[0].id);
+            if (res.pools?.length) {
+                if (!dailyAheadSelectedPoolId || !res.pools.find(p => p.id === dailyAheadSelectedPoolId)) {
+                    setDailyAheadSelectedPoolId(res.pools[0].id);
+                }
             }
         }
         catch {
@@ -1015,8 +1028,30 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         setDailyAheadError(null);
         setDailyAheadPreview(null);
         try {
-            const res = await getPlayerDailyQuestAheadPreview(game.studio_id, gameId, poolId, detail.user_id, { days_ahead: dailyAheadDays });
-            setDailyAheadPreview(res);
+            if (questSubTab === "this-week" || questSubTab === "this-month") {
+                const today = new Date();
+                let start: Date, end: Date;
+                if (questSubTab === "this-week") {
+                    const day = today.getDay();
+                    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+                    start = new Date(today.getFullYear(), today.getMonth(), diff);
+                    end = new Date(start);
+                    end.setDate(end.getDate() + 6);
+                } else {
+                    start = new Date(today.getFullYear(), today.getMonth(), 1);
+                    end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                }
+                const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                
+                const res = await getPlayerDailyQuestTimeframe(game.studio_id, gameId, poolId, detail.user_id, {
+                    start_date: fmt(start),
+                    end_date: fmt(end)
+                });
+                setDailyAheadPreview(res);
+            } else {
+                const res = await getPlayerDailyQuestAheadPreview(game.studio_id, gameId, poolId, detail.user_id, { days_ahead: dailyAheadDays });
+                setDailyAheadPreview(res);
+            }
         }
         catch (err: any) {
             setDailyAheadError(err?.message ?? "Failed to load daily quest preview");
@@ -1024,7 +1059,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         finally {
             setDailyAheadLoading(false);
         }
-    }, [game, gameId, detail, dailyAheadDays]);
+    }, [game, gameId, detail, dailyAheadDays, questSubTab]);
     const loadBattleSessions = useCallback(async () => {
         if (!detail?.user_id)
             return;
@@ -1101,7 +1136,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         const qs = params.toString();
         router.replace(`${window.location.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
     };
-    const handleQuestSubTabChange = (sub: "inprogress" | "completed" | "daily-ahead") => {
+    const handleQuestSubTabChange = (sub: "inprogress" | "completed" | "daily-ahead" | "this-week" | "this-month") => {
         setQuestSubTab(sub);
         const params = new URLSearchParams(Array.from(searchParams.entries()));
         params.set("quest_sub", sub);
@@ -1161,18 +1196,18 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                 .finally(() => setEquippedLoading(false)));
         }
     }, [activeTab, gameId, detail?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
-    // Load pools when entering the daily-ahead sub-tab (or once game loads)
+    // Load pools when entering the daily-ahead, this-week or this-month sub-tabs (or once game loads)
     useEffect(() => {
-        if (activeTab === "quests" && questSubTab === "daily-ahead" && dailyAheadPools.length === 0 && game?.studio_id) {
+        if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadPools.length === 0 && game?.studio_id) {
             loadDailyAheadPools();
         }
     }, [activeTab, questSubTab, game]); // eslint-disable-line react-hooks/exhaustive-deps
     // Load preview whenever the selected pool or days change while on the tab
     useEffect(() => {
-        if (activeTab === "quests" && questSubTab === "daily-ahead" && dailyAheadSelectedPoolId) {
+        if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadSelectedPoolId) {
             loadDailyAheadPreview(dailyAheadSelectedPoolId);
         }
-    }, [activeTab, questSubTab, dailyAheadSelectedPoolId, dailyAheadDays]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [activeTab, questSubTab, dailyAheadSelectedPoolId, dailyAheadDays, game?.studio_id, detail?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
     const RARITY_STYLE: Record<string, string> = {
         common: "bg-gray-500/15 text-gray-400 border-gray-400/40",
         uncommon: "bg-green-500/15 text-green-500 border-green-500/40",
@@ -1884,44 +1919,56 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         {/* ── Quest History Tab ── */}
         <TabsContent value="quests" className="space-y-4">
           {/* Sub-tab navigation */}
-          <div className="flex items-center gap-1 border-b pb-0">
-            <button onClick={() => handleQuestSubTabChange("completed")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "completed"
+          <div className="flex items-center gap-1 border-b pb-0 overflow-x-auto whitespace-nowrap">
+            <button id="tab-quest-completed" onClick={() => handleQuestSubTabChange("completed")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "completed"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
               <CheckCircle2 className="h-3.5 w-3.5"/>
               Completed
               {questHistory && questHistory.claims_total > 0 && (<span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{questHistory.claims_total}</span>)}
             </button>
-            <button onClick={() => handleQuestSubTabChange("inprogress")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "inprogress"
+            <button id="tab-quest-inprogress" onClick={() => handleQuestSubTabChange("inprogress")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "inprogress"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
               <Clock className="h-3.5 w-3.5"/>
               In-progress
               {questHistory && (() => { const n = questHistory.starts.filter(s => s.progress?.status !== "claimed" && s.progress?.status !== "completed").length; return n > 0 ? <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{n}</span> : null; })()}
             </button>
-            <button onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead"
+            <button id="tab-quest-daily-ahead" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
               <CalendarDays className="h-3.5 w-3.5"/>
               Daily Ahead
             </button>
+            <button id="tab-quest-this-week" onClick={() => handleQuestSubTabChange("this-week")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "this-week"
+            ? "border-primary text-foreground"
+            : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              <CalendarDays className="h-3.5 w-3.5"/>
+              This Week
+            </button>
+            <button id="tab-quest-this-month" onClick={() => handleQuestSubTabChange("this-month")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "this-month"
+            ? "border-primary text-foreground"
+            : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              <CalendarDays className="h-3.5 w-3.5"/>
+              This Month
+            </button>
             <div className="ml-auto">
-              <Button variant="outline" size="icon" onClick={() => questSubTab === "daily-ahead" && dailyAheadSelectedPoolId ? loadDailyAheadPreview(dailyAheadSelectedPoolId) : loadQuestHistory()} disabled={questSubTab === "daily-ahead" ? dailyAheadLoading : questLoading} title="Refresh">
+              <Button id="btn-refresh-quests" variant="outline" size="icon" onClick={() => (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadSelectedPoolId ? loadDailyAheadPreview(dailyAheadSelectedPoolId) : loadQuestHistory()} disabled={(questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") ? dailyAheadLoading : questLoading} title="Refresh">
                 <RefreshCw className={`h-4 w-4 ${(questSubTab === "daily-ahead" ? dailyAheadLoading : questLoading) ? "animate-spin" : ""}`}/>
               </Button>
             </div>
           </div>
 
 
-          {questSubTab === "daily-ahead" ? (
-        /* ── Daily Ahead sub-tab ── */
-        <div className="space-y-4">
+          {questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month" ? (
+        /* ── Daily Ahead / Timeframe sub-tabs ── */
+        <div className="space-y-4" id="container-quest-timeframe">
               <div className="flex flex-wrap items-end gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground font-medium">Pool</label>
                   {dailyAheadPoolsLoading ? (<Skeleton className="h-9 w-48"/>) : dailyAheadPools.length === 0 ? (<p className="text-sm text-muted-foreground">No pools found for this game.</p>) : (<div className="flex items-center gap-1.5">
                       <Select value={dailyAheadSelectedPoolId} onValueChange={setDailyAheadSelectedPoolId}>
-                        <SelectTrigger className="w-56">
+                        <SelectTrigger className="w-56" id="select-quest-pool">
                           <SelectValue placeholder="Select pool…"/>
                         </SelectTrigger>
                         <SelectContent>
@@ -1935,17 +1982,21 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                         </a>)}
                     </div>)}
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-muted-foreground font-medium">Days ahead</label>
-                  <Select value={String(dailyAheadDays)} onValueChange={v => setDailyAheadDays(Number(v))}>
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[3, 7, 14, 30].map(d => (<SelectItem key={d} value={String(d)}>{d} days</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {questSubTab === "daily-ahead" && (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-muted-foreground font-medium">Days ahead</label>
+                      <Select value={String(dailyAheadDays)} onValueChange={v => setDailyAheadDays(Number(v))}>
+                        <SelectTrigger className="w-24" id="select-quest-days-ahead">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[3, 7, 14, 30].map(d => (<SelectItem key={d} value={String(d)}>{d} days</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
                 {game && (<div className="ml-auto flex items-end pb-0.5">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground border-l pl-3">
                       <span>Game setting — max advance days</span>
@@ -1973,11 +2024,11 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                       <p className="text-lg font-medium">No data</p>
                       <p className="text-sm mt-1">No pre-assigned quests found for this player.</p>
                     </div>);
-                const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
                 const firstDate = dailyAheadPreview.days[0]?.date
                     ? new Date(dailyAheadPreview.days[0].date + "T00:00:00")
                     : null;
-                const startOffset = firstDate ? firstDate.getDay() : 0;
+                const startOffset = firstDate ? (firstDate.getDay() + 6) % 7 : 0;
                 return (<div>
                       {/* Weekday header */}
                       <div className="grid grid-cols-7 gap-1 mb-1">
@@ -1990,7 +2041,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                         {dailyAheadPreview.days.map(day => {
                         const isToday = day.is_today;
                         const hasQuests = day.quests.length > 0;
-                        return (<div key={day.date} className={`rounded-md border p-1.5 min-h-[80px] flex flex-col gap-1 text-xs ${isToday
+                        return (<div key={day.date} id={`quest-day-card-${day.date}`} className={`rounded-md border p-1.5 min-h-[80px] flex flex-col gap-1 text-xs ${isToday
                                 ? "border-primary bg-primary/5"
                                 : hasQuests
                                     ? "border-border bg-card"

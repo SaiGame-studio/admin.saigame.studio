@@ -25,7 +25,7 @@ import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Game } from "@/types/game";
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays";
-import { listDailyQuestPools, getDailyQuestPool, listPoolQuests, createDailyQuestPool, updateDailyQuestPool, updateQuestDefinition, addQuestToPool, removeQuestFromPool, listQuestDefinitions, type DailyQuestPool, type DailyQuestPoolQuest, type CreateDailyQuestPoolRequest, type UpdateDailyQuestPoolRequest, type AddQuestToPoolRequest, type AssignmentStrategy, type QuestDefinition, } from "@/lib/quest-api";
+import { listDailyQuestPools, getDailyQuestPool, listPoolQuests, createDailyQuestPool, updateDailyQuestPool, deleteDailyQuestPool, updateQuestDefinition, addQuestToPool, removeQuestFromPool, listQuestDefinitions, type DailyQuestPool, type DailyQuestPoolQuest, type CreateDailyQuestPoolRequest, type UpdateDailyQuestPoolRequest, type AddQuestToPoolRequest, type AssignmentStrategy, type QuestDefinition, } from "@/lib/quest-api";
 // ─── Strategy Grid Illustration ─────────────────────────────────────────────
 const QUEST_COLORS = [
     { bg: "bg-blue-500/80", text: "text-blue-600", light: "bg-blue-100 dark:bg-blue-900/40", border: "border-blue-400" },
@@ -326,9 +326,11 @@ export function DailyTab({ game, onGameUpdate }: {
     const [expandedLoading, setExpandedLoading] = useState(false);
     // Quest definitions lookup (for displaying quest names in pool)
     const [questDefsMap, setQuestDefsMap] = useState<Record<string, QuestDefinition>>({});
-    // Pool create / edit
+    // Pool create / edit / delete
     const [createOpen, setCreateOpen] = useState(false);
     const [editPool, setEditPool] = useState<DailyQuestPool | null>(null);
+    const [deletePool, setDeletePool] = useState<DailyQuestPool | null>(null);
+    const [deletingPool, setDeletingPool] = useState(false);
     const [poolForm, setPoolForm] = useState<CreateDailyQuestPoolRequest>({
         pool_key: "",
         display_name: "",
@@ -515,6 +517,37 @@ export function DailyTab({ game, onGameUpdate }: {
             setPoolSaving(false);
         }
     };
+
+    // ── Delete pool ───────────────────────────────────────────────────────────
+    const handleDeletePool = async () => {
+        if (!deletePool) return;
+        setDeletingPool(true);
+        try {
+            await deleteDailyQuestPool(studioId, gameId, deletePool.id);
+            toast({ title: t('quest.daily.poolDeleted') });
+            setDeletePool(null);
+            if (expandedPoolId === deletePool.id) {
+                setExpandedPoolId(null);
+                setExpandedPool(null);
+                setExpandedQuests([]);
+            }
+            await loadPools();
+        } catch (e) {
+            let msg = t('quest.daily.failedDeletePool');
+            if (e instanceof ApiError) {
+                if (e.data?.message_code === "err_daily_quest_pool_not_empty") {
+                    msg = t('quest.daily.errPoolNotEmpty');
+                } else if (e.data?.message_code === "err_daily_quest_pool_not_found") {
+                    msg = t('quest.daily.errPoolNotFound');
+                } else {
+                    msg = e.message;
+                }
+            }
+            toast({ variant: "destructive", title: t('common.error'), description: msg });
+        } finally {
+            setDeletingPool(false);
+        }
+    };
     // ── Toggle active ─────────────────────────────────────────────────────────
     const handleToggleActive = async (pool: DailyQuestPool) => {
         try {
@@ -596,7 +629,7 @@ export function DailyTab({ game, onGameUpdate }: {
     }
     return (<>
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div id="daily-tab-header" className="daily-tab-header flex items-center justify-between mb-3">
         <div>
           <p className="text-sm text-muted-foreground">
             {t('quest.daily.manageDesc')}
@@ -611,11 +644,10 @@ export function DailyTab({ game, onGameUpdate }: {
               <p className="text-[10px] text-muted-foreground/80 whitespace-nowrap">{t('game.dailyQuestAdvanceDaysDesc')}</p>
             </div>)}
           {subTab === "list" && (<>
-              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-                <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`}/>
-                {t('common.refresh')}
+              <Button id="daily-tab-refresh-btn" variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="w-9 px-0">
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
               </Button>
-              <Button size="sm" onClick={openCreate}>
+              <Button id="daily-tab-create-pool-btn" size="sm" onClick={openCreate} className="daily-tab-create-pool-btn">
                 <Plus className="h-4 w-4 mr-1"/>
                 {t('quest.daily.createPool')}
               </Button>
@@ -624,13 +656,13 @@ export function DailyTab({ game, onGameUpdate }: {
       </div>
 
       {/* SubTab Navigation */}
-      <div className="flex items-center gap-1 mb-4 border-b">
-        <button onClick={() => setSubTab("list")} className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${subTab === "list"
+      <div id="daily-tab-subnav" className="daily-tab-subnav flex items-center gap-1 mb-4 border-b">
+        <button id="daily-tab-subnav-list-btn" onClick={() => setSubTab("list")} className={`daily-tab-subnav-list-btn px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${subTab === "list"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
           {t('quest.daily.list')}
         </button>
-        <button onClick={() => setSubTab("grid")} className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${subTab === "grid"
+        <button id="daily-tab-subnav-grid-btn" onClick={() => setSubTab("grid")} className={`daily-tab-subnav-grid-btn px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${subTab === "grid"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
           {t('quest.daily.strategyGuide')}
@@ -641,52 +673,60 @@ export function DailyTab({ game, onGameUpdate }: {
       {subTab === "grid" && <DailyStrategyGrid />}
 
       {/* Pool List */}
-      {subTab === "list" && (pools.length === 0 ? (<Card>
+      {subTab === "list" && (pools.length === 0 ? (<Card id="daily-pool-empty-card" className="daily-pool-empty-card">
           <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
             <Calendar className="h-10 w-10 opacity-30"/>
             <p className="text-sm">{t('quest.daily.noPoolsYet')}</p>
-            <Button size="sm" onClick={openCreate}>
+            <Button id="daily-pool-empty-create-btn" className="daily-pool-empty-create-btn" size="sm" onClick={openCreate}>
               <Plus className="h-4 w-4 mr-1"/> {t('quest.daily.createFirstPool')}
             </Button>
           </CardContent>
-        </Card>) : (<div className="space-y-3">
+        </Card>) : (<div id="daily-pool-list" className="daily-pool-list space-y-3">
           {pools.map((pool) => {
                 const isExpanded = expandedPoolId === pool.id;
-                return (<Card key={pool.id} className={isExpanded ? "ring-1 ring-primary/30" : ""}>
-                <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleExpand(pool.id)}>
+                return (<Card key={pool.id} id={`daily-pool-card-${pool.id}`} className={`daily-pool-card ${isExpanded ? "ring-1 ring-primary/30" : ""}`}>
+                <CardHeader id={`daily-pool-card-header-${pool.id}`} className="daily-pool-card-header pb-3 cursor-pointer" onClick={() => toggleExpand(pool.id)}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground"/> : <ChevronRight className="h-4 w-4 text-muted-foreground"/>}
                       <div>
-                        <CardTitle className="text-base flex items-center gap-2">
+                        <CardTitle id={`daily-pool-card-title-${pool.id}`} className="daily-pool-card-title text-base flex items-center gap-2">
                           {pool.display_name}
-                          <Badge variant={pool.is_active ? "default" : "secondary"} className="text-xs">
+                          <Badge id={`daily-pool-card-badge-active-${pool.id}`} variant={pool.is_active ? "default" : "secondary"} className="daily-pool-card-badge-active text-xs">
                             {pool.is_active ? t('quest.activeStatus') : t('quest.inactiveStatus')}
                           </Badge>
-                          <Badge variant={strategyBadgeVariant(pool.assignment_strategy)} className="text-xs">
+                          <Badge id={`daily-pool-card-badge-strategy-${pool.id}`} variant={strategyBadgeVariant(pool.assignment_strategy)} className="daily-pool-card-badge-strategy text-xs">
                             {strategyLabel(pool.assignment_strategy, t)}
                           </Badge>
                         </CardTitle>
-                        <CardDescription className="mt-1">
-                          <span className="font-mono text-xs">{pool.pool_key}</span>
+                        <CardDescription id={`daily-pool-card-desc-${pool.id}`} className="daily-pool-card-desc mt-1 flex items-center flex-wrap">
+                          <span id={`daily-pool-card-key-${pool.id}`} className="daily-pool-card-key font-mono text-xs inline-flex items-center gap-1">
+                            {pool.pool_key}
+                            <CopyButton text={pool.pool_key} id={`daily-pool-card-key-copy-${pool.id}`} />
+                          </span>
                           <span className="mx-2">·</span>
-                          <span>{pool.slots_per_day} {t('quest.daily.slotsPerDayUnit')}</span>
+                          <span id={`daily-pool-card-slots-${pool.id}`} className="daily-pool-card-slots">{pool.slots_per_day} {t('quest.daily.slotsPerDayUnit')}</span>
                           <span className="mx-2">·</span>
-                          <span>{t('quest.daily.resetAt')} {pool.reset_hour_utc}:00 UTC</span>
+                          <span id={`daily-pool-card-reset-${pool.id}`} className="daily-pool-card-reset">{t('quest.daily.resetAt')} {pool.reset_hour_utc}:00 UTC</span>
+                          <span className="mx-2">·</span>
+                          <span id={`daily-pool-card-quest-count-${pool.id}`} className="daily-pool-card-quest-count">{pool.quest_count || 0} {(pool.quest_count || 0) !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}</span>
                         </CardDescription>
                       </div>
                     </div>
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Switch checked={pool.is_active} onCheckedChange={() => handleToggleActive(pool)} aria-label="Toggle active"/>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(pool)}>
+                      <Switch id={`daily-pool-active-toggle-${pool.id}`} className="daily-pool-active-toggle" checked={pool.is_active} onCheckedChange={() => handleToggleActive(pool)} aria-label="Toggle active"/>
+                      <Button id={`daily-pool-edit-btn-${pool.id}`} className="daily-pool-edit-btn h-8 w-8" variant="ghost" size="icon" onClick={() => openEdit(pool)}>
                         <Pencil className="h-4 w-4"/>
+                      </Button>
+                      <Button id={`daily-pool-delete-btn-${pool.id}`} className="daily-pool-delete-btn h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" variant="ghost" size="icon" onClick={() => setDeletePool(pool)}>
+                        <Trash2 className="h-4 w-4"/>
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
 
                 {/* Expanded Detail */}
-                {isExpanded && (<CardContent className="pt-0 space-y-4">
+                {isExpanded && (<CardContent id={`daily-pool-expanded-${pool.id}`} className="daily-pool-expanded pt-0 space-y-4">
                     <Separator />
                     {expandedLoading ? (<div className="flex items-center gap-2 py-4 text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin"/> {t('quest.daily.loadingPoolDetails')}
@@ -697,6 +737,11 @@ export function DailyTab({ game, onGameUpdate }: {
                             {t('quest.daily.questsInPool')}
                             <Badge variant="outline" className="text-xs">{expandedQuests.length}</Badge>
                           </h4>
+                          {pool.assignment_strategy === "weighted_random" && (
+                              <p className="text-xs text-muted-foreground mb-3 -mt-1.5">
+                                {t('quest.daily.weightedRandomNoteExpanded', { count: pool.slots_per_day })}
+                              </p>
+                          )}
                           {pool.assignment_strategy === "weekly_schedule" ? (
                             /* 7-day drag-drop grid */
                             (() => {
@@ -738,9 +783,9 @@ export function DailyTab({ game, onGameUpdate }: {
                                         <div className="flex flex-col gap-1 p-1 flex-1">
                                           {dayQuests.map((pq) => {
                                                 const qDef = questDefsMap[pq.quest_definition_id];
-                                                return (<div key={pq.id} className="flex items-center gap-1 text-xs bg-muted/50 rounded px-1.5 py-1 group">
+                                                return (<div key={pq.id} id={`daily-pool-weekly-quest-${pq.id}`} className="daily-pool-weekly-quest flex items-center gap-1 text-xs bg-muted/50 rounded px-1.5 py-1 group">
                                                 <span className="flex-1 truncate leading-tight">{qDef?.name ?? pq.quest_definition_id.slice(0, 8)}</span>
-                                                <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })} title="Remove">
+                                                <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })} title="Remove">
                                                   <Trash2 className="h-3 w-3"/>
                                                 </button>
                                               </div>);
@@ -761,7 +806,7 @@ export function DailyTab({ game, onGameUpdate }: {
                                     {expandedQuests.map((pq) => {
                                             const qDef = questDefsMap[pq.quest_definition_id];
                                             const pct = totalWeight > 0 ? ((pq.weight ?? 0) / totalWeight) * 100 : 0;
-                                            return (<div key={pq.id} className="relative flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm">
+                                            return (<div key={pq.id} id={`daily-pool-quest-${pq.id}`} className="daily-pool-quest relative flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm">
                                           <div className="flex items-start justify-between gap-1 min-w-0">
                                             <div className="min-w-0">
                                               <p className="text-sm font-medium leading-tight truncate">{qDef?.name ?? pq.quest_definition_id}</p>
@@ -771,7 +816,7 @@ export function DailyTab({ game, onGameUpdate }: {
                                               </p>
                                             </div>
                                             <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
-                                              <Switch checked={qDef?.is_active ?? false} onCheckedChange={async (checked) => {
+                                              <Switch id={`daily-pool-quest-active-toggle-${pq.id}`} className="daily-pool-quest-active-toggle" checked={qDef?.is_active ?? false} onCheckedChange={async (checked) => {
                                                     try {
                                                         await updateQuestDefinition(studioId, gameId, pq.quest_definition_id, { is_active: checked });
                                                         setQuestDefsMap((prev) => ({ ...prev, [pq.quest_definition_id]: { ...prev[pq.quest_definition_id], is_active: checked } }));
@@ -781,12 +826,12 @@ export function DailyTab({ game, onGameUpdate }: {
                                                         toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.failedUpdateQuest') });
                                                     }
                                                 }} aria-label="Toggle quest active"/>
-                                              <Button variant="ghost" size="icon" className="h-6 w-6 ml-2.5" title="Edit quest definition" asChild>
+                                              <Button id={`daily-pool-quest-edit-btn-${pq.id}`} className="daily-pool-quest-edit-btn h-6 w-6 ml-2.5" variant="ghost" size="icon" title="Edit quest definition" asChild>
                                                 <Link href={(() => { const sp = new URLSearchParams(searchParams.toString()); sp.delete("tab"); sp.set("editQuestId", pq.quest_definition_id); return `/games/${gameId}/quests?${sp.toString()}`; })()}>
                                                   <Pencil className="h-3 w-3"/>
                                                 </Link>
                                               </Button>
-                                              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive ml-2.5" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })}>
+                                              <Button id={`daily-pool-quest-delete-btn-${pq.id}`} className="daily-pool-quest-delete-btn h-6 w-6 text-destructive ml-2.5" variant="ghost" size="icon" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })}>
                                                 <Trash2 className="h-3.5 w-3.5"/>
                                               </Button>
                                             </div>
@@ -809,14 +854,14 @@ export function DailyTab({ game, onGameUpdate }: {
                         </div>
 
                         {/* ── Right: searchable quest list ── */}
-                        <div className="w-64 border-l shrink-0 flex flex-col self-stretch">
+                        <div id={`daily-pool-quest-search-panel-${pool.id}`} className="daily-pool-quest-search-panel w-64 border-l shrink-0 flex flex-col self-stretch">
                           <div className="p-3 border-b shrink-0">
                             <p className="text-xs font-medium text-muted-foreground mb-2">
                               {pool.assignment_strategy === "weekly_schedule" ? t('quest.daily.dragOntoDay') : t('quest.daily.clickToSelect')}
                             </p>
                             <div className="relative">
                               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"/>
-                              <Input placeholder={t('quest.daily.searchPlaceholder')} value={addQuestSearch} onChange={(e) => setAddQuestSearch(e.target.value)} className="pl-8 h-8 text-sm"/>
+                              <Input id={`daily-pool-quest-search-input-${pool.id}`} placeholder={t('quest.daily.searchPlaceholder')} value={addQuestSearch} onChange={(e) => setAddQuestSearch(e.target.value)} className="daily-pool-quest-search-input pl-8 h-8 text-sm"/>
                             </div>
                           </div>
                           <div className="flex-1 overflow-y-auto p-2 space-y-0.5 max-h-96">
@@ -837,10 +882,10 @@ export function DailyTab({ game, onGameUpdate }: {
                                 }
                                 return filtered.map((q) => {
                                     const isSelected = !isWeekly && addQuestForm.quest_id === q.id;
-                                    return (<div key={q.id} draggable={isWeekly} onDragStart={() => {
+                                    return (<div key={q.id} id={`daily-pool-quest-search-item-${q.id}`} draggable={isWeekly} onDragStart={() => {
                                             if (isWeekly)
                                                 setDraggedQuestId(q.id);
-                                        }} onDragEnd={() => { setDraggedQuestId(null); setDragOverDay(null); }} className={`rounded-md border transition-colors select-none ${isWeekly
+                                        }} onDragEnd={() => { setDraggedQuestId(null); setDragOverDay(null); }} className={`daily-pool-quest-search-item rounded-md border transition-colors select-none ${isWeekly
                                             ? "border-transparent hover:bg-muted hover:border-border"
                                             : isSelected
                                                 ? "bg-primary/10 border-primary/30"
@@ -880,7 +925,7 @@ export function DailyTab({ game, onGameUpdate }: {
                                             <Label className="text-xs shrink-0">{t('quest.daily.day')}</Label>
                                             <Input type="number" min={1} max={31} value={addQuestForm.sequence_order} onChange={(e) => setAddQuestForm({ ...addQuestForm, sequence_order: Number(e.target.value) })} className="w-20 h-7 text-xs"/>
                                           </div>)}
-                                        <Button size="sm" className="w-full h-7 text-xs" onClick={handleAddQuest} disabled={addQuestSaving}>
+                                        <Button id={`daily-pool-quest-add-btn-${q.id}`} size="sm" className="daily-pool-quest-add-btn w-full h-7 text-xs" onClick={handleAddQuest} disabled={addQuestSaving}>
                                           {addQuestSaving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin"/>}
                                           {t('quest.daily.addToPool')}
                                         </Button>
@@ -898,7 +943,7 @@ export function DailyTab({ game, onGameUpdate }: {
 
       {/* ─── Create / Edit Pool Sheet ─────────────────────────────────────── */}
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent id="daily-pool-form-sheet" className="daily-pool-form-sheet w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editPool ? t('quest.daily.editPool') : t('quest.daily.createDailyQuestPool')}</SheetTitle>
           </SheetHeader>
@@ -906,8 +951,8 @@ export function DailyTab({ game, onGameUpdate }: {
           <div className="space-y-4 py-4">
             {/* Display Name */}
             <div className="space-y-1">
-              <Label>{t('quest.daily.displayName')} <span className="text-destructive">*</span></Label>
-              <Input value={poolForm.display_name} onChange={(e) => {
+              <Label htmlFor="daily-pool-form-display-name">{t('quest.daily.displayName')} <span className="text-destructive">*</span></Label>
+              <Input id="daily-pool-form-display-name" className="daily-pool-form-display-name" value={poolForm.display_name} onChange={(e) => {
             const name = e.target.value;
             const patch: Partial<CreateDailyQuestPoolRequest> = { display_name: name };
             if (autoSlug && !editPool) {
@@ -920,13 +965,13 @@ export function DailyTab({ game, onGameUpdate }: {
 
             {/* Pool Key */}
             <div className="space-y-1">
-              <Label>{t('quest.daily.poolKey')} <span className="text-destructive">*</span></Label>
+              <Label htmlFor="daily-pool-form-pool-key">{t('quest.daily.poolKey')} <span className="text-destructive">*</span></Label>
               <div className="flex gap-2">
-                <Input value={poolForm.pool_key} onChange={(e) => {
+                <Input id="daily-pool-form-pool-key" value={poolForm.pool_key} onChange={(e) => {
             setAutoSlug(false);
             setPoolForm({ ...poolForm, pool_key: e.target.value });
-        }} disabled={!!editPool} className={`flex-1 ${editPool ? "opacity-50" : ""}`}/>
-                {!editPool && (<Button type="button" variant={autoSlug ? "default" : "outline"} size="icon" className="h-10 w-10 shrink-0" onClick={() => {
+        }} disabled={!!editPool} className={`daily-pool-form-pool-key flex-1 ${editPool ? "opacity-50" : ""}`}/>
+                {!editPool && (<Button id="daily-pool-form-auto-slug-btn" type="button" variant={autoSlug ? "default" : "outline"} size="icon" className="daily-pool-form-auto-slug-btn h-10 w-10 shrink-0" onClick={() => {
                 const newAuto = !autoSlug;
                 setAutoSlug(newAuto);
                 if (newAuto) {
@@ -948,8 +993,8 @@ export function DailyTab({ game, onGameUpdate }: {
 
             {/* Description */}
             <div className="space-y-1">
-              <Label>{t('quest.description')}</Label>
-              <Textarea value={poolForm.description ?? ""} onChange={(e) => setPoolForm({ ...poolForm, description: e.target.value })} rows={2}/>
+              <Label htmlFor="daily-pool-form-description">{t('quest.description')}</Label>
+              <Textarea id="daily-pool-form-description" className="daily-pool-form-description" value={poolForm.description ?? ""} onChange={(e) => setPoolForm({ ...poolForm, description: e.target.value })} rows={2}/>
               <p className="text-xs text-muted-foreground">{t('quest.daily.optionalPoolDescription')}</p>
             </div>
 
@@ -957,7 +1002,7 @@ export function DailyTab({ game, onGameUpdate }: {
             <div className="space-y-1">
               <Label>{t('quest.daily.assignmentStrategy')} <span className="text-destructive">*</span></Label>
               <Select value={poolForm.assignment_strategy} onValueChange={(v) => setPoolForm({ ...poolForm, assignment_strategy: v as AssignmentStrategy })} disabled={!!editPool}>
-                <SelectTrigger>
+                <SelectTrigger id="daily-pool-form-strategy" className="daily-pool-form-strategy">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -978,8 +1023,8 @@ export function DailyTab({ game, onGameUpdate }: {
 
             {/* Slots Per Day */}
             <div className="space-y-1">
-              <Label>{t('quest.daily.slotsPerDay')} <span className="text-destructive">*</span></Label>
-              <Input type="number" min={1} max={50} value={poolForm.slots_per_day} onChange={(e) => setPoolForm({ ...poolForm, slots_per_day: Number(e.target.value) })}/>
+              <Label htmlFor="daily-pool-form-slots">{t('quest.daily.slotsPerDay')} <span className="text-destructive">*</span></Label>
+              <Input id="daily-pool-form-slots" className="daily-pool-form-slots" type="number" min={1} max={50} value={poolForm.slots_per_day} onChange={(e) => setPoolForm({ ...poolForm, slots_per_day: Number(e.target.value) })}/>
               <p className="text-xs text-muted-foreground">{t('quest.daily.slotsPerDayHint')}</p>
             </div>
 
@@ -987,7 +1032,7 @@ export function DailyTab({ game, onGameUpdate }: {
             <div className="space-y-1">
               <Label>{t('quest.daily.resetHourUtc')}</Label>
               <Select value={String(poolForm.reset_hour_utc)} onValueChange={(v) => setPoolForm({ ...poolForm, reset_hour_utc: Number(v) })}>
-                <SelectTrigger>
+                <SelectTrigger id="daily-pool-form-reset-hour" className="daily-pool-form-reset-hour">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -999,10 +1044,10 @@ export function DailyTab({ game, onGameUpdate }: {
             {/* Active */}
             <div className="flex items-center justify-between">
               <div>
-                <Label>{t('quest.active')}</Label>
+                <Label htmlFor="daily-pool-form-active">{t('quest.active')}</Label>
                 <p className="text-xs text-muted-foreground">{t('quest.daily.activeHint')}</p>
               </div>
-              <Switch checked={poolForm.is_active} onCheckedChange={(c) => setPoolForm({ ...poolForm, is_active: c })}/>
+              <Switch id="daily-pool-form-active" className="daily-pool-form-active" checked={poolForm.is_active} onCheckedChange={(c) => setPoolForm({ ...poolForm, is_active: c })}/>
             </div>
           </div>
 
@@ -1017,9 +1062,9 @@ export function DailyTab({ game, onGameUpdate }: {
             {!editPool && !poolSaving && STRATEGY_OPTIONS.find(s => s.value === poolForm.assignment_strategy)?.comingSoon && (<p className="text-xs text-muted-foreground text-right">{t('quest.daily.strategyNotAvailable')}</p>)}
             <div className="flex justify-end gap-2">
               <SheetClose asChild>
-                <Button variant="outline" disabled={poolSaving}>{t('common.cancel')}</Button>
+                <Button id="daily-pool-form-cancel-btn" className="daily-pool-form-cancel-btn" variant="outline" disabled={poolSaving}>{t('common.cancel')}</Button>
               </SheetClose>
-              <Button onClick={handleSavePool} disabled={poolSaving || !poolForm.pool_key || !poolForm.display_name || (!editPool && STRATEGY_OPTIONS.find(s => s.value === poolForm.assignment_strategy)?.comingSoon === true)}>
+              <Button id="daily-pool-form-save-btn" className="daily-pool-form-save-btn" onClick={handleSavePool} disabled={poolSaving || !poolForm.pool_key || !poolForm.display_name || (!editPool && STRATEGY_OPTIONS.find(s => s.value === poolForm.assignment_strategy)?.comingSoon === true)}>
                 {poolSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
                 {editPool ? t('quest.daily.saveChanges') : t('quest.daily.createPool')}
               </Button>
@@ -1041,10 +1086,31 @@ export function DailyTab({ game, onGameUpdate }: {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={removeQuestDeleting}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemoveQuest} disabled={removeQuestDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel id="daily-pool-quest-remove-cancel-btn" className="daily-pool-quest-remove-cancel-btn" disabled={removeQuestDeleting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction id="daily-pool-quest-remove-confirm-btn" onClick={handleRemoveQuest} disabled={removeQuestDeleting} className="daily-pool-quest-remove-confirm-btn bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {removeQuestDeleting && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
               {t('common.remove')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+      {/* ─── Delete Pool Confirm ─────────────────────────────────────────── */}
+      <AlertDialog open={!!deletePool} onOpenChange={(o) => {
+            if (!o) setDeletePool(null);
+        }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Pool</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deletePool?.display_name}</strong>? This action cannot be undone. Only empty pools without any generated progress can be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel id="daily-pool-delete-cancel-btn" className="daily-pool-delete-cancel-btn" disabled={deletingPool}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction id="daily-pool-delete-confirm-btn" onClick={handleDeletePool} disabled={deletingPool} className="daily-pool-delete-confirm-btn bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingPool && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
+              {t('common.delete', 'Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
