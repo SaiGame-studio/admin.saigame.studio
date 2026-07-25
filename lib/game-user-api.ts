@@ -446,8 +446,10 @@ export interface QuestDefinitionSummary {
 }
 export interface QuestProgressData {
     id: string;
+    quest_definition_id: string;
     status: string;
     progress_data?: Record<string, unknown>;
+    updated_at?: string;
     [key: string]: unknown;
 }
 export interface QuestHistoryStart {
@@ -459,6 +461,7 @@ export interface QuestClaimReward {
 }
 export interface QuestHistoryClaim {
     id: string;
+    progress_id: string;
     quest_definition_id: string;
     rewards_granted: QuestClaimReward[];
     claimed_at: string;

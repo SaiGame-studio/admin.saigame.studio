@@ -80,6 +80,27 @@
     "select": "選択",
     "stop": "停止"
   },
+  "playerQuestHistory": {
+    "allQuests": "すべてのクエスト",
+    "records": "件のクエスト記録",
+    "status": "ステータス",
+    "allStatuses": "すべてのステータス",
+    "quest": "クエスト",
+    "rewards": "報酬",
+    "updatedAt": "更新日時",
+    "rewardsGranted": "獲得報酬",
+    "noQuests": "クエストが見つかりません",
+    "noQuestsDescription": "選択したステータスに一致するクエスト記録はありません。",
+    "statuses": {
+      "in_progress": "進行中",
+      "completed": "完了",
+      "claimed": "受取済み",
+      "cancelled": "キャンセル済み",
+      "locked": "ロック中",
+      "expired": "期限切れ",
+      "not_started": "未開始"
+    }
+  },
   "shop": {
     "title": "ゲームショップ",
     "listDesc": "ゲームのすべてのショップのリスト:",

@@ -80,6 +80,27 @@
     "content": "Content",
     "stop": "Stop"
   },
+  "playerQuestHistory": {
+    "allQuests": "All Quests",
+    "records": "quest records",
+    "status": "Status",
+    "allStatuses": "All statuses",
+    "quest": "Quest",
+    "rewards": "Rewards",
+    "updatedAt": "Updated At",
+    "rewardsGranted": "Rewards Granted",
+    "noQuests": "No quests found",
+    "noQuestsDescription": "No quest records match the selected status.",
+    "statuses": {
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "claimed": "Claimed",
+      "cancelled": "Cancelled",
+      "locked": "Locked",
+      "expired": "Expired",
+      "not_started": "Not started"
+    }
+  },
   "shop": {
     "title": "Game Shops",
     "listDesc": "List of all shops for the game:",

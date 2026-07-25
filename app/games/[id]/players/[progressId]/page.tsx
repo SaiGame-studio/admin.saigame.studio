@@ -1,7 +1,7 @@
 "use client";
 import { Fragment, use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Coins, Dice6, ExternalLink, Eye, Hash, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react";
+import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, ChevronDown, ChevronRight, Clock, Coins, Dice6, ExternalLink, Eye, Hash, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react";
 import { PlayerSectionNav } from "@/components/PlayerSectionNav";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatTimestamp, formatISODate, getUserTimezone } from "@/lib/utils/date-utils";
 import { getGame } from "@/lib/game-api";
-import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, getBattleSessions, getJourneySessions, getJourneySessionEvents, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, BattleSession, BattleSessionsResult, JourneySession, JourneySessionsResult, JourneyEvent, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api";
+import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, getBattleSessions, getJourneySessions, getJourneySessionEvents, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, BattleSession, BattleSessionsResult, JourneySession, JourneySessionsResult, JourneyEvent, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api";
 import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack, getContainerDefinition } from "@/lib/inventory-api";
 import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, getPlayerDailyQuestTimeframe, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -30,6 +30,26 @@ type ResolvedEntity = {
     name: string;
     type: "item" | "gacha_pack";
 };
+type QuestSubTab = "all" | "daily-ahead" | "this-week" | "this-month";
+type QuestStatusFilter = "all" | "in_progress" | "completed" | "claimed" | "cancelled" | "locked" | "expired" | "not_started";
+const QUEST_STATUS_FILTERS: Exclude<QuestStatusFilter, "all">[] = [
+    "in_progress",
+    "completed",
+    "claimed",
+    "cancelled",
+    "locked",
+    "expired",
+    "not_started",
+];
+function getQuestStatusBadgeClass(status: string) {
+    if (status === "claimed")
+        return "bg-green-500/10 text-green-500 border-green-500/30";
+    if (status === "completed")
+        return "bg-blue-500/10 text-blue-400 border-blue-400/30";
+    if (status === "cancelled" || status === "expired")
+        return "bg-red-500/10 text-red-400 border-red-400/30";
+    return "bg-muted/50 text-muted-foreground border-border";
+}
 function QuestProgressDisplay({ data, gameId }: {
     data: Record<string, unknown>;
     gameId: string;
@@ -656,9 +676,13 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     const [questHistory, setQuestHistory] = useState<QuestHistoryResult | null>(null);
     const [questLoading, setQuestLoading] = useState(false);
     const [questError, setQuestError] = useState<string | null>(null);
-    const [questSubTab, setQuestSubTab] = useState<"inprogress" | "completed" | "daily-ahead" | "this-week" | "this-month">(() => {
+    const [questSubTab, setQuestSubTab] = useState<QuestSubTab>(() => {
         const sub = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_sub") : null;
-        return sub === "inprogress" || sub === "completed" || sub === "daily-ahead" || sub === "this-week" || sub === "this-month" ? sub : "completed";
+        return sub === "daily-ahead" || sub === "this-week" || sub === "this-month" ? sub : "all";
+    });
+    const [questStatusFilter, setQuestStatusFilter] = useState<QuestStatusFilter>(() => {
+        const status = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_status") : null;
+        return status === "all" || QUEST_STATUS_FILTERS.includes(status as Exclude<QuestStatusFilter, "all">) ? status as QuestStatusFilter : "all";
     });
     const [questExpandedRows, setQuestExpandedRows] = useState<Set<string>>(new Set());
     const [questItemNames, setQuestItemNames] = useState<Record<string, string>>({});
@@ -1136,12 +1160,26 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         const qs = params.toString();
         router.replace(`${window.location.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
     };
-    const handleQuestSubTabChange = (sub: "inprogress" | "completed" | "daily-ahead" | "this-week" | "this-month") => {
+    const handleQuestSubTabChange = (sub: QuestSubTab) => {
         setQuestSubTab(sub);
         const params = new URLSearchParams(Array.from(searchParams.entries()));
         params.set("quest_sub", sub);
         router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
     };
+    const handleQuestStatusFilterChange = (status: QuestStatusFilter) => {
+        setQuestStatusFilter(status);
+        const params = new URLSearchParams(Array.from(searchParams.entries()));
+        status === "all" ? params.delete("quest_status") : params.set("quest_status", status);
+        router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+    };
+    useEffect(() => {
+        const legacySubTab = searchParams.get("quest_sub");
+        if (activeTab !== "quests" || (legacySubTab !== "completed" && legacySubTab !== "inprogress"))
+            return;
+        const params = new URLSearchParams(Array.from(searchParams.entries()));
+        params.set("quest_sub", "all");
+        router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+    }, [activeTab, router, searchParams]);
     useEffect(() => {
         if (activeTab === "items")
             loadItems();
@@ -1920,19 +1958,12 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         <TabsContent value="quests" className="space-y-4">
           {/* Sub-tab navigation */}
           <div className="flex items-center gap-1 border-b pb-0 overflow-x-auto whitespace-nowrap">
-            <button id="tab-quest-completed" onClick={() => handleQuestSubTabChange("completed")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "completed"
+            <button id="tab-quest-all" onClick={() => handleQuestSubTabChange("all")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "all"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              <CheckCircle2 className="h-3.5 w-3.5"/>
-              Completed
-              {questHistory && questHistory.claims_total > 0 && (<span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{questHistory.claims_total}</span>)}
-            </button>
-            <button id="tab-quest-inprogress" onClick={() => handleQuestSubTabChange("inprogress")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "inprogress"
-            ? "border-primary text-foreground"
-            : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              <Clock className="h-3.5 w-3.5"/>
-              In-progress
-              {questHistory && (() => { const n = questHistory.starts.filter(s => s.progress?.status !== "claimed" && s.progress?.status !== "completed").length; return n > 0 ? <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{n}</span> : null; })()}
+              <Trophy id="tab-quest-all-icon" className="h-3.5 w-3.5"/>
+              {t("playerQuestHistory.allQuests")}
+              {questHistory && (<span id="tab-quest-all-count" className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{questHistory.starts_total}</span>)}
             </button>
             <button id="tab-quest-daily-ahead" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead"
             ? "border-primary text-foreground"
@@ -1952,40 +1983,39 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
               <CalendarDays className="h-3.5 w-3.5"/>
               This Month
             </button>
-            <div className="ml-auto">
-              <Button id="btn-refresh-quests" variant="outline" size="icon" onClick={() => (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadSelectedPoolId ? loadDailyAheadPreview(dailyAheadSelectedPoolId) : loadQuestHistory()} disabled={(questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") ? dailyAheadLoading : questLoading} title="Refresh">
-                <RefreshCw className={`h-4 w-4 ${(questSubTab === "daily-ahead" ? dailyAheadLoading : questLoading) ? "animate-spin" : ""}`}/>
-              </Button>
-            </div>
           </div>
 
 
           {questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month" ? (
         /* ── Daily Ahead / Timeframe sub-tabs ── */
         <div className="space-y-4" id="container-quest-timeframe">
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-muted-foreground font-medium">Pool</label>
-                  {dailyAheadPoolsLoading ? (<Skeleton className="h-9 w-48"/>) : dailyAheadPools.length === 0 ? (<p className="text-sm text-muted-foreground">No pools found for this game.</p>) : (<div className="flex items-center gap-1.5">
-                      <Select value={dailyAheadSelectedPoolId} onValueChange={setDailyAheadSelectedPoolId}>
-                        <SelectTrigger className="w-56" id="select-quest-pool">
-                          <SelectValue placeholder="Select pool…"/>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {dailyAheadPools.map(p => (<SelectItem key={p.id} value={p.id}>
-                              {p.display_name}
-                            </SelectItem>))}
-                        </SelectContent>
-                      </Select>
-                      {dailyAheadSelectedPoolId && (<a href={`/games/${gameId}/quests?tab=daily`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors shrink-0" title="Open daily quest pools">
-                          <ArrowUpRight className="h-4 w-4"/>
-                        </a>)}
-                    </div>)}
-                </div>
-                {questSubTab === "daily-ahead" && (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-muted-foreground font-medium">Days ahead</label>
+              <div id="player-quest-timeframe-toolbar" className="flex flex-wrap items-end justify-between gap-3">
+                {game && (<div id="player-quest-timeframe-game-setting" className="flex items-center gap-2 pb-0.5 text-xs text-muted-foreground">
+                    <span id="player-quest-timeframe-game-setting-label">Game setting — max advance days</span>
+                    <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} compact/>
+                    <span id="player-quest-timeframe-game-setting-scope" className="text-muted-foreground/50">· all players</span>
+                  </div>)}
+                <div id={`player-quest-timeframe-filters-${questSubTab}`} className="ml-auto flex flex-wrap items-end justify-end gap-3">
+                  <div id={`player-quest-timeframe-pool-filter-${questSubTab}`} className="flex flex-col gap-1">
+                    <label id={`player-quest-timeframe-pool-label-${questSubTab}`} className="text-xs text-muted-foreground font-medium">Pool</label>
+                    {dailyAheadPoolsLoading ? (<Skeleton className="h-9 w-48"/>) : dailyAheadPools.length === 0 ? (<p className="text-sm text-muted-foreground">No pools found for this game.</p>) : (<div className="flex items-center gap-1.5">
+                        <Select value={dailyAheadSelectedPoolId} onValueChange={setDailyAheadSelectedPoolId}>
+                          <SelectTrigger className="w-56" id="select-quest-pool">
+                            <SelectValue placeholder="Select pool…"/>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dailyAheadPools.map(p => (<SelectItem key={p.id} value={p.id}>
+                                {p.display_name}
+                              </SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                        {dailyAheadSelectedPoolId && (<a href={`/games/${gameId}/quests?tab=daily`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors shrink-0" title="Open daily quest pools">
+                            <ArrowUpRight className="h-4 w-4"/>
+                          </a>)}
+                      </div>)}
+                  </div>
+                  {questSubTab === "daily-ahead" && (<div id="player-quest-timeframe-days-filter" className="flex flex-col gap-1">
+                      <label id="player-quest-timeframe-days-label" className="text-xs text-muted-foreground font-medium">Days ahead</label>
                       <Select value={String(dailyAheadDays)} onValueChange={v => setDailyAheadDays(Number(v))}>
                         <SelectTrigger className="w-24" id="select-quest-days-ahead">
                           <SelectValue />
@@ -1994,16 +2024,11 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                           {[3, 7, 14, 30].map(d => (<SelectItem key={d} value={String(d)}>{d} days</SelectItem>))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  </>
-                )}
-                {game && (<div className="ml-auto flex items-end pb-0.5">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground border-l pl-3">
-                      <span>Game setting — max advance days</span>
-                      <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} compact/>
-                      <span className="text-muted-foreground/50">· all players</span>
-                    </div>
-                  </div>)}
+                    </div>)}
+                  <Button id={`btn-refresh-quests-${questSubTab}`} variant="outline" size="icon" onClick={() => dailyAheadSelectedPoolId && loadDailyAheadPreview(dailyAheadSelectedPoolId)} disabled={dailyAheadLoading || !dailyAheadSelectedPoolId} title={t("common.refresh")}>
+                    <RefreshCw id={`btn-refresh-quests-${questSubTab}-icon`} className={`h-4 w-4 ${dailyAheadLoading ? "animate-spin" : ""}`}/>
+                  </Button>
+                </div>
               </div>
 
               {!dailyAheadSelectedPoolId ? (<div className="p-12 text-center text-muted-foreground">
@@ -2054,7 +2079,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                               {/* Quests */}
                               {hasQuests ? (<ul className="space-y-0.5 flex-1">
                                   {day.quests.map((q) => (<li key={q.assignment.id} className="leading-snug">
-                                      {q.quest?.name ? (<a href={`/games/${gameId}/quests?editQuestId=${q.quest.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-foreground hover:underline group" title={q.quest.name}>
+                                      {q.quest?.name ? (<a href={`/games/${gameId}/quests?q=${q.assignment.quest_definition_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-foreground hover:underline group" title={q.quest.name}>
                                           <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0"/>
                                           <span>{q.quest.name.length > 25 ? q.quest.name.slice(0, 25) + "…" : q.quest.name}</span>
                                           <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"/>
@@ -2080,197 +2105,115 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
               <p className="text-lg font-medium">No quest data</p>
               <p className="text-sm mt-1">Quest history has not been loaded yet.</p>
             </div>) : (<>
-              {/* ── Completed sub-tab: claims + starts that are claimed/completed ── */}
-              {questSubTab === "completed" && (() => {
-                const completedStarts = questHistory.starts.filter(s => s.progress?.status === "claimed" || s.progress?.status === "completed");
-                const totalCompleted = questHistory.claims_total;
-                return (<div className="space-y-4">
-                  <div>
-                    <h2 className="text-lg font-semibold">Completed Quests</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {totalCompleted > 0
-                        ? `${totalCompleted} claim${totalCompleted !== 1 ? "s" : ""}`
-                        : "No completed quests yet"}
-                    </p>
+              {questSubTab === "all" && (() => {
+                const claimedProgressIds = new Set(questHistory.claims.map(claim => claim.progress_id));
+                const rows = [
+                    ...questHistory.claims.map(claim => ({ kind: "claim" as const, id: `claim-${claim.id}`, status: "claimed", timestamp: claim.claimed_at, claim })),
+                    ...questHistory.starts
+                        .filter(start => !claimedProgressIds.has(start.progress.id))
+                        .map(start => ({ kind: "start" as const, id: `start-${start.progress.id}`, status: start.progress.status, timestamp: start.progress.updated_at ?? "", start })),
+                ]
+                    .filter(row => questStatusFilter === "all" || row.status === questStatusFilter)
+                    .sort((left, right) => (Date.parse(right.timestamp) || 0) - (Date.parse(left.timestamp) || 0));
+                return (<div id="player-quest-history-all" className="space-y-4">
+                  <div id="player-quest-history-toolbar" className="flex flex-wrap items-end justify-between gap-3">
+                    <div id="player-quest-history-summary">
+                      <h2 id="player-quest-history-title" className="text-lg font-semibold">{t("playerQuestHistory.allQuests")}</h2>
+                      <p id="player-quest-history-count" className="text-sm text-muted-foreground">{rows.length} {t("playerQuestHistory.records")}</p>
+                    </div>
+                    <div id="player-quest-history-status-filter" className="flex items-center gap-2">
+                      <Select value={questStatusFilter} onValueChange={value => handleQuestStatusFilterChange(value as QuestStatusFilter)}>
+                        <SelectTrigger id="player-quest-history-status-filter-trigger" className="w-44">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent id="player-quest-history-status-filter-content">
+                          <SelectItem id="player-quest-history-status-all" value="all">{t("playerQuestHistory.allStatuses")}</SelectItem>
+                          {QUEST_STATUS_FILTERS.map(status => (<SelectItem id={`player-quest-history-status-${status.replace(/_/g, "-")}`} key={status} value={status}>{t(`playerQuestHistory.statuses.${status}`)}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                      <Button id="btn-refresh-quests-all" variant="outline" size="icon" onClick={loadQuestHistory} disabled={questLoading} title={t("common.refresh")}>
+                        <RefreshCw id="btn-refresh-quests-all-icon" className={`h-4 w-4 ${questLoading ? "animate-spin" : ""}`}/>
+                      </Button>
+                    </div>
                   </div>
-                  <Card>
-                    <CardContent className="p-0">
-                      {questHistory.claims.length === 0 && completedStarts.length === 0 ? (<div className="p-12 text-center text-muted-foreground">
-                          <Star className="h-12 w-12 mx-auto mb-4 opacity-30"/>
-                          <p className="text-lg font-medium">No completed quests</p>
-                          <p className="text-sm mt-1">This player has not completed any quests yet.</p>
+                  <Card id="player-quest-history-card">
+                    <CardContent id="player-quest-history-card-content" className="p-0">
+                      {rows.length === 0 ? (<div id="player-quest-history-empty" className="p-12 text-center text-muted-foreground">
+                          <Trophy id="player-quest-history-empty-icon" className="h-12 w-12 mx-auto mb-4 opacity-30"/>
+                          <p id="player-quest-history-empty-title" className="text-lg font-medium">{t("playerQuestHistory.noQuests")}</p>
+                          <p id="player-quest-history-empty-description" className="text-sm mt-1">{t("playerQuestHistory.noQuestsDescription")}</p>
                         </div>) : (<Table>
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-8"/>
-                              <TableHead>Quest</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Rewards</TableHead>
-                              <TableHead>Claimed At</TableHead>
+                              <TableHead>{t("playerQuestHistory.quest")}</TableHead>
+                              <TableHead>{t("playerQuestHistory.status")}</TableHead>
+                              <TableHead>{t("playerQuestHistory.rewards")}</TableHead>
+                              <TableHead>{t("playerQuestHistory.updatedAt")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {questHistory.claims.map((claim) => {
-                            const expanded = questExpandedRows.has(claim.id);
-                            const rewards = ((claim.rewards_granted ?? []) as any[]).filter(r => r.reward_type === "item" || r.item_definition_id);
-                            return (<Fragment key={claim.id}>
-                                  <TableRow key={claim.id} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleQuestRow(claim.id)}>
-                                    <TableCell className="text-muted-foreground">
-                                      {expanded
-                                    ? <ChevronDown className="h-4 w-4 shrink-0"/>
-                                    : <ChevronRight className="h-4 w-4 shrink-0"/>}
-                                    </TableCell>
+                            {rows.map(row => {
+                            const expanded = questExpandedRows.has(row.id);
+                            if (row.kind === "claim") {
+                                const { claim } = row;
+                                const rewards = ((claim.rewards_granted ?? []) as any[]).filter(reward => reward.reward_type === "item" || reward.item_definition_id);
+                                return (<Fragment key={row.id}>
+                                  <TableRow id={`player-quest-history-row-${row.id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleQuestRow(row.id)}>
+                                    <TableCell className="text-muted-foreground">{expanded ? <ChevronDown className="h-4 w-4 shrink-0"/> : <ChevronRight className="h-4 w-4 shrink-0"/>}</TableCell>
                                     <TableCell className="text-sm font-medium">
-                                      <a href={`/games/${gameId}/quests?editQuestId=${claim.quest_definition_id}`} className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground" onClick={e => e.stopPropagation()}>
+                                      <a id={`player-quest-history-link-${row.id}`} href={`/games/${gameId}/quests?q=${claim.quest_definition_id}`} className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground" onClick={event => event.stopPropagation()}>
                                         {claim.quest_definition?.name || claim.quest_definition_id.slice(0, 8) + "…"}
                                         <ExternalLink className="h-3 w-3 text-muted-foreground"/>
                                       </a>
                                     </TableCell>
-                                    <TableCell>
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize bg-green-500/10 text-green-500 border-green-500/30">
-                                        claimed
-                                      </span>
-                                    </TableCell>
-                                    <TableCell className="text-sm">
-                                      {rewards.length > 0 ? (<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border bg-muted/50">
-                                          {rewards.length} reward{rewards.length !== 1 ? "s" : ""}
-                                        </span>) : (<span className="text-muted-foreground text-xs">—</span>)}
-                                    </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                                      {formatISODate(claim.claimed_at)}
-                                    </TableCell>
+                                    <TableCell><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getQuestStatusBadgeClass(row.status)}`}>{t("playerQuestHistory.statuses.claimed")}</span></TableCell>
+                                    <TableCell className="text-sm">{rewards.length > 0 ? (<span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border bg-muted/50">{rewards.length} {t("playerQuestHistory.rewards")}</span>) : (<span className="text-muted-foreground text-xs">—</span>)}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatISODate(claim.claimed_at)}</TableCell>
                                   </TableRow>
-                                  {expanded && (<TableRow key={`${claim.id}-detail`} className="bg-muted/20 hover:bg-muted/20">
+                                  {expanded && (<TableRow id={`player-quest-history-detail-${row.id}`} className="bg-muted/20 hover:bg-muted/20">
                                       <TableCell />
                                       <TableCell colSpan={4} className="py-3">
                                         <div className="space-y-3">
                                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <ClaimMetaPanel claim={claim}/>
                                             {rewards.length > 0 ? (<div className="space-y-2">
-                                                <p className="text-xs font-semibold text-muted-foreground uppercase">Rewards Granted</p>
-                                                <div className="flex flex-wrap gap-2">
-                                                  {rewards.map((r: any, i: number) => (<RewardPill key={i} reward={r} gameId={gameId} itemNames={questItemNames}/>))}
-                                                </div>
+                                                <p className="text-xs font-semibold text-muted-foreground uppercase">{t("playerQuestHistory.rewardsGranted")}</p>
+                                                <div className="flex flex-wrap gap-2">{rewards.map((reward: any, index: number) => (<RewardPill key={index} reward={reward} gameId={gameId} itemNames={questItemNames}/>))}</div>
                                               </div>) : <div />}
                                           </div>
                                           <hr className="border-border/60"/>
-                                          <QuestDefinitionPanel quest={(claim as any).quest_definition} gameId={gameId} itemNames={questItemNames}/>
+                                          <QuestDefinitionPanel quest={claim.quest_definition} gameId={gameId} itemNames={questItemNames}/>
                                         </div>
                                       </TableCell>
                                     </TableRow>)}
                                 </Fragment>);
-                        })}
-                            {completedStarts.map((start, idx) => {
-                            const rowId = start.progress?.id ?? `cs-${idx}`;
-                            const expanded = questExpandedRows.has(rowId);
-                            return (<Fragment key={rowId}>
-                                  <TableRow key={rowId} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleQuestRow(rowId)}>
-                                    <TableCell className="text-muted-foreground">
-                                      {expanded
-                                    ? <ChevronDown className="h-4 w-4 shrink-0"/>
-                                    : <ChevronRight className="h-4 w-4 shrink-0"/>}
-                                    </TableCell>
-                                    <TableCell className="text-sm font-medium">
-                                      {start.quest?.id ? (<a href={`/games/${gameId}/quests?editQuestId=${start.quest.id}`} className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground" onClick={e => e.stopPropagation()}>
-                                          {start.quest.name || start.quest.id.slice(0, 8) + "…"}
-                                          <ExternalLink className="h-3 w-3 text-muted-foreground"/>
-                                        </a>) : <span className="text-muted-foreground">—</span>}
-                                    </TableCell>
-                                    <TableCell>
-                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${start.progress?.status === "claimed"
-                                    ? "bg-green-500/10 text-green-500 border-green-500/30"
-                                    : "bg-blue-500/10 text-blue-400 border-blue-400/30"}`}>
-                                        {start.progress?.status || "—"}
-                                      </span>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">—</TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">—</TableCell>
-                                  </TableRow>
-                                  {expanded && (<TableRow key={`${rowId}-detail`} className="bg-muted/20 hover:bg-muted/20">
-                                      <TableCell />
-                                      <TableCell colSpan={4} className="py-3">
-                                        <div className="space-y-3">
-                                          <ProgressMetaPanel progress={start.progress} gameId={gameId}/>
-                                          {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 && (<div>
-                                              <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId}/>
-                                            </div>)}
-                                          <QuestDefinitionPanel quest={start.quest} gameId={gameId} itemNames={questItemNames}/>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>)}
-                                </Fragment>);
-                        })}
-                          </TableBody>
-                        </Table>)}
-                    </CardContent>
-                  </Card>
-                </div>);
-            })()}
-
-              {/* ── In-progress sub-tab: starts that are NOT claimed/completed ── */}
-              {questSubTab === "inprogress" && (() => {
-                const activeStarts = questHistory.starts.filter(s => s.progress?.status !== "claimed" && s.progress?.status !== "completed");
-                return (<div className="space-y-4">
-                  <div>
-                    <h2 className="text-lg font-semibold">In-progress Quests</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {activeStarts.length > 0
-                        ? `${activeStarts.length} quest${activeStarts.length !== 1 ? "s" : ""} in progress`
-                        : "No quests in progress"}
-                    </p>
-                  </div>
-                  <Card>
-                    <CardContent className="p-0">
-                      {activeStarts.length === 0 ? (<div className="p-12 text-center text-muted-foreground">
-                          <Trophy className="h-12 w-12 mx-auto mb-4 opacity-30"/>
-                          <p className="text-lg font-medium">No quests in progress</p>
-                          <p className="text-sm mt-1">This player has no active quests.</p>
-                        </div>) : (<Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-8"/>
-                              <TableHead>Quest</TableHead>
-                              <TableHead>Status</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {activeStarts.map((start, idx) => {
-                            const rowId = start.progress?.id ?? `ip-${idx}`;
-                            const expanded = questExpandedRows.has(rowId);
-                            return (<Fragment key={rowId}>
-                                  <TableRow key={rowId} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleQuestRow(rowId)}>
-                                    <TableCell className="text-muted-foreground">
-                                      {expanded
-                                    ? <ChevronDown className="h-4 w-4 shrink-0"/>
-                                    : <ChevronRight className="h-4 w-4 shrink-0"/>}
-                                    </TableCell>
-                                    <TableCell className="text-sm font-medium">
-                                      {start.quest?.id ? (<a href={`/games/${gameId}/quests?editQuestId=${start.quest.id}`} className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground" onClick={e => e.stopPropagation()}>
-                                          {start.quest.name || start.quest.id.slice(0, 8) + "…"}
-                                          <ExternalLink className="h-3 w-3 text-muted-foreground"/>
-                                        </a>) : <span className="text-muted-foreground">—</span>}
-                                    </TableCell>
-                                    <TableCell>
-                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${start.progress?.status === "failed"
-                                    ? "bg-red-500/10 text-red-400 border-red-400/30"
-                                    : "bg-muted/50 text-muted-foreground border-border"}`}>
-                                        {start.progress?.status || "—"}
-                                      </span>
-                                    </TableCell>
-                                  </TableRow>
-                                  {expanded && (<TableRow key={`${rowId}-detail`} className="bg-muted/20 hover:bg-muted/20">
-                                      <TableCell />
-                                      <TableCell colSpan={2} className="py-3">
-                                        <div className="space-y-3">
-                                          <ProgressMetaPanel progress={start.progress} gameId={gameId}/>
-                                          {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 && (<div>
-                                              <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId}/>
-                                            </div>)}
-                                          <QuestDefinitionPanel quest={start.quest} gameId={gameId} itemNames={questItemNames}/>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>)}
-                                </Fragment>);
+                            }
+                            const { start } = row;
+                            return (<Fragment key={row.id}>
+                              <TableRow id={`player-quest-history-row-${row.id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleQuestRow(row.id)}>
+                                <TableCell className="text-muted-foreground">{expanded ? <ChevronDown className="h-4 w-4 shrink-0"/> : <ChevronRight className="h-4 w-4 shrink-0"/>}</TableCell>
+                                <TableCell className="text-sm font-medium">
+                                  <a id={`player-quest-history-link-${row.id}`} href={`/games/${gameId}/quests?q=${start.progress.quest_definition_id}`} className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground" onClick={event => event.stopPropagation()}>
+                                    {start.quest?.name || start.progress.quest_definition_id.slice(0, 8) + "…"}
+                                    <ExternalLink className="h-3 w-3 text-muted-foreground"/>
+                                  </a>
+                                </TableCell>
+                                <TableCell><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getQuestStatusBadgeClass(row.status)}`}>{t(`playerQuestHistory.statuses.${row.status}`)}</span></TableCell>
+                                <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{start.progress.updated_at ? formatISODate(start.progress.updated_at) : "—"}</TableCell>
+                              </TableRow>
+                              {expanded && (<TableRow id={`player-quest-history-detail-${row.id}`} className="bg-muted/20 hover:bg-muted/20">
+                                  <TableCell />
+                                  <TableCell colSpan={4} className="py-3">
+                                    <div className="space-y-3">
+                                      <ProgressMetaPanel progress={start.progress} gameId={gameId}/>
+                                      {start.progress.progress_data && Object.keys(start.progress.progress_data).length > 0 && (<div><QuestProgressDisplay data={start.progress.progress_data} gameId={gameId}/></div>)}
+                                      <QuestDefinitionPanel quest={start.quest} gameId={gameId} itemNames={questItemNames}/>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>)}
+                            </Fragment>);
                         })}
                           </TableBody>
                         </Table>)}

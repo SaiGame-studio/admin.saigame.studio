@@ -80,6 +80,27 @@
     "content": "Nội dung",
     "stop": "Dừng"
   },
+  "playerQuestHistory": {
+    "allQuests": "Tất cả nhiệm vụ",
+    "records": "bản ghi nhiệm vụ",
+    "status": "Trạng thái",
+    "allStatuses": "Tất cả trạng thái",
+    "quest": "Nhiệm vụ",
+    "rewards": "Phần thưởng",
+    "updatedAt": "Cập nhật lúc",
+    "rewardsGranted": "Phần thưởng đã nhận",
+    "noQuests": "Không tìm thấy nhiệm vụ",
+    "noQuestsDescription": "Không có bản ghi nhiệm vụ phù hợp với trạng thái đã chọn.",
+    "statuses": {
+      "in_progress": "Đang thực hiện",
+      "completed": "Đã hoàn thành",
+      "claimed": "Đã nhận thưởng",
+      "cancelled": "Đã hủy",
+      "locked": "Đã khóa",
+      "expired": "Đã hết hạn",
+      "not_started": "Chưa bắt đầu"
+    }
+  },
   "shop": {
     "title": "Cửa hàng Game",
     "listDesc": "Danh sách tất cả cửa hàng của game:",
