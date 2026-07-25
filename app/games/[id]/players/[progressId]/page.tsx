@@ -24,6 +24,7 @@ import { EquipmentsTab } from "@/components/EquipmentsTab";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 // ── Quest progress data pretty-printer ──────────────────────────────────────
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type ResolvedEntity = {
@@ -686,6 +687,23 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     });
     const [questExpandedRows, setQuestExpandedRows] = useState<Set<string>>(new Set());
     const [questItemNames, setQuestItemNames] = useState<Record<string, string>>({});
+    const [maxAdvanceDaysHelpHovered, setMaxAdvanceDaysHelpHovered] = useState(false);
+    const [maxAdvanceDaysHelpPinned, setMaxAdvanceDaysHelpPinned] = useState(false);
+    const maxAdvanceDaysHelpTriggerRef = useRef<HTMLButtonElement>(null);
+    const maxAdvanceDaysHelpContentRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!maxAdvanceDaysHelpPinned)
+            return;
+        const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target as Node;
+            if (maxAdvanceDaysHelpTriggerRef.current?.contains(target) || maxAdvanceDaysHelpContentRef.current?.contains(target))
+                return;
+            setMaxAdvanceDaysHelpPinned(false);
+            setMaxAdvanceDaysHelpHovered(false);
+        };
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+    }, [maxAdvanceDaysHelpPinned]);
     // Daily Ahead sub-tab
     const [dailyAheadPools, setDailyAheadPools] = useState<DailyQuestPool[]>([]);
     const [dailyAheadPoolsLoading, setDailyAheadPoolsLoading] = useState(false);
@@ -1990,10 +2008,34 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         /* ── Daily Ahead / Timeframe sub-tabs ── */
         <div className="space-y-4" id="container-quest-timeframe">
               <div id="player-quest-timeframe-toolbar" className="flex flex-wrap items-end justify-between gap-3">
-                {game && (<div id="player-quest-timeframe-game-setting" className="flex items-center gap-2 pb-0.5 text-xs text-muted-foreground">
-                    <span id="player-quest-timeframe-game-setting-label">Game setting — max advance days</span>
-                    <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} compact/>
-                    <span id="player-quest-timeframe-game-setting-scope" className="text-muted-foreground/50">· all players</span>
+                {game && questSubTab === "daily-ahead" && (<div id="player-quest-timeframe-game-setting" className="flex flex-col items-start gap-0.5 pb-0.5 text-xs text-muted-foreground">
+                    <div id="player-quest-timeframe-game-setting-control" className="flex items-center gap-2">
+                      <span id="player-quest-timeframe-game-setting-label">Game setting — max advance days</span>
+                      <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} compact/>
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip open={maxAdvanceDaysHelpHovered || maxAdvanceDaysHelpPinned} onOpenChange={open => {
+                            if (!maxAdvanceDaysHelpPinned)
+                                setMaxAdvanceDaysHelpHovered(open);
+                        }}>
+                          <TooltipTrigger asChild>
+                            <button ref={maxAdvanceDaysHelpTriggerRef} id="player-quest-timeframe-game-setting-help" type="button" className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground" aria-label={`${t("playerQuestHistory.maxAdvanceDaysScope")} ${t("playerQuestHistory.maxAdvanceDaysNote")}`} aria-expanded={maxAdvanceDaysHelpHovered || maxAdvanceDaysHelpPinned} onClick={() => {
+                                if (maxAdvanceDaysHelpPinned) {
+                                    setMaxAdvanceDaysHelpPinned(false);
+                                    setMaxAdvanceDaysHelpHovered(false);
+                                    return;
+                                }
+                                setMaxAdvanceDaysHelpPinned(true);
+                            }}>
+                              <HelpCircle id="player-quest-timeframe-game-setting-help-icon" className="h-3.5 w-3.5"/>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent ref={maxAdvanceDaysHelpContentRef} id="player-quest-timeframe-game-setting-tooltip" side="top" className="max-w-xs space-y-1 text-xs">
+                            <p id="player-quest-timeframe-game-setting-tooltip-scope" className="font-semibold">{t("playerQuestHistory.maxAdvanceDaysScope")}</p>
+                            <p id="player-quest-timeframe-game-setting-tooltip-note">{t("playerQuestHistory.maxAdvanceDaysNote")}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </div>)}
                 <div id={`player-quest-timeframe-filters-${questSubTab}`} className="ml-auto flex flex-wrap items-end justify-end gap-3">
                   <div id={`player-quest-timeframe-pool-filter-${questSubTab}`} className="flex flex-col gap-1">

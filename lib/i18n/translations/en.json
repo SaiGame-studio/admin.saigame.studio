@@ -85,6 +85,8 @@
     "records": "quest records",
     "status": "Status",
     "allStatuses": "All statuses",
+    "maxAdvanceDaysScope": "Applies to all players.",
+    "maxAdvanceDaysNote": "Limits how many future days daily quests can be pre-assigned. It does not limit the calendar view.",
     "quest": "Quest",
     "rewards": "Rewards",
     "updatedAt": "Updated At",

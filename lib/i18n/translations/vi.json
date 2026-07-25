@@ -85,6 +85,8 @@
     "records": "bản ghi nhiệm vụ",
     "status": "Trạng thái",
     "allStatuses": "Tất cả trạng thái",
+    "maxAdvanceDaysScope": "Áp dụng cho tất cả người chơi.",
+    "maxAdvanceDaysNote": "Giới hạn số ngày tương lai có thể tạo trước nhiệm vụ hằng ngày. Không giới hạn phạm vi lịch đang xem.",
     "quest": "Nhiệm vụ",
     "rewards": "Phần thưởng",
     "updatedAt": "Cập nhật lúc",

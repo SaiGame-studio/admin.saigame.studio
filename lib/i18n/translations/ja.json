@@ -85,6 +85,8 @@
     "records": "件のクエスト記録",
     "status": "ステータス",
     "allStatuses": "すべてのステータス",
+    "maxAdvanceDaysScope": "すべてのプレイヤーに適用されます。",
+    "maxAdvanceDaysNote": "デイリークエストを事前割り当てできる将来の日数を制限します。カレンダーの表示範囲は制限しません。",
     "quest": "クエスト",
     "rewards": "報酬",
     "updatedAt": "更新日時",
