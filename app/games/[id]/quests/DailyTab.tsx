@@ -25,7 +25,7 @@ import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Game } from "@/types/game";
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays";
-import { listDailyQuestPools, getDailyQuestPool, listPoolQuests, createDailyQuestPool, updateDailyQuestPool, updateQuestDefinition, addQuestToPool, removeQuestFromPool, listQuestDefinitions, type DailyQuestPool, type DailyQuestPoolQuest, type CreateDailyQuestPoolRequest, type UpdateDailyQuestPoolRequest, type AddQuestToPoolRequest, type AssignmentStrategy, type QuestDefinition, } from "@/lib/quest-api";
+import { listDailyQuestPools, getDailyQuestPool, listPoolQuests, createDailyQuestPool, updateDailyQuestPool, deleteDailyQuestPool, updateQuestDefinition, addQuestToPool, removeQuestFromPool, listQuestDefinitions, type DailyQuestPool, type DailyQuestPoolQuest, type CreateDailyQuestPoolRequest, type UpdateDailyQuestPoolRequest, type AddQuestToPoolRequest, type AssignmentStrategy, type QuestDefinition, } from "@/lib/quest-api";
 // ─── Strategy Grid Illustration ─────────────────────────────────────────────
 const QUEST_COLORS = [
     { bg: "bg-blue-500/80", text: "text-blue-600", light: "bg-blue-100 dark:bg-blue-900/40", border: "border-blue-400" },
@@ -326,9 +326,11 @@ export function DailyTab({ game, onGameUpdate }: {
     const [expandedLoading, setExpandedLoading] = useState(false);
     // Quest definitions lookup (for displaying quest names in pool)
     const [questDefsMap, setQuestDefsMap] = useState<Record<string, QuestDefinition>>({});
-    // Pool create / edit
+    // Pool create / edit / delete
     const [createOpen, setCreateOpen] = useState(false);
     const [editPool, setEditPool] = useState<DailyQuestPool | null>(null);
+    const [deletePool, setDeletePool] = useState<DailyQuestPool | null>(null);
+    const [deletingPool, setDeletingPool] = useState(false);
     const [poolForm, setPoolForm] = useState<CreateDailyQuestPoolRequest>({
         pool_key: "",
         display_name: "",
@@ -515,6 +517,37 @@ export function DailyTab({ game, onGameUpdate }: {
             setPoolSaving(false);
         }
     };
+
+    // ── Delete pool ───────────────────────────────────────────────────────────
+    const handleDeletePool = async () => {
+        if (!deletePool) return;
+        setDeletingPool(true);
+        try {
+            await deleteDailyQuestPool(studioId, gameId, deletePool.id);
+            toast({ title: t('quest.daily.poolDeleted') });
+            setDeletePool(null);
+            if (expandedPoolId === deletePool.id) {
+                setExpandedPoolId(null);
+                setExpandedPool(null);
+                setExpandedQuests([]);
+            }
+            await loadPools();
+        } catch (e) {
+            let msg = t('quest.daily.failedDeletePool');
+            if (e instanceof ApiError) {
+                if (e.data?.message_code === "err_daily_quest_pool_not_empty") {
+                    msg = t('quest.daily.errPoolNotEmpty');
+                } else if (e.data?.message_code === "err_daily_quest_pool_not_found") {
+                    msg = t('quest.daily.errPoolNotFound');
+                } else {
+                    msg = e.message;
+                }
+            }
+            toast({ variant: "destructive", title: t('common.error'), description: msg });
+        } finally {
+            setDeletingPool(false);
+        }
+    };
     // ── Toggle active ─────────────────────────────────────────────────────────
     const handleToggleActive = async (pool: DailyQuestPool) => {
         try {
@@ -679,6 +712,9 @@ export function DailyTab({ game, onGameUpdate }: {
                       <Switch id={`daily-pool-active-toggle-${pool.id}`} className="daily-pool-active-toggle" checked={pool.is_active} onCheckedChange={() => handleToggleActive(pool)} aria-label="Toggle active"/>
                       <Button id={`daily-pool-edit-btn-${pool.id}`} className="daily-pool-edit-btn h-8 w-8" variant="ghost" size="icon" onClick={() => openEdit(pool)}>
                         <Pencil className="h-4 w-4"/>
+                      </Button>
+                      <Button id={`daily-pool-delete-btn-${pool.id}`} className="daily-pool-delete-btn h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" variant="ghost" size="icon" onClick={() => setDeletePool(pool)}>
+                        <Trash2 className="h-4 w-4"/>
                       </Button>
                     </div>
                   </div>
@@ -1044,6 +1080,27 @@ export function DailyTab({ game, onGameUpdate }: {
             <AlertDialogAction id="daily-pool-quest-remove-confirm-btn" onClick={handleRemoveQuest} disabled={removeQuestDeleting} className="daily-pool-quest-remove-confirm-btn bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {removeQuestDeleting && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
               {t('common.remove')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+      {/* ─── Delete Pool Confirm ─────────────────────────────────────────── */}
+      <AlertDialog open={!!deletePool} onOpenChange={(o) => {
+            if (!o) setDeletePool(null);
+        }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Pool</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deletePool?.display_name}</strong>? This action cannot be undone. Only empty pools without any generated progress can be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel id="daily-pool-delete-cancel-btn" className="daily-pool-delete-cancel-btn" disabled={deletingPool}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction id="daily-pool-delete-confirm-btn" onClick={handleDeletePool} disabled={deletingPool} className="daily-pool-delete-confirm-btn bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingPool && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
+              {t('common.delete', 'Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -421,3 +421,7 @@ export async function getPlayerDailyQuestAheadPreview(studioId: string, gameId: 
     const query = qs.toString() ? `?${qs}` : '';
     return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/players/${playerId}/assign-ahead${query}`);
 }
+
+export async function deleteDailyQuestPool(studioId: string, gameId: string, poolId: string): Promise<void> {
+    return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}`);
+}
