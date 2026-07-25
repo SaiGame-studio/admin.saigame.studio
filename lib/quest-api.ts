@@ -423,6 +423,21 @@ export async function getPlayerDailyQuestAheadPreview(studioId: string, gameId: 
     return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/players/${playerId}/assign-ahead${query}`);
 }
 
+/**
+ * GET /api/v1/studios/{studio_id}/games/{game_id}/daily-quest-pools/{pool_id}/players/{player_id}/assigned-timeframe
+ * Read-only. Returns quests assigned within a specific timeframe.
+ */
+export async function getPlayerDailyQuestTimeframe(studioId: string, gameId: string, poolId: string, playerId: string, params: {
+    start_date: string;
+    end_date: string;
+}): Promise<DailyQuestFuturePreview> {
+    const qs = new URLSearchParams();
+    qs.set('start_date', params.start_date);
+    qs.set('end_date', params.end_date);
+    const query = `?${qs.toString()}`;
+    return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/players/${playerId}/assigned-timeframe${query}`);
+}
+
 export async function deleteDailyQuestPool(studioId: string, gameId: string, poolId: string): Promise<void> {
     return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}`);
 }
