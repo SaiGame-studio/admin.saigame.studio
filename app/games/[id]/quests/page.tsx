@@ -601,9 +601,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const searchParams = useSearchParams();
     const { toast } = useToast();
     const [quests, setQuests] = useState<QuestDefinition[]>([]);
+    const [totalQuests, setTotalQuests] = useState(0);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [hasNextPage, setHasNextPage] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null);
     // Item definitions for expanded row display
     const [rowItemDefs, setRowItemDefs] = useState<ItemDefinition[]>([]);
@@ -623,7 +626,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             .catch(() => setRowGachaPacks([]));
     }, [gameId]);
     // Pagination
-    const offset = 0;
     const limit = 50;
     // Dialogs
     const [createOpen, setCreateOpen] = useState(false);
@@ -752,31 +754,49 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || sortBy !== "updated_at" || sortOrder !== "desc";
     const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setSortBy("updated_at"); setSortOrder("desc"); };
     // ── Data loading ─────────────────────────────────────────────────────────────
-    const loadQuests = useCallback(async (off = 0) => {
+    const loadQuests = useCallback(async (after?: string) => {
         if (!game)
             return;
         try {
             const res = await listQuestDefinitions(game.studio_id, gameId, {
                 status: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
                 limit,
-                offset: off,
+                after,
                 sort_by: sortBy,
                 order: sortOrder,
             });
-            setQuests(res.quests ?? []);
+            const newQuests = res.quests ?? [];
+            if (after) {
+                setQuests((prev) => [...prev, ...newQuests]);
+            } else {
+                setQuests(newQuests);
+            }
+            if (res.total !== undefined) {
+                setTotalQuests(res.total);
+            }
+            setHasNextPage(newQuests.length === limit);
         }
         catch (e) {
             const msg = e instanceof ApiError ? e.message : "Failed to load quest definitions";
             setError(msg);
         }
     }, [game, gameId, limit, filterActive, sortBy, sortOrder]);
+    
     useEffect(() => {
         if (!game)
             return;
         setLoading(true);
         setError(null);
-        loadQuests(0).finally(() => setLoading(false));
+        loadQuests().finally(() => setLoading(false));
     }, [game, loadQuests]);
+    
+    const handleLoadMore = useCallback(async () => {
+        if (loadingMore || !hasNextPage || quests.length === 0) return;
+        setLoadingMore(true);
+        const lastQuestId = quests[quests.length - 1].id;
+        await loadQuests(lastQuestId);
+        setLoadingMore(false);
+    }, [loadingMore, hasNextPage, quests, loadQuests]);
     // ── Edit ─────────────────────────────────────────────────────────────────────
     const openEdit = useCallback(async (q: QuestDefinition, draft?: Partial<QuestDefinitionForm>, turnContext?: {
         turnId: string;
@@ -1541,7 +1561,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
       {!loading && (<div className="flex flex-wrap items-center gap-2">
           <p className="text-sm text-muted-foreground mr-auto">
             {quests.length > 0
-                ? `${filteredQuests.length} ${t('quest.ofQuests')} ${quests.length} ${quests.length !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
+                ? `${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
                 : `0 ${t('quest.questDefinitions')}`}
           </p>
           <div className="relative min-w-[200px] max-w-xs">
@@ -1808,6 +1828,23 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                   </React.Fragment>))}
               </TableBody>
             </Table>)}
+          {quests.length > 0 && !loading && (
+            <div className="p-4 flex flex-col items-center justify-center border-t gap-3">
+              {hasNextPage && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleLoadMore} 
+                  disabled={loadingMore}
+                >
+                  {loadingMore && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {t('common.loadMore')}
+                </Button>
+              )}
+              <p className="text-sm text-muted-foreground">
+                {`${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

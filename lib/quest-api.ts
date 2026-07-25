@@ -128,7 +128,7 @@ export async function listQuestConditionTypes(gameId: string): Promise<ListQuest
 export async function listQuestDefinitions(studioId: string, gameId: string, params?: {
     status?: boolean;
     limit?: number;
-    offset?: number;
+    after?: string;
     sort_by?: string;
     order?: string;
 }): Promise<ListQuestDefinitionsResponse> {
@@ -137,8 +137,8 @@ export async function listQuestDefinitions(studioId: string, gameId: string, par
         qs.set('status', String(params.status));
     if (params?.limit !== undefined)
         qs.set('limit', String(params.limit));
-    if (params?.offset !== undefined)
-        qs.set('offset', String(params.offset));
+    if (params?.after !== undefined)
+        qs.set('after', params.after);
     if (params?.sort_by)
         qs.set('sort_by', params.sort_by);
     if (params?.order)
