@@ -26,6 +26,7 @@ import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PlayerQuestHistorySearch } from "./PlayerQuestHistorySearch";
+import { QuestStatusIcon } from "./QuestStatusIcon";
 // ── Quest progress data pretty-printer ──────────────────────────────────────
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type ResolvedEntity = {
@@ -328,11 +329,14 @@ function ProgressMetaPanel({ progress, gameId, idPrefix }: {
             {progress.user_id && <IdField label="user_id" value={progress.user_id}/>}
             {progress.quest_definition_id && <IdField label="quest_definition_id" value={progress.quest_definition_id}/>}
           </div>
-          {status && (<span id={`${idPrefix}-status`} className={`player-quest-progress-status inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize ${status === "claimed" || status === "completed"
+          {status && (<span id={`${idPrefix}-status`} className={`player-quest-progress-status inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize ${status === "claimed" || status === "completed"
                 ? "bg-green-500/10 text-green-500 border-green-500/30"
                 : status === "failed"
                     ? "bg-red-500/10 text-red-400 border-red-400/30"
-                    : "bg-blue-500/10 text-blue-400 border-blue-400/30"}`}>{status}</span>)}
+                    : "bg-blue-500/10 text-blue-400 border-blue-400/30"}`}>
+              <QuestStatusIcon id={`${idPrefix}-status-icon`} status={status} className="h-3 w-3 shrink-0"/>
+              {status}
+            </span>)}
         </div>
         <div id={`${idPrefix}-timeline-column`} className="player-quest-progress-timeline-column flex flex-col gap-1">
           {progress.version != null && <InfoField label="version" value={progress.version}/>}
@@ -693,6 +697,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     });
     const [questSearch, setQuestSearch] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_q") ?? "" : "");
     const [questSearchQuery, setQuestSearchQuery] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_q")?.trim() ?? "" : "");
+    const questHistorySearchQuery = questSubTab === "all" ? questSearchQuery : "";
     const [questExpandedRows, setQuestExpandedRows] = useState<Set<string>>(new Set());
     const [questItemNames, setQuestItemNames] = useState<Record<string, string>>({});
     const [maxAdvanceDaysHelpHovered, setMaxAdvanceDaysHelpHovered] = useState(false);
@@ -986,7 +991,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         setQuestError(null);
         setQuestExpandedRows(new Set());
         try {
-            const res = await getPlayerQuestHistory(game.studio_id, gameId, detail.user_id, { limit: QUEST_LIMIT, q: questSearchQuery || undefined });
+            const res = await getPlayerQuestHistory(game.studio_id, gameId, detail.user_id, { limit: QUEST_LIMIT, q: questHistorySearchQuery || undefined });
             setQuestHistory({
                 ...res,
                 claims: res.claims ?? [],
@@ -1050,7 +1055,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         finally {
             setQuestLoading(false);
         }
-    }, [game, gameId, detail, questSearchQuery]);
+    }, [game, gameId, detail, questHistorySearchQuery]);
     const loadDailyAheadPools = useCallback(async () => {
         if (!game?.studio_id)
             return;
@@ -1188,8 +1193,10 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     };
     const handleQuestSubTabChange = (sub: QuestSubTab) => {
         setQuestSubTab(sub);
-        const params = new URLSearchParams(Array.from(searchParams.entries()));
-        params.set("quest_sub", sub);
+        setQuestSearch("");
+        setQuestSearchQuery("");
+        setQuestStatusFilter("all");
+        const params = new URLSearchParams({ tab: "quests", quest_sub: sub });
         router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
     };
     const handleQuestStatusFilterChange = (status: QuestStatusFilter) => {
@@ -2141,13 +2148,22 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                               {hasQuests ? (<ul className="space-y-0.5 flex-1">
                                   {day.quests.map((q) => {
                                   const isQuestHistoryTimeframe = questSubTab === "this-week" || questSubTab === "this-month";
-                                  const questProgressInstanceId = q.progress?.id;
-                                  const questHref = isQuestHistoryTimeframe && questProgressInstanceId
-                                      ? `/games/${gameId}/players/${progressId}?tab=quests&quest_sub=all&quest_q=${encodeURIComponent(questProgressInstanceId)}`
+                                  const assignmentResetAt = Date.parse(q.assignment.expires_at);
+                                  const matchingHistoryProgress = questHistory?.starts.find(({ progress }) => {
+                                      const progressResetAt = typeof progress.reset_at === "string" ? Date.parse(progress.reset_at) : Number.NaN;
+                                      return progress.quest_definition_id === q.assignment.quest_definition_id && progressResetAt === assignmentResetAt;
+                                  })?.progress;
+                                  const questProgressInstanceId = q.progress?.id ?? matchingHistoryProgress?.id;
+                                  const questStatus = matchingHistoryProgress?.status ?? q.status;
+                                  const questHistoryHref = `/games/${gameId}/players/${progressId}?tab=quests&quest_sub=all${questProgressInstanceId ? `&quest_q=${encodeURIComponent(questProgressInstanceId)}` : ""}`;
+                                  const questHref = isQuestHistoryTimeframe
+                                      ? questHistoryHref
                                       : `/games/${gameId}/quests?q=${encodeURIComponent(q.assignment.quest_definition_id)}`;
                                   return (<li id={`player-quest-timeframe-item-${q.assignment.id}`} key={q.assignment.id} className="leading-snug">
                                       {q.quest?.name ? (<a id={`player-quest-timeframe-link-${q.assignment.id}`} href={questHref} target={isQuestHistoryTimeframe ? undefined : "_blank"} rel={isQuestHistoryTimeframe ? undefined : "noopener noreferrer"} className="inline-flex items-center gap-0.5 text-foreground hover:underline group" title={q.quest.name}>
-                                          <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0"/>
+                                          {isQuestHistoryTimeframe
+                                            ? <QuestStatusIcon id={`player-quest-timeframe-status-${q.assignment.id}-icon`} status={questStatus} className="h-3 w-3 shrink-0"/>
+                                            : <span id={`player-quest-timeframe-dot-${q.assignment.id}`} className="h-1.5 w-1.5 rounded-full bg-primary shrink-0"/>}
                                           <span>{q.quest.name.length > 25 ? q.quest.name.slice(0, 25) + "…" : q.quest.name}</span>
                                           {!isQuestHistoryTimeframe && <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"/>}
                                         </a>) : (<span className="text-muted-foreground font-mono">
@@ -2195,11 +2211,26 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                       <div id="player-quest-history-status-filter" className="flex items-center gap-2">
                         <Select value={questStatusFilter} onValueChange={value => handleQuestStatusFilterChange(value as QuestStatusFilter)}>
                         <SelectTrigger id="player-quest-history-status-filter-trigger" className="w-44">
-                          <SelectValue />
+                          <SelectValue>
+                            <span id="player-quest-history-status-filter-value" className="inline-flex items-center gap-2">
+                              <QuestStatusIcon id={`player-quest-history-status-filter-value-${questStatusFilter.replace(/_/g, "-")}-icon`} status={questStatusFilter}/>
+                              {questStatusFilter === "all" ? t("playerQuestHistory.allStatuses") : t(`playerQuestHistory.statuses.${questStatusFilter}`)}
+                            </span>
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent id="player-quest-history-status-filter-content">
-                          <SelectItem id="player-quest-history-status-all" value="all">{t("playerQuestHistory.allStatuses")}</SelectItem>
-                          {QUEST_STATUS_FILTERS.map(status => (<SelectItem id={`player-quest-history-status-${status.replace(/_/g, "-")}`} key={status} value={status}>{t(`playerQuestHistory.statuses.${status}`)}</SelectItem>))}
+                          <SelectItem id="player-quest-history-status-all" value="all">
+                            <span id="player-quest-history-status-all-label" className="inline-flex items-center gap-2">
+                              <QuestStatusIcon id="player-quest-history-status-all-icon" status="all"/>
+                              {t("playerQuestHistory.allStatuses")}
+                            </span>
+                          </SelectItem>
+                          {QUEST_STATUS_FILTERS.map(status => (<SelectItem id={`player-quest-history-status-${status.replace(/_/g, "-")}`} key={status} value={status}>
+                              <span id={`player-quest-history-status-${status.replace(/_/g, "-")}-label`} className="inline-flex items-center gap-2">
+                                <QuestStatusIcon id={`player-quest-history-status-${status.replace(/_/g, "-")}-icon`} status={status}/>
+                                {t(`playerQuestHistory.statuses.${status}`)}
+                              </span>
+                            </SelectItem>))}
                         </SelectContent>
                         </Select>
                         <Button id="btn-refresh-quests-all" variant="outline" size="icon" onClick={loadQuestHistory} disabled={questLoading} title={t("common.refresh")}>
@@ -2241,7 +2272,10 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                       </a>
                                     </TableCell>
                                     <TableCell id={`player-quest-history-type-${row.id}`} className="player-quest-history-type capitalize text-muted-foreground">{claim.quest_definition?.quest_type || "—"}</TableCell>
-                                    <TableCell><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getQuestStatusBadgeClass(row.status)}`}>{t("playerQuestHistory.statuses.claimed")}</span></TableCell>
+                                    <TableCell><span id={`player-quest-history-status-badge-${row.id}`} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getQuestStatusBadgeClass(row.status)}`}>
+                                        <QuestStatusIcon id={`player-quest-history-status-badge-${row.id}-icon`} status={row.status} className="h-3.5 w-3.5 shrink-0"/>
+                                        {t("playerQuestHistory.statuses.claimed")}
+                                      </span></TableCell>
                                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{completedAt ? formatISODate(completedAt) : "—"}</TableCell>
                                   </TableRow>
                                   {expanded && (<TableRow id={`player-quest-history-detail-${row.id}`} className="bg-muted/20 hover:bg-muted/20">
@@ -2273,7 +2307,10 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                   </a>
                                 </TableCell>
                                 <TableCell id={`player-quest-history-type-${row.id}`} className="player-quest-history-type capitalize text-muted-foreground">{start.quest?.quest_type || "—"}</TableCell>
-                                <TableCell><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getQuestStatusBadgeClass(row.status)}`}>{t(`playerQuestHistory.statuses.${row.status}`)}</span></TableCell>
+                                <TableCell><span id={`player-quest-history-status-badge-${row.id}`} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getQuestStatusBadgeClass(row.status)}`}>
+                                    <QuestStatusIcon id={`player-quest-history-status-badge-${row.id}-icon`} status={row.status} className="h-3.5 w-3.5 shrink-0"/>
+                                    {t(`playerQuestHistory.statuses.${row.status}`)}
+                                  </span></TableCell>
                                 <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{start.progress.completed_at ? formatISODate(start.progress.completed_at) : "—"}</TableCell>
                               </TableRow>
                               {expanded && (<TableRow id={`player-quest-history-detail-${row.id}`} className="player-quest-history-detail player-quest-history-detail-start bg-muted/20 hover:bg-muted/20">
