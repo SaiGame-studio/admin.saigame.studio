@@ -751,6 +751,11 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         }
         return result;
     }, [quests, filterSearch, filterType]);
+    useEffect(() => {
+        if (!filterSearch.trim() || filteredQuests.length !== 1)
+            return;
+        setExpandedQuestId(filteredQuests[0].id);
+    }, [filterSearch, filteredQuests]);
     const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || sortBy !== "updated_at" || sortOrder !== "desc";
     const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setSortBy("updated_at"); setSortOrder("desc"); };
     // ── Data loading ─────────────────────────────────────────────────────────────

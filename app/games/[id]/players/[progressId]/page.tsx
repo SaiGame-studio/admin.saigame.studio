@@ -2139,15 +2139,22 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                               </div>
                               {/* Quests */}
                               {hasQuests ? (<ul className="space-y-0.5 flex-1">
-                                  {day.quests.map((q) => (<li key={q.assignment.id} className="leading-snug">
-                                      {q.quest?.name ? (<a href={`/games/${gameId}/quests?q=${q.assignment.quest_definition_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-foreground hover:underline group" title={q.quest.name}>
+                                  {day.quests.map((q) => {
+                                  const isQuestHistoryTimeframe = questSubTab === "this-week" || questSubTab === "this-month";
+                                  const questProgressInstanceId = q.progress?.id;
+                                  const questHref = isQuestHistoryTimeframe && questProgressInstanceId
+                                      ? `/games/${gameId}/players/${progressId}?tab=quests&quest_sub=all&quest_q=${encodeURIComponent(questProgressInstanceId)}`
+                                      : `/games/${gameId}/quests?q=${encodeURIComponent(q.assignment.quest_definition_id)}`;
+                                  return (<li id={`player-quest-timeframe-item-${q.assignment.id}`} key={q.assignment.id} className="leading-snug">
+                                      {q.quest?.name ? (<a id={`player-quest-timeframe-link-${q.assignment.id}`} href={questHref} target={isQuestHistoryTimeframe ? undefined : "_blank"} rel={isQuestHistoryTimeframe ? undefined : "noopener noreferrer"} className="inline-flex items-center gap-0.5 text-foreground hover:underline group" title={q.quest.name}>
                                           <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0"/>
                                           <span>{q.quest.name.length > 25 ? q.quest.name.slice(0, 25) + "…" : q.quest.name}</span>
-                                          <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"/>
+                                          {!isQuestHistoryTimeframe && <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"/>}
                                         </a>) : (<span className="text-muted-foreground font-mono">
                                           {q.assignment.quest_definition_id?.slice(0, 6) ?? "?"}…
                                         </span>)}
-                                    </li>))}
+                                    </li>);
+                              })}
                                 </ul>) : (<span className="text-muted-foreground/50 text-[10px] mt-auto">—</span>)}
                             </div>);
                     })}

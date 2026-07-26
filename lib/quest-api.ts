@@ -393,6 +393,9 @@ export interface DailyQuestAssignment {
 export interface DailyQuestAheadQuestEntry {
     assignment: DailyQuestAssignment;
     quest: QuestDefinition;
+    progress?: {
+        id: string;
+    };
 }
 export interface DailyQuestAheadDay {
     date: string;
