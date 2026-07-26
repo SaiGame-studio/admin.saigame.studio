@@ -304,7 +304,6 @@ export function DailyTab({ game, onGameUpdate }: {
 }) {
     const { t } = useTranslation();
     const gameId = game?.id ?? "";
-    const studioId = game?.studio_id ?? "";
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
@@ -368,7 +367,7 @@ export function DailyTab({ game, onGameUpdate }: {
         if (!game)
             return;
         try {
-            const data = await listQuestDefinitions(studioId, gameId, { limit: 500 });
+            const data = await listQuestDefinitions(gameId, { limit: 500 });
             const defs = Array.isArray(data) ? data : (data as any).quests ?? [];
             const map: Record<string, QuestDefinition> = {};
             for (const d of defs)
@@ -378,20 +377,20 @@ export function DailyTab({ game, onGameUpdate }: {
         catch {
             // non-critical – names just won't resolve
         }
-    }, [game, studioId, gameId]);
+    }, [game, gameId]);
     // ── Load pools ────────────────────────────────────────────────────────────
     const loadPools = useCallback(async () => {
         if (!game)
             return;
         try {
-            const data = await listDailyQuestPools(studioId, gameId);
+            const data = await listDailyQuestPools(gameId);
             setPools(data.pools ?? []);
         }
         catch (e) {
             const msg = e instanceof ApiError ? e.message : "Failed to load daily quest pools";
             setError(msg);
         }
-    }, [game, studioId, gameId]);
+    }, [game, gameId]);
     useEffect(() => {
         if (!game || hasFetched.current)
             return;
@@ -422,15 +421,15 @@ export function DailyTab({ game, onGameUpdate }: {
         // Load quest defs for the search panel if not already loaded
         if (dailyQuestDefs.length === 0 && !dailyQuestDefsLoading) {
             setDailyQuestDefsLoading(true);
-            listQuestDefinitions(studioId, gameId, { limit: 200 })
+            listQuestDefinitions(gameId, { limit: 200 })
                 .then((res) => { setDailyQuestDefs((res.quests ?? []).filter((q) => q.quest_type === "daily")); })
                 .catch(() => { })
                 .finally(() => setDailyQuestDefsLoading(false));
         }
         try {
             const [detail, questsData] = await Promise.all([
-                getDailyQuestPool(studioId, gameId, poolId),
-                listPoolQuests(studioId, gameId, poolId),
+                getDailyQuestPool(gameId, poolId),
+                listPoolQuests(gameId, poolId),
             ]);
             setExpandedPool(detail);
             setExpandedQuests(questsData.quests ?? []);
@@ -446,8 +445,8 @@ export function DailyTab({ game, onGameUpdate }: {
     const refreshExpanded = async (poolId: string) => {
         try {
             const [detail, questsData] = await Promise.all([
-                getDailyQuestPool(studioId, gameId, poolId),
-                listPoolQuests(studioId, gameId, poolId),
+                getDailyQuestPool(gameId, poolId),
+                listPoolQuests(gameId, poolId),
             ]);
             setExpandedPool(detail);
             setExpandedQuests(questsData.quests ?? []);
@@ -491,7 +490,7 @@ export function DailyTab({ game, onGameUpdate }: {
         setPoolSaving(true);
         try {
             if (editPool) {
-                await updateDailyQuestPool(studioId, gameId, editPool.id, {
+                await updateDailyQuestPool(gameId, editPool.id, {
                     display_name: poolForm.display_name,
                     description: poolForm.description,
                     slots_per_day: poolForm.slots_per_day,
@@ -501,7 +500,7 @@ export function DailyTab({ game, onGameUpdate }: {
                 toast({ title: t('quest.daily.poolUpdated') });
             }
             else {
-                await createDailyQuestPool(studioId, gameId, poolForm);
+                await createDailyQuestPool(gameId, poolForm);
                 toast({ title: t('quest.daily.poolCreated') });
             }
             setCreateOpen(false);
@@ -523,7 +522,7 @@ export function DailyTab({ game, onGameUpdate }: {
         if (!deletePool) return;
         setDeletingPool(true);
         try {
-            await deleteDailyQuestPool(studioId, gameId, deletePool.id);
+            await deleteDailyQuestPool(gameId, deletePool.id);
             toast({ title: t('quest.daily.poolDeleted') });
             setDeletePool(null);
             if (expandedPoolId === deletePool.id) {
@@ -551,7 +550,7 @@ export function DailyTab({ game, onGameUpdate }: {
     // ── Toggle active ─────────────────────────────────────────────────────────
     const handleToggleActive = async (pool: DailyQuestPool) => {
         try {
-            await updateDailyQuestPool(studioId, gameId, pool.id, { is_active: !pool.is_active });
+            await updateDailyQuestPool(gameId, pool.id, { is_active: !pool.is_active });
             toast({ title: pool.is_active ? t('quest.daily.poolDeactivated') : t('quest.daily.poolActivated') });
             await loadPools();
             if (expandedPoolId === pool.id)
@@ -568,7 +567,7 @@ export function DailyTab({ game, onGameUpdate }: {
             return;
         setAddQuestSaving(true);
         try {
-            await addQuestToPool(studioId, gameId, expandedPoolId, addQuestForm);
+            await addQuestToPool(gameId, expandedPoolId, addQuestForm);
             toast({ title: t('quest.daily.questAddedToPool') });
             setAddQuestForm((prev) => ({ ...prev, quest_id: "" }));
             await refreshExpanded(expandedPoolId);
@@ -587,7 +586,7 @@ export function DailyTab({ game, onGameUpdate }: {
             return;
         setRemoveQuestDeleting(true);
         try {
-            await removeQuestFromPool(studioId, gameId, removeQuestTarget.poolId, removeQuestTarget.questId);
+            await removeQuestFromPool(gameId, removeQuestTarget.poolId, removeQuestTarget.questId);
             toast({ title: t('quest.daily.questRemovedFromPool') });
             setRemoveQuestTarget(null);
             if (expandedPoolId)
@@ -769,7 +768,7 @@ export function DailyTab({ game, onGameUpdate }: {
                                                     return;
                                                 }
                                                 try {
-                                                    await addQuestToPool(studioId, gameId, expandedPoolId, { quest_id: draggedQuestId, weight: 1, sequence_order: dow });
+                                                    await addQuestToPool(gameId, expandedPoolId, { quest_id: draggedQuestId, weight: 1, sequence_order: dow });
                                                     toast({ title: t('quest.daily.questAssigned') });
                                                     await refreshExpanded(expandedPoolId);
                                                 }
@@ -818,7 +817,7 @@ export function DailyTab({ game, onGameUpdate }: {
                                             <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
                                               <Switch id={`daily-pool-quest-active-toggle-${pq.id}`} className="daily-pool-quest-active-toggle" checked={qDef?.is_active ?? false} onCheckedChange={async (checked) => {
                                                     try {
-                                                        await updateQuestDefinition(studioId, gameId, pq.quest_definition_id, { is_active: checked });
+                                                        await updateQuestDefinition(gameId, pq.quest_definition_id, { is_active: checked });
                                                         setQuestDefsMap((prev) => ({ ...prev, [pq.quest_definition_id]: { ...prev[pq.quest_definition_id], is_active: checked } }));
                                                         toast({ title: checked ? t('quest.daily.questActivated') : t('quest.daily.questDeactivated') });
                                                     }

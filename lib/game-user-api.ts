@@ -478,7 +478,7 @@ export interface QuestHistoryResult {
     limit: number;
     offset: number;
 }
-export async function getPlayerQuestHistory(studioId: string, gameId: string, userId: string, params?: {
+export async function getPlayerQuestHistory(gameId: string, userId: string, params?: {
     limit?: number;
     offset?: number;
     q?: string;
@@ -491,7 +491,7 @@ export async function getPlayerQuestHistory(studioId: string, gameId: string, us
     if (params?.q)
         qs.set("q", params.q);
     const query = qs.toString();
-    return api.get(`/api/v1/studios/${studioId}/games/${gameId}/players/${userId}/quest-history${query ? `?${query}` : ""}`);
+    return api.get(`/api/v1/games/${gameId}/players/${userId}/quest-history${query ? `?${query}` : ""}`);
 }
 // ─── Battle Sessions ──────────────────────────────────────────────────────────
 export interface BattleEnemy {

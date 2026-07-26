@@ -985,13 +985,13 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         }
     }, [progressId, gameId]);
     const loadQuestHistory = useCallback(async () => {
-        if (!game?.studio_id || !detail?.user_id)
+        if (!detail?.user_id)
             return;
         setQuestLoading(true);
         setQuestError(null);
         setQuestExpandedRows(new Set());
         try {
-            const res = await getPlayerQuestHistory(game.studio_id, gameId, detail.user_id, { limit: QUEST_LIMIT, q: questHistorySearchQuery || undefined });
+            const res = await getPlayerQuestHistory(gameId, detail.user_id, { limit: QUEST_LIMIT, q: questHistorySearchQuery || undefined });
             setQuestHistory({
                 ...res,
                 claims: res.claims ?? [],
@@ -1055,13 +1055,11 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         finally {
             setQuestLoading(false);
         }
-    }, [game, gameId, detail, questHistorySearchQuery]);
+    }, [gameId, detail, questHistorySearchQuery]);
     const loadDailyAheadPools = useCallback(async () => {
-        if (!game?.studio_id)
-            return;
         setDailyAheadPoolsLoading(true);
         try {
-            const res = await listDailyQuestPools(game.studio_id, gameId);
+            const res = await listDailyQuestPools(gameId);
             setDailyAheadPools(res.pools ?? []);
             if (res.pools?.length) {
                 if (!dailyAheadSelectedPoolId || !res.pools.find(p => p.id === dailyAheadSelectedPoolId)) {
@@ -1075,9 +1073,9 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         finally {
             setDailyAheadPoolsLoading(false);
         }
-    }, [game, gameId, dailyAheadSelectedPoolId]);
+    }, [gameId, dailyAheadSelectedPoolId]);
     const loadDailyAheadPreview = useCallback(async (poolId: string) => {
-        if (!game?.studio_id || !detail?.user_id || !poolId)
+        if (!detail?.user_id || !poolId)
             return;
         setDailyAheadLoading(true);
         setDailyAheadError(null);
@@ -1098,13 +1096,13 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                 }
                 const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 
-                const res = await getPlayerDailyQuestTimeframe(game.studio_id, gameId, poolId, detail.user_id, {
+                const res = await getPlayerDailyQuestTimeframe(gameId, poolId, detail.user_id, {
                     start_date: fmt(start),
                     end_date: fmt(end)
                 });
                 setDailyAheadPreview(res);
             } else {
-                const res = await getPlayerDailyQuestAheadPreview(game.studio_id, gameId, poolId, detail.user_id, { days_ahead: dailyAheadDays });
+                const res = await getPlayerDailyQuestAheadPreview(gameId, poolId, detail.user_id, { days_ahead: dailyAheadDays });
                 setDailyAheadPreview(res);
             }
         }
@@ -1114,7 +1112,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         finally {
             setDailyAheadLoading(false);
         }
-    }, [game, gameId, detail, dailyAheadDays, questSubTab]);
+    }, [gameId, detail, dailyAheadDays, questSubTab]);
     const loadBattleSessions = useCallback(async () => {
         if (!detail?.user_id)
             return;
@@ -1280,16 +1278,16 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     }, [activeTab, gameId, detail?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
     // Load pools when entering the daily-ahead, this-week or this-month sub-tabs (or once game loads)
     useEffect(() => {
-        if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadPools.length === 0 && game?.studio_id) {
+        if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadPools.length === 0) {
             loadDailyAheadPools();
         }
-    }, [activeTab, questSubTab, game]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [activeTab, questSubTab]); // eslint-disable-line react-hooks/exhaustive-deps
     // Load preview whenever the selected pool or days change while on the tab
     useEffect(() => {
         if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadSelectedPoolId) {
             loadDailyAheadPreview(dailyAheadSelectedPoolId);
         }
-    }, [activeTab, questSubTab, dailyAheadSelectedPoolId, dailyAheadDays, game?.studio_id, detail?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [activeTab, questSubTab, dailyAheadSelectedPoolId, dailyAheadDays, detail?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
     const RARITY_STYLE: Record<string, string> = {
         common: "bg-gray-500/15 text-gray-400 border-gray-400/40",
         uncommon: "bg-green-500/15 text-green-500 border-green-500/40",

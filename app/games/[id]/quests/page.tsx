@@ -763,7 +763,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         if (!game)
             return;
         try {
-            const res = await listQuestDefinitions(game.studio_id, gameId, {
+            const res = await listQuestDefinitions(gameId, {
                 status: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
                 limit,
                 after,
@@ -1301,7 +1301,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 ...createFields,
                 code_name: codeName,
             };
-            const created = await createQuestDefinition(game.studio_id, gameId, payload);
+            const created = await createQuestDefinition(gameId, payload);
             toast({ title: t('quest.questCreated'), description: form.name });
             setCreateOpen(false);
             if (createQuestConvContext) {
@@ -1364,7 +1364,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                     delete patch.expire_after_minutes;
                 }
             }
-            const updated = await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch, { suppressToast: true });
+            const updated = await updateQuestDefinition(gameId, editQuest.id, patch, { suppressToast: true });
             toast({ title: t('quest.questUpdated'), description: form.name });
             window.dispatchEvent(new CustomEvent('ss:quest-created', {
                 detail: {
@@ -1398,7 +1398,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             return;
         setDeleting(true);
         try {
-            await deleteQuestDefinition(game.studio_id, gameId, deleteQuest.id);
+            await deleteQuestDefinition(gameId, deleteQuest.id);
             toast({ title: t('quest.questDeleted'), description: deleteQuest.name });
             setDeleteQuest(null);
             await loadQuests(offset);
@@ -1420,7 +1420,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         if (!game)
             return;
         try {
-            await updateQuestDefinition(game.studio_id, gameId, q.id, { is_active: !q.is_active });
+            await updateQuestDefinition(gameId, q.id, { is_active: !q.is_active });
             setQuests((prev) => prev.map((x) => (x.id === q.id ? { ...x, is_active: !x.is_active } : x)));
         }
         catch (e) {
