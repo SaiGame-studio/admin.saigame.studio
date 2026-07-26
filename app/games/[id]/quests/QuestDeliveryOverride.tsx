@@ -93,7 +93,7 @@ export function QuestDeliveryOverride({ quest, game, onUpdated }: Props) {
                 else
                     delete nextMeta.mailbox_body;
             }
-            const updated = await updateQuestDefinition(game.studio_id, game.id, quest.id, { metadata: nextMeta });
+            const updated = await updateQuestDefinition(game.id, quest.id, { metadata: nextMeta });
             onUpdated(updated);
             toast({
                 title: t('common.saved'),

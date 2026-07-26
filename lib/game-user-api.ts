@@ -442,12 +442,16 @@ export async function getGachaTransactions(progressId: string, params?: {
 export interface QuestDefinitionSummary {
     id: string;
     name: string;
+    quest_type?: string;
     [key: string]: unknown;
 }
 export interface QuestProgressData {
     id: string;
+    quest_definition_id: string;
     status: string;
     progress_data?: Record<string, unknown>;
+    completed_at?: string;
+    updated_at?: string;
     [key: string]: unknown;
 }
 export interface QuestHistoryStart {
@@ -459,6 +463,7 @@ export interface QuestClaimReward {
 }
 export interface QuestHistoryClaim {
     id: string;
+    progress_id: string;
     quest_definition_id: string;
     rewards_granted: QuestClaimReward[];
     claimed_at: string;
@@ -473,17 +478,20 @@ export interface QuestHistoryResult {
     limit: number;
     offset: number;
 }
-export async function getPlayerQuestHistory(studioId: string, gameId: string, userId: string, params?: {
+export async function getPlayerQuestHistory(gameId: string, userId: string, params?: {
     limit?: number;
     offset?: number;
+    q?: string;
 }): Promise<QuestHistoryResult> {
     const qs = new URLSearchParams();
     if (params?.limit != null)
         qs.set("limit", String(params.limit));
     if (params?.offset != null)
         qs.set("offset", String(params.offset));
+    if (params?.q)
+        qs.set("q", params.q);
     const query = qs.toString();
-    return api.get(`/api/v1/studios/${studioId}/games/${gameId}/players/${userId}/quest-history${query ? `?${query}` : ""}`);
+    return api.get(`/api/v1/games/${gameId}/players/${userId}/quest-history${query ? `?${query}` : ""}`);
 }
 // ─── Battle Sessions ──────────────────────────────────────────────────────────
 export interface BattleEnemy {

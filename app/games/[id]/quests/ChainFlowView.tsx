@@ -97,7 +97,6 @@ const nodeTypes: NodeTypes = {
 };
 // ─── Component ────────────────────────────────────────────────────────────────
 interface ChainFlowViewProps {
-    studioId: string;
     gameId: string;
     chainId: string;
     members: QuestChainMember[];
@@ -120,7 +119,7 @@ export function ChainFlowView(props: ChainFlowViewProps) {
       <ChainFlowViewContent {...props}/>
     </ReactFlowProvider>);
 }
-function ChainFlowViewContent({ studioId, gameId, chainId, members, questDefsMap, availableQuests, onQuickAdd, onEditMember, onRemoveMember, onConnectQuests, onDisconnectQuests, onRefresh, }: ChainFlowViewProps) {
+function ChainFlowViewContent({ gameId, chainId, members, questDefsMap, availableQuests, onQuickAdd, onEditMember, onRemoveMember, onConnectQuests, onDisconnectQuests, onRefresh, }: ChainFlowViewProps) {
     const { t } = useTranslation();
     const { getNodes, screenToFlowPosition } = useReactFlow();
     const [connecting, setConnecting] = useState(false);
@@ -208,7 +207,7 @@ function ChainFlowViewContent({ studioId, gameId, chainId, members, questDefsMap
                 catch { /* ignore */ }
                 if (!posMap) {
                     try {
-                        const layout = await getChainLayout(studioId, gameId, chainId);
+                        const layout = await getChainLayout(gameId, chainId);
                         if (layout?.positions?.length) {
                             posMap = {};
                             for (const p of layout.positions)
@@ -251,7 +250,7 @@ function ChainFlowViewContent({ studioId, gameId, chainId, members, questDefsMap
         }
         applyLayout();
         return () => { cancelled = true; };
-    }, [studioId, gameId, chainId, rawNodes, rawEdges, setNodes, setEdges]);
+    }, [gameId, chainId, rawNodes, rawEdges, setNodes, setEdges]);
     // Save layout to API (debounced) + localStorage (immediate)
     const persistLayout = useCallback((currentNodes: Node<QuestNodeData>[]) => {
         const positions: ChainLayoutNodePosition[] = currentNodes.map((n) => ({
@@ -269,13 +268,13 @@ function ChainFlowViewContent({ studioId, gameId, chainId, members, questDefsMap
             clearTimeout(saveTimerRef.current);
         saveTimerRef.current = setTimeout(async () => {
             try {
-                await saveChainLayout(studioId, gameId, chainId, { positions });
+                await saveChainLayout(gameId, chainId, { positions });
             }
             catch {
                 // silent — layout save is non-critical
             }
         }, 500);
-    }, [studioId, gameId, chainId]);
+    }, [gameId, chainId]);
     // When a node drag ends, save the layout (use getNodes() to get ALL current nodes)
     const handleNodeDragStop = useCallback(() => {
         persistLayout(getNodes() as Node<QuestNodeData>[]);

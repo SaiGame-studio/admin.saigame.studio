@@ -80,6 +80,31 @@
     "content": "Nội dung",
     "stop": "Dừng"
   },
+  "playerQuestHistory": {
+    "allQuests": "Tất cả nhiệm vụ",
+    "records": "bản ghi nhiệm vụ",
+    "status": "Trạng thái",
+    "allStatuses": "Tất cả trạng thái",
+    "searchPlaceholder": "Tìm theo tên nhiệm vụ, instance ID hoặc quest definition ID…",
+    "clearSearch": "Xóa tìm kiếm nhiệm vụ",
+    "maxAdvanceDaysScope": "Áp dụng cho tất cả người chơi.",
+    "maxAdvanceDaysNote": "Giới hạn số ngày tương lai có thể tạo trước nhiệm vụ hằng ngày. Không giới hạn phạm vi lịch đang xem.",
+    "quest": "Nhiệm vụ",
+    "rewards": "Phần thưởng",
+    "updatedAt": "Cập nhật lúc",
+    "rewardsGranted": "Phần thưởng đã nhận",
+    "noQuests": "Không tìm thấy nhiệm vụ",
+    "noQuestsDescription": "Không có bản ghi nhiệm vụ phù hợp với trạng thái đã chọn.",
+    "statuses": {
+      "in_progress": "Đang thực hiện",
+      "completed": "Đã hoàn thành",
+      "claimed": "Đã nhận thưởng",
+      "cancelled": "Đã hủy",
+      "locked": "Đã khóa",
+      "expired": "Đã hết hạn",
+      "not_started": "Chưa bắt đầu"
+    }
+  },
   "shop": {
     "title": "Cửa hàng Game",
     "listDesc": "Danh sách tất cả cửa hàng của game:",
@@ -605,6 +630,9 @@
     "clear": "Xóa",
     "tryAgain": "Thử lại",
     "noPlayers": "Không tìm thấy người chơi",
+    "addMeAsPlayer": "Thêm tôi làm người chơi",
+    "addingMe": "Đang thêm tôi làm người chơi…",
+    "addMeFailed": "Không thể thêm người dùng hiện tại làm người chơi",
     "noResults": "Không có kết quả cho",
     "clearSearch": "Xóa tìm kiếm",
     "unknown": "Không rõ",

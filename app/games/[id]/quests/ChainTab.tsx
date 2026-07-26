@@ -115,7 +115,6 @@ export function ChainTab({ game }: {
     game: Game | null;
 }) {
     const gameId = game?.id ?? "";
-    const studioId = game?.studio_id ?? "";
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
@@ -185,7 +184,7 @@ export function ChainTab({ game }: {
         if (!game)
             return;
         try {
-            const data = await listQuestDefinitions(studioId, gameId, { limit: 500 });
+            const data = await listQuestDefinitions(gameId, { limit: 500 });
             const defs = Array.isArray(data) ? data : (data as any).quests ?? [];
             const map: Record<string, QuestDefinition> = {};
             for (const d of defs)
@@ -196,20 +195,20 @@ export function ChainTab({ game }: {
         catch {
             // non-critical
         }
-    }, [game, studioId, gameId]);
+    }, [game, gameId]);
     // ── Load chains ───────────────────────────────────────────────────────────
     const loadChains = useCallback(async () => {
         if (!game)
             return;
         try {
-            const data = await listQuestChains(studioId, gameId, { limit: 200 });
+            const data = await listQuestChains(gameId, { limit: 200 });
             setChains(data.chains ?? []);
         }
         catch (e) {
             const msg = e instanceof ApiError ? e.message : "Failed to load quest chains";
             setError(msg);
         }
-    }, [game, studioId, gameId]);
+    }, [game, gameId]);
     useEffect(() => {
         if (!game || hasFetched.current)
             return;
@@ -226,7 +225,7 @@ export function ChainTab({ game }: {
     // ── Load chain members (expand) ───────────────────────────────────────────
     const loadChainMembers = useCallback(async (chainId: string) => {
         try {
-            const membersData = await listChainMembers(studioId, gameId, chainId);
+            const membersData = await listChainMembers(gameId, chainId);
             // Use chain from already-loaded list instead of a separate GET
             const chain = chains.find((c) => c.id === chainId) ?? null;
             setExpandedChain(chain);
@@ -238,7 +237,7 @@ export function ChainTab({ game }: {
             toast({ variant: "destructive", title: t('common.error'), description: t('quest.chain.failedUpdateChain') });
             setExpandedChainId(null);
         }
-    }, [studioId, gameId, toast, chains]);
+    }, [gameId, toast, chains]);
     const toggleExpand = async (chainId: string) => {
         if (expandedChainId === chainId) {
             setExpandedChainId(null);
@@ -311,11 +310,11 @@ export function ChainTab({ game }: {
                     patch.chain_type = chainForm.chain_type;
                 if (chainForm.is_active !== editChain.is_active)
                     patch.is_active = chainForm.is_active;
-                await updateQuestChain(studioId, gameId, editChain.id, patch);
+                await updateQuestChain(gameId, editChain.id, patch);
                 toast({ title: t('quest.chain.chainUpdated') });
             }
             else {
-                await createQuestChain(studioId, gameId, chainForm);
+                await createQuestChain(gameId, chainForm);
                 toast({ title: t('quest.chain.chainCreated') });
             }
             setCreateOpen(false);
@@ -336,7 +335,7 @@ export function ChainTab({ game }: {
             return;
         setDeleteDeleting(true);
         try {
-            await deleteQuestChain(studioId, gameId, deleteTarget.id);
+            await deleteQuestChain(gameId, deleteTarget.id);
             toast({ title: t('quest.chain.chainDeleted') });
             setDeleteTarget(null);
             if (expandedChainId === deleteTarget.id) {
@@ -356,7 +355,7 @@ export function ChainTab({ game }: {
     // ── Toggle active ─────────────────────────────────────────────────────────
     const handleToggleActive = async (chain: QuestChain, checked: boolean) => {
         try {
-            await updateQuestChain(studioId, gameId, chain.id, { is_active: checked });
+            await updateQuestChain(gameId, chain.id, { is_active: checked });
             setChains((prev) => prev.map((c) => c.id === chain.id ? { ...c, is_active: checked } : c));
             if (expandedChain?.id === chain.id)
                 setExpandedChain((prev) => prev ? { ...prev, is_active: checked } : prev);
@@ -390,7 +389,7 @@ export function ChainTab({ game }: {
         }
         setAddMemberSaving(true);
         try {
-            await addChainMember(studioId, gameId, addMemberChainId, addMemberForm);
+            await addChainMember(gameId, addMemberChainId, addMemberForm);
             toast({ title: t('quest.chain.questAddedToChain') });
             setAddMemberOpen(false);
             await Promise.all([refreshExpanded(addMemberChainId), loadQuestDefsMap()]);
@@ -421,7 +420,7 @@ export function ChainTab({ game }: {
             return;
         setEditMemberSaving(true);
         try {
-            await updateChainMember(studioId, gameId, expandedChainId, editMemberTarget.quest_definition_id, editMemberForm);
+            await updateChainMember(gameId, expandedChainId, editMemberTarget.quest_definition_id, editMemberForm);
             toast({ title: t('quest.chain.memberUpdated') });
             setEditMemberOpen(false);
             await refreshExpanded(expandedChainId);
@@ -444,7 +443,7 @@ export function ChainTab({ game }: {
             return;
         setRemoveMemberDeleting(true);
         try {
-            await removeChainMember(studioId, gameId, removeMemberTarget.chainId, removeMemberTarget.questId);
+            await removeChainMember(gameId, removeMemberTarget.chainId, removeMemberTarget.questId);
             toast({ title: t('quest.chain.questRemovedFromChain') });
             setRemoveMemberTarget(null);
             if (expandedChainId)
@@ -703,11 +702,11 @@ export function ChainTab({ game }: {
 
                               {/* ── Graph View ────────────────────────────── */}
                               <TabsContent value="grid" className="mt-0">
-                                <ChainFlowView studioId={studioId} gameId={gameId} chainId={chain.id} members={expandedMembers} questDefsMap={questDefsMap} availableQuests={allQuestDefs.filter((q) => !expandedMembers.some((m) => m.quest_definition_id === q.id) && q.quest_type !== 'daily')} onQuickAdd={async (questId) => {
+                                <ChainFlowView gameId={gameId} chainId={chain.id} members={expandedMembers} questDefsMap={questDefsMap} availableQuests={allQuestDefs.filter((q) => !expandedMembers.some((m) => m.quest_definition_id === q.id) && q.quest_type !== 'daily')} onQuickAdd={async (questId) => {
                                 const nextSort = expandedMembers.length > 0
                                     ? Math.max(...expandedMembers.map((m) => m.sort_order)) + 1
                                     : 0;
-                                await addChainMember(studioId, gameId, chain.id, {
+                                await addChainMember(gameId, chain.id, {
                                     quest_definition_id: questId,
                                     sort_order: nextSort,
                                     unlock_quest_ids: [],
@@ -726,7 +725,7 @@ export function ChainTab({ game }: {
                                 if (!sourceMember)
                                     return;
                                 const newUnlockIds = [...new Set([...sourceMember.unlock_quest_ids, targetQuestId])];
-                                await updateChainMember(studioId, gameId, chain.id, sourceQuestId, {
+                                await updateChainMember(gameId, chain.id, sourceQuestId, {
                                     unlock_quest_ids: newUnlockIds,
                                 });
                                 toast({ title: t('quest.chain.connectionAdded') });
@@ -736,7 +735,7 @@ export function ChainTab({ game }: {
                                 if (!sourceMember)
                                     return;
                                 const newUnlockIds = sourceMember.unlock_quest_ids.filter((id) => id !== targetQuestId);
-                                await updateChainMember(studioId, gameId, chain.id, sourceQuestId, {
+                                await updateChainMember(gameId, chain.id, sourceQuestId, {
                                     unlock_quest_ids: newUnlockIds,
                                 });
                                 toast({ title: t('quest.chain.connectionRemoved') });

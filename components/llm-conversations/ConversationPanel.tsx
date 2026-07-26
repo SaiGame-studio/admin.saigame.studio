@@ -2797,8 +2797,7 @@ export function LLMConversationPanel() {
         const codeName = typeof questDefinition.code_name === 'string' ? questDefinition.code_name.trim() : '';
         if (codeName) {
             try {
-                const game = await getGame(gameId);
-                const res = await listQuestDefinitions(game.studio_id, gameId, { limit: 1000 });
+                const res = await listQuestDefinitions(gameId, { limit: 1000 });
                 const existing = (res.quests ?? []).find((quest) => (quest.code_name ?? '').trim() === codeName) ?? null;
                 if (existing) {
                     setQuestCodeConflictExisting(existing);

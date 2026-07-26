@@ -80,6 +80,31 @@
     "content": "Content",
     "stop": "Stop"
   },
+  "playerQuestHistory": {
+    "allQuests": "All Quests",
+    "records": "quest records",
+    "status": "Status",
+    "allStatuses": "All statuses",
+    "searchPlaceholder": "Search by quest name, instance ID, or quest definition ID…",
+    "clearSearch": "Clear quest search",
+    "maxAdvanceDaysScope": "Applies to all players.",
+    "maxAdvanceDaysNote": "Limits how many future days daily quests can be pre-assigned. It does not limit the calendar view.",
+    "quest": "Quest",
+    "rewards": "Rewards",
+    "updatedAt": "Updated At",
+    "rewardsGranted": "Rewards Granted",
+    "noQuests": "No quests found",
+    "noQuestsDescription": "No quest records match the selected status.",
+    "statuses": {
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "claimed": "Claimed",
+      "cancelled": "Cancelled",
+      "locked": "Locked",
+      "expired": "Expired",
+      "not_started": "Not started"
+    }
+  },
   "shop": {
     "title": "Game Shops",
     "listDesc": "List of all shops for the game:",
@@ -605,6 +630,9 @@
     "clear": "Clear",
     "tryAgain": "Try Again",
     "noPlayers": "No players found",
+    "addMeAsPlayer": "Add me as player",
+    "addingMe": "Adding me as player…",
+    "addMeFailed": "Failed to add the current user as a player",
     "noResults": "No results for",
     "clearSearch": "Clear search",
     "unknown": "Unknown",
