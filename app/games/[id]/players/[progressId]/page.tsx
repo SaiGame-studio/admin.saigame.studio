@@ -26,7 +26,7 @@ import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PlayerQuestHistorySearch } from "./PlayerQuestHistorySearch";
-import { QuestStatusIcon } from "./QuestStatusIcon";
+import { getQuestStatusTextClass, QuestStatusIcon } from "./QuestStatusIcon";
 // ── Quest progress data pretty-printer ──────────────────────────────────────
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type ResolvedEntity = {
@@ -2160,13 +2160,22 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                       ? questHistoryHref
                                       : `/games/${gameId}/quests?q=${encodeURIComponent(q.assignment.quest_definition_id)}`;
                                   return (<li id={`player-quest-timeframe-item-${q.assignment.id}`} key={q.assignment.id} className="leading-snug">
-                                      {q.quest?.name ? (<a id={`player-quest-timeframe-link-${q.assignment.id}`} href={questHref} target={isQuestHistoryTimeframe ? undefined : "_blank"} rel={isQuestHistoryTimeframe ? undefined : "noopener noreferrer"} className="inline-flex items-center gap-0.5 text-foreground hover:underline group" title={q.quest.name}>
-                                          {isQuestHistoryTimeframe
-                                            ? <QuestStatusIcon id={`player-quest-timeframe-status-${q.assignment.id}-icon`} status={questStatus} className="h-3 w-3 shrink-0"/>
-                                            : <span id={`player-quest-timeframe-dot-${q.assignment.id}`} className="h-1.5 w-1.5 rounded-full bg-primary shrink-0"/>}
-                                          <span>{q.quest.name.length > 25 ? q.quest.name.slice(0, 25) + "…" : q.quest.name}</span>
-                                          {!isQuestHistoryTimeframe && <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"/>}
-                                        </a>) : (<span className="text-muted-foreground font-mono">
+                                      {q.quest?.name ? (<TooltipProvider delayDuration={200}>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <a id={`player-quest-timeframe-link-${q.assignment.id}`} href={questHref} target={isQuestHistoryTimeframe ? undefined : "_blank"} rel={isQuestHistoryTimeframe ? undefined : "noopener noreferrer"} className={`inline-flex items-center gap-0.5 hover:underline group ${isQuestHistoryTimeframe ? getQuestStatusTextClass(questStatus) : "text-foreground"}`}>
+                                                {isQuestHistoryTimeframe
+                                                  ? <QuestStatusIcon id={`player-quest-timeframe-status-${q.assignment.id}-icon`} status={questStatus} className="h-3 w-3 shrink-0"/>
+                                                  : <span id={`player-quest-timeframe-dot-${q.assignment.id}`} className="h-1.5 w-1.5 rounded-full bg-primary shrink-0"/>}
+                                                <span>{q.quest.name.length > 25 ? q.quest.name.slice(0, 25) + "…" : q.quest.name}</span>
+                                                {!isQuestHistoryTimeframe && <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"/>}
+                                              </a>
+                                            </TooltipTrigger>
+                                            <TooltipContent id={`player-quest-timeframe-tooltip-${q.assignment.id}`} side="top">
+                                              {isQuestHistoryTimeframe ? t(`playerQuestHistory.statuses.${questStatus}`) : q.quest.name}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>) : (<span className="text-muted-foreground font-mono">
                                           {q.assignment.quest_definition_id?.slice(0, 6) ?? "?"}…
                                         </span>)}
                                     </li>);

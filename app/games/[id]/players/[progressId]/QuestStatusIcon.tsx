@@ -30,6 +30,13 @@ interface QuestStatusIconProps {
     className?: string;
 }
 
+export function getQuestStatusTextClass(status: string) {
+    if (status === "claimed") return "text-green-500";
+    if (status === "completed") return "text-blue-400";
+    if (status === "cancelled" || status === "expired" || status === "failed") return "text-red-400";
+    return "text-muted-foreground";
+}
+
 export function QuestStatusIcon({ status, id, className = "h-3.5 w-3.5" }: QuestStatusIconProps) {
     const Icon = QUEST_STATUS_ICONS[status] ?? CircleHelp;
     return <Icon id={id} className={className} aria-hidden="true"/>;
