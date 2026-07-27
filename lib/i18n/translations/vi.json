@@ -82,6 +82,13 @@
   },
   "playerQuestHistory": {
     "allQuests": "Tất cả nhiệm vụ",
+    "dailyQuest": "Nhiệm vụ hàng ngày",
+    "chainQuest": "Nhiệm vụ chuỗi",
+    "battlePass": "Battle Pass",
+    "comingSoon": "Sắp ra mắt",
+    "thisWeek": "Tuần này",
+    "thisMonth": "Tháng này",
+    "dailyAhead": "Ngày sắp tới",
     "records": "bản ghi nhiệm vụ",
     "status": "Trạng thái",
     "allStatuses": "Tất cả trạng thái",

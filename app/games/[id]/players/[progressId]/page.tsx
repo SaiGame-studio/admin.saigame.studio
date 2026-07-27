@@ -33,7 +33,7 @@ type ResolvedEntity = {
     name: string;
     type: "item" | "gacha_pack";
 };
-type QuestSubTab = "all" | "daily-ahead" | "this-week" | "this-month";
+type QuestSubTab = "all" | "chain" | "battle-pass" | "daily-ahead" | "this-week" | "this-month";
 type QuestStatusFilter = "all" | "in_progress" | "completed" | "claimed" | "cancelled" | "locked" | "expired" | "not_started";
 const QUEST_STATUS_FILTERS: Exclude<QuestStatusFilter, "all">[] = [
     "in_progress",
@@ -689,7 +689,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     const [questError, setQuestError] = useState<string | null>(null);
     const [questSubTab, setQuestSubTab] = useState<QuestSubTab>(() => {
         const sub = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_sub") : null;
-        return sub === "daily-ahead" || sub === "this-week" || sub === "this-month" ? sub : "all";
+        return sub === "chain" || sub === "battle-pass" || sub === "daily-ahead" || sub === "this-week" || sub === "this-month" ? sub : "all";
     });
     const [questStatusFilter, setQuestStatusFilter] = useState<QuestStatusFilter>(() => {
         const status = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_status") : null;
@@ -1999,36 +1999,59 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         {/* ── Quest History Tab ── */}
         <TabsContent value="quests" className="space-y-4">
           {/* Sub-tab navigation */}
-          <div className="flex items-center gap-1 border-b pb-0 overflow-x-auto whitespace-nowrap">
-            <button id="tab-quest-all" onClick={() => handleQuestSubTabChange("all")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "all"
+          <div id="player-quest-subtab-navigation" className="flex items-center gap-1 border-b pb-0 overflow-x-auto whitespace-nowrap">
+            <button id="player-quest-subtab-all-quests" onClick={() => handleQuestSubTabChange("all")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "all"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
               <Trophy id="tab-quest-all-icon" className="h-3.5 w-3.5"/>
               {t("playerQuestHistory.allQuests")}
-              {questHistory && (<span id="tab-quest-all-count" className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{questHistory.starts_total}</span>)}
             </button>
-            <button id="tab-quest-this-week" onClick={() => handleQuestSubTabChange("this-week")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "this-week"
+            <button id="player-quest-subtab-daily-quest" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              <CalendarDays className="h-3.5 w-3.5"/>
-              This Week
+              <CalendarDays id="player-quest-subtab-daily-quest-icon" className="h-3.5 w-3.5"/>
+              {t("playerQuestHistory.dailyQuest")}
             </button>
-            <button id="tab-quest-this-month" onClick={() => handleQuestSubTabChange("this-month")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "this-month"
+            <button id="player-quest-subtab-chain-quest" onClick={() => handleQuestSubTabChange("chain")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "chain"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              <CalendarDays className="h-3.5 w-3.5"/>
-              This Month
+              <Trophy id="player-quest-subtab-chain-quest-icon" className="h-3.5 w-3.5"/>
+              {t("playerQuestHistory.chainQuest")}
             </button>
-            <button id="tab-quest-daily-ahead" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead"
+            <button id="player-quest-subtab-battle-pass" onClick={() => handleQuestSubTabChange("battle-pass")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "battle-pass"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              <CalendarDays className="h-3.5 w-3.5"/>
-              Daily Ahead
+              <ShieldCheck id="player-quest-subtab-battle-pass-icon" className="h-3.5 w-3.5"/>
+              {t("playerQuestHistory.battlePass")}
             </button>
           </div>
 
+          {(questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && (<div id="player-quest-daily-quest-subtab-navigation" className="flex items-center gap-1 border-b pb-0 overflow-x-auto whitespace-nowrap">
+              <button id="player-quest-subtab-this-week" onClick={() => handleQuestSubTabChange("this-week")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "this-week"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                <CalendarDays id="player-quest-subtab-this-week-icon" className="h-3.5 w-3.5"/>
+                {t("playerQuestHistory.thisWeek")}
+              </button>
+              <button id="player-quest-subtab-this-month" onClick={() => handleQuestSubTabChange("this-month")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "this-month"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                <CalendarDays id="player-quest-subtab-this-month-icon" className="h-3.5 w-3.5"/>
+                {t("playerQuestHistory.thisMonth")}
+              </button>
+              <button id="player-quest-subtab-daily-ahead" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                <CalendarDays id="player-quest-subtab-daily-ahead-icon" className="h-3.5 w-3.5"/>
+                {t("playerQuestHistory.dailyAhead")}
+              </button>
+            </div>)}
 
-          {questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month" ? (
+
+          {questSubTab === "chain" || questSubTab === "battle-pass" ? (<div id={`player-quest-subtab-coming-soon-${questSubTab}`} className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <Clock id={`player-quest-subtab-coming-soon-${questSubTab}-icon`} className="h-16 w-16 mb-4 opacity-20"/>
+              <p id={`player-quest-subtab-coming-soon-${questSubTab}-title`} className="text-xl font-semibold">{t("playerQuestHistory.comingSoon")}</p>
+            </div>) : questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month" ? (
         /* ── Daily Ahead / Timeframe sub-tabs ── */
         <div className="space-y-4" id="container-quest-timeframe">
               <div id="player-quest-timeframe-toolbar" className="flex flex-wrap items-end justify-between gap-3">

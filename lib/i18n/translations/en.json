@@ -82,6 +82,13 @@
   },
   "playerQuestHistory": {
     "allQuests": "All Quests",
+    "dailyQuest": "Daily Quest",
+    "chainQuest": "Chain Quest",
+    "battlePass": "Battle Pass",
+    "comingSoon": "Coming soon",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "dailyAhead": "Daily Ahead",
     "records": "quest records",
     "status": "Status",
     "allStatuses": "All statuses",
