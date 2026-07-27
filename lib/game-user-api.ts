@@ -476,20 +476,33 @@ export interface QuestHistoryResult {
     claims_total: number;
     claims: QuestHistoryClaim[];
     limit: number;
-    offset: number;
+    after_progress: string | null;
+    after_claim: string | null;
 }
 export async function getPlayerQuestHistory(gameId: string, userId: string, params?: {
     limit?: number;
-    offset?: number;
+    after_progress?: string;
+    after_claim?: string;
     q?: string;
+    quest_type?: string;
+    start_from?: string;
+    start_to?: string;
 }): Promise<QuestHistoryResult> {
     const qs = new URLSearchParams();
     if (params?.limit != null)
         qs.set("limit", String(params.limit));
-    if (params?.offset != null)
-        qs.set("offset", String(params.offset));
+    if (params?.after_progress != null)
+        qs.set("after_progress", params.after_progress);
+    if (params?.after_claim != null)
+        qs.set("after_claim", params.after_claim);
     if (params?.q)
         qs.set("q", params.q);
+    if (params?.quest_type)
+        qs.set("quest_type", params.quest_type);
+    if (params?.start_from)
+        qs.set("start_from", params.start_from);
+    if (params?.start_to)
+        qs.set("start_to", params.start_to);
     const query = qs.toString();
     return api.get(`/api/v1/games/${gameId}/players/${userId}/quest-history${query ? `?${query}` : ""}`);
 }

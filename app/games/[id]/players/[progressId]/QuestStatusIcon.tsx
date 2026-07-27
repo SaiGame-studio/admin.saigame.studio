@@ -33,6 +33,7 @@ interface QuestStatusIconProps {
 export function getQuestStatusTextClass(status: string) {
     if (status === "claimed") return "text-green-500";
     if (status === "completed") return "text-blue-400";
+    if (status === "in_progress") return "text-amber-500";
     if (status === "cancelled" || status === "expired" || status === "failed") return "text-red-400";
     return "text-muted-foreground";
 }

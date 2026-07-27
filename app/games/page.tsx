@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CopyButton } from "@/components/CopyButton";
 import { Gamepad2, ArrowRight, RefreshCw, ExternalLink, ChevronDown, X } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -250,6 +251,15 @@ export default function GamesPage() {
               </CardHeader>
               <CardContent className="pb-2">
                 <div className="flex flex-col gap-1 text-sm min-w-0">
+                  <div id={`games-grid-game-id-${game.id}`} className="flex items-center gap-1 min-w-0">
+                    <span id={`games-grid-game-id-label-${game.id}`} className="shrink-0">{t('game.gameId')}:</span>
+                    <span id={`games-grid-game-id-value-${game.id}`} className="truncate font-mono text-xs">{game.id}</span>
+                    <CopyButton
+                      id={`games-grid-game-id-copy-${game.id}`}
+                      iconId={`games-grid-game-id-copy-icon-${game.id}`}
+                      text={game.id}
+                    />
+                  </div>
                   <span className="truncate">{t('games.studio')}: {game.studio?.name && game.studio?.id ? (<Link href={`/studios/${game.studio.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold max-w-full align-middle">
                       <span className="truncate">{game.studio.name}</span>
                       <ExternalLink className="w-3 h-3 shrink-0"/>
