@@ -69,6 +69,8 @@ function getQuestStatusBadgeClass(status: string) {
         return "bg-green-500/10 text-green-500 border-green-500/30";
     if (status === "completed")
         return "bg-blue-500/10 text-blue-400 border-blue-400/30";
+    if (status === "not_started")
+        return "bg-amber-500/10 text-amber-500 border-amber-500/30";
     if (status === "cancelled" || status === "expired")
         return "bg-red-500/10 text-red-400 border-red-400/30";
     return "bg-muted/50 text-muted-foreground border-border";
