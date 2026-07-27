@@ -82,6 +82,13 @@
   },
   "playerQuestHistory": {
     "allQuests": "すべてのクエスト",
+    "questType": "クエストタイプ",
+    "allTypes": "すべてのタイプ",
+    "oneTimeQuest": "ワンタイムクエスト",
+    "startAt": "開始日時",
+    "startFrom": "開始日(から)",
+    "startTo": "開始日(まで)",
+    "loadMore": "もっと読み込む",
     "dailyQuest": "デイリークエスト",
     "chainQuest": "チェーンクエスト",
     "battlePass": "バトルパス",

@@ -482,6 +482,9 @@ export async function getPlayerQuestHistory(gameId: string, userId: string, para
     limit?: number;
     offset?: number;
     q?: string;
+    quest_type?: string;
+    start_from?: string;
+    start_to?: string;
 }): Promise<QuestHistoryResult> {
     const qs = new URLSearchParams();
     if (params?.limit != null)
@@ -490,6 +493,12 @@ export async function getPlayerQuestHistory(gameId: string, userId: string, para
         qs.set("offset", String(params.offset));
     if (params?.q)
         qs.set("q", params.q);
+    if (params?.quest_type)
+        qs.set("quest_type", params.quest_type);
+    if (params?.start_from)
+        qs.set("start_from", params.start_from);
+    if (params?.start_to)
+        qs.set("start_to", params.start_to);
     const query = qs.toString();
     return api.get(`/api/v1/games/${gameId}/players/${userId}/quest-history${query ? `?${query}` : ""}`);
 }

@@ -82,6 +82,13 @@
   },
   "playerQuestHistory": {
     "allQuests": "Tất cả nhiệm vụ",
+    "questType": "Loại nhiệm vụ",
+    "allTypes": "Tất cả loại",
+    "oneTimeQuest": "Nhiệm vụ một lần",
+    "startAt": "Bắt đầu lúc",
+    "startFrom": "Từ ngày",
+    "startTo": "Đến ngày",
+    "loadMore": "Tải thêm",
     "dailyQuest": "Nhiệm vụ hàng ngày",
     "chainQuest": "Nhiệm vụ chuỗi",
     "battlePass": "Battle Pass",
