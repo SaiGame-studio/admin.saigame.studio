@@ -705,6 +705,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     const [questSearchQuery, setQuestSearchQuery] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_q")?.trim() ?? "" : "");
     const questHistorySearchQuery = questSubTab === "all" ? questSearchQuery : "";
     const [questExpandedRows, setQuestExpandedRows] = useState<Set<string>>(new Set());
+    const [questHistoryBoundaries, setQuestHistoryBoundaries] = useState<Record<string, { loaded: number; total: number }>>({});
     const [questItemNames, setQuestItemNames] = useState<Record<string, string>>({});
     const [maxAdvanceDaysHelpHovered, setMaxAdvanceDaysHelpHovered] = useState(false);
     const [maxAdvanceDaysHelpPinned, setMaxAdvanceDaysHelpPinned] = useState(false);
@@ -996,10 +997,10 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         setQuestLoading(true);
         setQuestError(null);
         setQuestExpandedRows(new Set());
+        setQuestHistoryBoundaries({});
         try {
             const res = await getPlayerQuestHistory(gameId, detail.user_id, {
                 limit: QUEST_LIMIT,
-                offset: 0,
                 q: questHistorySearchQuery || undefined,
                 quest_type: questTypeFilter === "all" ? undefined : questTypeFilter,
                 start_from: questStartFrom || undefined,
@@ -1073,12 +1074,28 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     const loadMoreQuests = useCallback(async () => {
         if (questLoading || !questHistory || !detail?.user_id)
             return;
-        const nextOffset = (questHistory.offset ?? 0) + QUEST_LIMIT;
+
+        const lastProgress = questHistory.starts?.[questHistory.starts.length - 1]?.progress.id;
+        if (!lastProgress)
+            return;
+
+        const loadedCount = questHistory.starts.length;
+        const totalCount = questHistory.starts_total ?? 0;
+
+        setQuestHistoryBoundaries(prev => ({
+            ...prev,
+            [`start-${lastProgress}`]: { loaded: loadedCount, total: totalCount }
+        }));
+        const lastClaim = questHistory.claims && questHistory.claims.length > 0
+            ? questHistory.claims[questHistory.claims.length - 1].id
+            : undefined;
+
         setQuestLoading(true);
         try {
             const res = await getPlayerQuestHistory(gameId, detail.user_id, {
                 limit: QUEST_LIMIT,
-                offset: nextOffset,
+                after_progress: lastProgress,
+                after_claim: lastClaim,
                 q: questHistorySearchQuery || undefined,
                 quest_type: questTypeFilter === "all" ? undefined : questTypeFilter,
                 start_from: questStartFrom || undefined,
@@ -1086,13 +1103,18 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
             });
             setQuestHistory(prev => {
                 if (!prev) return res;
+                const existingStartIds = new Set(prev.starts.map(s => s.progress.id));
+                const newStarts = (res.starts ?? []).filter(s => !existingStartIds.has(s.progress.id));
+                const existingClaimIds = new Set(prev.claims.map(c => c.id));
+                const newClaims = (res.claims ?? []).filter(c => !existingClaimIds.has(c.id));
                 return {
                     ...res,
-                    starts: [...(prev.starts ?? []), ...(res.starts ?? [])],
-                    claims: [...(prev.claims ?? []), ...(res.claims ?? [])],
+                    starts: [...prev.starts, ...newStarts],
+                    claims: [...prev.claims, ...newClaims],
                     starts_total: res.starts_total,
                     claims_total: res.claims_total,
-                    offset: nextOffset,
+                    after_progress: res.after_progress,
+                    after_claim: res.after_claim,
                 };
             });
             // Collect item_definition_ids to resolve names from: granted rewards,
@@ -2324,7 +2346,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                       </div>
                     </div>);
             })())}
-            </div>) : questLoading ? (<div className="space-y-3 p-6">
+            </div>) : (questLoading && !questHistory) ? (<div className="space-y-3 p-6">
               {Array.from({ length: 5 }).map((_, i) => (<Skeleton key={i} className="h-12 w-full"/>))}
             </div>) : questError ? (<Card className="border-destructive">
               <CardContent className="p-6 text-center">
@@ -2337,18 +2359,15 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
               <p className="text-sm mt-1">Quest history has not been loaded yet.</p>
             </div>) : (<>
               {questSubTab === "all" && (() => {
-                const claimedProgressIds = new Set(questHistory.claims.map(claim => claim.progress_id));
+                const claimsByProgressId = new Map(questHistory.claims.map(claim => [claim.progress_id, claim]));
                 const progressById = new Map(questHistory.starts.map(start => [start.progress.id, start.progress]));
-                const hasMore = questHistory && (
-                    (questHistory.starts?.length < questHistory.starts_total) ||
-                    (questHistory.claims?.length < questHistory.claims_total)
-                );
-                const rows = [
-                    ...questHistory.claims.map(claim => ({ kind: "claim" as const, id: `claim-${claim.id}`, status: "claimed", timestamp: claim.claimed_at, claim })),
-                    ...questHistory.starts
-                        .filter(start => !claimedProgressIds.has(start.progress.id))
-                        .map(start => ({ kind: "start" as const, id: `start-${start.progress.id}`, status: start.progress.status, timestamp: start.progress.updated_at ?? "", start })),
-                ]
+                const hasMore = questHistory.starts.length < questHistory.starts_total;
+                const rows = questHistory.starts.map(start => {
+                    const claim = claimsByProgressId.get(start.progress.id);
+                    return claim
+                        ? { kind: "claim" as const, id: `start-${start.progress.id}`, status: "claimed", timestamp: start.progress.updated_at ?? "", claim }
+                        : { kind: "start" as const, id: `start-${start.progress.id}`, status: start.progress.status, timestamp: start.progress.updated_at ?? "", start };
+                })
                     .filter(row => questStatusFilter === "all" || row.status === questStatusFilter)
                     .sort((left, right) => (Date.parse(right.timestamp) || 0) - (Date.parse(left.timestamp) || 0));
                 return (<div id="player-quest-history-all" className="space-y-4">
@@ -2483,6 +2502,20 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                         </div>
                                       </TableCell>
                                     </TableRow>)}
+                                  {questHistoryBoundaries[row.id] && (() => {
+                                    const { loaded, total } = questHistoryBoundaries[row.id];
+                                    return (
+                                      <TableRow key={`boundary-${row.id}`} className="hover:bg-transparent bg-transparent pointer-events-none">
+                                        <TableCell colSpan={6} className="p-0 py-2">
+                                          <div className="h-[2px] bg-primary/30 w-full flex items-center justify-center relative my-2">
+                                            <span className="bg-background px-3 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider absolute">
+                                              {loaded} / {total} {t("playerQuestHistory.records")}
+                                            </span>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })()}
                                 </Fragment>);
                             }
                             const { start } = row;
@@ -2517,12 +2550,27 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                     </div>
                                   </TableCell>
                                 </TableRow>)}
+                              {questHistoryBoundaries[row.id] && (() => {
+                                const { loaded, total } = questHistoryBoundaries[row.id];
+                                return (
+                                  <TableRow key={`boundary-${row.id}`} className="hover:bg-transparent bg-transparent pointer-events-none">
+                                    <TableCell colSpan={6} className="p-0 py-2">
+                                      <div className="h-[2px] bg-primary/30 w-full flex items-center justify-center relative my-2">
+                                        <span className="bg-background px-3 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider absolute">
+                                          {loaded} / {total} {t("playerQuestHistory.records")}
+                                        </span>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })()}
                             </Fragment>);
                         })}
                           </TableBody>
                         </Table>
-                        {hasMore && (
-                          <div className="flex justify-center p-4 border-t">
+                        <div className={`flex ${hasMore ? "justify-between" : "justify-center"} items-center p-4 border-t text-sm text-muted-foreground`}>
+                          <p id="player-quest-history-count" className="font-mono text-xs">{rows.length} / {questHistory.starts_total ?? 0} {t("playerQuestHistory.records")}</p>
+                          {hasMore && (
                             <Button
                               id="btn-load-more-quests"
                               variant="outline"
@@ -2538,8 +2586,8 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                 t("playerQuestHistory.loadMore")
                               )}
                             </Button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </>)}
                     </CardContent>
                   </Card>

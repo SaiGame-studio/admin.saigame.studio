@@ -82,6 +82,7 @@
   },
   "playerQuestHistory": {
     "allQuests": "All Quests",
+    "newQuests": "Newly Loaded Quests",
     "questType": "Quest Type",
     "allTypes": "All types",
     "oneTimeQuest": "One-time Quest",

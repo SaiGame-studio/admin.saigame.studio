@@ -82,6 +82,7 @@
   },
   "playerQuestHistory": {
     "allQuests": "すべてのクエスト",
+    "newQuests": "新しくロードされたクエスト",
     "questType": "クエストタイプ",
     "allTypes": "すべてのタイプ",
     "oneTimeQuest": "ワンタイムクエスト",

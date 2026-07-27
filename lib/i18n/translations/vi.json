@@ -82,6 +82,7 @@
   },
   "playerQuestHistory": {
     "allQuests": "Tất cả nhiệm vụ",
+    "newQuests": "Nhiệm vụ vừa tải thêm",
     "questType": "Loại nhiệm vụ",
     "allTypes": "Tất cả loại",
     "oneTimeQuest": "Nhiệm vụ một lần",
