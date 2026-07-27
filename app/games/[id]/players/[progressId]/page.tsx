@@ -33,7 +33,27 @@ type ResolvedEntity = {
     name: string;
     type: "item" | "gacha_pack";
 };
-type QuestSubTab = "all" | "chain" | "battle-pass" | "daily-ahead" | "this-week" | "this-month";
+type QuestSubTab = "all" | "chain" | "battle-pass" | "daily-ahead" | "timeframe";
+type DailyQuestTimeframe = "this-week" | "last-week" | "this-month" | "last-month";
+const DAILY_QUEST_TIMEFRAME_STORAGE_KEY = "saigame_daily_quest_timeframe";
+function formatLocalDate(date: Date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+function getDailyQuestTimeframeRange(timeframe: DailyQuestTimeframe) {
+    const today = new Date();
+    if (timeframe === "this-week" || timeframe === "last-week") {
+        const day = today.getDay();
+        const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + (day === 0 ? -6 : 1) - (timeframe === "last-week" ? 7 : 0));
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        return { startDate: formatLocalDate(start), endDate: formatLocalDate(end) };
+    }
+    const monthOffset = timeframe === "last-month" ? -1 : 0;
+    return {
+        startDate: formatLocalDate(new Date(today.getFullYear(), today.getMonth() + monthOffset, 1)),
+        endDate: formatLocalDate(new Date(today.getFullYear(), today.getMonth() + monthOffset + 1, 0)),
+    };
+}
 type QuestStatusFilter = "all" | "in_progress" | "completed" | "claimed" | "cancelled" | "locked" | "expired" | "not_started";
 const QUEST_STATUS_FILTERS: Exclude<QuestStatusFilter, "all">[] = [
     "in_progress",
@@ -689,8 +709,19 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     const [questError, setQuestError] = useState<string | null>(null);
     const [questSubTab, setQuestSubTab] = useState<QuestSubTab>(() => {
         const sub = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_sub") : null;
-        return sub === "chain" || sub === "battle-pass" || sub === "daily-ahead" || sub === "this-week" || sub === "this-month" ? sub : "all";
+        return sub === "chain" || sub === "battle-pass" || sub === "daily-ahead" || sub === "timeframe" || sub === "this-week" || sub === "this-month"
+            ? (sub === "this-week" || sub === "this-month" ? "timeframe" : sub)
+            : "all";
     });
+    const [dailyQuestTimeframe, setDailyQuestTimeframe] = useState<DailyQuestTimeframe>(() => {
+        if (typeof window === "undefined")
+            return "this-week";
+        const timeframe = localStorage.getItem(DAILY_QUEST_TIMEFRAME_STORAGE_KEY);
+        return timeframe === "last-week" || timeframe === "this-month" || timeframe === "last-month" ? timeframe : "this-week";
+    });
+    const [dailyQuestStartDate, setDailyQuestStartDate] = useState(() => getDailyQuestTimeframeRange(dailyQuestTimeframe).startDate);
+    const [dailyQuestEndDate, setDailyQuestEndDate] = useState(() => getDailyQuestTimeframeRange(dailyQuestTimeframe).endDate);
+    const [dailyQuestTimeframeRequestKey, setDailyQuestTimeframeRequestKey] = useState(0);
     const [questStatusFilter, setQuestStatusFilter] = useState<QuestStatusFilter>(() => {
         const status = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_status") : null;
         return status === "all" || QUEST_STATUS_FILTERS.includes(status as Exclude<QuestStatusFilter, "all">) ? status as QuestStatusFilter : "all";
@@ -1013,6 +1044,9 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                 claims_total: res.claims_total ?? 0,
                 starts_total: res.starts_total ?? 0,
             });
+            if (UUID_RE.test(questHistorySearchQuery) && res.starts?.some(start => start.progress.id === questHistorySearchQuery)) {
+                setQuestExpandedRows(new Set([`start-${questHistorySearchQuery}`]));
+            }
             // Collect item_definition_ids to resolve names from: granted rewards,
             // quest-defined rewards, and items referenced inside quest conditions.
             const itemIds = new Set<string>();
@@ -1202,24 +1236,10 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         setDailyAheadError(null);
         setDailyAheadPreview(null);
         try {
-            if (questSubTab === "this-week" || questSubTab === "this-month") {
-                const today = new Date();
-                let start: Date, end: Date;
-                if (questSubTab === "this-week") {
-                    const day = today.getDay();
-                    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-                    start = new Date(today.getFullYear(), today.getMonth(), diff);
-                    end = new Date(start);
-                    end.setDate(end.getDate() + 6);
-                } else {
-                    start = new Date(today.getFullYear(), today.getMonth(), 1);
-                    end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                }
-                const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                
+            if (questSubTab === "timeframe") {
                 const res = await getPlayerDailyQuestTimeframe(gameId, poolId, detail.user_id, {
-                    start_date: fmt(start),
-                    end_date: fmt(end)
+                    start_date: dailyQuestStartDate,
+                    end_date: dailyQuestEndDate,
                 });
                 setDailyAheadPreview(res);
             } else {
@@ -1233,7 +1253,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         finally {
             setDailyAheadLoading(false);
         }
-    }, [gameId, detail, dailyAheadDays, questSubTab]);
+    }, [gameId, detail, dailyAheadDays, questSubTab, dailyQuestStartDate, dailyQuestEndDate]);
     const loadBattleSessions = useCallback(async () => {
         if (!detail?.user_id)
             return;
@@ -1316,6 +1336,17 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         setQuestSearchQuery("");
         setQuestStatusFilter("all");
         const params = new URLSearchParams({ tab: "quests", quest_sub: sub });
+        router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+    };
+    const handleDailyQuestTimeframeChange = (timeframe: DailyQuestTimeframe) => {
+        const { startDate, endDate } = getDailyQuestTimeframeRange(timeframe);
+        setDailyQuestTimeframe(timeframe);
+        localStorage.setItem(DAILY_QUEST_TIMEFRAME_STORAGE_KEY, timeframe);
+        setDailyQuestStartDate(startDate);
+        setDailyQuestEndDate(endDate);
+        setDailyQuestTimeframeRequestKey(key => key + 1);
+        setQuestSubTab("timeframe");
+        const params = new URLSearchParams({ tab: "quests", quest_sub: "timeframe", quest_timeframe: timeframe });
         router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
     };
     const handleQuestStatusFilterChange = (status: QuestStatusFilter) => {
@@ -1415,18 +1446,18 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                 .finally(() => setEquippedLoading(false)));
         }
     }, [activeTab, gameId, detail?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
-    // Load pools when entering the daily-ahead, this-week or this-month sub-tabs (or once game loads)
+    // Load pools when entering a daily quest view (or once game loads)
     useEffect(() => {
-        if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadPools.length === 0) {
+        if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "timeframe") && dailyAheadPools.length === 0) {
             loadDailyAheadPools();
         }
     }, [activeTab, questSubTab]); // eslint-disable-line react-hooks/exhaustive-deps
     // Load preview whenever the selected pool or days change while on the tab
     useEffect(() => {
-        if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && dailyAheadSelectedPoolId) {
+        if (activeTab === "quests" && (questSubTab === "daily-ahead" || questSubTab === "timeframe") && dailyAheadSelectedPoolId) {
             loadDailyAheadPreview(dailyAheadSelectedPoolId);
         }
-    }, [activeTab, questSubTab, dailyAheadSelectedPoolId, dailyAheadDays, detail?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [activeTab, questSubTab, dailyQuestStartDate, dailyQuestEndDate, dailyQuestTimeframeRequestKey, dailyAheadSelectedPoolId, dailyAheadDays, detail?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
     const RARITY_STYLE: Record<string, string> = {
         common: "bg-gray-500/15 text-gray-400 border-gray-400/40",
         uncommon: "bg-green-500/15 text-green-500 border-green-500/40",
@@ -2145,11 +2176,17 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
               <Trophy id="tab-quest-all-icon" className="h-3.5 w-3.5"/>
               {t("playerQuestHistory.allQuests")}
             </button>
-            <button id="player-quest-subtab-daily-quest" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month"
+            <button id="player-quest-subtab-daily-timeframe" onClick={() => handleDailyQuestTimeframeChange(dailyQuestTimeframe)} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "timeframe"
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              <CalendarDays id="player-quest-subtab-daily-quest-icon" className="h-3.5 w-3.5"/>
-              {t("playerQuestHistory.dailyQuest")}
+              <CalendarDays id="player-quest-subtab-daily-timeframe-icon" className="h-3.5 w-3.5"/>
+              {t("playerQuestHistory.dailyTimeframe")}
+            </button>
+            <button id="player-quest-subtab-daily-ahead" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead"
+            ? "border-primary text-foreground"
+            : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              <CalendarDays id="player-quest-subtab-daily-ahead-icon" className="h-3.5 w-3.5"/>
+              {t("playerQuestHistory.dailyAhead")}
             </button>
             <button id="player-quest-subtab-chain-quest" onClick={() => handleQuestSubTabChange("chain")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "chain"
             ? "border-primary text-foreground"
@@ -2165,32 +2202,10 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
             </button>
           </div>
 
-          {(questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month") && (<div id="player-quest-daily-quest-subtab-navigation" className="flex items-center gap-1 border-b pb-0 overflow-x-auto whitespace-nowrap">
-              <button id="player-quest-subtab-this-week" onClick={() => handleQuestSubTabChange("this-week")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "this-week"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-                <CalendarDays id="player-quest-subtab-this-week-icon" className="h-3.5 w-3.5"/>
-                {t("playerQuestHistory.thisWeek")}
-              </button>
-              <button id="player-quest-subtab-this-month" onClick={() => handleQuestSubTabChange("this-month")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "this-month"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-                <CalendarDays id="player-quest-subtab-this-month-icon" className="h-3.5 w-3.5"/>
-                {t("playerQuestHistory.thisMonth")}
-              </button>
-              <button id="player-quest-subtab-daily-ahead" onClick={() => handleQuestSubTabChange("daily-ahead")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "daily-ahead"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-                <CalendarDays id="player-quest-subtab-daily-ahead-icon" className="h-3.5 w-3.5"/>
-                {t("playerQuestHistory.dailyAhead")}
-              </button>
-            </div>)}
-
-
           {questSubTab === "chain" || questSubTab === "battle-pass" ? (<div id={`player-quest-subtab-coming-soon-${questSubTab}`} className="flex flex-col items-center justify-center py-20 text-muted-foreground">
               <Clock id={`player-quest-subtab-coming-soon-${questSubTab}-icon`} className="h-16 w-16 mb-4 opacity-20"/>
               <p id={`player-quest-subtab-coming-soon-${questSubTab}-title`} className="text-xl font-semibold">{t("playerQuestHistory.comingSoon")}</p>
-            </div>) : questSubTab === "daily-ahead" || questSubTab === "this-week" || questSubTab === "this-month" ? (
+            </div>) : questSubTab === "daily-ahead" || questSubTab === "timeframe" ? (
         /* ── Daily Ahead / Timeframe sub-tabs ── */
         <div className="space-y-4" id="container-quest-timeframe">
               <div id="player-quest-timeframe-toolbar" className="flex flex-wrap items-end justify-between gap-3">
@@ -2223,7 +2238,33 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                       </TooltipProvider>
                     </div>
                   </div>)}
-                <div id={`player-quest-timeframe-filters-${questSubTab}`} className="ml-auto flex flex-wrap items-end justify-end gap-3">
+                <div id="player-quest-timeframe-controls" className="ml-auto flex flex-wrap items-end justify-end gap-3">
+                  {questSubTab === "timeframe" && (<div id="player-quest-timeframe-selector" className="flex items-center rounded-md border border-input p-0.5">
+                    <Button id="player-quest-timeframe-last-week" type="button" variant={questSubTab === "timeframe" && dailyQuestTimeframe === "last-week" ? "secondary" : "ghost"} size="sm" onClick={() => handleDailyQuestTimeframeChange("last-week")}>
+                      {t("playerQuestHistory.lastWeek")}
+                    </Button>
+                    <Button id="player-quest-timeframe-last-month" type="button" variant={questSubTab === "timeframe" && dailyQuestTimeframe === "last-month" ? "secondary" : "ghost"} size="sm" onClick={() => handleDailyQuestTimeframeChange("last-month")}>
+                      {t("playerQuestHistory.lastMonth")}
+                    </Button>
+                    <span id="player-quest-timeframe-preset-divider" role="separator" aria-orientation="vertical" className="mx-1 h-5 w-px bg-border" />
+                    <Button id="player-quest-timeframe-this-week" type="button" variant={questSubTab === "timeframe" && dailyQuestTimeframe === "this-week" ? "secondary" : "ghost"} size="sm" onClick={() => handleDailyQuestTimeframeChange("this-week")}>
+                      {t("playerQuestHistory.thisWeek")}
+                    </Button>
+                    <Button id="player-quest-timeframe-this-month" type="button" variant={questSubTab === "timeframe" && dailyQuestTimeframe === "this-month" ? "secondary" : "ghost"} size="sm" onClick={() => handleDailyQuestTimeframeChange("this-month")}>
+                      {t("playerQuestHistory.thisMonth")}
+                    </Button>
+                  </div>)}
+                  <div id={`player-quest-timeframe-filters-${questSubTab}`} className="flex flex-wrap items-end justify-end gap-3">
+                  {questSubTab === "timeframe" && (<>
+                    <div id="player-quest-timeframe-start-date-filter" className="flex flex-col gap-1">
+                      <label id="player-quest-timeframe-start-date-label" htmlFor="player-quest-timeframe-start-date" className="text-xs text-muted-foreground font-medium">{t("playerQuestHistory.startDate")}</label>
+                      <input id="player-quest-timeframe-start-date" type="date" value={dailyQuestStartDate} max={dailyQuestEndDate} onChange={event => setDailyQuestStartDate(event.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
+                    </div>
+                    <div id="player-quest-timeframe-end-date-filter" className="flex flex-col gap-1">
+                      <label id="player-quest-timeframe-end-date-label" htmlFor="player-quest-timeframe-end-date" className="text-xs text-muted-foreground font-medium">{t("playerQuestHistory.endDate")}</label>
+                      <input id="player-quest-timeframe-end-date" type="date" value={dailyQuestEndDate} min={dailyQuestStartDate} onChange={event => setDailyQuestEndDate(event.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
+                    </div>
+                  </>)}
                   <div id={`player-quest-timeframe-pool-filter-${questSubTab}`} className="flex flex-col gap-1">
                     <label id={`player-quest-timeframe-pool-label-${questSubTab}`} className="text-xs text-muted-foreground font-medium">Pool</label>
                     {dailyAheadPoolsLoading ? (<Skeleton className="h-9 w-48"/>) : dailyAheadPools.length === 0 ? (<p className="text-sm text-muted-foreground">No pools found for this game.</p>) : (<div className="flex items-center gap-1.5">
@@ -2256,6 +2297,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                   <Button id={`btn-refresh-quests-${questSubTab}`} variant="outline" size="icon" onClick={() => dailyAheadSelectedPoolId && loadDailyAheadPreview(dailyAheadSelectedPoolId)} disabled={dailyAheadLoading || !dailyAheadSelectedPoolId} title={t("common.refresh")}>
                     <RefreshCw id={`btn-refresh-quests-${questSubTab}-icon`} className={`h-4 w-4 ${dailyAheadLoading ? "animate-spin" : ""}`}/>
                   </Button>
+                  </div>
                 </div>
               </div>
 
@@ -2307,7 +2349,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                               {/* Quests */}
                               {hasQuests ? (<ul className="space-y-0.5 flex-1">
                                   {day.quests.map((q) => {
-                                  const isQuestHistoryTimeframe = questSubTab === "this-week" || questSubTab === "this-month";
+                                  const isQuestHistoryTimeframe = questSubTab === "timeframe";
                                   const assignmentResetAt = Date.parse(q.assignment.expires_at);
                                   const matchingHistoryProgress = questHistory?.starts.find(({ progress }) => {
                                       const progressResetAt = typeof progress.reset_at === "string" ? Date.parse(progress.reset_at) : Number.NaN;
@@ -2316,11 +2358,23 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                   const questProgressInstanceId = q.progress?.id ?? matchingHistoryProgress?.id;
                                   const questStatus = matchingHistoryProgress?.status ?? q.status;
                                   const questHistoryHref = `/games/${gameId}/players/${progressId}?tab=quests&quest_sub=all${questProgressInstanceId ? `&quest_q=${encodeURIComponent(questProgressInstanceId)}` : ""}`;
-                                  const questHref = isQuestHistoryTimeframe
+                                  const questHref = isQuestHistoryTimeframe && Boolean(questProgressInstanceId)
                                       ? questHistoryHref
                                       : `/games/${gameId}/quests?q=${encodeURIComponent(q.assignment.quest_definition_id)}`;
                                   return (<li id={`player-quest-timeframe-item-${q.assignment.id}`} key={q.assignment.id} className="leading-snug">
-                                      {q.quest?.name ? (<TooltipProvider delayDuration={200}>
+                                      {q.quest?.name ? (isQuestHistoryTimeframe && !questProgressInstanceId ? (<TooltipProvider delayDuration={200}>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <a id={`player-quest-timeframe-definition-link-${q.assignment.id}`} href={questHref} className={`inline-flex items-center gap-0.5 hover:underline ${getQuestStatusTextClass("not_started")}`}>
+                                          <QuestStatusIcon id={`player-quest-timeframe-status-${q.assignment.id}-icon`} status="not_started" className="h-3 w-3 shrink-0"/>
+                                          <span id={`player-quest-timeframe-name-${q.assignment.id}`}>{q.quest.name.length > 25 ? q.quest.name.slice(0, 25) + "â€¦" : q.quest.name}</span>
+                                              </a>
+                                            </TooltipTrigger>
+                                            <TooltipContent id={`player-quest-timeframe-tooltip-${q.assignment.id}`} side="top">
+                                              {t("playerQuestHistory.statuses.not_started")}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>) : (<TooltipProvider delayDuration={200}>
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <a id={`player-quest-timeframe-link-${q.assignment.id}`} href={questHref} target={isQuestHistoryTimeframe ? undefined : "_blank"} rel={isQuestHistoryTimeframe ? undefined : "noopener noreferrer"} className={`inline-flex items-center gap-0.5 hover:underline group ${isQuestHistoryTimeframe ? getQuestStatusTextClass(questStatus) : "text-foreground"}`}>
@@ -2335,7 +2389,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                               {isQuestHistoryTimeframe ? t(`playerQuestHistory.statuses.${questStatus}`) : q.quest.name}
                                             </TooltipContent>
                                           </Tooltip>
-                                        </TooltipProvider>) : (<span className="text-muted-foreground font-mono">
+                                        </TooltipProvider>)) : (<span className="text-muted-foreground font-mono">
                                           {q.assignment.quest_definition_id?.slice(0, 6) ?? "?"}…
                                         </span>)}
                                     </li>);

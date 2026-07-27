@@ -31,7 +31,7 @@ import { fetchStudioWithCache } from "@/lib/studio-api";
 import { ApiError } from "@/lib/api-client";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils";
 import type { Studio } from "@/types/studio";
-import { listQuestDefinitions, listQuestTypes, listQuestConditionTypes, createQuestDefinition, updateQuestDefinition, deleteQuestDefinition, isConditionLeaf, type QuestDefinition, type QuestType, type QuestReward, type QuestConditionLeaf, type QuestConditionGroup, type ItemRequirement, type CreateQuestDefinitionRequest, type UpdateQuestDefinitionRequest, type QuestConditionTypeOption, } from "@/lib/quest-api";
+import { listQuestDefinitions, getQuestDefinition, listQuestTypes, listQuestConditionTypes, createQuestDefinition, updateQuestDefinition, deleteQuestDefinition, isConditionLeaf, type QuestDefinition, type QuestType, type QuestReward, type QuestConditionLeaf, type QuestConditionGroup, type ItemRequirement, type CreateQuestDefinitionRequest, type UpdateQuestDefinitionRequest, type QuestConditionTypeOption, } from "@/lib/quest-api";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { DailyTab } from "./DailyTab";
@@ -49,6 +49,7 @@ import type { Game } from "@/types/game";
 import { lsPendingQuestCreate, lsPendingQuestEdit } from "@/components/llm-conversations/conversation-panel-utils";
 // ─── Tab config ────────────────────────────────────────────────────────────────
 type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest" | "settings";
+const QUEST_DEFINITION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Module-level cache so the same items?limit=200 request is only fired once per gameId
 // across ConditionEditor, RewardEditor, and the DefinitionsTab row display.
 const itemDefsCache = new Map<string, Promise<Paginated<ItemDefinition>>>();
@@ -658,6 +659,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const [filterActive, setFilterActive] = useState(() => searchParams.get("active") ?? "all");
     const [sortBy, setSortBy] = useState(() => searchParams.get("sortBy") ?? "updated_at");
     const [sortOrder, setSortOrder] = useState(() => searchParams.get("sortOrder") ?? "desc");
+    const questIdSearch = filterSearch.trim();
+    const hasQuestIdSearch = QUEST_DEFINITION_ID_RE.test(questIdSearch);
     // Sync filter state → URL
     useEffect(() => {
         const sp = new URLSearchParams(searchParams.toString());
@@ -701,8 +704,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         if (nextSortOrder !== sortOrder)
             setSortOrder(nextSortOrder);
         const expandQuest = searchParams.get("expandQuest");
-        if (expandQuest !== expandedQuestId)
-            setExpandedQuestId(expandQuest);
+        if (expandQuest) {
+            if (expandQuest !== expandedQuestId)
+                setExpandedQuestId(expandQuest);
+        } else if (!QUEST_DEFINITION_ID_RE.test(nextSearch) && expandedQuestId) {
+            setExpandedQuestId(null);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
     // Quest type options:
@@ -763,6 +770,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         if (!game)
             return;
         try {
+            if (!after && hasQuestIdSearch) {
+                const quest = await getQuestDefinition(gameId, questIdSearch);
+                setQuests([quest]);
+                setTotalQuests(1);
+                setHasNextPage(false);
+                setExpandedQuestId(quest.id);
+                return;
+            }
             const res = await listQuestDefinitions(gameId, {
                 status: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
                 limit,
@@ -785,7 +800,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             const msg = e instanceof ApiError ? e.message : "Failed to load quest definitions";
             setError(msg);
         }
-    }, [game, gameId, limit, filterActive, sortBy, sortOrder]);
+    }, [game, gameId, limit, filterActive, sortBy, sortOrder, hasQuestIdSearch, questIdSearch]);
     
     useEffect(() => {
         if (!game)
@@ -1835,7 +1850,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             </Table>)}
           {quests.length > 0 && !loading && (
             <div className="p-4 flex flex-col items-center justify-center border-t gap-3">
-              {hasNextPage && (
+              {hasNextPage && !hasQuestIdSearch && (
                 <Button 
                   variant="outline" 
                   onClick={handleLoadMore} 
