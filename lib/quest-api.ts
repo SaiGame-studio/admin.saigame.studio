@@ -387,6 +387,7 @@ export interface DailyQuestAssignment {
     pool_id: string;
     quest_definition_id: string;
     assigned_date: string;
+    available_at: string;
     expires_at: string;
     created_at: string;
 }
