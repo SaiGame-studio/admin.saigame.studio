@@ -903,7 +903,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     }, [editQuestId, gameId, quests, openEdit]);
     const refresh = async () => {
         setRefreshing(true);
-        await loadQuests(offset);
+        await loadQuests();
         setRefreshing(false);
     };
     // ── Create ───────────────────────────────────────────────────────────────────
@@ -1334,7 +1334,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 }));
                 setCreateQuestConvContext(null);
             }
-            await loadQuests(offset);
+            await loadQuests();
             getGame(gameId).then(onGameUpdate).catch(() => { });
         }
         catch (e) {
@@ -1394,7 +1394,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 },
             }));
             closeEdit();
-            await loadQuests(offset);
+            await loadQuests();
         }
         catch (e) {
             toast({
@@ -1416,7 +1416,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             await deleteQuestDefinition(gameId, deleteQuest.id);
             toast({ title: t('quest.questDeleted'), description: deleteQuest.name });
             setDeleteQuest(null);
-            await loadQuests(offset);
+            await loadQuests();
             getGame(gameId).then(onGameUpdate).catch(() => { });
         }
         catch (e) {
