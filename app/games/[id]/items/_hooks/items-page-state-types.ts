@@ -11,6 +11,10 @@ export interface KeyReqRow {
     item_definition_id: string;
     quantity: string;
 }
+export interface DropGroupFormRow {
+    key: string;
+    pool: PoolRow[];
+}
 
 export type GachaLLMRow = {
     item_definition_id?: unknown;
@@ -42,6 +46,7 @@ export function emptyGachaForm() {
         mailbox_title: "",
         mailbox_body: "",
         pool: [EMPTY_ROW()],
+        dropGroups: [],
         keyReqs: [EMPTY_KEY_ROW()],
     };
 }

@@ -62,6 +62,15 @@ export interface KeyRequirement {
     item_definition_id: string;
     quantity: number;
 }
+export interface GachaDropGroup {
+    key: string;
+    item_pool: GachaPoolEntry[];
+}
+export interface GachaDropGroup {
+    key: string;
+    item_pool: GachaPoolEntry[];
+    drop_groups?: GachaDropGroup[];
+}
 export interface GachaPack {
     id: string;
     studio_id: string;
@@ -71,6 +80,8 @@ export interface GachaPack {
     code_name?: string;
     collect_destination?: 'mailbox' | 'inventory';
     item_pool: GachaPoolEntry[];
+    drop_groups?: GachaDropGroup[];
+    drop_groups?: GachaDropGroup[];
     key_requirements: KeyRequirement[];
     is_enabled: boolean;
     metadata?: Record<string, unknown>;
@@ -84,6 +95,7 @@ export interface CreateGachaPackRequest {
     collect_destination: 'mailbox' | 'inventory';
     is_enabled?: boolean;
     item_pool: GachaPoolEntry[];
+    drop_groups?: GachaDropGroup[];
     key_requirements: KeyRequirement[];
     metadata?: Record<string, unknown>;
 }
@@ -94,6 +106,8 @@ export interface UpdateGachaPackRequest {
     collect_destination?: 'mailbox' | 'inventory';
     is_enabled?: boolean;
     item_pool?: GachaPoolEntry[];
+    drop_groups?: GachaDropGroup[];
+    drop_groups?: GachaDropGroup[];
     key_requirements?: KeyRequirement[];
     metadata?: Record<string, unknown>;
 }

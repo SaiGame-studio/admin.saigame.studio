@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { Check, Copy, ExternalLink, Loader2, Plus, RefreshCw, Save, Wand2, X, ChevronsUpDown } from "lucide-react";
+import { Check, Copy, ExternalLink, KeyRound, Layers, Loader2, Plus, RefreshCw, Save, Trash2, Wand2, X, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ type GachaFormState = {
     quantity_min: string;
     quantity_max: string;
   }>;
+  dropGroups?: Array<{ key: string; pool: GachaFormState["pool"] }>;
   keyReqs: Array<{
     item_definition_id: string;
     quantity: string;
@@ -122,6 +123,13 @@ export function GachaPackSheet({
   function removePoolRow(index: number) {
     setGachaForm((f) => ({ ...f, pool: f.pool.filter((_, i) => i !== index) }));
   }
+
+  function addDropGroup() { setGachaForm((form) => { const groups = form.dropGroups ?? []; const used = new Set(groups.map((group) => group.key)); let number = 1; while (used.has(`secondary_${number}`)) number += 1; return { ...form, dropGroups: [...groups, { key: `secondary_${number}`, pool: [{ item_definition_id: "", weight: "700000", quantity_min: "1", quantity_max: "1" }] }] }; }); }
+  function removeDropGroup(index: number) { setGachaForm((form) => ({ ...form, dropGroups: (form.dropGroups ?? []).filter((_, groupIndex) => groupIndex !== index) })); }
+  function updateDropGroup(index: number, patch: Partial<NonNullable<GachaFormState["dropGroups"]>[number]>) { setGachaForm((form) => ({ ...form, dropGroups: (form.dropGroups ?? []).map((group, groupIndex) => groupIndex === index ? { ...group, ...patch } : group) })); }
+  function updateDropGroupRow(groupIndex: number, rowIndex: number, patch: Partial<GachaFormState["pool"][number]>) { setGachaForm((form) => ({ ...form, dropGroups: (form.dropGroups ?? []).map((group, currentGroupIndex) => currentGroupIndex === groupIndex ? { ...group, pool: group.pool.map((row, currentRowIndex) => currentRowIndex === rowIndex ? { ...row, ...patch } : row) } : group) })); }
+  function addDropGroupRow(groupIndex: number) { setGachaForm((form) => ({ ...form, dropGroups: form.dropGroups.map((group, index) => index === groupIndex ? { ...group, pool: [...group.pool, { item_definition_id: "", weight: "700000", quantity_min: "1", quantity_max: "1" }] } : group) })); }
+  function removeDropGroupRow(groupIndex: number, rowIndex: number) { setGachaForm((form) => ({ ...form, dropGroups: form.dropGroups.map((group, index) => index === groupIndex ? { ...group, pool: group.pool.filter((_, currentRowIndex) => currentRowIndex !== rowIndex) } : group) })); }
 
   const itemOptions = (search: string) =>
     gachaAllItems
@@ -271,8 +279,8 @@ export function GachaPackSheet({
           <Separator id="gacha-pack-sheet-separator-keyreqs" />
 
           <div id="gacha-pack-sheet-keyreqs" className="space-y-3">
-            <div id="gacha-pack-sheet-keyreqs-heading">
-              <Label id="gacha-pack-sheet-keyreqs-label" className="text-base">{t("items.keyRequirements")}</Label>
+            <div id="gacha-pack-sheet-keyreqs-heading" className="space-y-1 rounded-md bg-muted/40 px-3 py-2">
+              <div id="gacha-pack-sheet-keyreqs-title-row" className="flex items-center gap-2"><KeyRound id="gacha-pack-sheet-keyreqs-title-icon" className="h-5 w-5 text-primary" /><Label id="gacha-pack-sheet-keyreqs-label" className="text-lg font-semibold">{t("items.keyRequirements")}</Label></div>
               <p id="gacha-pack-sheet-keyreqs-desc" className="text-xs text-muted-foreground">{t("items.keyReqDesc")}</p>
             </div>
             {gachaForm.keyReqs.length > 0 && (
@@ -356,12 +364,17 @@ export function GachaPackSheet({
             </div>
           </div>
 
-          <Separator id="gacha-pack-sheet-separator-pool" />
+          <Separator id="gacha-pack-sheet-separator-drop-groups" />
+
+          <div id="gacha-pack-sheet-drop-groups-title" className="space-y-1 rounded-md bg-muted/40 px-3 py-2">
+            <div id="gacha-pack-sheet-drop-groups-title-row" className="flex items-center gap-2"><Layers id="gacha-pack-sheet-drop-groups-title-icon" className="h-5 w-5 text-primary" /><Label id="gacha-pack-sheet-drop-groups-title-label" className="text-lg font-semibold">{t("items.dropGroups")}</Label></div>
+            <p id="gacha-pack-sheet-drop-groups-title-description" className="text-xs text-muted-foreground">{t("items.dropGroupsDescription")}</p>
+          </div>
 
           <div id="gacha-pack-sheet-pool" className="space-y-3">
             <div id="gacha-pack-sheet-pool-header" className="flex items-center justify-between">
               <div id="gacha-pack-sheet-pool-header-copy">
-                <Label id="gacha-pack-sheet-pool-label" className="text-base">{t("items.itemPoolLabel")}</Label>
+                <Label id="gacha-pack-sheet-pool-label" className="text-sm font-medium">{t("items.primaryGroup")}</Label>
                 {formTotalWeight > 0 && (
                   <p id="gacha-pack-sheet-pool-total" className="text-xs text-muted-foreground">
                     {t("items.totalWeight")}: {formTotalWeight.toLocaleString()}
@@ -459,7 +472,16 @@ export function GachaPackSheet({
             {gachaForm.pool.length === 0 && <p id="gacha-pack-sheet-no-pool" className="text-xs text-muted-foreground italic">{t("items.noItemsPool")}</p>}
           </div>
 
-          <div id="gacha-pack-sheet-actions" className="flex items-center justify-end gap-2 pt-6 mt-4 border-t">
+          <div id="gacha-pack-sheet-drop-groups-field" className="space-y-3">
+            <div id="gacha-pack-sheet-drop-groups-heading"><div id="gacha-pack-sheet-drop-groups-copy"><Label id="gacha-pack-sheet-drop-groups-label" className="text-sm font-medium">{t("items.secondaryGroups")}</Label><p id="gacha-pack-sheet-drop-groups-description" className="text-xs text-muted-foreground">{t("items.secondaryGroupsDescription")}</p></div></div>
+            {(gachaForm.dropGroups ?? []).map((group, groupIndex) => <div id={`gacha-pack-sheet-secondary-group-${group.key || groupIndex}`} key={`secondary-${groupIndex}`} className="space-y-2 rounded border bg-muted/30 p-3"><div id={`gacha-pack-sheet-secondary-group-header-${groupIndex}`} className="flex items-center justify-between"><span id={`gacha-pack-sheet-secondary-group-key-${groupIndex}`} className="font-mono text-sm font-medium">{group.key}</span><div id={`gacha-pack-sheet-secondary-group-actions-${groupIndex}`} className="flex items-center gap-1"><Button id={`gacha-pack-sheet-secondary-row-add-${groupIndex}`} size="sm" type="button" variant="outline" onClick={() => addDropGroupRow(groupIndex)}><Plus id={`gacha-pack-sheet-secondary-row-add-icon-${groupIndex}`} className="mr-1 h-3.5 w-3.5" />{t("items.addItem")}</Button><Button id={`gacha-pack-sheet-secondary-group-remove-${groupIndex}`} type="button" size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeDropGroup(groupIndex)}><Trash2 id={`gacha-pack-sheet-secondary-group-remove-icon-${groupIndex}`} className="h-4 w-4" /></Button></div></div>{group.pool.map((row, rowIndex) => <div id={`gacha-pack-sheet-secondary-row-${groupIndex}-${rowIndex}`} key={rowIndex} className="grid grid-cols-[1fr_90px_90px_90px_32px] gap-1.5"><Select value={row.item_definition_id} onValueChange={(value) => updateDropGroupRow(groupIndex, rowIndex, { item_definition_id: value })}><SelectTrigger id={`gacha-pack-sheet-secondary-item-${groupIndex}-${rowIndex}`}><SelectValue placeholder={t("items.selectItem")} /></SelectTrigger><SelectContent id={`gacha-pack-sheet-secondary-item-options-${groupIndex}-${rowIndex}`}>{gachaAllItems.map((item) => <SelectItem id={`gacha-pack-sheet-secondary-item-option-${groupIndex}-${rowIndex}-${item.id}`} key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select><Input id={`gacha-pack-sheet-secondary-weight-${groupIndex}-${rowIndex}`} value={row.weight} onChange={(event) => updateDropGroupRow(groupIndex, rowIndex, { weight: event.target.value })} /><Input id={`gacha-pack-sheet-secondary-min-${groupIndex}-${rowIndex}`} value={row.quantity_min} onChange={(event) => updateDropGroupRow(groupIndex, rowIndex, { quantity_min: event.target.value })} /><Input id={`gacha-pack-sheet-secondary-max-${groupIndex}-${rowIndex}`} value={row.quantity_max} onChange={(event) => updateDropGroupRow(groupIndex, rowIndex, { quantity_max: event.target.value })} /><Button id={`gacha-pack-sheet-secondary-row-remove-${groupIndex}-${rowIndex}`} type="button" size="icon" variant="ghost" onClick={() => removeDropGroupRow(groupIndex, rowIndex)}><X id={`gacha-pack-sheet-secondary-row-remove-icon-${groupIndex}-${rowIndex}`} /></Button></div>)}</div>)}
+            <Button id="gacha-pack-sheet-add-drop-group" size="sm" variant="outline" type="button" onClick={addDropGroup} disabled={formSaving || (gachaForm.dropGroups?.length ?? 0) >= 6}><Plus id="gacha-pack-sheet-add-drop-group-icon" className="mr-1 h-3.5 w-3.5" />{t("items.addGroup")}</Button>
+          </div>
+
+          <div id="gacha-pack-sheet-actions" className="flex items-center justify-between gap-2 pt-6 mt-4 border-t">
+            <div id="gacha-pack-sheet-actions-left" className="flex items-center gap-3">
+            </div>
+            <div id="gacha-pack-sheet-actions-right" className="flex items-center gap-2">
             <Button id="gacha-pack-sheet-cancel" variant="outline" onClick={onClose} disabled={formSaving}>
               {t("common.cancel")}
             </Button>
@@ -480,6 +502,7 @@ export function GachaPackSheet({
                 {t("items.createPack")}
               </Button>
             )}
+            </div>
           </div>
         </div>
       </SheetContent>
