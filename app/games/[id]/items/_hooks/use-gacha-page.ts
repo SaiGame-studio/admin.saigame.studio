@@ -123,12 +123,18 @@ export function useGachaPage({
   useEffect(() => {
     if (!gachaSheetOpen || gachaAllItems.length === 0) return;
     setGachaForm((prev) => {
-      const hasRefs = prev.pool.some((row) => row.item_definition_id.startsWith("__REF:")) || prev.keyReqs.some((row) => row.item_definition_id.startsWith("__REF:"));
+      const hasRefs = prev.pool.some((row) => row.item_definition_id.startsWith("__REF:"))
+        || prev.keyReqs.some((row) => row.item_definition_id.startsWith("__REF:"))
+        || (prev.dropGroups ?? []).some((group) => group.pool.some((row) => row.item_definition_id.startsWith("__REF:")));
       if (!hasRefs) return prev;
       return {
         ...prev,
         pool: prev.pool.map((row) => ({ ...row, item_definition_id: resolveGachaRef(row.item_definition_id, gachaAllItems) })),
         keyReqs: prev.keyReqs.map((row) => ({ ...row, item_definition_id: resolveGachaRef(row.item_definition_id, gachaAllItems) })),
+        dropGroups: (prev.dropGroups ?? []).map((group) => ({
+          ...group,
+          pool: group.pool.map((row) => ({ ...row, item_definition_id: resolveGachaRef(row.item_definition_id, gachaAllItems) })),
+        })),
       };
     });
   }, [gachaAllItems, gachaSheetOpen, resolveGachaRef, setGachaForm]);
@@ -223,7 +229,14 @@ export function useGachaPage({
       return;
     }
 
-    const unresolvedRefs = [...poolSource, ...keyReqSource].filter((row) => row.item_definition_id.startsWith("__REF:"));
+    const unresolvedRefs = [
+      ...poolSource,
+      ...keyReqSource,
+      ...(gachaForm.dropGroups ?? []).flatMap((group) => group.pool.map((row) => ({
+        ...row,
+        item_definition_id: resolveGachaRef(row.item_definition_id.trim(), gachaAllItems),
+      }))),
+    ].filter((row) => row.item_definition_id.startsWith("__REF:"));
     if (unresolvedRefs.length > 0) {
       toast({ variant: "destructive", title: t("items.saveFailed"), description: "Some referenced item definitions are still unresolved. Please select them manually before saving." });
       return;
