@@ -54,7 +54,7 @@ import { useContainerPage } from "./_hooks/use-container-page";
 import { useGachaPageState } from "./_hooks/use-gacha-page-state";
 import { useGachaPage } from "./_hooks/use-gacha-page";
 import { useItemsCataloguePage } from "./_hooks/use-items-catalogue-page";
-import { EMPTY_KEY_ROW, EMPTY_ROW, emptyGachaForm, type ContainerDraftValues, type GachaLLMRow, type KeyReqRow, normalizeContainerDraftValues, type PoolRow } from "./_hooks/items-page-state-types";
+import { EMPTY_KEY_ROW, EMPTY_ROW, emptyGachaForm, type ContainerDraftValues, type DropGroupFormRow, type GachaLLMRow, type KeyReqRow, normalizeContainerDraftValues, type PoolRow } from "./_hooks/items-page-state-types";
 import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api';
 import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage-utils';
 function RarityBadge({ rarity }: {
@@ -130,6 +130,31 @@ function applyRefCodeMap(rawId: string, codeToId: Record<string, string>): strin
     if (!rawId.startsWith('__REF:'))
         return rawId;
     return codeToId[rawId.slice(6)] ?? rawId;
+}
+
+function parseGachaLLMDropGroups(value: unknown): DropGroupFormRow[] {
+    if (!Array.isArray(value)) return [];
+    return value.slice(0, 6).flatMap((group, index): DropGroupFormRow[] => {
+        if (!group || typeof group !== "object" || Array.isArray(group)) return [];
+        const rawGroup = group as Record<string, unknown>;
+        if (!Array.isArray(rawGroup.item_pool)) return [];
+        return [{
+            key: `secondary_${index + 1}`,
+            pool: rawGroup.item_pool.map((row: GachaLLMRow) => ({
+                item_definition_id: String(row.item_definition_id ?? ""),
+                weight: String(row.weight ?? 1),
+                quantity_min: String(row.quantity_min ?? 1),
+                quantity_max: String(row.quantity_max ?? 1),
+            })),
+        }];
+    });
+}
+
+function resolveGachaDropGroupRefs(groups: DropGroupFormRow[], codeToId: Record<string, string>): DropGroupFormRow[] {
+    return groups.map((group) => ({
+        ...group,
+        pool: group.pool.map((row) => ({ ...row, item_definition_id: applyRefCodeMap(row.item_definition_id, codeToId) })),
+    }));
 }
 export default function GameItemsPage() {
     const params = useParams() as {
@@ -392,13 +417,16 @@ export default function GameItemsPage() {
                     quantity: String(r.quantity ?? 1),
                 }))
                 : [EMPTY_KEY_ROW()];
+            const rawDropGroups = parseGachaLLMDropGroups(detail.drop_groups);
             const allRawIds = [
                 ...rawPool.map((r: PoolRow) => r.item_definition_id),
                 ...rawKeyReqs.map((r: KeyReqRow) => r.item_definition_id),
+                ...rawDropGroups.flatMap((group) => group.pool.map((row) => row.item_definition_id)),
             ];
             const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {};
             const pool = rawPool.map((r: PoolRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
             const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
+            const dropGroups = resolveGachaDropGroupRefs(rawDropGroups, codeToId);
             const meta = (detail.metadata ?? {}) as Record<string, unknown>;
             setEditingPack(null);
             setGachaForm({
@@ -410,6 +438,7 @@ export default function GameItemsPage() {
                 mailbox_title: typeof meta.mailbox_title === 'string' ? meta.mailbox_title : '',
                 mailbox_body: typeof meta.mailbox_body === 'string' ? meta.mailbox_body : '',
                 pool,
+                dropGroups,
                 keyReqs,
             });
             if (detail.turnId !== undefined) {
@@ -450,13 +479,18 @@ export default function GameItemsPage() {
                     item_definition_id: r.item_definition_id,
                     quantity: String(r.quantity),
                 }));
+            const rawDropGroups = Array.isArray(llmData.drop_groups)
+                ? parseGachaLLMDropGroups(llmData.drop_groups)
+                : (existingPack.drop_groups ?? []).map((group) => ({ key: group.key, pool: group.item_pool.map((row) => ({ item_definition_id: row.item_definition_id, weight: String(row.weight), quantity_min: String(row.quantity_min), quantity_max: String(row.quantity_max) })) }));
             const allRawIds = [
                 ...rawPool.map((r) => r.item_definition_id),
                 ...rawKeyReqs.map((r) => r.item_definition_id),
+                ...rawDropGroups.flatMap((group) => group.pool.map((row) => row.item_definition_id)),
             ];
             const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {};
             const pool = rawPool.map((r: PoolRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
             const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
+            const dropGroups = resolveGachaDropGroupRefs(rawDropGroups, codeToId);
             const existingMeta = (existingPack.metadata ?? {}) as Record<string, unknown>;
             const llmMeta = (llmData.metadata && typeof llmData.metadata === 'object' && !Array.isArray(llmData.metadata))
                 ? llmData.metadata as Record<string, unknown>
@@ -473,6 +507,7 @@ export default function GameItemsPage() {
                 mailbox_title: typeof llmMeta.mailbox_title === 'string' ? llmMeta.mailbox_title : '',
                 mailbox_body: typeof llmMeta.mailbox_body === 'string' ? llmMeta.mailbox_body : '',
                 pool,
+                dropGroups,
                 keyReqs,
             });
             if (detail.turnId !== undefined) {
@@ -629,13 +664,16 @@ export default function GameItemsPage() {
                                 quantity: String(r.quantity ?? 1),
                             }))
                             : [EMPTY_KEY_ROW()];
+                        const rawDropGroups = parseGachaLLMDropGroups(detail.drop_groups);
                         const allRawIds = [
                             ...rawPool.map((r: PoolRow) => r.item_definition_id),
                             ...rawKeyReqs.map((r: KeyReqRow) => r.item_definition_id),
+                            ...rawDropGroups.flatMap((group) => group.pool.map((row) => row.item_definition_id)),
                         ];
                         const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {};
                         const pool = rawPool.map((r: PoolRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
                         const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
+                        const dropGroups = resolveGachaDropGroupRefs(rawDropGroups, codeToId);
                         const meta = (detail.metadata ?? {}) as Record<string, unknown>;
                         setEditingPack(null);
                         setGachaForm({
@@ -647,6 +685,7 @@ export default function GameItemsPage() {
                             mailbox_title: typeof meta.mailbox_title === 'string' ? meta.mailbox_title : '',
                             mailbox_body: typeof meta.mailbox_body === 'string' ? meta.mailbox_body : '',
                             pool,
+                            dropGroups,
                             keyReqs,
                         });
                         if (detail.turnId !== undefined) {
@@ -715,13 +754,18 @@ export default function GameItemsPage() {
                                     item_definition_id: r.item_definition_id,
                                     quantity: String(r.quantity),
                                 }));
+                            const rawDropGroups = Array.isArray(llmData.drop_groups)
+                                ? parseGachaLLMDropGroups(llmData.drop_groups)
+                                : (existingPack.drop_groups ?? []).map((group) => ({ key: group.key, pool: group.item_pool.map((row) => ({ item_definition_id: row.item_definition_id, weight: String(row.weight), quantity_min: String(row.quantity_min), quantity_max: String(row.quantity_max) })) }));
                             const allRawIds = [
                                 ...rawPool.map((r: PoolRow) => r.item_definition_id),
                                 ...rawKeyReqs.map((r: KeyReqRow) => r.item_definition_id),
+                                ...rawDropGroups.flatMap((group) => group.pool.map((row) => row.item_definition_id)),
                             ];
                             const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {};
                             const pool = rawPool.map((r: PoolRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
                             const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
+                            const dropGroups = resolveGachaDropGroupRefs(rawDropGroups, codeToId);
                             const existingMeta = (existingPack.metadata ?? {}) as Record<string, unknown>;
                             const llmMeta = (llmData.metadata && typeof llmData.metadata === 'object' && !Array.isArray(llmData.metadata))
                                 ? llmData.metadata as Record<string, unknown>
@@ -738,6 +782,7 @@ export default function GameItemsPage() {
                                 mailbox_title: typeof llmMeta.mailbox_title === 'string' ? llmMeta.mailbox_title : '',
                                 mailbox_body: typeof llmMeta.mailbox_body === 'string' ? llmMeta.mailbox_body : '',
                                 pool,
+                                dropGroups,
                                 keyReqs,
                             });
                             if (detail.turnId !== undefined) {
