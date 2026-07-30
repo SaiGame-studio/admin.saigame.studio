@@ -349,18 +349,10 @@ export function GachaPackSheet({
               ))}
             </div>
             {gachaForm.keyReqs.length === 0 && <p id="gacha-pack-sheet-no-keyreqs" className="text-xs text-muted-foreground italic">{t("items.noKeyItems")}</p>}
-            <div id="gacha-pack-sheet-keyreq-actions" className="flex items-center justify-between">
+            <div id="gacha-pack-sheet-keyreq-actions" className="flex items-center justify-between pl-6">
               <Button id="gacha-pack-sheet-add-keyreq" size="sm" variant="outline" type="button" onClick={addKeyReqRow} disabled={formSaving}>
                 <Plus id="gacha-pack-sheet-add-keyreq-icon" className="h-3.5 w-3.5 mr-1" /> {t("items.addKey")}
               </Button>
-              <button id="gacha-pack-sheet-create-key-item" type="button" onClick={() => onCreateItem("key" as ItemCategory)} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
-                <Plus id="gacha-pack-sheet-create-key-item-icon" className="h-3 w-3" />
-                {t("items.createNewItem")}
-              </button>
-              <button id="gacha-pack-sheet-reload-items" type="button" onClick={onReloadItems} disabled={formSaving} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50" title="Reload item definitions">
-                <RefreshCw id="gacha-pack-sheet-reload-items-icon" className="h-3 w-3" />
-                {t("items.reloadItemDefs")}
-              </button>
             </div>
           </div>
 
@@ -480,6 +472,14 @@ export function GachaPackSheet({
 
           <div id="gacha-pack-sheet-actions" className="flex items-center justify-between gap-2 pt-6 mt-4 border-t">
             <div id="gacha-pack-sheet-actions-left" className="flex items-center gap-3">
+              <button id="gacha-pack-sheet-create-key-item" type="button" onClick={() => onCreateItem("key" as ItemCategory)} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
+                <Plus id="gacha-pack-sheet-create-key-item-icon" className="h-3 w-3" />
+                {t("items.createNewItem")}
+              </button>
+              <button id="gacha-pack-sheet-reload-items" type="button" onClick={onReloadItems} disabled={formSaving} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50" title="Reload item definitions">
+                <RefreshCw id="gacha-pack-sheet-reload-items-icon" className="h-3 w-3" />
+                {t("items.reloadItems")}
+              </button>
             </div>
             <div id="gacha-pack-sheet-actions-right" className="flex items-center gap-2">
             <Button id="gacha-pack-sheet-cancel" variant="outline" onClick={onClose} disabled={formSaving}>

@@ -2536,6 +2536,7 @@
     "noKeyItems": "鍵アイテムなし - パックは無料で開封できます。",
     "createNewItem": "新しいアイテムを作成",
     "reloadItemDefs": "再読み込み",
+    "reloadItems": "アイテムを再読み込み",
     "selectItemPlaceholder": "Select item…",
     "searchByNameOrIdPlaceholder": "Search by name or ID…",
     "playersCanOpen": "有効時にプレイヤーがこのパックを開封できます。",

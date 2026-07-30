@@ -2576,6 +2576,7 @@
     "noKeyItems": "No key items — pack is free to open.",
     "createNewItem": "Create new item",
     "reloadItemDefs": "Reload",
+    "reloadItems": "Reload Items",
     "selectItemPlaceholder": "Select item…",
     "searchByNameOrIdPlaceholder": "Search by name or ID…",
     "playersCanOpen": "Players can open this pack when enabled.",

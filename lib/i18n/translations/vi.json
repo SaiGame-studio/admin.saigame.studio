@@ -2541,6 +2541,7 @@
     "noKeyItems": "Không có chìa khóa — gói miễn phí để mở.",
     "createNewItem": "Tạo vật phẩm mới",
     "reloadItemDefs": "Tải lại",
+    "reloadItems": "Tải lại vật phẩm",
     "selectItemPlaceholder": "Chọn vật phẩm…",
     "searchByNameOrIdPlaceholder": "Tìm theo tên hoặc ID…",
     "playersCanOpen": "Người chơi có thể mở gói này khi được bật.",
