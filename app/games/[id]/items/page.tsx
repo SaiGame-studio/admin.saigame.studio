@@ -989,7 +989,6 @@ export default function GameItemsPage() {
         handleGachaSave,
         handleGachaToggle,
         handleGachaDelete,
-        gachaItemShortName,
     } = useGachaPage({
         gameId,
         activeTab,
@@ -1440,7 +1439,6 @@ export default function GameItemsPage() {
             gachaOpenCreate={gachaOpenCreate}
             gachaOpenEdit={gachaOpenEdit}
             handleGachaToggle={handleGachaToggle}
-            gachaItemShortName={gachaItemShortName}
           />
         </TabsContent>
         {/* Generators tab */}
