@@ -136,6 +136,7 @@ interface ConditionEditorProps {
     conditions: QuestConditionGroup;
     onChange: (c: QuestConditionGroup) => void;
     gameId: string;
+    itemDefsRefreshNonce: number;
     prefetchedItemDefs?: ItemDefinition[];
 }
 function genClauseId(type: string) {
@@ -153,7 +154,7 @@ function genClauseId(type: string) {
 function newLeaf(): QuestConditionLeaf {
     return { clause_id: genClauseId("login"), type: "login", target: 1 };
 }
-function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = [] }: ConditionEditorProps) {
+function ConditionEditor({ conditions, onChange, gameId, itemDefsRefreshNonce, prefetchedItemDefs = [] }: ConditionEditorProps) {
     const { t } = useTranslation();
     const [conditionTypes, setConditionTypes] = useState<QuestConditionTypeOption[]>([]);
     const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([]);
@@ -189,7 +190,7 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
             .then((res) => setItemDefs(res.items ?? []))
             .catch(() => setItemDefs([]))
             .finally(() => setItemDefsLoading(false));
-    }, [gameId]);
+    }, [gameId, itemDefsRefreshNonce]);
     const mergedItemDefs = useMemo(() => mergeItemDefs(itemDefs, prefetchedItemDefs), [itemDefs, prefetchedItemDefs]);
     const setOperator = (op: 'AND' | 'OR') => onChange({ ...conditions, operator: op });
     const resolveItemDef = useCallback((rawValue: string) => {
@@ -498,9 +499,10 @@ interface RewardEditorProps {
     rewards: QuestReward[];
     onChange: (rewards: QuestReward[]) => void;
     gameId: string;
+    itemDefsRefreshNonce: number;
     prefetchedItemDefs?: ItemDefinition[];
 }
-function RewardEditor({ rewards, onChange, gameId, prefetchedItemDefs = [] }: RewardEditorProps) {
+function RewardEditor({ rewards, onChange, gameId, itemDefsRefreshNonce, prefetchedItemDefs = [] }: RewardEditorProps) {
     const { t } = useTranslation();
     const [itemDefs, setItemDefs] = useState<ItemDefinition[]>([]);
     const [itemDefsLoading, setItemDefsLoading] = useState(false);
@@ -513,7 +515,7 @@ function RewardEditor({ rewards, onChange, gameId, prefetchedItemDefs = [] }: Re
             .then((res) => setItemDefs(res.items ?? []))
             .catch(() => setItemDefs([]))
             .finally(() => setItemDefsLoading(false));
-    }, [gameId]);
+    }, [gameId, itemDefsRefreshNonce]);
     const mergedItemDefs = useMemo(() => mergeItemDefs(itemDefs, prefetchedItemDefs), [itemDefs, prefetchedItemDefs]);
     const addReward = () => onChange([...rewards, { reward_type: "item", item_definition_id: "", quantity_min: 1, quantity_max: 1 }]);
     const removeReward = (i: number) => onChange(rewards.filter((_, idx) => idx !== i));
@@ -638,6 +640,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const [autoSlug, setAutoSlug] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [itemDefsRefreshNonce, setItemDefsRefreshNonce] = useState(0);
     const [createQuestConvContext, setCreateQuestConvContext] = useState<{
         turnId: string;
         responseIdx: number;
@@ -1449,6 +1452,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     };
     // ── Form shared part ─────────────────────────────────────────────────────────
     const questFormScope = editQuest ? "edit" : "create";
+    const refreshQuestFormItems = useCallback(() => {
+        itemDefsCache.delete(`${gameId}:200`);
+        setItemDefsRefreshNonce((nonce) => nonce + 1);
+    }, [gameId]);
     const selectedQuestTypeDescription = questTypeOptions.find((option) => option.value === form.quest_type)?.description ?? "";
     const updateQuestExpiration = (expireAfterMinutes?: number) => setForm((currentForm) => {
         if (expireAfterMinutes === undefined && !editQuest) {
@@ -1461,11 +1468,11 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             expire_after_minutes: expireAfterMinutes ?? null,
         };
     });
-    const QuestForm = (<div className="space-y-5">
+    const QuestForm = (<div id={`quest-definition-form-${questFormScope}`} className="quest-definition-form space-y-5">
       {/* Name */}
-      <div className="space-y-1">
-        <Label htmlFor="qname">{t('quest.name')} <span className="text-red-500">*</span></Label>
-        <Input id="qname" value={form.name} onChange={(e) => {
+      <div id={`quest-name-field-${questFormScope}`} className="quest-name-field space-y-1">
+        <Label id={`quest-name-label-${questFormScope}`} className="quest-name-label" htmlFor={`quest-name-input-${questFormScope}`}>{t('quest.name')} <span id={`quest-name-required-${questFormScope}`} className="quest-name-required text-red-500">*</span></Label>
+        <Input id={`quest-name-input-${questFormScope}`} className="quest-name-input" value={form.name} onChange={(e) => {
             const v = e.target.value;
             setForm((f) => ({
                 ...f,
@@ -1476,37 +1483,37 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
       </div>
 
       {/* Code Name */}
-      <div className="space-y-1">
-        <Label htmlFor="qcode">
-          {t('quest.codeName')} <span className="text-red-500">*</span>{" "}
-          <span className="text-muted-foreground text-xs font-normal">({t('quest.codeNameHint')})</span>
+      <div id={`quest-code-name-field-${questFormScope}`} className="quest-code-name-field space-y-1">
+        <Label id={`quest-code-name-label-${questFormScope}`} className="quest-code-name-label" htmlFor={`quest-code-name-input-${questFormScope}`}>
+          {t('quest.codeName')} <span id={`quest-code-name-required-${questFormScope}`} className="quest-code-name-required text-red-500">*</span>{" "}
+          <span id={`quest-code-name-hint-${questFormScope}`} className="quest-code-name-hint text-muted-foreground text-xs font-normal">({t('quest.codeNameHint')})</span>
         </Label>
-        <div className="flex gap-2">
-          <Input id="qcode" value={form.code_name ?? ""} placeholder={t('quest.codeNamePlaceholder')} className="font-mono" onChange={(e) => {
+        <div id={`quest-code-name-control-row-${questFormScope}`} className="quest-code-name-control-row flex gap-2">
+          <Input id={`quest-code-name-input-${questFormScope}`} value={form.code_name ?? ""} placeholder={t('quest.codeNamePlaceholder')} className="quest-code-name-input font-mono" onChange={(e) => {
             setAutoSlug(false);
             setForm((f) => ({ ...f, code_name: e.target.value }));
         }}/>
-          <Button type="button" variant={autoSlug ? "default" : "outline"} size="icon" className="shrink-0" title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')} onClick={() => {
+          <Button id={`quest-code-name-auto-slug-${questFormScope}`} type="button" variant={autoSlug ? "default" : "outline"} size="icon" className="quest-code-name-auto-slug shrink-0" title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')} onClick={() => {
             const next = !autoSlug;
             setAutoSlug(next);
             if (next)
                 setForm((f) => ({ ...f, code_name: toSlugUnderscore(f.name) }));
         }}>
-            <Wand2 className="h-4 w-4"/>
+            <Wand2 id={`quest-code-name-auto-slug-icon-${questFormScope}`} className="quest-code-name-auto-slug-icon h-4 w-4"/>
           </Button>
         </div>
       </div>
 
       {/* Description */}
-      <div className="space-y-1">
-        <Label htmlFor="qdesc">{t('quest.description')}</Label>
-        <Textarea id="qdesc" rows={2} value={form.description ?? ""} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder={t('quest.questDescPlaceholder')}/>
+      <div id={`quest-description-field-${questFormScope}`} className="quest-description-field space-y-1">
+        <Label id={`quest-description-label-${questFormScope}`} className="quest-description-label" htmlFor={`quest-description-input-${questFormScope}`}>{t('quest.description')}</Label>
+        <Textarea id={`quest-description-input-${questFormScope}`} className="quest-description-input" rows={2} value={form.description ?? ""} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder={t('quest.questDescPlaceholder')}/>
       </div>
 
       {/* Quest Type */}
-      <div id={`quest-type-field-${questFormScope}`} className="space-y-1">
-        <Label id={`quest-type-label-${questFormScope}`}>{t('quest.questType')} <span id={`quest-type-required-${questFormScope}`} className="text-red-500">*</span></Label>
-        <div id={`quest-type-control-row-${questFormScope}`} className="grid grid-cols-[minmax(0,1fr)_280px] items-center gap-4">
+      <div id={`quest-type-field-${questFormScope}`} className="quest-type-field space-y-1">
+        <Label id={`quest-type-label-${questFormScope}`} className="quest-type-label">{t('quest.questType')} <span id={`quest-type-required-${questFormScope}`} className="quest-type-required text-red-500">*</span></Label>
+        <div id={`quest-type-control-row-${questFormScope}`} className="quest-type-control-row grid grid-cols-[minmax(0,1fr)_280px] items-center gap-4">
           <Select value={form.quest_type} onValueChange={(value) => {
               const questType = value as QuestType;
               setForm((currentForm) => {
@@ -1522,19 +1529,19 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                   return nextForm;
               });
           }}>
-            <SelectTrigger id={`quest-type-trigger-${questFormScope}`}>
-              <SelectValue id={`quest-type-value-${questFormScope}`} />
+            <SelectTrigger id={`quest-type-trigger-${questFormScope}`} className="quest-type-trigger">
+              <SelectValue id={`quest-type-value-${questFormScope}`} className="quest-type-value" />
             </SelectTrigger>
-            <SelectContent id={`quest-type-content-${questFormScope}`}>
+            <SelectContent id={`quest-type-content-${questFormScope}`} className="quest-type-content">
               {questTypeOptions.map((option) => (
-                <SelectItem id={`quest-type-option-${questFormScope}-${option.value}`} key={option.value} value={option.value}>
+                <SelectItem id={`quest-type-option-${questFormScope}-${option.value}`} key={option.value} value={option.value} className="quest-type-option">
                   {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           {form.quest_type === "daily" ? (
-            <p id={`quest-expiration-daily-unavailable-${questFormScope}`} className="text-xs leading-tight text-muted-foreground">
+            <p id={`quest-expiration-daily-unavailable-${questFormScope}`} className="quest-expiration-daily-unavailable text-xs leading-tight text-muted-foreground">
               {t('quest.expirationUnavailableDaily')}
             </p>
           ) : (
@@ -1547,11 +1554,11 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
           )}
         </div>
         {selectedQuestTypeDescription && (
-          <p id={`quest-type-description-${questFormScope}`} className="text-xs text-muted-foreground">
+          <p id={`quest-type-description-${questFormScope}`} className="quest-type-description text-xs text-muted-foreground">
             {selectedQuestTypeDescription}
           </p>
         )}
-        {(form.quest_type === "chain") && (<p id={`quest-type-chain-hint-${questFormScope}`} className="text-xs text-muted-foreground">{t('quest.storyChainHint')}</p>)}
+        {(form.quest_type === "chain") && (<p id={`quest-type-chain-hint-${questFormScope}`} className="quest-type-chain-hint text-xs text-muted-foreground">{t('quest.storyChainHint')}</p>)}
       </div>
 
       {/* Expiration */}
@@ -1565,14 +1572,18 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
       )}
 
       {/* Conditions */}
-      <ConditionEditor conditions={form.conditions ?? DEFAULT_CONDITIONS} onChange={(c) => setForm((f) => ({ ...f, conditions: c }))} gameId={gameId} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
+      <div id={`quest-conditions-editor-${questFormScope}`} className="quest-conditions-editor">
+        <ConditionEditor conditions={form.conditions ?? DEFAULT_CONDITIONS} onChange={(c) => setForm((f) => ({ ...f, conditions: c }))} gameId={gameId} itemDefsRefreshNonce={itemDefsRefreshNonce} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
+      </div>
 
 
       {/* Rewards */}
-      <RewardEditor rewards={form.rewards ?? []} onChange={(rewards) => setForm((f) => ({ ...f, rewards }))} gameId={gameId} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
+      <div id={`quest-rewards-editor-${questFormScope}`} className="quest-rewards-editor">
+        <RewardEditor rewards={form.rewards ?? []} onChange={(rewards) => setForm((f) => ({ ...f, rewards }))} gameId={gameId} itemDefsRefreshNonce={itemDefsRefreshNonce} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
+      </div>
 
       {/* Reward delivery */}
-      {game && (<QuestDeliveryEditor game={game} metadata={form.metadata} idScope={questFormScope} onChange={(metadata) => setForm((currentForm) => ({ ...currentForm, metadata }))}/>)}
+      {game && (<div id={`quest-delivery-editor-${questFormScope}`} className="quest-delivery-editor"><QuestDeliveryEditor game={game} metadata={form.metadata} idScope={questFormScope} onChange={(metadata) => setForm((currentForm) => ({ ...currentForm, metadata }))}/></div>)}
     </div>);
     // ── Render ───────────────────────────────────────────────────────────────────
     return (<>
@@ -1823,7 +1834,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                                             <span className="text-muted-foreground">
                                               {r.quantity_min ?? 1}{r.quantity_max && r.quantity_max !== r.quantity_min ? `–${r.quantity_max}` : ""}
                                             </span>
-                                            <Link href={`/games/${gameId}/items/${r.item_definition_id}`} target="_blank" className="text-muted-foreground hover:text-foreground transition-colors" onClick={(e) => e.stopPropagation()} title={t('quest.openItemDef')}>
+                                            <Link href={`/games/${gameId}/items/${r.item_definition_id}`} className="text-muted-foreground hover:text-foreground transition-colors" onClick={(e) => e.stopPropagation()} title={t('quest.openItemDef')}>
                                               <ExternalLink className="h-3 w-3"/>
                                             </Link>
                                           </span>);
@@ -1879,22 +1890,30 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             else
                 closeCreate();
         }}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{t('quest.createQuestDef')}</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6">{QuestForm}</div>
-          <SheetFooter className="mt-6 sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Switch id="qactive-create" checked={form.is_active ?? true} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}/>
-              <Label htmlFor="qactive-create">{t('quest.active')}</Label>
+        <SheetContent id="quest-create-sheet" side="right" className="quest-create-sheet w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader id="quest-create-sheet-header" className="quest-create-sheet-header">
+            <div id="quest-create-sheet-title" className="quest-create-sheet-title">
+              <SheetTitle className="quest-create-sheet-title-text">{t('quest.createQuestDef')}</SheetTitle>
             </div>
-            <div className="flex items-center gap-2">
+          </SheetHeader>
+          <div id="quest-create-sheet-form" className="quest-create-sheet-form mt-6">{QuestForm}</div>
+          <SheetFooter id="quest-create-sheet-footer" className="quest-create-sheet-footer mt-6 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            <div id="quest-create-active-control" className="quest-create-active-control flex items-center gap-2">
+              <Switch id="quest-create-active-switch" className="quest-create-active-switch" checked={form.is_active ?? true} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}/>
+              <Label id="quest-create-active-label" className="quest-create-active-label" htmlFor="quest-create-active-switch">{t('quest.active')}</Label>
+            </div>
+            <div id="quest-create-fresh-items-action" className="quest-create-fresh-items-action flex justify-center">
+              <Button id="quest-fresh-items-create" type="button" variant="link" size="sm" className="quest-fresh-items h-auto p-0 text-xs" onClick={refreshQuestFormItems}>
+                <RefreshCw id="quest-fresh-items-icon-create" className="quest-fresh-items-icon mr-1 h-3 w-3"/>
+                {t('quest.freshItems')}
+              </Button>
+            </div>
+            <div id="quest-create-sheet-actions" className="quest-create-sheet-actions flex items-center gap-2 sm:justify-self-end">
               <SheetClose asChild>
-                <Button variant="outline" disabled={saving} onClick={() => setCreateQuestConvContext(null)}>{t('common.cancel')}</Button>
+                <Button id="quest-create-cancel" variant="outline" className="quest-create-cancel" disabled={saving} onClick={() => setCreateQuestConvContext(null)}>{t('common.cancel')}</Button>
               </SheetClose>
-              <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
-                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
+              <Button id="quest-create-submit" className="quest-create-submit" onClick={handleCreate} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+                {saving && <Loader2 id="quest-create-submit-loading" className="quest-create-submit-loading h-4 w-4 mr-1 animate-spin"/>}
                 {t('common.submit')}
               </Button>
             </div>
@@ -1907,26 +1926,34 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             if (!o)
                 closeEdit();
         }}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{t('quest.editQuestDef')}</SheetTitle>
-            {editQuest && (<p className="flex items-center gap-0.5 text-xs text-muted-foreground font-mono mt-0.5">
+        <SheetContent id="quest-edit-sheet" side="right" className="quest-edit-sheet w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader id="quest-edit-sheet-header" className="quest-edit-sheet-header">
+            <div id="quest-edit-sheet-title" className="quest-edit-sheet-title">
+              <SheetTitle className="quest-edit-sheet-title-text">{t('quest.editQuestDef')}</SheetTitle>
+            </div>
+            {editQuest && (<p id="quest-edit-id" className="quest-edit-id flex items-center gap-0.5 text-xs text-muted-foreground font-mono mt-0.5">
                 {editQuest.id}
                 <CopyButton text={editQuest.id} size="h-3 w-3"/>
               </p>)}
           </SheetHeader>
-          <div className="mt-6">{QuestForm}</div>
-          <SheetFooter className="mt-6 sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Switch id="qactive-edit" checked={form.is_active ?? true} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}/>
-              <Label htmlFor="qactive-edit">{t('quest.active')}</Label>
+          <div id="quest-edit-sheet-form" className="quest-edit-sheet-form mt-6">{QuestForm}</div>
+          <SheetFooter id="quest-edit-sheet-footer" className="quest-edit-sheet-footer mt-6 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            <div id="quest-edit-active-control" className="quest-edit-active-control flex items-center gap-2">
+              <Switch id="quest-edit-active-switch" className="quest-edit-active-switch" checked={form.is_active ?? true} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}/>
+              <Label id="quest-edit-active-label" className="quest-edit-active-label" htmlFor="quest-edit-active-switch">{t('quest.active')}</Label>
             </div>
-            <div className="flex items-center gap-2">
+            <div id="quest-edit-fresh-items-action" className="quest-edit-fresh-items-action flex justify-center">
+              <Button id="quest-fresh-items-edit" type="button" variant="link" size="sm" className="quest-fresh-items h-auto p-0 text-xs" onClick={refreshQuestFormItems}>
+                <RefreshCw id="quest-fresh-items-icon-edit" className="quest-fresh-items-icon mr-1 h-3 w-3"/>
+                {t('quest.freshItems')}
+              </Button>
+            </div>
+            <div id="quest-edit-sheet-actions" className="quest-edit-sheet-actions flex items-center gap-2 sm:justify-self-end">
               <SheetClose asChild>
-                <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
+                <Button id="quest-edit-cancel" variant="outline" className="quest-edit-cancel" disabled={saving}>{t('common.cancel')}</Button>
               </SheetClose>
-              <Button onClick={handleEdit} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
-                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
+              <Button id="quest-edit-submit" className="quest-edit-submit" onClick={handleEdit} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+                {saving && <Loader2 id="quest-edit-submit-loading" className="quest-edit-submit-loading h-4 w-4 mr-1 animate-spin"/>}
                 {t('common.save')}
               </Button>
             </div>
