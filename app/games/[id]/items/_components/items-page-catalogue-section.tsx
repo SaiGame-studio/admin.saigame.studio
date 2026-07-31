@@ -392,7 +392,6 @@ export function ItemsPageCatalogueSection({
                     </div>
                   </TableHead>
                   <TableHead className="text-center">{t("items.stackable")}</TableHead>
-                  {!convPanelOpen && <TableHead className="text-center">{t("items.gridHeader")}</TableHead>}
                   {!convPanelOpen && <TableHead className="text-center">{t("items.actionsHeader")}</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -509,11 +508,6 @@ export function ItemsPageCatalogueSection({
                         <span className="text-muted-foreground text-sm">{t("common.no")}</span>
                       )}
                     </TableCell>
-                    {!convPanelOpen && (
-                      <TableCell className="text-center text-sm text-muted-foreground">
-                        {item.grid_width} × {item.grid_height}
-                      </TableCell>
-                    )}
                     {!convPanelOpen && (
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
