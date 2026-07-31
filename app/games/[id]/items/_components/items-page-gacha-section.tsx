@@ -391,22 +391,22 @@ export function ItemsPageGachaSection({
                       )}
                       <div id={`${packDomId}-expand-grid`} className="gacha-pack-expand-grid grid grid-cols-1 gap-4 items-start lg:grid-cols-2">
                         <div id={`${packDomId}-key-requirements-section`} className="gacha-pack-key-requirements-section lg:order-2">
-                          <p id={`${packDomId}-key-requirements-heading`} className="gacha-pack-key-requirements-heading text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                          <p id={`${packDomId}-key-requirements-heading`} className="gacha-pack-key-requirements-heading text-xs font-semibold text-sky-400 uppercase tracking-wide mb-2">
                             {t("items.keyRequirements")}
                           </p>
                           {(pack.key_requirements ?? []).length === 0 ? (
-                            <p id={`${packDomId}-key-requirements-empty`} className="gacha-pack-key-requirements-empty text-xs text-muted-foreground italic">
+                            <p id={`${packDomId}-key-requirements-empty`} className="gacha-pack-key-requirements-empty text-xs text-sky-300 italic">
                               {t("items.noKeyRequired")}
                             </p>
                           ) : (
                             <div id={`${packDomId}-key-requirements-table-container`} className="gacha-pack-key-requirements-table-container rounded-md border overflow-hidden">
-                              <Table id={`${packDomId}-key-requirements-table`} className="gacha-pack-key-requirements-table">
+                              <Table id={`${packDomId}-key-requirements-table`} className="gacha-pack-key-requirements-table text-sky-100">
                                 <TableHeader id={`${packDomId}-key-requirements-table-header`} className="gacha-pack-key-requirements-table-header">
-                                  <TableRow id={`${packDomId}-key-requirements-header-row`} className="gacha-pack-key-requirements-header-row bg-muted/50">
-                                    <TableHead id={`${packDomId}-key-requirements-header-link`} className="gacha-pack-key-requirements-header-link text-xs h-8 w-8" />
-                                    <TableHead id={`${packDomId}-key-requirements-header-name`} className="gacha-pack-key-requirements-header-name text-xs h-8">{t("items.name")}</TableHead>
-                                    <TableHead id={`${packDomId}-key-requirements-header-rarity`} className="gacha-pack-key-requirements-header-rarity text-xs h-8 w-24">{t("items.rarityHeader")}</TableHead>
-                                    <TableHead id={`${packDomId}-key-requirements-header-quantity`} className="gacha-pack-key-requirements-header-quantity text-xs h-8 text-right w-12">{t("items.quantity")}</TableHead>
+                                  <TableRow id={`${packDomId}-key-requirements-header-row`} className="gacha-pack-key-requirements-header-row bg-sky-500/10">
+                                    <TableHead id={`${packDomId}-key-requirements-header-link`} className="gacha-pack-key-requirements-header-link h-8 w-8 text-xs text-sky-300" />
+                                    <TableHead id={`${packDomId}-key-requirements-header-name`} className="gacha-pack-key-requirements-header-name h-8 text-xs text-sky-300">{t("items.name")}</TableHead>
+                                    <TableHead id={`${packDomId}-key-requirements-header-rarity`} className="gacha-pack-key-requirements-header-rarity h-8 w-24 text-xs text-sky-300">{t("items.rarityHeader")}</TableHead>
+                                    <TableHead id={`${packDomId}-key-requirements-header-quantity`} className="gacha-pack-key-requirements-header-quantity h-8 w-12 text-right text-xs text-sky-300">{t("items.quantity")}</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody id={`${packDomId}-key-requirements-table-body`} className="gacha-pack-key-requirements-table-body">
@@ -418,7 +418,7 @@ export function ItemsPageGachaSection({
                                       <TableRow key={index} id={`${keyRequirementDomId}-row`} className="gacha-pack-key-requirement-row">
                                         <TableCell id={`${keyRequirementDomId}-link-cell`} className="gacha-pack-key-requirement-link-cell text-xs py-2 w-8">
                                           <Link id={`${keyRequirementDomId}-link`} className="gacha-pack-key-requirement-link" href={`/games/${gameId}/items/${kr.item_definition_id}`} target="_blank" title={t("items.goToItemDef")}>
-                                            <ExternalLink id={`${keyRequirementDomId}-link-icon`} className="gacha-pack-key-requirement-link-icon h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                                            <ExternalLink id={`${keyRequirementDomId}-link-icon`} className="gacha-pack-key-requirement-link-icon h-3.5 w-3.5 text-sky-400 hover:text-sky-200 transition-colors" />
                                           </Link>
                                         </TableCell>
                                         <TableCell id={`${keyRequirementDomId}-name-cell`} className="gacha-pack-key-requirement-name-cell text-xs py-2">
@@ -429,13 +429,13 @@ export function ItemsPageGachaSection({
                                               </span>
                                             </div>
                                           ) : (
-                                            <code id={`${keyRequirementDomId}-fallback-id`} className="gacha-pack-key-requirement-fallback-id font-mono text-[11px] text-muted-foreground">
+                                            <code id={`${keyRequirementDomId}-fallback-id`} className="gacha-pack-key-requirement-fallback-id font-mono text-[11px] text-sky-300">
                                               {kr.item_definition_id.slice(0, 8)}...
                                             </code>
                                           )}
                                         </TableCell>
                                         <TableCell id={`${keyRequirementDomId}-rarity-cell`} className="gacha-pack-key-requirement-rarity-cell text-xs py-2">
-                                          {item?.rarity ? <RarityBadge domId={`${keyRequirementDomId}-rarity-badge`} rarity={item.rarity} /> : <span id={`${keyRequirementDomId}-rarity-empty`} className="gacha-pack-key-requirement-rarity-empty text-muted-foreground">-</span>}
+                                          {item?.rarity ? <RarityBadge domId={`${keyRequirementDomId}-rarity-badge`} rarity={item.rarity} /> : <span id={`${keyRequirementDomId}-rarity-empty`} className="gacha-pack-key-requirement-rarity-empty text-sky-300">-</span>}
                                         </TableCell>
                                         <TableCell id={`${keyRequirementDomId}-quantity-cell`} className="gacha-pack-key-requirement-quantity-cell text-xs py-2 text-right font-semibold tabular-nums">
                                           {kr.quantity}x
