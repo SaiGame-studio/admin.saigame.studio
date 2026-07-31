@@ -363,11 +363,6 @@ export function useGachaPage({
     }
   }, [deletingPack, gameId, loadGameInfo, setDeletePackLoading, setDeletingPack, setGachaPacks, t, toast]);
 
-  const gachaItemShortName = useCallback((id: string) => {
-    const item = gachaAllItems.find((entry) => entry.id === id);
-    return item ? `${item.name}${item.item_code ? ` (${item.item_code})` : ""}` : `${id.slice(0, 8)}...`;
-  }, [gachaAllItems]);
-
   const filteredGachaPacks = useMemo(
     () =>
       gachaSearchDebounced
@@ -388,6 +383,5 @@ export function useGachaPage({
     handleGachaSave,
     handleGachaToggle,
     handleGachaDelete,
-    gachaItemShortName,
   };
 }
