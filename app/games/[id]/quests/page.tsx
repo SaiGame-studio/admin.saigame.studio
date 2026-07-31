@@ -1823,7 +1823,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                                             <span className="text-muted-foreground">
                                               {r.quantity_min ?? 1}{r.quantity_max && r.quantity_max !== r.quantity_min ? `–${r.quantity_max}` : ""}
                                             </span>
-                                            <Link href={`/games/${gameId}/items/${r.item_definition_id}`} target="_blank" className="text-muted-foreground hover:text-foreground transition-colors" onClick={(e) => e.stopPropagation()} title={t('quest.openItemDef')}>
+                                            <Link href={`/games/${gameId}/items/${r.item_definition_id}`} className="text-muted-foreground hover:text-foreground transition-colors" onClick={(e) => e.stopPropagation()} title={t('quest.openItemDef')}>
                                               <ExternalLink className="h-3 w-3"/>
                                             </Link>
                                           </span>);
