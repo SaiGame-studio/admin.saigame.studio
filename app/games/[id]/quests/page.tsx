@@ -38,6 +38,7 @@ import { DailyTab } from "./DailyTab";
 import { ChainTab } from "./ChainTab";
 import { SettingsTab } from "./SettingsTab";
 import { QuestDeliveryOverride } from "./QuestDeliveryOverride";
+import { QuestDeliveryEditor } from "./QuestDeliveryEditor";
 import {
     DEFAULT_QUEST_EXPIRATION_MINUTES,
     QuestExpirationSettings,
@@ -1569,6 +1570,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
 
       {/* Rewards */}
       <RewardEditor rewards={form.rewards ?? []} onChange={(rewards) => setForm((f) => ({ ...f, rewards }))} gameId={gameId} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
+
+      {/* Reward delivery */}
+      {game && (<QuestDeliveryEditor game={game} metadata={form.metadata} idScope={questFormScope} onChange={(metadata) => setForm((currentForm) => ({ ...currentForm, metadata }))}/>)}
     </div>);
     // ── Render ───────────────────────────────────────────────────────────────────
     return (<>
