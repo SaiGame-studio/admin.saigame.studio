@@ -1258,6 +1258,9 @@
     "totalScoin": "合計sCoin"
   },
   "sepayCheckout": {
+    "redirectToGateway": "\u6c7a\u6e08\u30b2\u30fc\u30c8\u30a6\u30a7\u30a4\u306b\u30ea\u30c0\u30a4\u30ec\u30af\u30c8\u4e2d...",
+    "redirectDesc": "\u81ea\u52d5\u7684\u306b\u30ea\u30c0\u30a4\u30ec\u30af\u30c8\u3055\u308c\u306a\u3044\u5834\u5408\u306f\u3001\u4e0b\u306e\u30dc\u30bf\u30f3\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+    "payNow": "\u4eca\u3059\u3050\u652f\u6255\u3046",
     "title": "銀行振込決済",
     "subtitle": "QRコードをスキャンするか、手動で振込みしてください。",
     "scanQr": "QRコードをスキャンして支払う",

@@ -22,6 +22,7 @@ interface TransactionIntent {
     transfer_amount: number;
     transfer_note: string;
     expires_at: string;
+    pay_url?: string;
 }
 /** Normalize PascalCase intent from API to camelCase */
 function normalizeIntent(raw: any): TransactionIntent | null {
@@ -35,6 +36,7 @@ function normalizeIntent(raw: any): TransactionIntent | null {
         transfer_amount: raw.transfer_amount ?? raw.TransferAmount ?? 0,
         transfer_note: raw.transfer_note ?? raw.TransferNote ?? "",
         expires_at: raw.expires_at ?? raw.ExpiresAt ?? "",
+        pay_url: raw.pay_url ?? raw.PayURL ?? raw.MoMoPayURL ?? raw.momo_pay_url ?? raw.CheckoutURL ?? raw.checkout_url ?? "",
     };
 }
 interface Transaction {
@@ -216,6 +218,15 @@ function CheckoutPageContent() {
             }
         }
     }, [countdown.remaining, status, intent?.expires_at]);
+    // Auto-redirect if pay_url is present
+    useEffect(() => {
+        if (intent?.pay_url && isWaiting(status)) {
+            const timer = setTimeout(() => {
+                window.location.href = intent.pay_url!;
+            }, 800);
+            return () => clearTimeout(timer);
+        }
+    }, [intent?.pay_url, status]);
     // ---------------------------------------------------------------------------
     // Render: Loading
     // ---------------------------------------------------------------------------
@@ -328,45 +339,67 @@ function CheckoutPageContent() {
           </Badge>
         </div>
 
-        {/* QR Code */}
-        {intent?.qr_code_data && (<Card>
+        {/* Redirect for Payment Gateway (9Pay / MoMo / Paddle) */}
+        {intent?.pay_url ? (
+          <Card id="redirect-gateway-card">
             <CardHeader className="pb-2 text-center">
-              <CardTitle className="text-base">{t("sepayCheckout.scanQr")}</CardTitle>
+              <CardTitle className="text-base">{t("sepayCheckout.redirectToGateway")}</CardTitle>
             </CardHeader>
-            <CardContent className="flex justify-center pb-6">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={intent.qr_code_data} alt="VietQR" className="w-64 h-64 rounded-lg border"/>
+            <CardContent className="flex flex-col items-center justify-center pb-6 space-y-4">
+              <p className="text-sm text-muted-foreground text-center">
+                {t("sepayCheckout.redirectDesc")}
+              </p>
+              <Button asChild className="w-full sm:w-auto" id="ninepay-redirect-btn">
+                <a href={intent.pay_url} target="_self" className="flex items-center justify-center gap-1">
+                  {t("sepayCheckout.payNow")}
+                  <ArrowLeft className="h-4 w-4 rotate-180"/>
+                </a>
+              </Button>
             </CardContent>
-          </Card>)}
+          </Card>
+        ) : (
+          <>
+            {/* QR Code */}
+            {intent?.qr_code_data && (<Card id="qr-code-card">
+                <CardHeader className="pb-2 text-center">
+                  <CardTitle className="text-base">{t("sepayCheckout.scanQr")}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex justify-center pb-6">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={intent.qr_code_data} alt="VietQR" className="w-64 h-64 rounded-lg border"/>
+                </CardContent>
+              </Card>)}
 
-        {/* Transfer note */}
-        {intent && (<Card>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">{t("sepayCheckout.transferNote")}</p>
-                  <p className="font-semibold font-mono text-primary">{intent.transfer_note}</p>
-                </div>
-                <CopyBtn text={intent.transfer_note}/>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">{t("sepayCheckout.amount")}</p>
-                  <p className="font-semibold text-primary text-lg">
-                    {formatPrice(intent.transfer_amount, transaction?.currency ?? "VND")}
-                  </p>
-                </div>
-                <CopyBtn text={String(intent.transfer_amount)}/>
-              </div>
-            </CardContent>
-          </Card>)}
+            {/* Transfer note */}
+            {intent && (<Card id="transfer-note-card">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t("sepayCheckout.transferNote")}</p>
+                      <p className="font-semibold font-mono text-primary">{intent.transfer_note}</p>
+                    </div>
+                    <CopyBtn text={intent.transfer_note}/>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t("sepayCheckout.amount")}</p>
+                      <p className="font-semibold text-primary text-lg">
+                        {formatPrice(intent.transfer_amount, transaction?.currency ?? "VND")}
+                      </p>
+                    </div>
+                    <CopyBtn text={String(intent.transfer_amount)}/>
+                  </div>
+                </CardContent>
+              </Card>)}
 
-        {/* Warning */}
-        <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
-          <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5"/>
-          <p className="text-xs text-muted-foreground">{t("sepayCheckout.warning")}</p>
-        </div>
+            {/* Warning */}
+            <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3" id="warning-box">
+              <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5"/>
+              <p className="text-xs text-muted-foreground">{t("sepayCheckout.warning")}</p>
+            </div>
+          </>
+        )}
 
         {/* Polling indicator */}
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
