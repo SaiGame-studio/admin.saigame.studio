@@ -122,6 +122,7 @@ export default function ItemDefinitionDetailPage() {
     const [tmpGridW, setTmpGridW] = useState("1");
     const [tmpGridH, setTmpGridH] = useState("1");
     const [tmpMaxStack, setTmpMaxStack] = useState("");
+    const [tmpMaxOwnedQuantity, setTmpMaxOwnedQuantity] = useState("");
     // KV card editing
     const [editingStats, setEditingStats] = useState(false);
     const [editingMeta, setEditingMeta] = useState(false);
@@ -469,6 +470,8 @@ export default function ItemDefinitionDetailPage() {
         }
         if (field === "max_stack_size")
             setTmpMaxStack(item.max_stack_size != null ? String(item.max_stack_size) : "");
+        if (field === "max_owned_quantity")
+            setTmpMaxOwnedQuantity(item.max_owned_quantity != null ? String(item.max_owned_quantity) : "");
     }
     async function saveField(patch: UpdateItemRequest) {
         if (!item)
@@ -637,6 +640,7 @@ export default function ItemDefinitionDetailPage() {
                 rarity: item.rarity,
                 is_stackable: item.is_stackable,
                 max_stack_size: item.max_stack_size,
+                max_owned_quantity: item.max_owned_quantity,
                 grid_width: item.grid_width,
                 grid_height: item.grid_height,
                 base_stats: { ...item.base_stats },
@@ -1056,6 +1060,24 @@ export default function ItemDefinitionDetailPage() {
                     </Button>
                   </div>)}
               </div>)}
+
+            <div id="item-detail-max-owned-section" className="group flex justify-between items-center py-1.5">
+              <span id="item-detail-max-owned-label" className="text-muted-foreground shrink-0">{t('items.maxOwnedQuantity')}</span>
+              {editingField === "max_owned_quantity" ? (<div id="item-detail-max-owned-edit-row" className="flex items-center gap-1">
+                  <Input id="item-detail-max-owned-input" className="h-7 text-xs w-24" type="number" min={1} placeholder="∞" value={tmpMaxOwnedQuantity} onChange={(e) => setTmpMaxOwnedQuantity(e.target.value)} disabled={saving} autoFocus/>
+                  <Button id="item-detail-max-owned-save" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ max_owned_quantity: tmpMaxOwnedQuantity === "" ? null : Number(tmpMaxOwnedQuantity) })}>
+                    <Save className="h-3.5 w-3.5"/>
+                  </Button>
+                  <Button id="item-detail-max-owned-cancel" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}>
+                    <X className="h-3.5 w-3.5"/>
+                  </Button>
+                </div>) : (<div id="item-detail-max-owned-value-row" className="flex items-center gap-1">
+                  <span id="item-detail-max-owned-value">{item.max_owned_quantity != null ? item.max_owned_quantity.toLocaleString() : t('items.detailUnlimited')}</span>
+                  <Button id="item-detail-max-owned-edit" size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("max_owned_quantity")}>
+                    <Pencil className="h-3.5 w-3.5"/>
+                  </Button>
+                </div>)}
+            </div>
 
             {/* Grid Size */}
             <div className="group flex justify-between items-center py-1.5">
