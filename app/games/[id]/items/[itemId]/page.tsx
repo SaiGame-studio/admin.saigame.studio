@@ -181,6 +181,7 @@ export default function ItemDefinitionDetailPage() {
     const [genItemsLoading, setGenItemsLoading] = useState(false);
     const [genPoolOpen, setGenPoolOpen] = useState<Record<number, boolean>>({});
     const [genPoolSearch, setGenPoolSearch] = useState<Record<number, string>>({});
+    const genStackableItems = genAllItems.filter((item) => item.is_stackable);
     const [savingGenConfig, setSavingGenConfig] = useState(false);
     // explanation panel state
     const [showExplanationPanel, setShowExplanationPanel] = useState(false);
@@ -1263,7 +1264,7 @@ export default function ItemDefinitionDetailPage() {
                                       <CommandList>
                                         <CommandEmpty>{genItemsLoading ? t('items.loadingDots') : t('items.noItemFound')}</CommandEmpty>
                                         <CommandGroup>
-                                          {genAllItems
+                                          {genStackableItems
                                 .filter((d) => {
                                 const q = (genPoolSearch[idx] ?? "").toLowerCase();
                                 return !q || d.name.toLowerCase().includes(q) || (d.item_code ?? "").toLowerCase().includes(q);

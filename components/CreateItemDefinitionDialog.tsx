@@ -154,6 +154,7 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
     const [genItemsLoading, setGenItemsLoading] = useState(false);
     const [genPoolOpen, setGenPoolOpen] = useState<Record<number, boolean>>({});
     const [genPoolSearch, setGenPoolSearch] = useState<Record<number, string>>({});
+    const genStackableItems = genAllItems.filter((item) => item.is_stackable);
     // Keep the item editor above the conversation panel in the global Escape stack.
     useEscapeLayer(open, () => {
         resetForm();
@@ -691,7 +692,7 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
                               <CommandList id={`create-item-def-gen-pool-list-${idx}`}>
                                 <CommandEmpty>{genItemsLoading ? t('items.loadingDots') : t('items.noItemFound')}</CommandEmpty>
                                 <CommandGroup id={`create-item-def-gen-pool-group-${idx}`}>
-                                  {genAllItems
+                                  {genStackableItems
                         .filter((d) => {
                         const q = (genPoolSearch[idx] ?? '').toLowerCase();
                         return !q || d.name.toLowerCase().includes(q) || (d.item_code ?? '').toLowerCase().includes(q);
