@@ -37,6 +37,7 @@ export interface CreateItemInitialValues {
     rarity?: ItemRarity;
     is_stackable?: boolean;
     max_stack_size?: string;
+    max_owned_quantity?: string;
     grid_width?: string;
     grid_height?: string;
     /** base_stats as editable KV rows */
@@ -126,6 +127,7 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
     const [rarity, setRarity] = useState<ItemRarity>('common');
     const [isStackable, setIsStackable] = useState(false);
     const [maxStack, setMaxStack] = useState<string>('99');
+    const [maxOwnedQuantity, setMaxOwnedQuantity] = useState<string>('');
     const [gridW, setGridW] = useState('1');
     const [gridH, setGridH] = useState('1');
     const [stats, setStats] = useState<KVEntry[]>([]);
@@ -201,6 +203,8 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
                 setIsStackable(v.is_stackable);
             if (v.max_stack_size !== undefined)
                 setMaxStack(v.max_stack_size);
+            if (v.max_owned_quantity !== undefined)
+                setMaxOwnedQuantity(v.max_owned_quantity);
             if (v.grid_width !== undefined)
                 setGridW(v.grid_width);
             if (v.grid_height !== undefined)
@@ -241,6 +245,7 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
         setRarity('common');
         setIsStackable(false);
         setMaxStack('99');
+        setMaxOwnedQuantity('');
         setGridW('1');
         setGridH('1');
         setStats([]);
@@ -267,6 +272,9 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
         if (isStackable && maxStack !== '' && Number(maxStack) < 1) {
             e.maxStack = t('items.maxStackInvalid');
         }
+        if (maxOwnedQuantity !== '' && Number(maxOwnedQuantity) < 1) {
+            e.maxOwnedQuantity = t('items.maxOwnedQuantityInvalid');
+        }
         if (category === 'generator') {
             genOutputPool.forEach((p, idx) => {
                 if (!p.item_definition_id.trim())
@@ -285,6 +293,7 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
             { key: 'name', id: 'create-item-def-name-section' },
             { key: 'itemCode', id: 'create-item-def-code-section' },
             { key: 'maxStack', id: 'create-item-def-stackable-section' },
+            { key: 'maxOwnedQuantity', id: 'create-item-def-max-owned-section' },
             { key: 'genInterval', id: 'create-item-def-gen-interval-section' },
             { key: 'genTickCapacity', id: 'create-item-def-gen-tick-section' },
         ];
@@ -316,6 +325,9 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
         }
         if (isStackable && maxStack !== '' && Number(maxStack) < 1) {
             e.maxStack = t('items.maxStackInvalid');
+        }
+        if (maxOwnedQuantity !== '' && Number(maxOwnedQuantity) < 1) {
+            e.maxOwnedQuantity = t('items.maxOwnedQuantityInvalid');
         }
         if (category === 'generator') {
             genOutputPool.forEach((p, idx) => {
@@ -378,6 +390,7 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
                 rarity,
                 is_stackable: isStackable,
                 max_stack_size: isStackable ? (maxStack === '' ? null : Number(maxStack)) : null,
+                max_owned_quantity: maxOwnedQuantity === '' ? null : Number(maxOwnedQuantity),
                 grid_width: Number(gridW) || 1,
                 grid_height: Number(gridH) || 1,
                 base_stats,
@@ -537,6 +550,18 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
                     : `Stackable up to ${Number(maxStack).toLocaleString()} per slot.`}
             </p>
             {errors.maxStack && (<p id="create-item-def-maxstack-error" className="text-xs text-destructive pl-1">{errors.maxStack}</p>)}
+          </div>
+
+          <div id="create-item-def-max-owned-section" className="space-y-1">
+            <Label id="create-item-def-max-owned-label" htmlFor="create-item-def-max-owned-input">{t('items.maxOwnedQuantity')}</Label>
+            <div id="create-item-def-max-owned-row" className="relative w-36">
+              <Input id="create-item-def-max-owned-input" type="number" min={1} placeholder="∞" value={maxOwnedQuantity} onChange={(e) => setMaxOwnedQuantity(e.target.value)} className="h-8 pr-8"/>
+              {maxOwnedQuantity && (<button id="create-item-def-max-owned-clear" type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setMaxOwnedQuantity('')} title="Clear">
+                  <X className="h-3.5 w-3.5"/>
+                </button>)}
+            </div>
+            <p id="create-item-def-max-owned-hint" className="text-[11px] text-muted-foreground">{t('items.maxOwnedQuantityHint')}</p>
+            {errors.maxOwnedQuantity && (<p id="create-item-def-max-owned-error" className="text-xs text-destructive">{errors.maxOwnedQuantity}</p>)}
           </div>
 
           {/* Client Writable */}

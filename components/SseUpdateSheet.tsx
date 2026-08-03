@@ -53,6 +53,9 @@ export function SseUpdateSheet({ open, onClose, onApplied, item, gameId, sseData
             if (sseData.max_stack_size != null && sseData.max_stack_size !== '') {
                 patch.max_stack_size = Number(sseData.max_stack_size) || null;
             }
+            if (sseData.max_owned_quantity !== undefined) {
+                patch.max_owned_quantity = sseData.max_owned_quantity === '' ? null : Number(sseData.max_owned_quantity) || null;
+            }
             if (sseData.grid_width != null)
                 patch.grid_width = Number(sseData.grid_width) || 1;
             if (sseData.grid_height != null)
@@ -117,6 +120,7 @@ export function SseUpdateSheet({ open, onClose, onApplied, item, gameId, sseData
           {sseData.grid_width !== undefined && (<FieldRow label={`${t('items.gridWidth')} × ${t('items.gridHeight')}`} current={`${item.grid_width} × ${item.grid_height}`} proposed={`${sseData.grid_width} × ${sseData.grid_height}`}/>)}
           {sseData.is_stackable !== undefined && (<FieldRow label={t('items.stackable')} current={item.is_stackable ? '✓' : '✗'} proposed={sseData.is_stackable ? '✓' : '✗'}/>)}
           {sseData.max_stack_size !== undefined && (<FieldRow label={t('items.maxStackSize') || 'Max Stack'} current={item.max_stack_size ?? '∞'} proposed={sseData.max_stack_size || '∞'}/>)}
+          {sseData.max_owned_quantity !== undefined && (<FieldRow label={t('items.maxOwnedQuantity')} current={item.max_owned_quantity ?? '∞'} proposed={sseData.max_owned_quantity || '∞'}/>)}
           {sseData.description !== undefined && sseData.description !== '' && (<FieldRow label={t('items.description')} current={(item.metadata?.description as string | undefined) ?? '—'} proposed={sseData.description}/>)}
           {sseData.stats && sseData.stats.length > 0 && (<FieldRow label={t('items.baseStats')} current={Object.keys(item.base_stats ?? {}).length > 0
                 ? Object.entries(item.base_stats ?? {}).map(([k, v]) => `${k}=${v}`).join(', ')

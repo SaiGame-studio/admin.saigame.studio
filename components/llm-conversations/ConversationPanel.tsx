@@ -2902,6 +2902,7 @@ export function LLMConversationPanel() {
             name, item_code, category: category as never, rarity: rarity as never,
             is_stackable: typeof item.is_stackable === 'boolean' ? item.is_stackable : false,
             max_stack_size: item.max_stack_size != null ? String(item.max_stack_size) : '99',
+            max_owned_quantity: item.max_owned_quantity != null ? String(item.max_owned_quantity) : '',
             grid_width: item.grid_width != null ? String(item.grid_width) : '1',
             grid_height: item.grid_height != null ? String(item.grid_height) : '1',
             stats, description,

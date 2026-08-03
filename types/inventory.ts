@@ -13,6 +13,8 @@ export interface ItemDefinition {
     rarity: ItemRarity;
     is_stackable: boolean;
     max_stack_size: number | null;
+    /** Maximum quantity a single player may own across all active stacks; null means unlimited. */
+    max_owned_quantity: number | null;
     grid_width: number;
     grid_height: number;
     base_stats: Record<string, number>;
@@ -30,6 +32,7 @@ export interface CreateItemRequest {
     rarity: ItemRarity;
     is_stackable?: boolean;
     max_stack_size?: number | null;
+    max_owned_quantity?: number | null;
     grid_width?: number;
     grid_height?: number;
     base_stats?: Record<string, number>;
@@ -44,6 +47,7 @@ export interface UpdateItemRequest {
     rarity?: ItemRarity;
     is_stackable?: boolean;
     max_stack_size?: number | null;
+    max_owned_quantity?: number | null;
     grid_width?: number;
     grid_height?: number;
     base_stats?: Record<string, number>;
