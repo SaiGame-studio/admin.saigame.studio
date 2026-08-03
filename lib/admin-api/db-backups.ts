@@ -44,6 +44,14 @@ export async function deleteDBBackup(fileName: string): Promise<void> {
 }
 
 /**
+ * Create a database backup on demand. This is available even when scheduled
+ * backups are disabled.
+ */
+export async function triggerDBBackup(): Promise<void> {
+    return api.post("/api/v1/admin/workers/db_backup/trigger");
+}
+
+/**
  * Helper to download a backup file using fetch to handle JWT Authorization
  */
 export async function downloadDBBackup(fileName: string): Promise<void> {
