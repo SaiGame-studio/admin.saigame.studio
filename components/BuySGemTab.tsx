@@ -135,16 +135,14 @@ export function BuySGemTab() {
         fetchPackages();
         fetchMethods();
     }, [fetchPackages, fetchMethods]);
-    // Restore last selections from localStorage after data loads
+    // Restore the saved package or select the first available package.
     useEffect(() => {
         if (packages.length === 0)
             return;
         const savedId = localStorage.getItem(STORAGE_KEY_PACKAGE);
-        if (savedId) {
-            const found = packages.find((p) => p.id === savedId);
-            if (found)
-                setSelectedPackage(found);
-        }
+        const selected = packages.find((p) => p.id === savedId) ?? packages[0];
+        setSelectedPackage(selected);
+        localStorage.setItem(STORAGE_KEY_PACKAGE, selected.id);
     }, [packages]);
     useEffect(() => {
         if (methods.length === 0)
@@ -223,14 +221,8 @@ export function BuySGemTab() {
                 const isSelected = selectedPackage?.id === pkg.id;
                 const price = getLocalizedSgemPrice(pkg, locale, selectedMethod);
                 return (<Card key={pkg.id} id={`sgem-package-card-${pkg.id}`} className={`relative cursor-pointer transition-all hover:border-primary/60 ${isSelected ? "border-primary ring-2 ring-primary/30" : ""}`} onClick={() => {
-                        if (isSelected) {
-                            setSelectedPackage(null);
-                            localStorage.removeItem(STORAGE_KEY_PACKAGE);
-                        }
-                        else {
-                            setSelectedPackage(pkg);
-                            localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id);
-                        }
+                        setSelectedPackage(pkg);
+                        localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id);
                     }}>
                   {isSelected && (<div id={`sgem-package-selected-icon-${pkg.id}`} className="absolute right-3 top-3 rounded-full bg-primary p-0.5 text-primary-foreground shadow-md">
                       <CheckCircle2 className="h-5 w-5"/>
