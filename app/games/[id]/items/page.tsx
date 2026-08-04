@@ -45,6 +45,7 @@ import { EditContainerDefinitionDialog } from "./_components/edit-container-defi
 import { ItemsPageContainerSection } from "./_components/items-page-container-section";
 import { ItemsPageGachaSection } from "./_components/items-page-gacha-section";
 import { ItemsPageGeneratorSection } from "./_components/items-page-generator-section";
+import GameShopsPage from "../shops/page";
 import { ItemsPagePresetsSection } from "./_components/items-page-presets-section";
 import { ItemsPageTagsSection } from "./_components/items-page-tags-section";
 import { ItemsPageGiftCodesSection } from "./_components/items-page-giftcodes-section";
@@ -532,7 +533,7 @@ export default function GameItemsPage() {
     // initialize tab from URL params
     useEffect(() => {
         const tab = searchParams.get("tab");
-        if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags" || tab === "preset" || tab === "crafting" || tab === "giftcode") {
+        if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "shops" || tab === "equipments" || tab === "tags" || tab === "preset" || tab === "crafting" || tab === "giftcode") {
             setActiveTab(tab);
         }
         const cst = searchParams.get("csubtab");
@@ -1446,7 +1447,10 @@ export default function GameItemsPage() {
           <ItemsPageGeneratorSection studioId={studioId} gameId={gameId} generatorItems={generatorItems} setGeneratorItems={setGeneratorItems} generatorLoading={generatorLoading} setGeneratorLoading={setGeneratorLoading} generatorError={generatorError} setGeneratorError={setGeneratorError} activeTab={activeTab} refreshKey={generatorRefreshKey} onAddGenerator={() => {
             setCreateInitCategory("generator" as ItemCategory);
             setShowCreate(true);
-        }}/>
+          }}/>
+        </TabsContent>
+        <TabsContent value="shops" className="space-y-4">
+          <GameShopsPage embedded active={activeTab === "shops"}/>
         </TabsContent>
         {/* Equipments tab */}
         <TabsContent value="equipments" className="space-y-4">
