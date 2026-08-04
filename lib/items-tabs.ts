@@ -1,5 +1,5 @@
-import { Package, Tag, LayoutTemplate, Archive, Dices, Zap, Shield, Hammer, Gift, type LucideIcon, } from "lucide-react";
-export type ItemsTabKey = "catalogue" | "tags" | "preset" | "containers" | "gacha" | "generators" | "equipments" | "crafting" | "giftcode";
+import { Package, Tag, LayoutTemplate, Archive, Dices, Zap, ShoppingCart, Shield, Hammer, Gift, type LucideIcon, } from "lucide-react";
+export type ItemsTabKey = "catalogue" | "tags" | "preset" | "containers" | "gacha" | "generators" | "shops" | "equipments" | "crafting" | "giftcode";
 export interface ItemsTabConfig {
     key: ItemsTabKey;
     icon: LucideIcon;
@@ -12,6 +12,7 @@ export const ITEMS_TABS: ItemsTabConfig[] = [
     { key: "containers", icon: Archive, labelKey: "items.tabContainers" },
     { key: "gacha", icon: Dices, labelKey: "items.tabGacha" },
     { key: "generators", icon: Zap, labelKey: "items.tabGenerators" },
+    { key: "shops", icon: ShoppingCart, labelKey: "game.shops" },
     { key: "equipments", icon: Shield, labelKey: "items.tabEquipmentSlots" },
     { key: "crafting", icon: Hammer, labelKey: "items.tabCrafting" },
     { key: "giftcode", icon: Gift, labelKey: "items.tabGiftCode" },

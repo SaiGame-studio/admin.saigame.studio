@@ -42,11 +42,12 @@ function normalizeIntent(raw: any): TransactionIntent | null {
 interface Transaction {
     id: string;
     user_id: string;
+    currency_type: "sgem" | "scoin";
     provider_key: string;
     status: string;
     amount: number;
     currency: string;
-    scoin_amount: number;
+    currency_amount: number;
     created_at: string;
 }
 interface InitiateResponse {
@@ -263,7 +264,7 @@ function CheckoutPageContent() {
           <CheckCircle2 className="mx-auto h-14 w-14 text-green-500"/>
           <h1 className="text-xl font-semibold">{t("sepayCheckout.successTitle")}</h1>
           <p className="text-sm text-muted-foreground">
-            {t("sepayCheckout.successDesc", { amount: transaction?.scoin_amount?.toLocaleString() ?? "" })}
+            {t("sepayCheckout.successDesc", { amount: transaction?.currency_amount?.toLocaleString() ?? "" })}
           </p>
           <div className="flex items-center justify-center gap-3">
             <Button asChild variant="outline">
@@ -410,7 +411,7 @@ function CheckoutPageContent() {
         {/* sCoin info */}
         {transaction && (<div className="text-center text-sm text-muted-foreground">
             {t("sepayCheckout.youWillReceive")}{" "}
-            <span className="font-semibold text-primary">{transaction.scoin_amount.toLocaleString()} sCoin</span>
+            <span id="payment-receive-amount" className="font-semibold text-primary">{(transaction.currency_amount ?? 0).toLocaleString()} {transaction.currency_type === "sgem" ? "sGem" : "sCoin"}</span>
           </div>)}
       </div>
     </div>);
