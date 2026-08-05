@@ -215,6 +215,11 @@
     "noItemFound": "No item found.",
     "showAllItemTypes": "Show all item types",
     "currencyItemDesc": "The item used as currency for purchases in this shop.",
+    "collectDestination": "Item Delivery",
+    "collectDestinationMailbox": "Mailbox",
+    "collectDestinationInventory": "Main Inventory",
+    "collectDestinationMailboxHint": "Purchased items are sent to the player's mailbox for claiming.",
+    "collectDestinationInventoryHint": "Purchased items are delivered directly to the player's Main Inventory.",
     "activeImmediately": "Active immediately",
     "itemSingular": "item",
     "itemPlural": "items"

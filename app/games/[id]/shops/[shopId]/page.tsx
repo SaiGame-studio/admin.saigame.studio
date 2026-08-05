@@ -25,7 +25,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { getShop, listShopItems, addShopItem, updateShop, updateShopItem, deleteShopItem, listShopEvents, type ShopDefinition, type ShopItem, type ShopEvent, type ShopEventType, type ActorType, type AddShopItemPayload, type UpdateShopItemPayload, type PurchaseLimitType, type RestockSchedule, } from "@/lib/shop-admin-api";
+import { getShop, listShopItems, addShopItem, updateShop, updateShopItem, deleteShopItem, listShopEvents, type ShopDefinition, type ShopItem, type ShopEvent, type ShopEventType, type ActorType, type AddShopItemPayload, type UpdateShopItemPayload, type PurchaseLimitType, type RestockSchedule, type ShopCollectDestination, } from "@/lib/shop-admin-api";
 import { listItemDefinitions, getItemDefinition } from "@/lib/inventory-api";
 import { getGame } from "@/lib/game-api";
 import type { ItemDefinition } from "@/types/inventory";
@@ -894,6 +894,24 @@ export default function ShopDetailPage() {
                     <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("currency", shop.currency_item_def_id ?? "")}>
                       <Pencil className="h-3.5 w-3.5"/>
                     </Button>
+                  </div>)}
+              </div>
+
+              <div id="shop-detail-delivery-destination" className="flex items-baseline gap-3 min-h-[32px]">
+                <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none">{t('shop.collectDestination')}</span>
+                {editingField === "collect_destination" ? (<div className="flex items-center gap-1 flex-1">
+                    <Select value={tmpVal} onValueChange={setTmpVal} disabled={saving}>
+                      <SelectTrigger id="shop-detail-collect-destination" className="h-7 text-xs w-52"><SelectValue /></SelectTrigger>
+                      <SelectContent id="shop-detail-collect-destination-options">
+                        <SelectItem id="shop-detail-collect-destination-mailbox" value="mailbox">{t('shop.collectDestinationMailbox')}</SelectItem>
+                        <SelectItem id="shop-detail-collect-destination-inventory" value="inventory">{t('shop.collectDestinationInventory')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button id="shop-detail-save-collect-destination" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ collect_destination: tmpVal as ShopCollectDestination })}><Save className="h-3.5 w-3.5"/></Button>
+                    <Button id="shop-detail-cancel-collect-destination" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5"/></Button>
+                  </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
+                    <span>{shop.collect_destination === "inventory" ? t('shop.collectDestinationInventory') : t('shop.collectDestinationMailbox')}</span>
+                    <Button id="shop-detail-edit-collect-destination" size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("collect_destination", shop.collect_destination ?? "mailbox")}><Pencil className="h-3.5 w-3.5"/></Button>
                   </div>)}
               </div>
 

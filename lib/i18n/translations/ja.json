@@ -215,6 +215,11 @@
     "noItemFound": "アイテムが見つかりません。",
     "showAllItemTypes": "全アイテム種別を表示",
     "currencyItemDesc": "このショップでの購入に使用する通貨アイテムです。",
+    "collectDestination": "アイテム配信先",
+    "collectDestinationMailbox": "メールボックス",
+    "collectDestinationInventory": "メインインベントリ",
+    "collectDestinationMailboxHint": "購入したアイテムはプレイヤーが受け取れるメールボックスへ送信されます。",
+    "collectDestinationInventoryHint": "購入したアイテムはプレイヤーのメインインベントリへ直接配信されます。",
     "activeImmediately": "すぐに有効化",
     "itemSingular": "アイテム",
     "itemPlural": "アイテム"

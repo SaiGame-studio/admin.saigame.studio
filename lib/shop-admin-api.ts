@@ -7,6 +7,7 @@
 import { api } from '@/lib/api-client';
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type ShopType = 'permanent' | 'event';
+export type ShopCollectDestination = 'mailbox' | 'inventory';
 export type PurchaseLimitType = 'unlimited' | 'player' | 'global';
 export type RestockSchedule = 'none' | 'daily' | 'weekly' | 'monthly';
 export interface ShopDefinition {
@@ -20,6 +21,7 @@ export interface ShopDefinition {
     is_active: boolean;
     starts_at: string | null;
     ends_at: string | null;
+    collect_destination?: ShopCollectDestination;
     currency_item_def_id?: string | null;
     item_limit?: number | null;
     item_count?: number;
@@ -55,6 +57,7 @@ export interface CreateShopPayload {
     is_active: boolean;
     starts_at?: string;
     ends_at?: string;
+    collect_destination?: ShopCollectDestination;
     currency_item_def_id?: string;
 }
 export interface UpdateShopPayload {
@@ -64,6 +67,7 @@ export interface UpdateShopPayload {
     is_active?: boolean;
     starts_at?: string | null;
     ends_at?: string | null;
+    collect_destination?: ShopCollectDestination;
     currency_item_def_id?: string | null;
 }
 export interface AddShopItemPayload {
