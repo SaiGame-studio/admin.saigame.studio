@@ -23,6 +23,7 @@ import { getGame } from "@/lib/game-api";
 import { listItemDefinitions } from "@/lib/inventory-api";
 import type { ItemDefinition } from "@/types/inventory";
 import { listShops, createShopV1, updateShop, type ShopDefinition, type ShopType, type CreateShopPayload, } from "@/lib/shop-admin-api";
+import { ShopCollectDestinationField } from "./_components/ShopCollectDestinationField";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { CopyButton } from "@/components/CopyButton";
@@ -76,6 +77,7 @@ const defaultForm: CreateShopPayload = {
     is_active: true,
     starts_at: "",
     ends_at: "",
+    collect_destination: "mailbox",
     currency_item_def_id: "",
 };
 interface GameShopsPageProps {
@@ -218,6 +220,7 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
                 description: form.description?.trim() || undefined,
                 shop_type: form.shop_type,
                 is_active: form.is_active,
+                collect_destination: form.collect_destination ?? "mailbox",
             };
             if (form.starts_at)
                 payload.starts_at = new Date(form.starts_at).toISOString();
@@ -533,6 +536,8 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
                 </SelectContent>
               </Select>
             </div>
+
+            <ShopCollectDestinationField value={form.collect_destination ?? "mailbox"} onValueChange={(value) => setField("collect_destination", value)} labels={{ title: t('shop.collectDestination'), mailbox: t('shop.collectDestinationMailbox'), inventory: t('shop.collectDestinationInventory'), mailboxHint: t('shop.collectDestinationMailboxHint'), inventoryHint: t('shop.collectDestinationInventoryHint') }}/>
 
             {needsDates && (<div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">

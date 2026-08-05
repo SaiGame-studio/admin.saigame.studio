@@ -25,7 +25,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { getShop, listShopItems, addShopItem, updateShop, updateShopItem, deleteShopItem, listShopEvents, type ShopDefinition, type ShopItem, type ShopEvent, type ShopEventType, type ActorType, type AddShopItemPayload, type UpdateShopItemPayload, type PurchaseLimitType, type RestockSchedule, } from "@/lib/shop-admin-api";
+import { getShop, listShopItems, addShopItem, updateShop, updateShopItem, deleteShopItem, listShopEvents, type ShopDefinition, type ShopItem, type ShopEvent, type ShopEventType, type ActorType, type AddShopItemPayload, type UpdateShopItemPayload, type PurchaseLimitType, type RestockSchedule, type ShopCollectDestination, } from "@/lib/shop-admin-api";
 import { listItemDefinitions, getItemDefinition } from "@/lib/inventory-api";
 import { getGame } from "@/lib/game-api";
 import type { ItemDefinition } from "@/types/inventory";
@@ -785,6 +785,54 @@ export default function ShopDetailPage() {
                       </div>)}
                   </div>
                 </>)}
+
+              <div id="shop-detail-item-delivery" className="space-y-2 pt-2">
+                <div id="shop-detail-delivery-destination" className="flex items-baseline gap-3 min-h-[32px]">
+                  <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">{t('shop.collectDestination')}</span>
+                  {editingField === "collect_destination" ? (<div className="flex items-center gap-1 flex-1">
+                      <Select value={tmpVal} onValueChange={setTmpVal} disabled={saving}>
+                        <SelectTrigger id="shop-detail-collect-destination" className="h-7 text-xs w-52"><SelectValue /></SelectTrigger>
+                        <SelectContent id="shop-detail-collect-destination-options">
+                          <SelectItem id="shop-detail-collect-destination-mailbox" value="mailbox">{t('shop.collectDestinationMailbox')}</SelectItem>
+                          <SelectItem id="shop-detail-collect-destination-inventory" value="inventory">{t('shop.collectDestinationInventory')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button id="shop-detail-save-collect-destination" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ collect_destination: tmpVal as ShopCollectDestination })}><Save className="h-3.5 w-3.5"/></Button>
+                      <Button id="shop-detail-cancel-collect-destination" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5"/></Button>
+                    </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
+                      <span>{shop.collect_destination === "inventory" ? t('shop.collectDestinationInventory') : t('shop.collectDestinationMailbox')}</span>
+                      <Button id="shop-detail-edit-collect-destination" size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("collect_destination", shop.collect_destination ?? "mailbox")}><Pencil className="h-3.5 w-3.5"/></Button>
+                    </div>)}
+                </div>
+
+                {shop.collect_destination !== "inventory" && (<>
+                    <div id="shop-detail-mailbox-title" className="flex items-baseline gap-3 min-h-[32px]">
+                      <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">{t('shop.mailboxTitle')}</span>
+                      {editingField === "mailbox_title" ? (<div className="flex items-center gap-1 flex-1">
+                          <Input id="shop-detail-mailbox-title-input" className="h-7 text-sm" value={tmpVal} onChange={(event) => setTmpVal(event.target.value)} disabled={saving} autoFocus />
+                          <Button id="shop-detail-save-mailbox-title" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ mailbox_title: tmpVal })}><Save className="h-3.5 w-3.5"/></Button>
+                          <Button id="shop-detail-cancel-mailbox-title" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5"/></Button>
+                        </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
+                          <span>{shop.mailbox_title || t('shop.mailboxTitleDefault')}</span>
+                          <Button id="shop-detail-edit-mailbox-title" size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("mailbox_title", shop.mailbox_title ?? "")}><Pencil className="h-3.5 w-3.5"/></Button>
+                        </div>)}
+                    </div>
+
+                    <div id="shop-detail-mailbox-body" className="flex items-start gap-3 min-h-[32px]">
+                      <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">{t('shop.mailboxBody')}</span>
+                      {editingField === "mailbox_body" ? (<div className="space-y-1 flex-1">
+                          <Textarea id="shop-detail-mailbox-body-input" className="min-h-[80px] resize-none text-sm" value={tmpVal} onChange={(event) => setTmpVal(event.target.value)} disabled={saving} autoFocus />
+                          <div className="flex gap-1">
+                            <Button id="shop-detail-save-mailbox-body" size="sm" variant="ghost" className="h-7 px-2" disabled={saving} onClick={() => saveField({ mailbox_body: tmpVal })}><Save className="mr-1 h-3.5 w-3.5"/>{t('common.save')}</Button>
+                            <Button id="shop-detail-cancel-mailbox-body" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5"/></Button>
+                          </div>
+                        </div>) : (<div className="group/meta flex items-start gap-1 flex-1">
+                          <p className="flex-1 whitespace-pre-line text-foreground/80">{shop.mailbox_body || t('shop.mailboxBodyDefault')}</p>
+                          <Button id="shop-detail-edit-mailbox-body" size="icon" variant="ghost" className="h-7 w-7 shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("mailbox_body", shop.mailbox_body ?? "")}><Pencil className="h-3.5 w-3.5"/></Button>
+                        </div>)}
+                    </div>
+                  </>)}
+              </div>
 
             </div>
 
