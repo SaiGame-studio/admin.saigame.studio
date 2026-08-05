@@ -220,6 +220,10 @@
     "collectDestinationInventory": "メインインベントリ",
     "collectDestinationMailboxHint": "購入したアイテムはプレイヤーが受け取れるメールボックスへ送信されます。",
     "collectDestinationInventoryHint": "購入したアイテムはプレイヤーのメインインベントリへ直接配信されます。",
+    "mailboxTitle": "メールタイトル",
+    "mailboxBody": "メール本文",
+    "mailboxTitleDefault": "ショップ購入",
+    "mailboxBodyDefault": "購入したアイテムを受け取れます。",
     "activeImmediately": "すぐに有効化",
     "itemSingular": "アイテム",
     "itemPlural": "アイテム"

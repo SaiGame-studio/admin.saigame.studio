@@ -220,6 +220,10 @@
     "collectDestinationInventory": "Main Inventory",
     "collectDestinationMailboxHint": "Purchased items are sent to the player's mailbox for claiming.",
     "collectDestinationInventoryHint": "Purchased items are delivered directly to the player's Main Inventory.",
+    "mailboxTitle": "Mail title",
+    "mailboxBody": "Mail body",
+    "mailboxTitleDefault": "Shop Purchase",
+    "mailboxBodyDefault": "Your purchased item is ready to claim.",
     "activeImmediately": "Active immediately",
     "itemSingular": "item",
     "itemPlural": "items"

@@ -22,6 +22,8 @@ export interface ShopDefinition {
     starts_at: string | null;
     ends_at: string | null;
     collect_destination?: ShopCollectDestination;
+    mailbox_title?: string;
+    mailbox_body?: string;
     currency_item_def_id?: string | null;
     item_limit?: number | null;
     item_count?: number;
@@ -58,6 +60,8 @@ export interface CreateShopPayload {
     starts_at?: string;
     ends_at?: string;
     collect_destination?: ShopCollectDestination;
+    mailbox_title?: string;
+    mailbox_body?: string;
     currency_item_def_id?: string;
 }
 export interface UpdateShopPayload {
@@ -68,6 +72,8 @@ export interface UpdateShopPayload {
     starts_at?: string | null;
     ends_at?: string | null;
     collect_destination?: ShopCollectDestination;
+    mailbox_title?: string;
+    mailbox_body?: string;
     currency_item_def_id?: string | null;
 }
 export interface AddShopItemPayload {

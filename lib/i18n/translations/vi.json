@@ -220,6 +220,10 @@
     "collectDestinationInventory": "Kho đồ chính",
     "collectDestinationMailboxHint": "Vật phẩm đã mua được gửi tới hộp thư để người chơi nhận.",
     "collectDestinationInventoryHint": "Vật phẩm đã mua được đưa thẳng vào Kho đồ chính của người chơi.",
+    "mailboxTitle": "Tiêu đề thư",
+    "mailboxBody": "Nội dung thư",
+    "mailboxTitleDefault": "Mua hàng từ shop",
+    "mailboxBodyDefault": "Vật phẩm bạn đã mua đã sẵn sàng để nhận.",
     "activeImmediately": "Kích hoạt ngay",
     "itemSingular": "vật phẩm",
     "itemPlural": "vật phẩm"
