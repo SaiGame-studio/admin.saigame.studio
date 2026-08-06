@@ -379,6 +379,7 @@
     "enterName": "Enter game name",
     "create": "Create Game",
     "information": "Game Information",
+    "privateInfo": "Private Info",
     "gameId": "Game ID",
     "status": "Status",
     "tier": "Tier",
@@ -433,6 +434,23 @@
     "tracingDescPre": "Automatically enabled when a ",
     "tracingDescPost": " plugin or above is activated, or granted by an Admin. Cannot be changed manually.",
     "upgradeThisGame": "Upgrade This Game"
+  },
+  "gamePublicInfo": {
+    "title": "Game Public Info",
+    "description": "Public promotional content available without sign-in.",
+    "gameName": "Public game name",
+    "releaseStatus": "Release status",
+    "released": "Released",
+    "comingSoon": "Coming soon",
+    "toBeAnnounced": "To be announced",
+    "releaseAt": "Release date and time",
+    "releaseWindow": "Planned release window",
+    "releaseWindowPlaceholder": "e.g. Q4 2026 or 2026",
+    "content": "Promotional content",
+    "contentLimit": "{current} / {max} bytes",
+    "loadError": "Failed to load game public info.",
+    "saveSuccess": "Game public info saved.",
+    "saveError": "Failed to save game public info."
   },
   "cloneGame": {
     "title": "Clone Game",

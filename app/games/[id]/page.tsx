@@ -31,6 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast";
 import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin } from "@/lib/plugin-api";
 import { EquipmentPanel } from "@/components/EquipmentPanel";
+import { GamePublicInfoCard } from "./GamePublicInfoCard";
 const fmt = (n: number) => n.toLocaleString();
 export default function GameDetailsPage({ params }: {
     params: Promise<{
@@ -300,7 +301,7 @@ export default function GameDetailsPage({ params }: {
                     <CardHeader id="game-detail-information-header" className="game-detail-information-header">
                         <CardTitle id="game-detail-information-title" className="game-detail-information-title flex items-center">
                             <Gamepad2 className="mr-2 h-5 w-5"/>
-                            {t('game.information')}
+                            {t('game.privateInfo')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent id="game-detail-information-content" className="game-detail-information-content">
@@ -411,7 +412,7 @@ export default function GameDetailsPage({ params }: {
                 </Card>
 
                 {/* Settings Card — right column */}
-                <Card id="game-detail-settings-card" className="game-detail-settings-card order-last lg:col-span-3">
+                <Card id="game-detail-settings-card" className="game-detail-settings-card lg:col-span-1">
                     <CardHeader id="game-detail-settings-header" className="game-detail-settings-header">
                         <CardTitle id="game-detail-settings-title" className="game-detail-settings-title flex items-center text-base">
                             {t('common.settings')}
@@ -684,6 +685,7 @@ export default function GameDetailsPage({ params }: {
                             </div>) : (<p id="game-detail-teams-empty-state" className="game-detail-teams-empty-state text-sm text-muted-foreground">{t('game.noTeamsAssigned')}</p>)}
                     </CardContent>
                 </Card>
+                <GamePublicInfoCard gameId={game.id} defaultGameName={game.name}/>
             </div>
         </div>);
 }

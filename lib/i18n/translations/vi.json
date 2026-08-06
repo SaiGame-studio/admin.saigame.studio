@@ -379,6 +379,7 @@
     "enterName": "Nhập tên game",
     "create": "Tạo Game",
     "information": "Thông tin Game",
+    "privateInfo": "Private Info",
     "gameId": "Mã Game",
     "status": "Trạng thái",
     "tier": "Hạng",
@@ -433,6 +434,23 @@
     "tracingDescPre": "Tự động bật khi plugin ",
     "tracingDescPost": " trở lên được kích hoạt, hoặc được cấp bởi Admin. Không thể thay đổi thủ công.",
     "upgradeThisGame": "Nâng cấp game này"
+  },
+  "gamePublicInfo": {
+    "title": "Thông tin công khai của game",
+    "description": "Nội dung quảng bá công khai, không cần đăng nhập để xem.",
+    "gameName": "Tên game công khai",
+    "releaseStatus": "Trạng thái phát hành",
+    "released": "Đã phát hành",
+    "comingSoon": "Sắp ra mắt",
+    "toBeAnnounced": "Sẽ thông báo sau",
+    "releaseAt": "Ngày và giờ phát hành",
+    "releaseWindow": "Khoảng thời gian phát hành dự kiến",
+    "releaseWindowPlaceholder": "ví dụ: Quý 4 năm 2026 hoặc 2026",
+    "content": "Nội dung quảng bá",
+    "contentLimit": "{current} / {max} bytes",
+    "loadError": "Không thể tải thông tin công khai của game.",
+    "saveSuccess": "Đã lưu thông tin công khai của game.",
+    "saveError": "Không thể lưu thông tin công khai của game."
   },
   "cloneGame": {
     "title": "Nhân bản game",
