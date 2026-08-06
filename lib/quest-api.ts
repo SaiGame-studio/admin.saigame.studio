@@ -8,7 +8,7 @@
  */
 import { api } from '@/lib/api-client';
 // ─── Quest Types ──────────────────────────────────────────────────────────────
-export type QuestType = 'one_time' | 'daily' | 'repeatable' | 'battle_pass_task' | 'chain';
+export type QuestType = 'one_time' | 'daily' | 'repeatable' | 'chain';
 // ─── Condition Tree ───────────────────────────────────────────────────────────
 export interface ItemRequirement {
     item_definition_id: string;

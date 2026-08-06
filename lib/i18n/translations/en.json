@@ -92,7 +92,6 @@
     "loadMore": "Load More",
     "dailyQuest": "Daily Quest",
     "chainQuest": "Chain Quest",
-    "battlePass": "Battle Pass",
     "comingSoon": "Coming soon",
     "thisWeek": "This Week",
     "lastWeek": "Last Week",
@@ -1774,7 +1773,7 @@
           "title": "Shops",
           "tagline": "Number of in-game stores you can set up",
           "description": "Maximum number of shop instances you can create. Each shop can have catalog and pricing rules.",
-          "tip": "Common and Uncommon provide identical quest grants per stack. Upgrading to Rare gives a 10× multiplier and unlocks Battle Pass.",
+          "tip": "Common and Uncommon provide identical quest grants per stack. Upgrading to Rare gives a 10× multiplier.",
           "details": [
             "Default base limit: 2 shops.",
             "Seasonal event shops, weekly rotating shops, and permanent shops each count as separate instances.",
@@ -1784,12 +1783,11 @@
         "quests": {
           "title": "Quests",
           "tagline": "Number of quest definitions you can design",
-          "description": "Controls how many quest definitions you can create across all types. Requires Rare tier or above to unlock Battle Pass.",
+          "description": "Controls how many quest definitions you can create across all types.",
           "tip": "If you need deep branching storylines, prioritize Epic or above — the per-journey node cap is often more limiting.",
           "details": [
             "Default base limit: 30 quest definitions.",
-            "Includes all quest types: daily, weekly, story, one-time, and seasonal.",
-            "Battle Pass sets require Rare tier or above (30 sets/stack at Rare, 300 at Epic, 3,000 at Legendary)."
+            "Includes all quest types: daily, weekly, story, one-time, and seasonal."
           ]
         },
         "nodes": {
@@ -3064,7 +3062,6 @@
             "definitionsDesc": "Unified system for defining game entities, properties, and metadata",
             "crafting": "Crafting System",
             "craftingDesc": "Recipe-based item crafting — enables Merge-3 and RPG game types",
-            "battlePass": "Battle Pass",
             "worldQuest": "World Quest",
             "worldZone": "World Zone",
             "iap": "IAP (Apple + Google Play)",
@@ -3304,7 +3301,6 @@
     "tabDefinitions": "Definitions",
     "tabChains": "Chains",
     "tabDaily": "Daily",
-    "tabBattlePass": "Battle Pass",
     "tabWorldQuest": "World Quest",
     "tabSettings": "Settings",
     "delivery": {
@@ -3351,8 +3347,6 @@
     "typeDailyDesc": "Resets at midnight UTC",
     "typeRepeatable": "Repeatable",
     "typeRepeatableDesc": "Can be completed multiple times",
-    "typeBattlePassTask": "Battle Pass Task",
-    "typeBattlePassTaskDesc": "Awards Battle Pass XP on completion",
     "typeChain": "Story",
     "typeChainDesc": "Part of a Quest Chain (DAG)",
     "condLogin": "Login",

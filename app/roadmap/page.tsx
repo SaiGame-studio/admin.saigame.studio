@@ -117,7 +117,6 @@ export default function RoadmapPage() {
                 { name: t('roadmap.page.phases.2.items.gameGiftCode'), description: t('roadmap.page.phases.2.items.gameGiftCodeDesc'), completed: "Jul 2026" },
             ],
             planned: [
-                { name: t('roadmap.page.phases.2.items.battlePass'), group: "Progression" },
                 { name: t('roadmap.page.phases.2.items.worldQuest'), group: "Progression" },
                 { name: t('roadmap.page.phases.2.items.worldZone'), group: "World" },
                 { name: t('roadmap.page.phases.2.items.iap'), group: "Monetization" },

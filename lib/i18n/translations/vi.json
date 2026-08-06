@@ -92,7 +92,6 @@
     "loadMore": "Tải thêm",
     "dailyQuest": "Nhiệm vụ hàng ngày",
     "chainQuest": "Nhiệm vụ chuỗi",
-    "battlePass": "Battle Pass",
     "comingSoon": "Sắp ra mắt",
     "thisWeek": "Tuần này",
     "lastWeek": "Tuần trước",
@@ -1765,13 +1764,13 @@
           "title": "Cửa hàng",
           "tagline": "Số lượng cửa hàng trong game bạn có thể thiết lập",
           "description": "Số lượng thực thể cửa hàng tối đa bạn có thể tạo. Mỗi cửa hàng có thể có danh mục và quy tắc giá riêng.",
-          "tip": "Bậc Common và Uncommon cung cấp gói nhiệm vụ giống nhau. Nâng lên Rare sẽ tăng gấp 10 lần và mở khóa Battle Pass.",
+          "tip": "Bậc Common và Uncommon cung cấp gói nhiệm vụ giống nhau. Nâng lên Rare sẽ tăng gấp 10 lần.",
           "details": {}
         },
         "quests": {
           "title": "Nhiệm vụ",
           "tagline": "Số lượng định nghĩa nhiệm vụ có thể thiết kế",
-          "description": "Kiểm soát số lượng định nghĩa nhiệm vụ bạn có thể tạo trên mọi loại. Yêu cầu bậc Rare trở lên để mở khóa Battle Pass.",
+          "description": "Kiểm soát số lượng định nghĩa nhiệm vụ bạn có thể tạo trên mọi loại.",
           "tip": "Nếu bạn cần các cốt truyện rẽ nhánh sâu, hãy ưu tiên Epic trở lên — giới hạn node trên mỗi journey thường quan trọng hơn.",
           "details": {}
         },
@@ -3029,7 +3028,6 @@
             "definitionsDesc": "Hệ thống thống nhất để định nghĩa các thực thể và thuộc tính trong game",
             "crafting": "Hệ thống Chế tạo",
             "craftingDesc": "Chế tạo vật phẩm dựa trên công thức — hỗ trợ game Merge-3 và RPG",
-            "battlePass": "Battle Pass",
             "worldQuest": "World Quest",
             "worldZone": "World Zone",
             "iap": "IAP (Apple + Google Play)",
@@ -3269,7 +3267,6 @@
     "tabDefinitions": "Định nghĩa",
     "tabChains": "Chuỗi",
     "tabDaily": "Hàng ngày",
-    "tabBattlePass": "Battle Pass",
     "tabWorldQuest": "Nhiệm vụ thế giới",
     "tabSettings": "Cài đặt",
     "delivery": {
@@ -3316,8 +3313,6 @@
     "typeDailyDesc": "Đặt lại lúc nửa đêm UTC",
     "typeRepeatable": "Lặp lại",
     "typeRepeatableDesc": "Có thể hoàn thành nhiều lần",
-    "typeBattlePassTask": "Nhiệm vụ Battle Pass",
-    "typeBattlePassTaskDesc": "Trao XP Battle Pass khi hoàn thành",
     "typeChain": "Cốt truyện",
     "typeChainDesc": "Thuộc chuỗi nhiệm vụ (DAG)",
     "condLogin": "Đăng nhập",

@@ -9,7 +9,6 @@ export interface GameLimits {
     max_event_types?: number;
     max_leaderboards?: number;
     max_daily_quest_sets?: number;
-    max_battle_pass_sets?: number;
     max_entity_defs?: number;
     max_scripts?: number;
     max_equipment_slots?: number;

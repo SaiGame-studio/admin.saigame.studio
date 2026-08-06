@@ -49,7 +49,7 @@ import { getQuestApiErrorMessage } from "./questApiErrorUtils";
 import type { Game } from "@/types/game";
 import { lsPendingQuestCreate, lsPendingQuestEdit } from "@/components/llm-conversations/conversation-panel-utils";
 // ─── Tab config ────────────────────────────────────────────────────────────────
-type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest" | "settings";
+type TabValue = "definitions" | "chains" | "daily" | "world-quest" | "settings";
 const QUEST_DEFINITION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Module-level cache so the same items?limit=200 request is only fired once per gameId
 // across ConditionEditor, RewardEditor, and the DefinitionsTab row display.
@@ -83,7 +83,6 @@ const TABS: {
     { value: "definitions", labelKey: "quest.tabDefinitions" },
     { value: "chains", labelKey: "quest.tabChains" },
     { value: "daily", labelKey: "quest.tabDaily" },
-    { value: "battle-pass", labelKey: "quest.tabBattlePass" },
     { value: "world-quest", labelKey: "quest.tabWorldQuest" },
     { value: "settings", labelKey: "quest.tabSettings" },
 ];
@@ -97,7 +96,6 @@ const QUEST_TYPES: {
     { value: "one_time", labelKey: "quest.typeOneTime", descKey: "quest.typeOneTimeDesc" },
     { value: "daily", labelKey: "quest.typeDaily", descKey: "quest.typeDailyDesc" },
     { value: "repeatable", labelKey: "quest.typeRepeatable", descKey: "quest.typeRepeatableDesc" },
-    { value: "battle_pass_task", labelKey: "quest.typeBattlePassTask", descKey: "quest.typeBattlePassTaskDesc" },
     { value: "chain", labelKey: "quest.typeChain", descKey: "quest.typeChainDesc" },
 ];
 const KNOWN_CONDITION_TYPES = [
@@ -126,7 +124,6 @@ function questTypeBadgeVariant(type: QuestType) {
         case "one_time": return "default";
         case "daily": return "secondary";
         case "repeatable": return "outline";
-        case "battle_pass_task": return "outline";
         case "chain": return "secondary";
         default: return "outline";
     }
@@ -2122,10 +2119,6 @@ function QuestsPageInner() {
 
         <TabsContent value="daily" className="mt-6">
           <DailyTab game={game} onGameUpdate={setGame}/>
-        </TabsContent>
-
-        <TabsContent value="battle-pass" className="mt-6">
-          <ComingSoon title="Battle Pass"/>
         </TabsContent>
 
         <TabsContent value="world-quest" className="mt-6">

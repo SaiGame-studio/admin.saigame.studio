@@ -61,10 +61,6 @@ function getQuestTypeBadgeVariant(questType?: string) {
         return "secondary" as const;
     }
 
-    if (normalized === "battle_pass_task") {
-        return "destructive" as const;
-    }
-
     return "outline" as const;
 }
 
