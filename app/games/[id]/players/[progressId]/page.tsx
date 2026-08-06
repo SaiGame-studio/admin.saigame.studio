@@ -33,7 +33,7 @@ type ResolvedEntity = {
     name: string;
     type: "item" | "gacha_pack";
 };
-type QuestSubTab = "all" | "chain" | "battle-pass" | "daily-ahead" | "timeframe";
+type QuestSubTab = "all" | "chain" | "daily-ahead" | "timeframe";
 type DailyQuestTimeframe = "this-week" | "last-week" | "this-month" | "last-month";
 const DAILY_QUEST_TIMEFRAME_STORAGE_KEY = "saigame_daily_quest_timeframe";
 function formatLocalDate(date: Date) {
@@ -711,7 +711,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     const [questError, setQuestError] = useState<string | null>(null);
     const [questSubTab, setQuestSubTab] = useState<QuestSubTab>(() => {
         const sub = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_sub") : null;
-        return sub === "chain" || sub === "battle-pass" || sub === "daily-ahead" || sub === "timeframe" || sub === "this-week" || sub === "this-month"
+        return sub === "chain" || sub === "daily-ahead" || sub === "timeframe" || sub === "this-week" || sub === "this-month"
             ? (sub === "this-week" || sub === "this-month" ? "timeframe" : sub)
             : "all";
     });
@@ -2196,15 +2196,9 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
               <Trophy id="player-quest-subtab-chain-quest-icon" className="h-3.5 w-3.5"/>
               {t("playerQuestHistory.chainQuest")}
             </button>
-            <button id="player-quest-subtab-battle-pass" onClick={() => handleQuestSubTabChange("battle-pass")} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${questSubTab === "battle-pass"
-            ? "border-primary text-foreground"
-            : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              <ShieldCheck id="player-quest-subtab-battle-pass-icon" className="h-3.5 w-3.5"/>
-              {t("playerQuestHistory.battlePass")}
-            </button>
           </div>
 
-          {questSubTab === "chain" || questSubTab === "battle-pass" ? (<div id={`player-quest-subtab-coming-soon-${questSubTab}`} className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          {questSubTab === "chain" ? (<div id={`player-quest-subtab-coming-soon-${questSubTab}`} className="flex flex-col items-center justify-center py-20 text-muted-foreground">
               <Clock id={`player-quest-subtab-coming-soon-${questSubTab}-icon`} className="h-16 w-16 mb-4 opacity-20"/>
               <p id={`player-quest-subtab-coming-soon-${questSubTab}-title`} className="text-xl font-semibold">{t("playerQuestHistory.comingSoon")}</p>
             </div>) : questSubTab === "daily-ahead" || questSubTab === "timeframe" ? (

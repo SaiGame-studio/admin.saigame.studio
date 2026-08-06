@@ -115,11 +115,10 @@ const LIMIT_EXPLANATIONS: Record<string, {
         title: "Quests",
         icon: "📜",
         tagline: "Number of quest definitions you can design",
-        description: "This controls how many quest definitions you can create across all quest types. New quest definitions are blocked with HTTP 429 when the limit is reached. Requires Rare tier or above to unlock Battle Pass functionality.",
+        description: "This controls how many quest definitions you can create across all quest types. New quest definitions are blocked with HTTP 429 when the limit is reached.",
         details: [
             "Default base limit: 30 quest definitions.",
             "Includes all quest types: daily, weekly, story, one-time, and seasonal.",
-            "Battle Pass sets require Rare tier or above (30 sets/stack at Rare, 300 at Epic, 3,000 at Legendary).",
         ],
         grantTable: [
             { tier: "Common (auto)", perStack: "+30 quests" },
@@ -128,7 +127,7 @@ const LIMIT_EXPLANATIONS: Record<string, {
             { tier: "Epic (×3 max)", perStack: "+3K quests / stack" },
             { tier: "Legendary (×3 max)", perStack: "+30K quests / stack" },
         ],
-        tip: "Common and Uncommon provide identical quest grants per stack. Upgrading to Rare gives a 10× multiplier and unlocks Battle Pass.",
+        tip: "Common and Uncommon provide identical quest grants per stack. Upgrading to Rare gives a 10× multiplier.",
     },
     nodes: {
         title: "Journey Node Definitions",
