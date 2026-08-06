@@ -379,6 +379,7 @@
     "enterName": "ゲーム名を入力",
     "create": "ゲームを作成",
     "information": "ゲーム情報",
+    "privateInfo": "Private Info",
     "gameId": "ゲームID",
     "status": "ステータス",
     "tier": "ティア",
@@ -433,6 +434,23 @@
     "tracingDescPre": "",
     "tracingDescPost": "以上のプラグインが有効化されると自動的に有効になります。または管理者により付与されます。手動では変更できません。",
     "upgradeThisGame": "このゲームをアップグレード"
+  },
+  "gamePublicInfo": {
+    "title": "ゲーム公開情報",
+    "description": "ログインせずに閲覧できる公開プロモーションコンテンツです。",
+    "gameName": "公開ゲーム名",
+    "releaseStatus": "リリース状況",
+    "released": "リリース済み",
+    "comingSoon": "近日公開",
+    "toBeAnnounced": "後日発表",
+    "releaseAt": "リリース日時",
+    "releaseWindow": "予定リリース時期",
+    "releaseWindowPlaceholder": "例: 2026年第4四半期 または 2026年",
+    "content": "プロモーション内容",
+    "contentLimit": "{current} / {max} バイト",
+    "loadError": "ゲーム公開情報の読み込みに失敗しました。",
+    "saveSuccess": "ゲーム公開情報を保存しました。",
+    "saveError": "ゲーム公開情報を保存できませんでした。"
   },
   "cloneGame": {
     "title": "ゲームを複製",
