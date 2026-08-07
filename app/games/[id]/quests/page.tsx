@@ -107,6 +107,12 @@ const KNOWN_CONDITION_TYPES = [
     { value: "gacha_opened", labelKey: "quest.condGachaOpened", descKey: "quest.condGachaOpenedDesc" },
 ];
 const DEFAULT_CONDITIONS: QuestConditionGroup = { operator: "AND", clauses: [] };
+function getOneTimeExpirationMinutes(typeConfig?: Record<string, unknown>) {
+    const expiration = typeConfig?.expiration;
+    if (!expiration || typeof expiration !== "object" || Array.isArray(expiration)) return undefined;
+    const minutes = (expiration as Record<string, unknown>).expire_after_minutes;
+    return typeof minutes === "number" ? minutes : undefined;
+}
 type QuestDefinitionForm = CreateQuestDefinitionRequest & Pick<UpdateQuestDefinitionRequest, "sort_order">;
 const DEFAULT_FORM: QuestDefinitionForm = {
     name: "",
@@ -833,11 +839,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         const nextConditions = (draft?.conditions ?? q.conditions ?? { operator: "AND", clauses: [] }) as QuestConditionGroup;
         const nextIsActive = typeof draft?.is_active === "boolean" ? draft.is_active : q.is_active;
         const nextSortOrder = typeof draft?.sort_order === "number" ? draft.sort_order : q.sort_order;
-        const nextExpireAfterMinutes = nextQuestType === "daily"
-            ? (typeof q.expire_after_minutes === "number" ? null : undefined)
-            : (typeof draft?.expire_after_minutes === "number" || draft?.expire_after_minutes === null
-                ? draft.expire_after_minutes
-                : q.expire_after_minutes);
+        const nextTypeConfig = nextQuestType === "daily"
+            ? {}
+            : (draft?.type_config ?? q.type_config ?? {});
         const nextRewards = Array.isArray(draft?.rewards) ? (draft.rewards as QuestReward[]) : (q.rewards ?? []);
         const nextMetadata = draft?.metadata && typeof draft.metadata === "object" && !Array.isArray(draft.metadata)
             ? draft.metadata as Record<string, unknown>
@@ -850,7 +854,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             conditions: nextConditions,
             is_active: nextIsActive,
             sort_order: nextSortOrder,
-            expire_after_minutes: nextExpireAfterMinutes,
+            type_config: nextTypeConfig,
             rewards: nextRewards,
             metadata: nextMetadata as Record<string, unknown> | undefined,
         };
@@ -1074,17 +1078,13 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             conditions: (initialValues?.conditions ?? DEFAULT_FORM.conditions) as QuestConditionGroup,
             is_active: typeof initialValues?.is_active === "boolean" ? initialValues.is_active : DEFAULT_FORM.is_active,
             sort_order: typeof initialValues?.sort_order === "number" ? initialValues.sort_order : DEFAULT_FORM.sort_order,
-            expire_after_minutes: typeof initialValues?.expire_after_minutes === "number"
-                ? initialValues.expire_after_minutes
-                : undefined,
+            type_config: initialValues?.type_config ?? {},
             rewards: Array.isArray(initialValues?.rewards) ? (initialValues.rewards as QuestReward[]) : DEFAULT_FORM.rewards,
             metadata: initialValues?.metadata && typeof initialValues.metadata === "object" && !Array.isArray(initialValues.metadata)
                 ? initialValues.metadata as Record<string, unknown>
                 : initialValues?.metadata,
         };
-        if (nextForm.quest_type === "daily") {
-            delete nextForm.expire_after_minutes;
-        }
+        if (nextForm.quest_type === "daily") nextForm.type_config = {};
         if (!nextForm.code_name?.trim() && nextForm.name.trim()) {
             nextForm.code_name = toSlugUnderscore(nextForm.name);
         }
@@ -1310,9 +1310,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             const resolvedForm = await resolveQuestDefinitionDraft(form);
             const createFields = { ...stripQuestUiFields(resolvedForm) };
             delete createFields.sort_order;
-            if (createFields.quest_type === "daily") {
-                delete createFields.expire_after_minutes;
-            }
+            if (createFields.quest_type === "daily") createFields.type_config = {};
             const payload: CreateQuestDefinitionRequest = {
                 ...createFields,
                 code_name: codeName,
@@ -1372,14 +1370,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 ...stripQuestUiFields(form),
                 code_name: codeName,
             };
-            if (form.quest_type === "daily") {
-                if (typeof editQuest.expire_after_minutes === "number") {
-                    patch.expire_after_minutes = null;
-                }
-                else {
-                    delete patch.expire_after_minutes;
-                }
-            }
+            if (form.quest_type === "daily") patch.type_config = {};
             const updated = await updateQuestDefinition(gameId, editQuest.id, patch, { suppressToast: true });
             toast({ title: t('quest.questUpdated'), description: form.name });
             window.dispatchEvent(new CustomEvent('ss:quest-created', {
@@ -1454,17 +1445,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         setItemDefsRefreshNonce((nonce) => nonce + 1);
     }, [gameId]);
     const selectedQuestTypeDescription = questTypeOptions.find((option) => option.value === form.quest_type)?.description ?? "";
-    const updateQuestExpiration = (expireAfterMinutes?: number) => setForm((currentForm) => {
-        if (expireAfterMinutes === undefined && !editQuest) {
-            const nextForm = { ...currentForm };
-            delete nextForm.expire_after_minutes;
-            return nextForm;
-        }
-        return {
-            ...currentForm,
-            expire_after_minutes: expireAfterMinutes ?? null,
-        };
-    });
+    const updateQuestExpiration = (expireAfterMinutes?: number) => setForm((currentForm) => ({
+        ...currentForm,
+        type_config: expireAfterMinutes === undefined ? {} : {
+            expiration: { expire_after_minutes: expireAfterMinutes },
+        },
+    }));
     const QuestForm = (<div id={`quest-definition-form-${questFormScope}`} className="quest-definition-form space-y-5">
       {/* Name */}
       <div id={`quest-name-field-${questFormScope}`} className="quest-name-field space-y-1">
@@ -1515,14 +1501,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               const questType = value as QuestType;
               setForm((currentForm) => {
                   const nextForm = { ...currentForm, quest_type: questType };
-                  if (questType === "daily") {
-                      if (editQuest && typeof editQuest.expire_after_minutes === "number") {
-                          nextForm.expire_after_minutes = null;
-                      }
-                      else {
-                          delete nextForm.expire_after_minutes;
-                      }
-                  }
+                  if (questType === "daily") nextForm.type_config = {};
                   return nextForm;
               });
           }}>
@@ -1544,7 +1523,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
           ) : (
             <QuestExpirationToggle
               idScope={questFormScope}
-              checked={typeof form.expire_after_minutes === "number"}
+              checked={typeof getOneTimeExpirationMinutes(form.type_config) === "number"}
               onCheckedChange={(checked) => updateQuestExpiration(checked ? DEFAULT_QUEST_EXPIRATION_MINUTES : undefined)}
               t={t}
             />
@@ -1559,10 +1538,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
       </div>
 
       {/* Expiration */}
-      {form.quest_type !== "daily" && typeof form.expire_after_minutes === "number" && (
+      {form.quest_type !== "daily" && typeof getOneTimeExpirationMinutes(form.type_config) === "number" && (
         <QuestExpirationSettings
           idScope={questFormScope}
-          value={form.expire_after_minutes}
+          value={getOneTimeExpirationMinutes(form.type_config)!}
           onChange={updateQuestExpiration}
           t={t}
         />

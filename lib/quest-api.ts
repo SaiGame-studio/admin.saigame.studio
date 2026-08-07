@@ -66,7 +66,7 @@ export interface QuestDefinition {
     conditions: QuestConditionGroup;
     is_active: boolean;
     sort_order: number;
-    expire_after_minutes?: number | null;
+    type_config?: Record<string, unknown>;
     rewards: QuestReward[];
     metadata?: Record<string, unknown>;
     created_at: string;
@@ -83,7 +83,7 @@ export interface CreateQuestDefinitionRequest {
     quest_type: QuestType;
     conditions: QuestConditionGroup;
     is_active?: boolean;
-    expire_after_minutes?: number | null;
+    type_config?: Record<string, unknown>;
     rewards?: QuestReward[];
     metadata?: Record<string, unknown>;
 }
@@ -95,7 +95,7 @@ export interface UpdateQuestDefinitionRequest {
     conditions?: QuestConditionGroup;
     is_active?: boolean;
     sort_order?: number;
-    expire_after_minutes?: number | null;
+    type_config?: Record<string, unknown>;
     rewards?: QuestReward[];
     metadata?: Record<string, unknown>;
 }
