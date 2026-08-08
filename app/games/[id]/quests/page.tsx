@@ -35,6 +35,8 @@ import { listQuestDefinitions, getQuestDefinition, listQuestTypes, listQuestCond
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { DailyTab } from "./DailyTab";
+import { SessionPoolsTab } from "./SessionPoolsTab";
+import { createDefaultSessionSchedule, SessionQuestScheduleFields } from "./SessionQuestScheduleFields";
 import { ChainTab } from "./ChainTab";
 import { SettingsTab } from "./SettingsTab";
 import { QuestDeliveryOverride } from "./QuestDeliveryOverride";
@@ -49,7 +51,7 @@ import { getQuestApiErrorMessage } from "./questApiErrorUtils";
 import type { Game } from "@/types/game";
 import { lsPendingQuestCreate, lsPendingQuestEdit } from "@/components/llm-conversations/conversation-panel-utils";
 // ─── Tab config ────────────────────────────────────────────────────────────────
-type TabValue = "definitions" | "chains" | "daily" | "world-quest" | "settings";
+type TabValue = "definitions" | "chains" | "daily" | "session-pools" | "world-quest" | "settings";
 const QUEST_DEFINITION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Module-level cache so the same items?limit=200 request is only fired once per gameId
 // across ConditionEditor, RewardEditor, and the DefinitionsTab row display.
@@ -83,6 +85,7 @@ const TABS: {
     { value: "definitions", labelKey: "quest.tabDefinitions" },
     { value: "chains", labelKey: "quest.tabChains" },
     { value: "daily", labelKey: "quest.tabDaily" },
+    { value: "session-pools", labelKey: "quest.tabSessionPools" },
     { value: "world-quest", labelKey: "quest.tabWorldQuest" },
     { value: "settings", labelKey: "quest.tabSettings" },
 ];
@@ -95,6 +98,7 @@ const QUEST_TYPES: {
 }[] = [
     { value: "one_time", labelKey: "quest.typeOneTime", descKey: "quest.typeOneTimeDesc" },
     { value: "daily", labelKey: "quest.typeDaily", descKey: "quest.typeDailyDesc" },
+    { value: "session", labelKey: "quest.typeSession", descKey: "quest.typeSessionDesc" },
     { value: "repeatable", labelKey: "quest.typeRepeatable", descKey: "quest.typeRepeatableDesc" },
     { value: "chain", labelKey: "quest.typeChain", descKey: "quest.typeChainDesc" },
 ];
@@ -113,6 +117,27 @@ function getOneTimeExpirationMinutes(typeConfig?: Record<string, unknown>) {
     const minutes = (expiration as Record<string, unknown>).expire_after_minutes;
     return typeof minutes === "number" ? minutes : undefined;
 }
+function getSessionConfig(typeConfig?: Record<string, unknown>) {
+    const session = typeConfig?.session;
+    return session && typeof session === "object" && !Array.isArray(session)
+        ? session as Record<string, unknown>
+        : {};
+}
+function hasValidSessionSchedule(typeConfig?: Record<string, unknown>, requireFutureBoundary = false) {
+    const session = getSessionConfig(typeConfig);
+    if (session.repeatable === true) {
+        const cycleStart = typeof session.cycle_start_at === "string" ? Date.parse(session.cycle_start_at) : Number.NaN;
+        const repeatEveryMonths = session.repeat_every_months;
+        return Number.isFinite(cycleStart)
+            && Number.isInteger(repeatEveryMonths)
+            && Number(repeatEveryMonths) >= 1
+            && (!requireFutureBoundary || cycleStart > Date.now());
+    }
+    if (session.repeatable !== false) return false;
+    const start = typeof session.session_start_at === "string" ? Date.parse(session.session_start_at) : Number.NaN;
+    const end = typeof session.session_end_at === "string" ? Date.parse(session.session_end_at) : Number.NaN;
+    return Number.isFinite(start) && Number.isFinite(end) && start < end && (!requireFutureBoundary || end > Date.now());
+}
 type QuestDefinitionForm = CreateQuestDefinitionRequest & Pick<UpdateQuestDefinitionRequest, "sort_order">;
 const DEFAULT_FORM: QuestDefinitionForm = {
     name: "",
@@ -129,6 +154,7 @@ function questTypeBadgeVariant(type: QuestType) {
     switch (type) {
         case "one_time": return "default";
         case "daily": return "secondary";
+        case "session": return "default";
         case "repeatable": return "outline";
         case "chain": return "secondary";
         default: return "outline";
@@ -1305,6 +1331,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             toast({ variant: "destructive", title: t('common.error'), description: t('quest.codeNameRequired') });
             return;
         }
+        if (form.quest_type === "session" && !hasValidSessionSchedule(form.type_config, true)) {
+            toast({ variant: "destructive", title: t("common.error"), description: t("quest.sessionQuestInvalidWindow") });
+            return;
+        }
         setSaving(true);
         try {
             const resolvedForm = await resolveQuestDefinitionDraft(form);
@@ -1362,6 +1392,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         const codeName = (form.code_name ?? "").trim();
         if (!codeName) {
             toast({ variant: "destructive", title: t('common.error'), description: t('quest.codeNameRequired') });
+            return;
+        }
+        if (form.quest_type === "session" && !hasValidSessionSchedule(form.type_config)) {
+            toast({ variant: "destructive", title: t("common.error"), description: t("quest.sessionQuestInvalidWindow") });
             return;
         }
         setSaving(true);
@@ -1502,6 +1536,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               setForm((currentForm) => {
                   const nextForm = { ...currentForm, quest_type: questType };
                   if (questType === "daily") nextForm.type_config = {};
+                  if (questType === "session" && typeof getSessionConfig(nextForm.type_config).repeatable !== "boolean") {
+                      nextForm.type_config = { session: createDefaultSessionSchedule() };
+                  }
                   return nextForm;
               });
           }}>
@@ -1516,9 +1553,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               ))}
             </SelectContent>
           </Select>
-          {form.quest_type === "daily" ? (
+          {form.quest_type === "daily" || form.quest_type === "session" ? (
             <p id={`quest-expiration-daily-unavailable-${questFormScope}`} className="quest-expiration-daily-unavailable text-xs leading-tight text-muted-foreground">
-              {t('quest.expirationUnavailableDaily')}
+              {form.quest_type === "session" ? t('quest.typeSessionDesc') : t('quest.expirationUnavailableDaily')}
             </p>
           ) : (
             <QuestExpirationToggle
@@ -1538,7 +1575,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
       </div>
 
       {/* Expiration */}
-      {form.quest_type !== "daily" && typeof getOneTimeExpirationMinutes(form.type_config) === "number" && (
+      {form.quest_type !== "daily" && form.quest_type !== "session" && typeof getOneTimeExpirationMinutes(form.type_config) === "number" && (
         <QuestExpirationSettings
           idScope={questFormScope}
           value={getOneTimeExpirationMinutes(form.type_config)!}
@@ -1546,6 +1583,15 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
           t={t}
         />
       )}
+
+      {form.quest_type === "session" && (() => {
+          const session = getSessionConfig(form.type_config);
+          const updateSession = (nextSession: Record<string, unknown>) => setForm((current) => ({
+              ...current,
+              type_config: { session: nextSession },
+          }));
+          return <SessionQuestScheduleFields idScope={questFormScope} session={session} onChange={updateSession} t={t} />;
+      })()}
 
       {/* Conditions */}
       <div id={`quest-conditions-editor-${questFormScope}`} className="quest-conditions-editor">
@@ -2098,6 +2144,10 @@ function QuestsPageInner() {
 
         <TabsContent value="daily" className="mt-6">
           <DailyTab game={game} onGameUpdate={setGame}/>
+        </TabsContent>
+
+        <TabsContent value="session-pools" className="mt-6">
+          <SessionPoolsTab gameId={gameId}/>
         </TabsContent>
 
         <TabsContent value="world-quest" className="mt-6">
