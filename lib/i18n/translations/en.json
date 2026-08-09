@@ -3299,6 +3299,7 @@
   },
   "quest": {
     "tabDefinitions": "Definitions",
+    "cloneQuestDefinition": "Clone quest definition",
     "tabChains": "Chains",
     "tabDaily": "Daily",
     "tabSessionPools": "Battle Pass",

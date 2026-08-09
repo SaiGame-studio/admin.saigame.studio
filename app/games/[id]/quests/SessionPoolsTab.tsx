@@ -457,7 +457,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                         {form.repeatable ? (
                             <div id="battle-pass-recurring-schedule" className="grid gap-4 sm:grid-cols-2">
                                 <div id="battle-pass-cycle-start-field" className="space-y-1">
-                                    <Label id="battle-pass-cycle-start-label" htmlFor="battle-pass-cycle-start-input">{t("quest.sessionCycleStartAt")} ({timeZone})</Label>
+                                    <Label id="battle-pass-cycle-start-label" htmlFor="battle-pass-cycle-start-input">{t("quest.sessionCycleStartAt")}</Label>
                                     <Input id="battle-pass-cycle-start-input" type="datetime-local" value={form.cycleStartAt} onChange={(event) => setForm({ ...form, cycleStartAt: event.target.value })} />
                                 </div>
                                 <div id="battle-pass-repeat-months-field" className="space-y-1">
@@ -478,11 +478,11 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                         ) : (
                             <div id="battle-pass-fixed-schedule" className="grid gap-4 sm:grid-cols-2">
                                 <div id="battle-pass-start-field" className="space-y-1">
-                                    <Label id="battle-pass-start-label" htmlFor="battle-pass-start-input">{t("quest.sessionStartAt")} ({timeZone})</Label>
+                                    <Label id="battle-pass-start-label" htmlFor="battle-pass-start-input">{t("quest.sessionStartAt")}</Label>
                                     <Input id="battle-pass-start-input" type="datetime-local" value={form.startAt} onChange={(event) => setForm({ ...form, startAt: event.target.value })} />
                                 </div>
                                 <div id="battle-pass-end-field" className="space-y-1">
-                                    <Label id="battle-pass-end-label" htmlFor="battle-pass-end-input">{t("quest.sessionEndAt")} ({timeZone})</Label>
+                                    <Label id="battle-pass-end-label" htmlFor="battle-pass-end-input">{t("quest.sessionEndAt")}</Label>
                                     <Input id="battle-pass-end-input" type="datetime-local" value={form.endAt} onChange={(event) => setForm({ ...form, endAt: event.target.value })} />
                                 </div>
                             </div>

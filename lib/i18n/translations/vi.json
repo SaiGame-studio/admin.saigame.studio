@@ -3265,6 +3265,7 @@
   },
   "quest": {
     "tabDefinitions": "Định nghĩa",
+    "cloneQuestDefinition": "Sao chép định nghĩa quest",
     "tabChains": "Chuỗi",
     "tabDaily": "Hàng ngày",
     "tabSessionPools": "Battle Pass",
