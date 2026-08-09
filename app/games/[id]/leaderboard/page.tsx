@@ -2302,9 +2302,7 @@ function LeaderboardPageInner() {
     const rawTab = searchParams.get("tab") ?? "boards";
     const activeTab: LBTabValue = VALID_LB_TABS.has(rawTab) ? (rawTab as LBTabValue) : "boards";
     const handleTabChange = (value: string) => {
-        const p = new URLSearchParams(searchParams.toString());
-        p.set("tab", value);
-        router.push(`?${p.toString()}`, { scroll: false });
+        router.push(value === "boards" ? window.location.pathname : `?tab=${encodeURIComponent(value)}`, { scroll: false });
     };
     return (<div className="container mx-auto py-6">
       {/* Breadcrumb */}

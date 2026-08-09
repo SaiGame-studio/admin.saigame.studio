@@ -810,15 +810,7 @@ export default function AnalyticPage() {
             .finally(() => setGameLoading(false));
     }, [gameId, toast]);
     const handleTabChange = (value: string) => {
-        const sp = new URLSearchParams(searchParams.toString());
-        if (value === "journey") {
-            sp.delete("tab");
-        }
-        else {
-            sp.set("tab", value);
-        }
-        const qs = sp.toString();
-        router.push(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`);
+        router.push(value === "journey" ? `/games/${gameId}/analytic` : `/games/${gameId}/analytic?tab=${encodeURIComponent(value)}`);
     };
     return (<div className="container mx-auto py-6">
       {/* Breadcrumb */}

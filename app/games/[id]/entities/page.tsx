@@ -910,9 +910,7 @@ export default function EntitiesPage() {
     }, [gameId, searchParams]);
     const handleTabChange = (value: string) => {
         setActiveTab(value);
-        const newParams = new URLSearchParams(searchParams.toString());
-        newParams.set("tab", value);
-        router.replace(`${window.location.pathname}?${newParams.toString()}`);
+        router.replace(value === "entities" ? window.location.pathname : `${window.location.pathname}?tab=${encodeURIComponent(value)}`);
     };
     const [game, setGame] = useState<Game | null>(null);
     const [entities, setEntities] = useState<EntityDefinition[]>([]);

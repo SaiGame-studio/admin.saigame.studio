@@ -35,6 +35,7 @@ import { listQuestDefinitions, getQuestDefinition, listQuestTypes, listQuestCond
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { DailyTab } from "./DailyTab";
+import { SessionPoolsTab } from "./SessionPoolsTab";
 import { ChainTab } from "./ChainTab";
 import { SettingsTab } from "./SettingsTab";
 import { QuestDeliveryOverride } from "./QuestDeliveryOverride";
@@ -49,7 +50,7 @@ import { getQuestApiErrorMessage } from "./questApiErrorUtils";
 import type { Game } from "@/types/game";
 import { lsPendingQuestCreate, lsPendingQuestEdit } from "@/components/llm-conversations/conversation-panel-utils";
 // ─── Tab config ────────────────────────────────────────────────────────────────
-type TabValue = "definitions" | "chains" | "daily" | "world-quest" | "settings";
+type TabValue = "definitions" | "chains" | "daily" | "session-pools" | "world-quest" | "settings";
 const QUEST_DEFINITION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Module-level cache so the same items?limit=200 request is only fired once per gameId
 // across ConditionEditor, RewardEditor, and the DefinitionsTab row display.
@@ -83,6 +84,7 @@ const TABS: {
     { value: "definitions", labelKey: "quest.tabDefinitions" },
     { value: "chains", labelKey: "quest.tabChains" },
     { value: "daily", labelKey: "quest.tabDaily" },
+    { value: "session-pools", labelKey: "quest.tabSessionPools" },
     { value: "world-quest", labelKey: "quest.tabWorldQuest" },
     { value: "settings", labelKey: "quest.tabSettings" },
 ];
@@ -95,6 +97,7 @@ const QUEST_TYPES: {
 }[] = [
     { value: "one_time", labelKey: "quest.typeOneTime", descKey: "quest.typeOneTimeDesc" },
     { value: "daily", labelKey: "quest.typeDaily", descKey: "quest.typeDailyDesc" },
+    { value: "session", labelKey: "quest.typeSession", descKey: "quest.typeSessionDesc" },
     { value: "repeatable", labelKey: "quest.typeRepeatable", descKey: "quest.typeRepeatableDesc" },
     { value: "chain", labelKey: "quest.typeChain", descKey: "quest.typeChainDesc" },
 ];
@@ -129,6 +132,7 @@ function questTypeBadgeVariant(type: QuestType) {
     switch (type) {
         case "one_time": return "default";
         case "daily": return "secondary";
+        case "session": return "default";
         case "repeatable": return "outline";
         case "chain": return "secondary";
         default: return "outline";
@@ -1310,7 +1314,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             const resolvedForm = await resolveQuestDefinitionDraft(form);
             const createFields = { ...stripQuestUiFields(resolvedForm) };
             delete createFields.sort_order;
-            if (createFields.quest_type === "daily") createFields.type_config = {};
+            if (createFields.quest_type === "daily" || createFields.quest_type === "session") createFields.type_config = {};
             const payload: CreateQuestDefinitionRequest = {
                 ...createFields,
                 code_name: codeName,
@@ -1371,6 +1375,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 code_name: codeName,
             };
             if (form.quest_type === "daily") patch.type_config = {};
+            if (form.quest_type === "session") {
+                if (editQuest.quest_type === "session") delete patch.type_config;
+                else patch.type_config = {};
+            }
             const updated = await updateQuestDefinition(gameId, editQuest.id, patch, { suppressToast: true });
             toast({ title: t('quest.questUpdated'), description: form.name });
             window.dispatchEvent(new CustomEvent('ss:quest-created', {
@@ -1502,6 +1510,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               setForm((currentForm) => {
                   const nextForm = { ...currentForm, quest_type: questType };
                   if (questType === "daily") nextForm.type_config = {};
+                  if (questType === "session" && currentForm.quest_type !== "session") nextForm.type_config = {};
                   return nextForm;
               });
           }}>
@@ -1516,9 +1525,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               ))}
             </SelectContent>
           </Select>
-          {form.quest_type === "daily" ? (
+          {form.quest_type === "daily" || form.quest_type === "session" ? (
             <p id={`quest-expiration-daily-unavailable-${questFormScope}`} className="quest-expiration-daily-unavailable text-xs leading-tight text-muted-foreground">
-              {t('quest.expirationUnavailableDaily')}
+              {form.quest_type === "session" ? t('quest.typeSessionDesc') : t('quest.expirationUnavailableDaily')}
             </p>
           ) : (
             <QuestExpirationToggle
@@ -1538,7 +1547,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
       </div>
 
       {/* Expiration */}
-      {form.quest_type !== "daily" && typeof getOneTimeExpirationMinutes(form.type_config) === "number" && (
+      {form.quest_type !== "daily" && form.quest_type !== "session" && typeof getOneTimeExpirationMinutes(form.type_config) === "number" && (
         <QuestExpirationSettings
           idScope={questFormScope}
           value={getOneTimeExpirationMinutes(form.type_config)!}
@@ -2003,15 +2012,7 @@ function QuestsPageInner() {
             .finally(() => setGameLoading(false));
     }, [gameId, toast]);
     const handleTabChange = (value: string) => {
-        const sp = new URLSearchParams(searchParams.toString());
-        if (value === "definitions") {
-            sp.delete("tab");
-        }
-        else {
-            sp.set("tab", value);
-        }
-        const qs = sp.toString();
-        router.push(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`);
+        router.push(value === "definitions" ? `/games/${gameId}/quests` : `/games/${gameId}/quests?tab=${encodeURIComponent(value)}`);
     };
     return (<div className="container mx-auto py-6">
       {/* Breadcrumb */}
@@ -2098,6 +2099,10 @@ function QuestsPageInner() {
 
         <TabsContent value="daily" className="mt-6">
           <DailyTab game={game} onGameUpdate={setGame}/>
+        </TabsContent>
+
+        <TabsContent value="session-pools" className="mt-6">
+          <SessionPoolsTab gameId={gameId}/>
         </TabsContent>
 
         <TabsContent value="world-quest" className="mt-6">

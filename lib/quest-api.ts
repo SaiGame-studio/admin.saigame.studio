@@ -8,7 +8,7 @@
  */
 import { api } from '@/lib/api-client';
 // ─── Quest Types ──────────────────────────────────────────────────────────────
-export type QuestType = 'one_time' | 'daily' | 'repeatable' | 'chain';
+export type QuestType = 'one_time' | 'daily' | 'repeatable' | 'chain' | 'session';
 // ─── Condition Tree ───────────────────────────────────────────────────────────
 export interface ItemRequirement {
     item_definition_id: string;
@@ -184,6 +184,7 @@ export interface UpdateChainMemberRequest {
 }
 // ─── Quest Chain Types ─────────────────────────────────────────────────────────
 export type ChainType = 'linear' | 'branching' | 'parallel';
+export type ChainContentType = 'full_one_time' | 'full_session' | 'mix';
 export interface QuestChain {
     id: string;
     studio_id: string;
@@ -192,6 +193,7 @@ export interface QuestChain {
     display_name: string;
     description?: string;
     chain_type: ChainType;
+    type_config?: { content_type?: ChainContentType };
     is_active: boolean;
     deleted_at: string | null;
     created_at: string;
@@ -220,12 +222,15 @@ export interface UpdateQuestChainRequest {
 export async function listQuestChains(gameId: string, params?: {
     limit?: number;
     offset?: number;
+    search?: string;
 }): Promise<ListQuestChainsResponse> {
     const qs = new URLSearchParams();
     if (params?.limit !== undefined)
         qs.set('limit', String(params.limit));
     if (params?.offset !== undefined)
         qs.set('offset', String(params.offset));
+    if (params?.search?.trim())
+        qs.set('search', params.search.trim());
     const query = qs.toString() ? `?${qs}` : '';
     return api.get(`/api/v1/games/${gameId}/quest-chains${query}`);
 }
@@ -445,4 +450,70 @@ export async function getPlayerDailyQuestTimeframe(gameId: string, poolId: strin
 
 export async function deleteDailyQuestPool(gameId: string, poolId: string): Promise<void> {
     return api.delete(`/api/v1/games/${gameId}/admin/daily-quest-pools/${poolId}`);
+}
+
+export interface SessionWindowConfig {
+    session: {
+        repeatable: false;
+        session_start_at: string;
+        session_end_at: string;
+    } | {
+        repeatable: true;
+        cycle_start_at: string;
+        repeat_every_months: number;
+    };
+}
+export interface SessionQuestPool {
+    id: string;
+    game_id: string;
+    pool_key: string;
+    display_name: string;
+    description?: string;
+    is_active: boolean;
+    type_config: SessionWindowConfig;
+    created_at: string;
+    updated_at: string;
+}
+export interface SessionQuestPoolChain {
+    id: string;
+    pool_id: string;
+    chain_id: string;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+}
+export interface SessionQuestPoolInput {
+    pool_key: string;
+    display_name: string;
+    description?: string;
+    is_active: boolean;
+    type_config: SessionWindowConfig;
+}
+export interface ListSessionQuestPoolsResponse {
+    pools: SessionQuestPool[];
+    total: number;
+}
+export async function listSessionQuestPools(gameId: string): Promise<ListSessionQuestPoolsResponse> {
+    return api.get(`/api/v1/games/${gameId}/admin/session-quest-pools`);
+}
+export async function createSessionQuestPool(gameId: string, data: SessionQuestPoolInput): Promise<SessionQuestPool> {
+    return api.post(`/api/v1/games/${gameId}/admin/session-quest-pools`, data);
+}
+export async function updateSessionQuestPool(gameId: string, poolId: string, data: Partial<Omit<SessionQuestPoolInput, "pool_key">>): Promise<SessionQuestPool> {
+    return api.patch(`/api/v1/games/${gameId}/admin/session-quest-pools/${poolId}`, data);
+}
+export async function deleteSessionQuestPool(gameId: string, poolId: string): Promise<void> {
+    return api.delete(`/api/v1/games/${gameId}/admin/session-quest-pools/${poolId}`);
+}
+export async function listSessionQuestPoolChains(gameId: string, poolId: string): Promise<{ chains: SessionQuestPoolChain[] }> {
+    return api.get(`/api/v1/games/${gameId}/admin/session-quest-pools/${poolId}/chains`);
+}
+export async function addChainToSessionQuestPool(gameId: string, poolId: string, chainId: string, sortOrder: number): Promise<SessionQuestPoolChain> {
+    return api.post(`/api/v1/games/${gameId}/admin/session-quest-pools/${poolId}/chains`, { chain_id: chainId, sort_order: sortOrder });
+}
+export async function removeChainFromSessionQuestPool(gameId: string, poolId: string, chainId: string): Promise<void> {
+    return api.delete(`/api/v1/games/${gameId}/admin/session-quest-pools/${poolId}/chains/${chainId}`);
+}
+export async function reorderSessionQuestPoolChains(gameId: string, poolId: string, chainIds: string[]): Promise<void> {
+    return api.patch(`/api/v1/games/${gameId}/admin/session-quest-pools/${poolId}/chains/order`, { chain_ids: chainIds });
 }

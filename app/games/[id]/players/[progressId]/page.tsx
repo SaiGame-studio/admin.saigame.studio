@@ -1322,15 +1322,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     }, [journeyEvents, journeyEventsLoading, loadJourneyEvents]);
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
-        const params = new URLSearchParams(Array.from(searchParams.entries()));
-        if (tab === "info") {
-            params.delete("tab");
-        }
-        else {
-            params.set("tab", tab);
-        }
-        const qs = params.toString();
-        router.replace(`${window.location.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+        router.replace(tab === "info" ? window.location.pathname : `${window.location.pathname}?tab=${encodeURIComponent(tab)}`, { scroll: false });
     };
     const handleQuestSubTabChange = (sub: QuestSubTab) => {
         setQuestSubTab(sub);

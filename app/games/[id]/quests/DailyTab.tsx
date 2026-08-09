@@ -309,9 +309,7 @@ export function DailyTab({ game, onGameUpdate }: {
     const { toast } = useToast();
     const subTab = (searchParams.get("subTab") ?? "list") as "list" | "grid";
     const setSubTab = (v: "list" | "grid") => {
-        const sp = new URLSearchParams(searchParams.toString());
-        sp.set("subTab", v);
-        router.replace(`?${sp.toString()}`);
+        router.replace(`?tab=daily&subTab=${encodeURIComponent(v)}`);
     };
     // ── State ─────────────────────────────────────────────────────────────────
     const [pools, setPools] = useState<DailyQuestPool[]>([]);

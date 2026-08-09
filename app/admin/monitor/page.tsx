@@ -2504,10 +2504,8 @@ function MonitorTabs() {
     function handleTabChange(value: string) {
         const nextTab = parseMonitorTab(value);
         setActiveTab(nextTab);
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("tab", nextTab);
-        const query = params.toString();
-        window.history.replaceState(window.history.state, "", `${window.location.pathname}?${query}${window.location.hash}`);
+        const nextUrl = nextTab === "overview" ? window.location.pathname : `${window.location.pathname}?tab=${encodeURIComponent(nextTab)}`;
+        window.history.replaceState(window.history.state, "", nextUrl);
     }
     if (!capabilities.is_super_admin)
         return null;

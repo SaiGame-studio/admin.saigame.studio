@@ -95,9 +95,7 @@ export default function AdminPluginsPage() {
     const activeTab = searchParams.get("tab") ?? "plugins";
     const selectedGameId = searchParams.get("game") ?? "";
     function setActiveTab(tab: string) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("tab", tab);
-        router.replace(`${pathname}?${params.toString()}`);
+        router.replace(tab === "plugins" ? pathname : `${pathname}?tab=${encodeURIComponent(tab)}`);
     }
     function setSelectedGameInUrl(gameId: string | null) {
         const params = new URLSearchParams(searchParams.toString());
