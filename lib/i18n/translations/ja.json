@@ -3258,6 +3258,7 @@
   },
   "quest": {
     "tabDefinitions": "定義",
+    "cloneQuestDefinition": "クエスト定義を複製",
     "tabChains": "チェーン",
     "tabDaily": "デイリー",
     "tabSessionPools": "バトルパス",

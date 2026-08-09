@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } fr
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, GitFork, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, } from "lucide-react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1104,6 +1104,28 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         setCreateQuestConvContext(null);
         setCreateQuestResolvedItemDefs([]);
     }, []);
+    const cloneQuest = useCallback((quest: QuestDefinition) => {
+        const sourceCode = (quest.code_name?.trim() || toSlugUnderscore(quest.name) || "quest");
+        let cloneCode = `${sourceCode}_copy`;
+        let cloneIndex = 2;
+        const existingCodes = new Set(quests.map((candidate) => candidate.code_name?.trim()).filter(Boolean));
+        while (existingCodes.has(cloneCode)) {
+            cloneCode = `${sourceCode}_copy_${cloneIndex}`;
+            cloneIndex += 1;
+        }
+        void openCreate({
+            name: quest.name,
+            code_name: cloneCode,
+            description: quest.description ?? "",
+            quest_type: quest.quest_type,
+            conditions: structuredClone(quest.conditions ?? DEFAULT_CONDITIONS),
+            is_active: quest.is_active,
+            sort_order: quest.sort_order,
+            type_config: structuredClone(quest.type_config ?? {}),
+            rewards: structuredClone(quest.rewards ?? []),
+            metadata: quest.metadata ? structuredClone(quest.metadata) : undefined,
+        });
+    }, [openCreate, quests]);
     useEscapeLayer(createOpen, closeCreate, 1);
     // Consume pending LLM quest drafts when the sheet opens from conversation routing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1638,10 +1660,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         </div>)}
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (<div className="p-4 space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (<Skeleton key={i} className="h-10 w-full"/>))}
+      <Card id="quest-list-card" className="quest-list-card">
+        <CardContent id="quest-list-card-content" className="quest-list-card-content p-0">
+          {loading ? (<div id="quest-list-loading" className="quest-list-loading p-4 space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (<Skeleton id={`quest-list-loading-row-${i}`} key={i} className="quest-list-loading-row h-10 w-full"/>))}
             </div>) : filteredQuests.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
               {hasActiveFilters ? (<>
                   <Search className="h-10 w-10 opacity-30"/>
@@ -1656,103 +1678,106 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                     <Plus className="h-4 w-4 mr-1"/> {t('quest.createFirstQuest')}
                   </Button>
                 </>)}
-            </div>) : (<Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('quest.name')}</TableHead>
-                  <TableHead>{t('quest.codeName')}</TableHead>
-                  <TableHead>{t('quest.type')}</TableHead>
-                  <TableHead>{t('quest.conditions')}</TableHead>
-                  <TableHead>{t('quest.rewards')}</TableHead>
-                  <TableHead>{t('quest.delivery.column')}</TableHead>
+            </div>) : (<Table id="quest-list-table" className="quest-list-table">
+              <TableHeader id="quest-list-table-header" className="quest-list-table-header">
+                <TableRow id="quest-list-table-header-row" className="quest-list-table-header-row">
+                  <TableHead id="quest-list-table-name-header" className="quest-list-table-header-cell">{t('quest.name')}</TableHead>
+                  <TableHead id="quest-list-table-code-header" className="quest-list-table-header-cell">{t('quest.codeName')}</TableHead>
+                  <TableHead id="quest-list-table-type-header" className="quest-list-table-header-cell">{t('quest.type')}</TableHead>
+                  <TableHead id="quest-list-table-conditions-header" className="quest-list-table-header-cell">{t('quest.conditions')}</TableHead>
+                  <TableHead id="quest-list-table-rewards-header" className="quest-list-table-header-cell">{t('quest.rewards')}</TableHead>
+                  <TableHead id="quest-list-table-delivery-header" className="quest-list-table-header-cell">{t('quest.delivery.column')}</TableHead>
 
-                  <TableHead>{t('quest.active')}</TableHead>
-                  <TableHead className="text-right">{t('quest.actions')}</TableHead>
+                  <TableHead id="quest-list-table-active-header" className="quest-list-table-header-cell">{t('quest.active')}</TableHead>
+                  <TableHead id="quest-list-table-actions-header" className="quest-list-table-header-cell text-right">{t('quest.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody id="quest-list-table-body" className="quest-list-table-body">
                 {filteredQuests.map((q) => (<React.Fragment key={q.id}>
                   <TableRow id={`quest-list-item-${q.id}`} className="quest-list-item cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setExpandedQuestId(expandedQuestId === q.id ? null : q.id)}>
-                    <TableCell>
-                      <div className="flex items-start gap-1.5">
+                    <TableCell id={`quest-list-item-name-cell-${q.id}`} className="quest-list-item-cell">
+                      <div id={`quest-list-item-name-${q.id}`} className="quest-list-item-name flex items-start gap-1.5">
                         {expandedQuestId === q.id
-                    ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5"/>
-                    : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5"/>}
-                        <span className="font-medium truncate">{q.name}</span>
+                    ? <ChevronDown id={`quest-list-item-collapse-icon-${q.id}`} className="quest-list-item-expand-icon h-4 w-4 shrink-0 text-muted-foreground mt-0.5"/>
+                    : <ChevronRight id={`quest-list-item-expand-icon-${q.id}`} className="quest-list-item-expand-icon h-4 w-4 shrink-0 text-muted-foreground mt-0.5"/>}
+                        <span id={`quest-list-item-name-text-${q.id}`} className="quest-list-item-name-text font-medium truncate">{q.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {q.code_name ? (<div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
-                          <span className="truncate max-w-[220px]">{q.code_name}</span>
+                    <TableCell id={`quest-list-item-code-cell-${q.id}`} className="quest-list-item-cell" onClick={(e) => e.stopPropagation()}>
+                      {q.code_name ? (<div id={`quest-list-item-code-${q.id}`} className="quest-list-item-code text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
+                          <span id={`quest-list-item-code-text-${q.id}`} className="quest-list-item-code-text truncate max-w-[220px]">{q.code_name}</span>
                           <CopyButton text={q.code_name} size="h-3 w-3"/>
                         </div>) : (<span className="text-xs text-muted-foreground">—</span>)}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={questTypeBadgeVariant(q.quest_type)}>
+                    <TableCell id={`quest-list-item-type-cell-${q.id}`} className="quest-list-item-cell">
+                      <Badge id={`quest-list-item-type-${q.id}`} variant={questTypeBadgeVariant(q.quest_type)} className="quest-list-item-type">
                         {q.quest_type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {q.conditions ? (<span className="inline-flex items-center gap-1">
-                          <Badge variant="outline" className="font-mono text-xs">
+                    <TableCell id={`quest-list-item-conditions-cell-${q.id}`} className="quest-list-item-cell text-sm">
+                      {q.conditions ? (<span id={`quest-list-item-conditions-${q.id}`} className="quest-list-item-conditions inline-flex items-center gap-1">
+                          <Badge id={`quest-list-item-conditions-operator-${q.id}`} variant="outline" className="quest-list-item-conditions-operator font-mono text-xs">
                             {q.conditions.operator}
                           </Badge>
-                          <span className="text-muted-foreground">
+                          <span id={`quest-list-item-conditions-count-${q.id}`} className="quest-list-item-conditions-count text-muted-foreground">
                             {q.conditions.clauses?.length ?? 0} {(q.conditions.clauses?.length ?? 0) !== 1 ? t('quest.clausesCount') : t('quest.clauseCount')}
                           </span>
                         </span>) : (<span className="text-muted-foreground text-xs">—</span>)}
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell id={`quest-list-item-rewards-cell-${q.id}`} className="quest-list-item-cell text-sm">
                       {q.rewards?.length ?? 0}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {q.metadata?.override_game_delivery === true ? (q.metadata?.reward_delivery === "direct" ? (<Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-500/40 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400" title={t('quest.delivery.overridesGame')}>
-                            <Zap className="h-3 w-3"/>
+                    <TableCell id={`quest-list-item-delivery-cell-${q.id}`} className="quest-list-item-cell text-sm">
+                      {q.metadata?.override_game_delivery === true ? (q.metadata?.reward_delivery === "direct" ? (<Badge id={`quest-list-item-delivery-direct-${q.id}`} variant="outline" className="quest-list-item-delivery gap-1 text-xs text-amber-600 border-amber-500/40 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400" title={t('quest.delivery.overridesGame')}>
+                            <Zap id={`quest-list-item-delivery-direct-icon-${q.id}`} className="quest-list-item-delivery-icon h-3 w-3"/>
                             {t('quest.delivery.modeDirect')}
-                          </Badge>) : (<Badge variant="outline" className="gap-1 text-xs text-green-700 border-green-500/40 bg-green-50 dark:bg-green-900/20 dark:text-green-400" title={t('quest.delivery.overridesGame')}>
-                            <Mail className="h-3 w-3"/>
+                          </Badge>) : (<Badge id={`quest-list-item-delivery-mailbox-${q.id}`} variant="outline" className="quest-list-item-delivery gap-1 text-xs text-green-700 border-green-500/40 bg-green-50 dark:bg-green-900/20 dark:text-green-400" title={t('quest.delivery.overridesGame')}>
+                            <Mail id={`quest-list-item-delivery-mailbox-icon-${q.id}`} className="quest-list-item-delivery-icon h-3 w-3"/>
                             {t('quest.delivery.modeMailbox')}
-                          </Badge>)) : (<Badge variant="outline" className="text-xs text-muted-foreground">
+                          </Badge>)) : (<Badge id={`quest-list-item-delivery-default-${q.id}`} variant="outline" className="quest-list-item-delivery text-xs text-muted-foreground">
                           {t('quest.delivery.defaultLabel')}
                         </Badge>)}
                     </TableCell>
 
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell id={`quest-list-item-active-cell-${q.id}`} className="quest-list-item-cell" onClick={(e) => e.stopPropagation()}>
                       <Switch id={`quest-list-item-active-toggle-${q.id}`} className="quest-list-item-active-toggle" checked={q.is_active} onCheckedChange={() => toggleActive(q)}/>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+                    <TableCell id={`quest-list-item-actions-cell-${q.id}`} className="quest-list-item-cell text-right">
+                      <div id={`quest-list-item-actions-${q.id}`} className="quest-list-item-actions flex justify-end gap-1">
+                        <Button id={`quest-list-item-clone-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-clone-btn h-8 w-8" aria-label={t("quest.cloneQuestDefinition")} title={t("quest.cloneQuestDefinition")} onClick={(e) => { e.stopPropagation(); cloneQuest(q); }}>
+                          <GitFork id={`quest-list-item-clone-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                        </Button>
                         <Button id={`quest-list-item-edit-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-edit-btn h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
-                          <Pencil className="h-4 w-4"/>
+                          <Pencil id={`quest-list-item-edit-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
                         </Button>
                         <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
-                          <Trash2 className="h-4 w-4"/>
+                          <Trash2 id={`quest-list-item-delete-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
                   {/* Expanded detail row */}
-                  {expandedQuestId === q.id && (<TableRow className="bg-muted/20 hover:bg-muted/20">
-                      <TableCell colSpan={8} className="p-0">
-                        <div className="px-6 py-4 space-y-4 border-t border-dashed">
+                  {expandedQuestId === q.id && (<TableRow id={`quest-list-item-details-row-${q.id}`} className="quest-list-item-details-row bg-muted/20 hover:bg-muted/20">
+                      <TableCell id={`quest-list-item-details-cell-${q.id}`} colSpan={8} className="quest-list-item-details-cell p-0">
+                        <div id={`quest-list-item-details-${q.id}`} className="quest-list-item-details px-6 py-4 space-y-4 border-t border-dashed">
                           {/* Row 1: Quest ID + Description */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
-                              <div className="flex items-center gap-1">
-                                <p className="font-mono text-xs break-all">{q.id}</p>
+                          <div id={`quest-list-item-details-summary-${q.id}`} className="quest-list-item-details-summary grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div id={`quest-list-item-id-${q.id}`} className="quest-list-item-details-field">
+                              <p id={`quest-list-item-id-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
+                              <div id={`quest-list-item-id-value-wrap-${q.id}`} className="quest-list-item-details-value flex items-center gap-1">
+                                <p id={`quest-list-item-id-value-${q.id}`} className="quest-list-item-id-value font-mono text-xs break-all">{q.id}</p>
                                 <CopyButton text={q.id} size="h-3 w-3"/>
                               </div>
                             </div>
-                            {q.description && (<div>
-                                <p className="text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
-                                <p className="text-sm">{q.description}</p>
+                            {q.description && (<div id={`quest-list-item-description-${q.id}`} className="quest-list-item-details-field">
+                                <p id={`quest-list-item-description-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
+                                <p id={`quest-list-item-description-value-${q.id}`} className="quest-list-item-description-value text-sm">{q.description}</p>
                               </div>)}
                           </div>
 
                           {/* Two-column layout: [Conditions + Rewards] | [Reward Delivery] */}
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-                          <div className="space-y-4">
+                          <div id={`quest-list-item-details-content-${q.id}`} className="quest-list-item-details-content grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                          <div id={`quest-list-item-details-left-${q.id}`} className="quest-list-item-details-left space-y-4">
                           {/* Conditions */}
                           {q.conditions && q.conditions.clauses?.length > 0 && (<div>
                               <p className="text-xs text-muted-foreground mb-1">{t('quest.conditions')} <Badge variant="outline" className="ml-1 font-mono text-xs">{q.conditions.operator}</Badge></p>
@@ -1832,15 +1857,15 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                           </div>
 
                           {/* Right column: Reward delivery override */}
-                          {game && (<div>
+                          {game && (<div id={`quest-list-item-delivery-override-${q.id}`} className="quest-list-item-delivery-override">
                               <QuestDeliveryOverride quest={q} game={game} onUpdated={(updated) => setQuests((prev) => prev.map((qd) => (qd.id === updated.id ? updated : qd)))}/>
                             </div>)}
                           </div>
 
                           {/* Timestamps */}
-                          <div className="flex gap-6 text-xs text-muted-foreground">
-                            <span>{t('quest.created')} {new Date(q.created_at).toLocaleString()}</span>
-                            <span>{t('quest.updated')} {new Date(q.updated_at).toLocaleString()}</span>
+                          <div id={`quest-list-item-timestamps-${q.id}`} className="quest-list-item-timestamps flex gap-6 text-xs text-muted-foreground">
+                            <span id={`quest-list-item-created-${q.id}`} className="quest-list-item-timestamp">{t('quest.created')} {new Date(q.created_at).toLocaleString()}</span>
+                            <span id={`quest-list-item-updated-${q.id}`} className="quest-list-item-timestamp">{t('quest.updated')} {new Date(q.updated_at).toLocaleString()}</span>
                           </div>
                         </div>
                       </TableCell>
@@ -1849,18 +1874,18 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               </TableBody>
             </Table>)}
           {quests.length > 0 && !loading && (
-            <div className="p-4 flex flex-col items-center justify-center border-t gap-3">
+            <div id="quest-list-pagination" className="quest-list-pagination p-4 flex flex-col items-center justify-center border-t gap-3">
               {hasNextPage && !hasQuestIdSearch && (
-                <Button 
+                <Button id="quest-list-load-more" className="quest-list-load-more"
                   variant="outline" 
                   onClick={handleLoadMore} 
                   disabled={loadingMore}
                 >
-                  {loadingMore && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {loadingMore && <Loader2 id="quest-list-load-more-loading" className="quest-list-load-more-icon h-4 w-4 mr-2 animate-spin" />}
                   {t('common.loadMore')}
                 </Button>
               )}
-              <p className="text-sm text-muted-foreground">
+              <p id="quest-list-pagination-summary" className="quest-list-pagination-summary text-sm text-muted-foreground">
                 {`${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`}
               </p>
             </div>
@@ -1974,10 +1999,10 @@ function ComingSoon({ title }: {
     title: string;
 }) {
     const { t } = useTranslation();
-    return (<div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4">
-      <Clock className="h-12 w-12 opacity-30"/>
-      <p className="text-lg font-medium">{title}</p>
-      <p className="text-sm opacity-70">{t('quest.comingSoon')}</p>
+    return (<div id="quests-coming-soon" className="quests-coming-soon flex flex-col items-center justify-center py-24 text-muted-foreground gap-4">
+      <Clock id="quests-coming-soon-icon" className="quests-coming-soon-icon h-12 w-12 opacity-30"/>
+      <p id="quests-coming-soon-title" className="quests-coming-soon-title text-lg font-medium">{title}</p>
+      <p id="quests-coming-soon-description" className="quests-coming-soon-description text-sm opacity-70">{t('quest.comingSoon')}</p>
     </div>);
 }
 // ─── Inner Page (needs useSearchParams) ───────────────────────────────────────
@@ -2014,102 +2039,102 @@ function QuestsPageInner() {
     const handleTabChange = (value: string) => {
         router.push(value === "definitions" ? `/games/${gameId}/quests` : `/games/${gameId}/quests?tab=${encodeURIComponent(value)}`);
     };
-    return (<div className="container mx-auto py-6">
+    return (<div id="quests-page" className="quests-page container mx-auto py-6">
       {/* Breadcrumb */}
-      <div className="mb-2">
-        <Breadcrumb>
-          <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink>
+      <div id="quests-page-breadcrumb" className="quests-page-breadcrumb mb-2">
+        <Breadcrumb id="quests-page-breadcrumb-nav" className="quests-page-breadcrumb-nav">
+          <BreadcrumbList id="quests-page-breadcrumb-list" className="quests-page-breadcrumb-list flex-nowrap overflow-x-auto whitespace-nowrap">
+            <BreadcrumbItem id="quests-page-breadcrumb-studios" className="quests-page-breadcrumb-item">
+              <BreadcrumbLink id="quests-page-breadcrumb-studios-link" className="quests-page-breadcrumb-link" href="/studios">{t('common.studios')}</BreadcrumbLink>
             </BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbSeparator id="quests-page-breadcrumb-studio-separator" className="quests-page-breadcrumb-separator">/</BreadcrumbSeparator>
             {game?.studio_id && (<>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href={`/studios/${game.studio_id}`}>
+                <BreadcrumbItem id="quests-page-breadcrumb-studio" className="quests-page-breadcrumb-item">
+                  <BreadcrumbLink id="quests-page-breadcrumb-studio-link" className="quests-page-breadcrumb-link" href={`/studios/${game.studio_id}`}>
                     {studio?.name || game.studio?.name || t('common.studio')}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator>/</BreadcrumbSeparator>
+                <BreadcrumbSeparator id="quests-page-breadcrumb-game-separator" className="quests-page-breadcrumb-separator">/</BreadcrumbSeparator>
               </>)}
-            <BreadcrumbItem>
-              <BreadcrumbLink href={`/games/${gameId}`}>
+            <BreadcrumbItem id="quests-page-breadcrumb-game" className="quests-page-breadcrumb-item">
+              <BreadcrumbLink id="quests-page-breadcrumb-game-link" className="quests-page-breadcrumb-link" href={`/games/${gameId}`}>
                 {gameLoading ? gameId : (game?.name ?? gameId)}
               </BreadcrumbLink>
             </BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem>
-              <span className="">{t('quest.quests')}</span>
+            <BreadcrumbSeparator id="quests-page-breadcrumb-quests-separator" className="quests-page-breadcrumb-separator">/</BreadcrumbSeparator>
+            <BreadcrumbItem id="quests-page-breadcrumb-current" className="quests-page-breadcrumb-item">
+              <span id="quests-page-breadcrumb-current-label" className="quests-page-breadcrumb-current-label">{t('quest.quests')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
 
       {/* Page header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" onClick={() => router.push(`/games/${gameId}`)}>
-            <ArrowLeft className="h-4 w-4"/>
+      <div id="quests-page-header" className="quests-page-header flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div id="quests-page-header-main" className="quests-page-header-main flex items-center gap-3">
+          <Button id="quests-page-back" className="quests-page-back" variant="outline" size="icon" onClick={() => router.push(`/games/${gameId}`)}>
+            <ArrowLeft id="quests-page-back-icon" className="quests-page-back-icon h-4 w-4"/>
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <ScrollText className="h-5 w-5"/>
-              <h1 className="text-2xl font-bold">{t('quest.quests')}</h1>
+          <div id="quests-page-heading" className="quests-page-heading">
+            <div id="quests-page-title-wrap" className="quests-page-title-wrap flex items-center gap-2">
+              <ScrollText id="quests-page-title-icon" className="quests-page-title-icon h-5 w-5"/>
+              <h1 id="quests-page-title" className="quests-page-title text-2xl font-bold">{t('quest.quests')}</h1>
             </div>
-            {game && (<p className="text-sm text-muted-foreground flex items-center gap-2">
+            {game && (<p id="quests-page-usage" className="quests-page-usage text-sm text-muted-foreground flex items-center gap-2">
                 {game.limits?.max_quests != null ? (() => {
                 const used = game.usage?.quests ?? 0;
                 const max = game.limits.max_quests!;
                 const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0;
                 return (<>
-                      <span className={used >= max ? "text-destructive font-medium" : ""}>
+                      <span id="quests-page-usage-count" className={`quests-page-usage-count ${used >= max ? "text-destructive font-medium" : ""}`}>
                         {used.toLocaleString()} / {max.toLocaleString()} {t('quest.questsCount')}
                       </span>
-                      <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
-                        <span className={`block h-full rounded-full transition-all ${used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${pct}%` }}/>
+                      <span id="quests-page-usage-meter" className="quests-page-usage-meter inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                        <span id="quests-page-usage-meter-fill" className={`quests-page-usage-meter-fill block h-full rounded-full transition-all ${used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${pct}%` }}/>
                       </span>
-                      <Link href={`/games/${gameId}/plugins`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors" title={t('quest.managePlugins')}>
-                        <Hammer className="h-3.5 w-3.5"/>
+                      <Link id="quests-page-manage-plugins" href={`/games/${gameId}/plugins`} className="quests-page-manage-plugins inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors" title={t('quest.managePlugins')}>
+                        <Hammer id="quests-page-manage-plugins-icon" className="quests-page-manage-plugins-icon h-3.5 w-3.5"/>
                       </Link>
                     </>);
-            })() : <span>{game.name}</span>}
+            })() : <span id="quests-page-game-name" className="quests-page-game-name">{game.name}</span>}
               </p>)}
           </div>
         </div>
-        <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
+        <div id="quests-page-nav" className="quests-page-nav flex flex-col gap-2 mt-4 md:mt-0 items-end">
           <GameNavButtons gameId={gameId} active="quests"/>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList>
-          {TABS.map((tab) => (<TabsTrigger key={tab.value} value={tab.value}>
+      <div id="quests-page-tabs-wrap" className="quests-page-tabs-wrap space-y-6">
+      <Tabs id="quests-page-tabs" className="quests-page-tabs" value={activeTab} onValueChange={handleTabChange}>
+        <TabsList id="quests-page-tabs-list" className="quests-page-tabs-list">
+          {TABS.map((tab) => (<TabsTrigger id={`quests-page-tab-${tab.value}`} className="quests-page-tab" key={tab.value} value={tab.value}>
               {t(tab.labelKey)}
             </TabsTrigger>))}
         </TabsList>
 
-        <TabsContent value="definitions" className="mt-6 space-y-4">
+        <TabsContent id="quests-page-tab-definitions-content" value="definitions" className="quests-page-tab-content mt-6 space-y-4">
           <DefinitionsTab game={game} editQuestId={searchParams.get("editQuestId")} onGameUpdate={setGame}/>
         </TabsContent>
 
-        <TabsContent value="chains" className="mt-6 space-y-4">
+        <TabsContent id="quests-page-tab-chains-content" value="chains" className="quests-page-tab-content mt-6 space-y-4">
           <ChainTab game={game}/>
         </TabsContent>
 
-        <TabsContent value="daily" className="mt-6">
+        <TabsContent id="quests-page-tab-daily-content" value="daily" className="quests-page-tab-content mt-6">
           <DailyTab game={game} onGameUpdate={setGame}/>
         </TabsContent>
 
-        <TabsContent value="session-pools" className="mt-6">
+        <TabsContent id="quests-page-tab-session-pools-content" value="session-pools" className="quests-page-tab-content mt-6">
           <SessionPoolsTab gameId={gameId}/>
         </TabsContent>
 
-        <TabsContent value="world-quest" className="mt-6">
+        <TabsContent id="quests-page-tab-world-quest-content" value="world-quest" className="quests-page-tab-content mt-6">
           <ComingSoon title="World Quest"/>
         </TabsContent>
 
-        <TabsContent value="settings" className="mt-6">
+        <TabsContent id="quests-page-tab-settings-content" value="settings" className="quests-page-tab-content mt-6">
           <SettingsTab game={game} onGameUpdate={setGame}/>
         </TabsContent>
       </Tabs>
