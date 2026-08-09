@@ -24,7 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Game } from "@/types/game";
-import { listQuestChains, createQuestChain, updateQuestChain, deleteQuestChain, listQuestDefinitions, listChainMembers, addChainMember, updateChainMember, removeChainMember, type QuestChain, type QuestChainMember, type ChainType, type CreateQuestChainRequest, type UpdateQuestChainRequest, type QuestDefinition, type AddChainMemberRequest, type UpdateChainMemberRequest, } from "@/lib/quest-api";
+import { listQuestChains, createQuestChain, updateQuestChain, deleteQuestChain, listQuestDefinitions, listChainMembers, addChainMember, updateChainMember, removeChainMember, type QuestChain, type QuestChainMember, type ChainType, type ChainContentType, type CreateQuestChainRequest, type UpdateQuestChainRequest, type QuestDefinition, type AddChainMemberRequest, type UpdateChainMemberRequest, } from "@/lib/quest-api";
 // ─── Constants ────────────────────────────────────────────────────────────────
 function chainTypeBadgeVariant(type: ChainType) {
     switch (type) {
@@ -36,6 +36,15 @@ function chainTypeBadgeVariant(type: ChainType) {
 }
 function toSlugKey(str: string) {
     return toSlugUnderscore(str);
+}
+
+function chainContentLabel(type: ChainContentType | undefined, t: (key: string) => string) {
+    switch (type) {
+        case "full_one_time": return t("quest.chain.contentFullOneTime");
+        case "full_session": return t("quest.chain.contentFullSession");
+        case "mix": return t("quest.chain.contentMix");
+        default: return null;
+    }
 }
 
 function isQuestAssignedToPool(quest: QuestDefinition) {
@@ -410,7 +419,7 @@ export function ChainTab({ game }: {
             setAssignedQuestIds((prev) => new Set(prev).add(addMemberForm.quest_definition_id));
             toast({ title: t('quest.chain.questAddedToChain') });
             setAddMemberOpen(false);
-            await Promise.all([refreshExpanded(addMemberChainId), loadQuestDefsMap()]);
+            await Promise.all([refreshExpanded(addMemberChainId), loadQuestDefsMap(), loadChains()]);
         }
         catch (e) {
             if (e instanceof ApiError && e.status === 409) {
@@ -471,6 +480,7 @@ export function ChainTab({ game }: {
             setRemoveMemberTarget(null);
             if (expandedChainId)
                 await refreshExpanded(expandedChainId);
+            await loadChains();
         }
         catch (e) {
             if (e instanceof ApiError && e.status === 404) {
@@ -547,6 +557,11 @@ export function ChainTab({ game }: {
                         <Badge variant={chainTypeBadgeVariant(chain.chain_type)} className="text-xs">
                           {CHAIN_TYPE_OPTIONS.find((o) => o.value === chain.chain_type)?.label ?? chain.chain_type}
                         </Badge>
+                        {chainContentLabel(chain.type_config?.content_type, t) && (
+                          <Badge variant="outline" className="text-xs">
+                            {chainContentLabel(chain.type_config?.content_type, t)}
+                          </Badge>
+                        )}
                         {chain.is_active ? (<Badge variant="default" className="text-xs bg-green-600">{t('quest.activeStatus')}</Badge>) : (<Badge variant="secondary" className="text-xs">{t('quest.inactiveStatus')}</Badge>)}
                         {chain.description && (<span className="text-sm text-muted-foreground truncate max-w-sm" title={chain.description}>
                             {chain.description.length > 250 ? chain.description.slice(0, 250) + "…" : chain.description}
@@ -736,7 +751,7 @@ export function ChainTab({ game }: {
                                 });
                                 setAssignedQuestIds((prev) => new Set(prev).add(questId));
                                 toast({ title: t('quest.chain.questAddedToChain') });
-                                await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()]);
+                                await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap(), loadChains()]);
                             }} onRefresh={async () => { await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()]); }} onEditMember={openEditMember} onRemoveMember={(member) => {
                                 const questDef = questDefsMap[member.quest_definition_id];
                                 setRemoveMemberTarget({

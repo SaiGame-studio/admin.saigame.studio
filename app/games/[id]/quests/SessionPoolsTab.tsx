@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -89,7 +88,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
     const [form, setForm] = useState<FormState>(EMPTY_FORM);
     const [formOpen, setFormOpen] = useState(false);
     const [expandedPoolId, setExpandedPoolId] = useState<string | null>(null);
-    const [chainSelection, setChainSelection] = useState<Record<string, string>>({});
+    const [fullSessionOnly, setFullSessionOnly] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<SessionQuestPool | null>(null);
 
     const load = useCallback(async () => {
@@ -119,6 +118,16 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
     const assignedChainIds = useMemo(
         () => new Set(Object.values(memberships).flat().map((item) => item.chain_id)),
         [memberships],
+    );
+    const availableChains = useMemo(
+        () => chains.filter((chain) => !assignedChainIds.has(chain.id)),
+        [chains, assignedChainIds],
+    );
+    const visibleAvailableChains = useMemo(
+        () => fullSessionOnly
+            ? availableChains.filter((chain) => chain.type_config?.content_type === "full_session")
+            : availableChains,
+        [availableChains, fullSessionOnly],
     );
 
     const openCreate = () => {
@@ -189,12 +198,10 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
         }
     };
 
-    const addChain = async (poolId: string) => {
-        const chainId = chainSelection[poolId];
+    const addChain = async (poolId: string, chainId: string) => {
         if (!chainId) return;
         try {
             await addChainToSessionQuestPool(gameId, poolId, chainId, memberships[poolId]?.length ?? 0);
-            setChainSelection((current) => ({ ...current, [poolId]: "" }));
             await load();
         } catch (cause) {
             setError(cause instanceof Error ? cause.message : t("quest.sessionPoolChainAddFailed"));
@@ -321,33 +328,61 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                 </CardHeader>
 
                                 {isExpanded && (
-                                    <CardContent id={`battle-pass-content-${pool.id}`} className="space-y-3 border-t px-4 pb-4 pt-4">
-                                        <div id={`battle-pass-chain-add-${pool.id}`} className="flex gap-2">
-                                            <Select value={chainSelection[pool.id] ?? ""} onValueChange={(value) => setChainSelection((current) => ({ ...current, [pool.id]: value }))}>
-                                                <SelectTrigger id={`battle-pass-chain-select-${pool.id}`}>
-                                                    <SelectValue id={`battle-pass-chain-select-value-${pool.id}`} placeholder={t("quest.sessionPoolSelectChain")} />
-                                                </SelectTrigger>
-                                                <SelectContent id={`battle-pass-chain-options-${pool.id}`}>
-                                                    {chains.filter((chain) => !assignedChainIds.has(chain.id)).map((chain) => (
-                                                        <SelectItem id={`battle-pass-chain-option-${pool.id}-${chain.id}`} key={chain.id} value={chain.id}>{chain.display_name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <Button id={`battle-pass-chain-add-button-${pool.id}`} variant="outline" disabled={!chainSelection[pool.id]} onClick={() => void addChain(pool.id)}>{t("common.add")}</Button>
-                                        </div>
-                                        <div id={`battle-pass-chains-${pool.id}`} className="space-y-2">
-                                            {poolMemberships.map((membership) => {
-                                                const chain = chains.find((item) => item.id === membership.chain_id);
-                                                return (
-                                                    <div id={`battle-pass-chain-${membership.id}`} key={membership.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                                                        <span id={`battle-pass-chain-name-${membership.id}`}>{chain?.display_name ?? membership.chain_id}</span>
-                                                        <Button id={`battle-pass-chain-remove-${membership.id}`} size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => void removeChain(pool.id, membership.chain_id)} title={t("common.delete")}>
-                                                            <Trash2 id={`battle-pass-chain-remove-icon-${membership.id}`} className="h-4 w-4" />
-                                                        </Button>
+                                    <CardContent id={`battle-pass-content-${pool.id}`} className="grid gap-4 border-t px-4 pb-4 pt-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
+                                        <section id={`battle-pass-assigned-section-${pool.id}`} className="min-w-0 space-y-2">
+                                            <h3 id={`battle-pass-assigned-title-${pool.id}`} className="text-sm font-semibold">{t("quest.sessionPoolAssignedChains")}</h3>
+                                            <div id={`battle-pass-assigned-list-${pool.id}`} className="space-y-2">
+                                                {poolMemberships.length === 0 ? (
+                                                    <p id={`battle-pass-assigned-empty-${pool.id}`} className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">{t("quest.sessionPoolNoAssignedChains")}</p>
+                                                ) : poolMemberships.map((membership, index) => {
+                                                    const chain = chains.find((item) => item.id === membership.chain_id);
+                                                    return (
+                                                        <div id={`battle-pass-assigned-chain-${membership.id}`} key={membership.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                                                            <div id={`battle-pass-assigned-chain-info-${membership.id}`} className="flex min-w-0 items-center gap-3">
+                                                                <span id={`battle-pass-assigned-chain-order-${membership.id}`} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">{index + 1}</span>
+                                                                <span id={`battle-pass-assigned-chain-name-${membership.id}`} className="truncate">{chain?.display_name ?? membership.chain_id}</span>
+                                                            </div>
+                                                            <Button id={`battle-pass-assigned-chain-remove-${membership.id}`} size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={() => void removeChain(pool.id, membership.chain_id)} title={t("common.delete")}>
+                                                                <Trash2 id={`battle-pass-assigned-chain-remove-icon-${membership.id}`} className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </section>
+                                        <section id={`battle-pass-available-section-${pool.id}`} className="min-w-0 space-y-2">
+                                            <div id={`battle-pass-available-header-${pool.id}`} className="flex items-center justify-between gap-2">
+                                                <h3 id={`battle-pass-available-title-${pool.id}`} className="text-sm font-semibold">{t("quest.sessionPoolAvailableChains")}</h3>
+                                                <label id={`battle-pass-full-session-only-label-${pool.id}`} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <Switch id={`battle-pass-full-session-only-${pool.id}`} checked={fullSessionOnly} onCheckedChange={setFullSessionOnly} />
+                                                    <span id={`battle-pass-full-session-only-text-${pool.id}`}>{t("quest.sessionPoolFullSessionOnly")}</span>
+                                                </label>
+                                            </div>
+                                            <div id={`battle-pass-available-list-${pool.id}`} className="max-h-80 space-y-2 overflow-y-auto pr-1">
+                                                {visibleAvailableChains.length === 0 ? (
+                                                    <p id={`battle-pass-available-empty-${pool.id}`} className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">{t("quest.sessionPoolNoAvailableChains")}</p>
+                                                ) : visibleAvailableChains.map((chain) => {
+                                                    const contentType = chain.type_config?.content_type;
+                                                    const canAdd = contentType === "full_session" && !assignedChainIds.has(chain.id);
+                                                    const contentLabel = contentType === "full_one_time"
+                                                        ? t("quest.chain.contentFullOneTime")
+                                                        : contentType === "full_session"
+                                                            ? t("quest.chain.contentFullSession")
+                                                            : contentType === "mix"
+                                                                ? t("quest.chain.contentMix")
+                                                                : t("common.unknown");
+                                                    return (
+                                                    <div id={`battle-pass-available-chain-${pool.id}-${chain.id}`} key={chain.id} className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 ${canAdd ? "" : "bg-muted/50 text-muted-foreground"}`}>
+                                                        <div id={`battle-pass-available-chain-info-${pool.id}-${chain.id}`} className="flex min-w-0 items-center gap-2">
+                                                            <span id={`battle-pass-available-chain-name-${pool.id}-${chain.id}`} className="truncate text-sm">{chain.display_name}</span>
+                                                            <Badge id={`battle-pass-available-chain-content-${pool.id}-${chain.id}`} variant="secondary" className="shrink-0 text-[10px]">{contentLabel}</Badge>
+                                                        </div>
+                                                        <Button id={`battle-pass-available-chain-add-${pool.id}-${chain.id}`} size="sm" variant="outline" disabled={!canAdd} onClick={() => void addChain(pool.id, chain.id)}>{t("common.add")}</Button>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </section>
                                     </CardContent>
                                 )}
                             </Card>

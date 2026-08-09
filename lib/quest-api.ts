@@ -184,6 +184,7 @@ export interface UpdateChainMemberRequest {
 }
 // ─── Quest Chain Types ─────────────────────────────────────────────────────────
 export type ChainType = 'linear' | 'branching' | 'parallel';
+export type ChainContentType = 'full_one_time' | 'full_session' | 'mix';
 export interface QuestChain {
     id: string;
     studio_id: string;
@@ -192,6 +193,7 @@ export interface QuestChain {
     display_name: string;
     description?: string;
     chain_type: ChainType;
+    type_config?: { content_type?: ChainContentType };
     is_active: boolean;
     deleted_at: string | null;
     created_at: string;
