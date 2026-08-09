@@ -3046,6 +3046,8 @@
             "questChainDesc": "Sequential and branching quest chains with unlock conditions and graph visualisation",
             "dailyQuest": "Daily Quest System",
             "dailyQuestDesc": "Daily quest pools with weighted-random, fixed-rotation, weekly, and monthly assignment strategies",
+            "battlePass": "Battle Pass",
+            "battlePassDesc": "Shared monthly battle pass cycles with session quest chain scheduling",
             "containers": "Player Containers",
             "containersDesc": "Grid-based inventory containers with item placement, grid visualisation, and per-player container management",
             "equipment": "Equipment Slot System",
