@@ -21,6 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator, } from "@/components/ui/breadcrumb";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, } from "@/components/ui/command";
 import { listGachaPacks, listItemDefinitions } from "@/lib/inventory-api";
 import type { GachaPack, ItemDefinition, Paginated } from "@/types/inventory";
@@ -1743,17 +1744,26 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                       <Switch id={`quest-list-item-active-toggle-${q.id}`} className="quest-list-item-active-toggle" checked={q.is_active} onCheckedChange={() => toggleActive(q)}/>
                     </TableCell>
                     <TableCell id={`quest-list-item-actions-cell-${q.id}`} className="quest-list-item-cell text-right">
-                      <div id={`quest-list-item-actions-${q.id}`} className="quest-list-item-actions flex justify-end gap-1">
-                        <Button id={`quest-list-item-clone-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-clone-btn h-8 w-8" aria-label={t("quest.cloneQuestDefinition")} title={t("quest.cloneQuestDefinition")} onClick={(e) => { e.stopPropagation(); cloneQuest(q); }}>
-                          <GitFork id={`quest-list-item-clone-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
-                        </Button>
+                      <TooltipProvider>
+                        <div id={`quest-list-item-actions-${q.id}`} className="quest-list-item-actions flex justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button id={`quest-list-item-clone-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-clone-btn h-8 w-8" aria-label={t("quest.cloneQuestDefinition")} onClick={(e) => { e.stopPropagation(); cloneQuest(q); }}>
+                              <GitFork id={`quest-list-item-clone-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent id={`quest-list-item-clone-tooltip-${q.id}`} className="quest-list-item-clone-tooltip" side="top">
+                            {t("quest.cloneQuestDefinition")}
+                          </TooltipContent>
+                        </Tooltip>
                         <Button id={`quest-list-item-edit-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-edit-btn h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
                           <Pencil id={`quest-list-item-edit-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
                         </Button>
                         <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
                           <Trash2 id={`quest-list-item-delete-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
                         </Button>
-                      </div>
+                        </div>
+                      </TooltipProvider>
                     </TableCell>
                   </TableRow>
                   {/* Expanded detail row */}
