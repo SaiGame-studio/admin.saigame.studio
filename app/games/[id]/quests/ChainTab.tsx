@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff, ChevronDown, ChevronRight, Wand2, Link2, ArrowRight, GitBranch, ArrowDownRight, Layers, X, ChevronsUpDown, Check, List, LayoutGrid, Copy, } from "lucide-react";
+import { Plus, RefreshCw, Search, Trash2, Pencil, Loader2, Eye, EyeOff, ChevronDown, ChevronRight, Wand2, Link2, ArrowRight, GitBranch, ArrowDownRight, Layers, X, ChevronsUpDown, Check, List, LayoutGrid, Copy, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -142,6 +142,7 @@ export function ChainTab({ game }: {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [chainSearch, setChainSearch] = useState(() => searchParams.get("search") ?? "");
     const [copiedChainId, setCopiedChainId] = useState<string | null>(null);
     // Expanded chain detail
     const [expandedChainId, setExpandedChainId] = useState<string | null>(null);
@@ -213,29 +214,21 @@ export function ChainTab({ game }: {
         }
     }, [game, gameId]);
     // ── Load chains ───────────────────────────────────────────────────────────
-    const loadChains = useCallback(async () => {
+    const loadChains = useCallback(async (searchTerm = chainSearch) => {
         if (!game)
-            return;
+            return [] as QuestChain[];
         try {
-            const data = await listQuestChains(gameId, { limit: 200 });
+            const data = await listQuestChains(gameId, { limit: 200, search: searchTerm });
             const nextChains = data.chains ?? [];
             setChains(nextChains);
-            const memberResults = await Promise.all(nextChains.map((chain) => listChainMembers(gameId, chain.id)));
-            const nextAssignedIds = new Set<string>();
-            const nextCounts: Record<string, number> = {};
-            memberResults.forEach((result, index) => {
-                const members = result.members ?? [];
-                nextCounts[nextChains[index].id] = members.length;
-                members.forEach((member) => nextAssignedIds.add(member.quest_definition_id));
-            });
-            setAssignedQuestIds(nextAssignedIds);
-            setMemberCountMap(nextCounts);
+            return nextChains;
         }
         catch (e) {
             const msg = e instanceof ApiError ? e.message : "Failed to load quest chains";
             setError(msg);
+            return [] as QuestChain[];
         }
-    }, [game, gameId]);
+    }, [game, gameId, chainSearch]);
     useEffect(() => {
         if (!game || hasFetched.current)
             return;
@@ -258,6 +251,11 @@ export function ChainTab({ game }: {
             setExpandedChain(chain);
             const members = (membersData.members ?? []).sort((a, b) => a.sort_order - b.sort_order);
             setExpandedMembers(members);
+            setAssignedQuestIds((prev) => {
+                const next = new Set(prev);
+                members.forEach((member) => next.add(member.quest_definition_id));
+                return next;
+            });
             setMemberCountMap((prev) => ({ ...prev, [chainId]: members.length }));
         }
         catch {
@@ -265,6 +263,38 @@ export function ChainTab({ game }: {
             setExpandedChainId(null);
         }
     }, [gameId, toast, chains]);
+    const loadChainsRef = useRef(loadChains);
+    const loadChainMembersRef = useRef(loadChainMembers);
+    loadChainsRef.current = loadChains;
+    loadChainMembersRef.current = loadChainMembers;
+    const chainSearchEffectReady = useRef(false);
+    useEffect(() => {
+        if (!hasFetched.current)
+            return;
+        if (!chainSearchEffectReady.current) {
+            chainSearchEffectReady.current = true;
+            if (!chainSearch.trim())
+                return;
+        }
+        const timer = window.setTimeout(() => {
+            void (async () => {
+                const results = await loadChainsRef.current(chainSearch);
+                if (chainSearch.trim() && results.length === 1) {
+                    const chainId = results[0].id;
+                    setExpandedChainId(chainId);
+                    setExpandedLoading(true);
+                    try {
+                        await loadChainMembersRef.current(chainId);
+                        setExpandedChain(results[0]);
+                    }
+                    finally {
+                        setExpandedLoading(false);
+                    }
+                }
+            })();
+        }, 300);
+        return () => window.clearTimeout(timer);
+    }, [chainSearch]);
     const toggleExpand = async (chainId: string) => {
         if (expandedChainId === chainId) {
             setExpandedChainId(null);
@@ -507,30 +537,38 @@ export function ChainTab({ game }: {
     // ── Render ────────────────────────────────────────────────────────────────
     if (!game)
         return null;
-    return (<>
+    return (<div id="quest-chains-tab" className="quest-chains-tab space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{t('quest.chain.headerTitle')}</h2>
-          <p className="text-sm text-muted-foreground">{t('quest.chain.headerDesc')}</p>
+      <div id="quest-chain-header" className="quest-chain-header flex items-center justify-between">
+        <div id="quest-chain-header-copy" className="quest-chain-header-copy">
+          <h2 id="quest-chain-title" className="quest-chain-title text-lg font-semibold">{t('quest.chain.headerTitle')}</h2>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing} title={t('quest.chain.refresh')}>
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
+        <div id="quest-chain-header-actions" className="quest-chain-header-actions flex items-center gap-2">
+          <div id="quest-chain-search" className="quest-chain-search relative w-64">
+            <Search id="quest-chain-search-icon" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input id="quest-chain-search-input" value={chainSearch} onChange={(event) => setChainSearch(event.target.value)} placeholder={t("quest.chain.searchByNameCodeId")} className="pl-9 pr-8" />
+            {chainSearch && (
+              <button id="quest-chain-search-clear" type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setChainSearch("")} title={t("common.clear")}>
+                <X id="quest-chain-search-clear-icon" className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <Button id="quest-chain-refresh" variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing} title={t('quest.chain.refresh')}>
+            <RefreshCw id="quest-chain-refresh-icon" className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
           </Button>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1"/> {t('quest.chain.newChain')}
+          <Button id="quest-chain-create" size="sm" onClick={openCreate}>
+            <Plus id="quest-chain-create-icon" className="h-4 w-4 mr-1"/> {t('quest.chain.newChain')}
           </Button>
         </div>
       </div>
 
-      {error && (<Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+      {error && (<Alert id="quest-chain-error" className="quest-chain-error" variant="destructive">
+          <AlertDescription id="quest-chain-error-message">{error}</AlertDescription>
         </Alert>)}
 
       {/* Loading */}
-      {loading ? (<div className="flex items-center gap-2 py-12 justify-center text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin"/> {t('quest.chain.loadingChains')}
+      {loading ? (<div id="quest-chain-loading" className="quest-chain-loading flex items-center gap-2 py-12 justify-center text-muted-foreground">
+          <Loader2 id="quest-chain-loading-icon" className="h-5 w-5 animate-spin"/> {t('quest.chain.loadingChains')}
         </div>) : chains.length === 0 ? (<Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
             <Link2 className="h-10 w-10 opacity-30"/>
@@ -539,21 +577,21 @@ export function ChainTab({ game }: {
               <Plus className="h-4 w-4 mr-1"/> {t('quest.chain.createChain')}
             </Button>
           </CardContent>
-        </Card>) : (<div className="space-y-3">
+        </Card>) : (<div id="quest-chain-list" className="quest-chain-list space-y-3">
           {chains.map((chain) => {
                 const isExpanded = expandedChainId === chain.id;
-                return (<Card key={chain.id} className={isExpanded ? "border-primary/40" : ""}>
-                <CardHeader className="p-4">
-                  <div className="flex items-center gap-3">
+                return (<Card id={`quest-chain-card-${chain.id}`} key={chain.id} className={`quest-chain-card ${isExpanded ? "border-primary/40" : ""}`}>
+                <CardHeader id={`quest-chain-card-header-${chain.id}`} className="quest-chain-card-header p-4">
+                  <div id={`quest-chain-summary-${chain.id}`} className="quest-chain-summary flex items-center gap-3">
                     {/* Expand toggle */}
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => toggleExpand(chain.id)}>
-                      {isExpanded ? <ChevronDown className="h-4 w-4"/> : <ChevronRight className="h-4 w-4"/>}
+                    <Button id={`quest-chain-expand-${chain.id}`} variant="ghost" size="icon" className="quest-chain-expand h-7 w-7 shrink-0" onClick={() => toggleExpand(chain.id)}>
+                      {isExpanded ? <ChevronDown id={`quest-chain-collapse-icon-${chain.id}`} className="h-4 w-4"/> : <ChevronRight id={`quest-chain-expand-icon-${chain.id}`} className="h-4 w-4"/>}
                     </Button>
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleExpand(chain.id)}>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <CardTitle className="text-base">{chain.display_name}</CardTitle>
+                    <div id={`quest-chain-info-${chain.id}`} className="quest-chain-info flex-1 min-w-0 cursor-pointer" onClick={() => toggleExpand(chain.id)}>
+                      <div id={`quest-chain-badges-${chain.id}`} className="quest-chain-badges flex items-center gap-2 flex-wrap">
+                        <CardTitle id={`quest-chain-name-${chain.id}`} className="quest-chain-name text-base">{chain.display_name}</CardTitle>
                         <Badge variant={chainTypeBadgeVariant(chain.chain_type)} className="text-xs">
                           {CHAIN_TYPE_OPTIONS.find((o) => o.value === chain.chain_type)?.label ?? chain.chain_type}
                         </Badge>
@@ -606,12 +644,40 @@ export function ChainTab({ game }: {
                           </button>
                         </div>
                         <span className="text-xs text-muted-foreground">·</span>
-                        <span className="text-xs font-mono text-muted-foreground">{chain.chain_key}</span>
+                        <div id={`quest-chain-key-${chain.id}`} className="flex items-center gap-1">
+                          <span className="text-xs font-mono text-muted-foreground">{chain.chain_key}</span>
+                          <button id={`quest-chain-copy-key-${chain.id}`} type="button" className="text-muted-foreground hover:text-foreground transition-colors" title={t('quest.chain.copyChainKey')} onClick={(e) => {
+                            e.stopPropagation();
+                            const text = chain.chain_key;
+                            const fallbackCopy = () => {
+                              const el = document.createElement('textarea');
+                              el.value = text;
+                              el.style.position = 'fixed';
+                              el.style.opacity = '0';
+                              document.body.appendChild(el);
+                              el.focus();
+                              el.select();
+                              document.execCommand('copy');
+                              document.body.removeChild(el);
+                            };
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                              navigator.clipboard.writeText(text).catch(fallbackCopy);
+                            } else {
+                              fallbackCopy();
+                            }
+                            setCopiedChainId(`${chain.id}:key`);
+                            setTimeout(() => setCopiedChainId(null), 1500);
+                          }}>
+                            {copiedChainId === `${chain.id}:key`
+                              ? <Check id={`quest-chain-copy-key-success-${chain.id}`} className="h-3 w-3 text-green-500"/>
+                              : <Copy id={`quest-chain-copy-key-icon-${chain.id}`} className="h-3 w-3"/>}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div id={`quest-chain-actions-${chain.id}`} className="quest-chain-actions flex items-center gap-3 shrink-0">
                       {/* Status toggle */}
                       <div className="flex items-center gap-1.5" title={t('quest.chain.toggleActive')}>
                         <Switch checked={chain.is_active} onCheckedChange={(checked) => handleToggleActive(chain, checked)} aria-label="Toggle chain active" className="scale-90"/>
@@ -629,19 +695,19 @@ export function ChainTab({ game }: {
                         <p className="text-sm font-medium">{new Date(chain.created_at).toLocaleDateString()}</p>
                       </div>
                       <Separator orientation="vertical" className="h-5"/>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(chain)} title={t('quest.chain.editChain')}>
-                        <Pencil className="h-3.5 w-3.5"/>
+                      <Button id={`quest-chain-edit-${chain.id}`} variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(chain)} title={t('quest.chain.editChain')}>
+                        <Pencil id={`quest-chain-edit-icon-${chain.id}`} className="h-3.5 w-3.5"/>
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(chain)} title={t('quest.chain.deleteChain')}>
-                        <Trash2 className="h-3.5 w-3.5"/>
+                      <Button id={`quest-chain-delete-${chain.id}`} variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(chain)} title={t('quest.chain.deleteChain')}>
+                        <Trash2 id={`quest-chain-delete-icon-${chain.id}`} className="h-3.5 w-3.5"/>
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
 
                 {/* Expanded Detail — Chain Members */}
-                {isExpanded && (<CardContent className="pt-0 space-y-4">
-                    <Separator />
+                {isExpanded && (<CardContent id={`quest-chain-detail-${chain.id}`} className="quest-chain-detail pt-0 space-y-4">
+                    <Separator id={`quest-chain-detail-separator-${chain.id}`} />
                     {expandedLoading ? (<div className="flex items-center gap-2 py-4 text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin"/> Loading chain details…
                       </div>) : expandedChain ? (<div className="space-y-4">
@@ -791,16 +857,16 @@ export function ChainTab({ game }: {
 
       {/* ─── Create / Edit Chain Sheet ────────────────────────────────────── */}
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{editChain ? t('quest.chain.editChain') : t('quest.chain.createChain')}</SheetTitle>
+        <SheetContent id="quest-chain-form-sheet" className="quest-chain-form-sheet w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader id="quest-chain-form-header">
+            <SheetTitle id="quest-chain-form-title">{editChain ? t('quest.chain.editChain') : t('quest.chain.createChain')}</SheetTitle>
           </SheetHeader>
 
-          <div className="space-y-4 py-4">
+          <div id="quest-chain-form" className="quest-chain-form space-y-4 py-4">
             {/* Display Name */}
-            <div className="space-y-1">
-              <Label>{t('quest.chain.displayName')} <span className="text-destructive">*</span></Label>
-              <Input value={chainForm.display_name} onChange={(e) => {
+            <div id="quest-chain-display-name-field" className="space-y-1">
+              <Label id="quest-chain-display-name-label" htmlFor="quest-chain-display-name-input">{t('quest.chain.displayName')} <span className="text-destructive">*</span></Label>
+              <Input id="quest-chain-display-name-input" value={chainForm.display_name} onChange={(e) => {
             const name = e.target.value;
             setChainForm((f) => ({
                 ...f,
@@ -812,10 +878,10 @@ export function ChainTab({ game }: {
             </div>
 
             {/* Chain Key */}
-            <div className="space-y-1">
-              <Label>{t('quest.chain.chainKey')} <span className="text-destructive">*</span></Label>
+            <div id="quest-chain-key-field" className="space-y-1">
+              <Label id="quest-chain-key-label" htmlFor="quest-chain-key-input">{t('quest.chain.chainKey')} <span className="text-destructive">*</span></Label>
               <div className="flex gap-2">
-                <Input value={chainForm.chain_key} onChange={(e) => {
+                <Input id="quest-chain-key-input" value={chainForm.chain_key} onChange={(e) => {
             setAutoSlug(false);
             setChainForm((f) => ({ ...f, chain_key: e.target.value }));
         }} disabled={!!editChain} className={`flex-1 ${editChain ? "opacity-50" : ""}`}/>
@@ -840,19 +906,19 @@ export function ChainTab({ game }: {
             </div>
 
             {/* Description */}
-            <div className="space-y-1">
-              <Label>{t('quest.description')}</Label>
-              <Textarea value={chainForm.description ?? ""} onChange={(e) => setChainForm((f) => ({ ...f, description: e.target.value.slice(0, 200) }))} maxLength={200} rows={2}/>
+            <div id="quest-chain-description-field" className="space-y-1">
+              <Label id="quest-chain-description-label" htmlFor="quest-chain-description-input">{t('quest.description')}</Label>
+              <Textarea id="quest-chain-description-input" value={chainForm.description ?? ""} onChange={(e) => setChainForm((f) => ({ ...f, description: e.target.value.slice(0, 200) }))} maxLength={200} rows={2}/>
               <p className="text-xs text-muted-foreground text-right">
                 {(chainForm.description ?? "").length}/200
               </p>
             </div>
 
             {/* Chain Type */}
-            <div className="space-y-1">
-              <Label>{t('quest.chain.chainType')} <span className="text-destructive">*</span></Label>
+            <div id="quest-chain-type-field" className="space-y-1">
+              <Label id="quest-chain-type-label" htmlFor="quest-chain-type-input">{t('quest.chain.chainType')} <span className="text-destructive">*</span></Label>
               <Select value={chainForm.chain_type} onValueChange={(v) => setChainForm((f) => ({ ...f, chain_type: v as ChainType }))}>
-                <SelectTrigger>
+                <SelectTrigger id="quest-chain-type-input">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -870,21 +936,21 @@ export function ChainTab({ game }: {
             </div>
 
             {/* Active */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>{t('quest.active')}</Label>
+            <div id="quest-chain-active-field" className="flex items-center justify-between">
+              <div id="quest-chain-active-copy">
+                <Label id="quest-chain-active-label" htmlFor="quest-chain-active-input">{t('quest.active')}</Label>
                 <p className="text-xs text-muted-foreground">{t('quest.chain.activeHint')}</p>
               </div>
-              <Switch checked={chainForm.is_active} onCheckedChange={(checked) => setChainForm((f) => ({ ...f, is_active: checked }))}/>
+              <Switch id="quest-chain-active-input" checked={chainForm.is_active} onCheckedChange={(checked) => setChainForm((f) => ({ ...f, is_active: checked }))}/>
             </div>
           </div>
 
-          <SheetFooter>
+          <SheetFooter id="quest-chain-form-footer">
             <SheetClose asChild>
-              <Button variant="outline">{t('common.cancel')}</Button>
+              <Button id="quest-chain-form-cancel" variant="outline">{t('common.cancel')}</Button>
             </SheetClose>
-            <Button onClick={handleSaveChain} disabled={chainSaving}>
-              {chainSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin"/>}
+            <Button id="quest-chain-form-submit" onClick={handleSaveChain} disabled={chainSaving}>
+              {chainSaving && <Loader2 id="quest-chain-form-submit-loader" className="h-4 w-4 mr-2 animate-spin"/>}
               {editChain ? t('quest.chain.saveChanges') : t('quest.chain.createChain')}
             </Button>
           </SheetFooter>
@@ -893,18 +959,18 @@ export function ChainTab({ game }: {
 
       {/* ─── Add Member Sheet ─────────────────────────────────────────────── */}
       <Sheet open={addMemberOpen} onOpenChange={setAddMemberOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Add Quest to Chain</SheetTitle>
+        <SheetContent id="quest-chain-member-form-sheet" className="quest-chain-member-form-sheet w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader id="quest-chain-member-form-header">
+            <SheetTitle id="quest-chain-member-form-title">Add Quest to Chain</SheetTitle>
           </SheetHeader>
 
-          <div className="space-y-4 py-4">
+          <div id="quest-chain-member-form" className="quest-chain-member-form space-y-4 py-4">
             {/* Quest Selection — searchable combobox */}
-            <div className="space-y-1">
-              <Label>{t('quest.chain.questDefinition')} <span className="text-destructive">*</span></Label>
+            <div id="quest-chain-member-quest-field" className="space-y-1">
+              <Label id="quest-chain-member-quest-label">{t('quest.chain.questDefinition')} <span className="text-destructive">*</span></Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                  <Button id="quest-chain-member-quest-input" variant="outline" role="combobox" className="w-full justify-between font-normal">
                     {addMemberForm.quest_definition_id
             ? (() => {
                 const q = allQuestDefs.find((d) => d.id === addMemberForm.quest_definition_id);
@@ -934,9 +1000,9 @@ export function ChainTab({ game }: {
             </div>
 
             {/* Sort Order */}
-            <div className="space-y-1">
-              <Label>{t('quest.sortOrder')} <span className="text-destructive">*</span></Label>
-              <Input type="number" value={addMemberForm.sort_order} onChange={(e) => setAddMemberForm((f) => ({ ...f, sort_order: Number(e.target.value) }))}/>
+            <div id="quest-chain-member-sort-field" className="space-y-1">
+              <Label id="quest-chain-member-sort-label" htmlFor="quest-chain-member-sort-input">{t('quest.sortOrder')} <span className="text-destructive">*</span></Label>
+              <Input id="quest-chain-member-sort-input" type="number" value={addMemberForm.sort_order} onChange={(e) => setAddMemberForm((f) => ({ ...f, sort_order: Number(e.target.value) }))}/>
               <p className="text-xs text-muted-foreground">{t('quest.chain.sortOrderHint')}</p>
             </div>
 
@@ -944,12 +1010,12 @@ export function ChainTab({ game }: {
             <UnlockQuestIdsPicker value={addMemberForm.unlock_quest_ids} onChange={(ids) => setAddMemberForm((f) => ({ ...f, unlock_quest_ids: ids }))} chainMembers={expandedMembers} allQuestDefs={allQuestDefs} questDefsMap={questDefsMap} excludeQuestId={addMemberForm.quest_definition_id || undefined}/>
           </div>
 
-          <SheetFooter>
+          <SheetFooter id="quest-chain-member-form-footer">
             <SheetClose asChild>
-              <Button variant="outline">{t('common.cancel')}</Button>
+              <Button id="quest-chain-member-form-cancel" variant="outline">{t('common.cancel')}</Button>
             </SheetClose>
-            <Button onClick={handleAddMember} disabled={addMemberSaving || !addMemberForm.quest_definition_id}>
-              {addMemberSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin"/>}
+            <Button id="quest-chain-member-form-submit" onClick={handleAddMember} disabled={addMemberSaving || !addMemberForm.quest_definition_id}>
+              {addMemberSaving && <Loader2 id="quest-chain-member-form-submit-loader" className="h-4 w-4 mr-2 animate-spin"/>}
               Add to Chain
             </Button>
           </SheetFooter>
@@ -1032,5 +1098,5 @@ export function ChainTab({ game }: {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>);
+    </div>);
 }
