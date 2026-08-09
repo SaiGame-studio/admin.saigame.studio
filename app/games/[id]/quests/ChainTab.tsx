@@ -143,6 +143,9 @@ export function ChainTab({ game }: {
     // Quest definitions lookup
     const [questDefsMap, setQuestDefsMap] = useState<Record<string, QuestDefinition>>({});
     const [allQuestDefs, setAllQuestDefs] = useState<QuestDefinition[]>([]);
+    // Shared index of quests assigned to any chain. Every chain uses this list
+    // so a quest disappears from all available-quest pickers immediately.
+    const [assignedQuestIds, setAssignedQuestIds] = useState<Set<string>>(new Set());
     // Create / Edit chain
     const [createOpen, setCreateOpen] = useState(false);
     const [editChain, setEditChain] = useState<QuestChain | null>(null);
@@ -206,7 +209,18 @@ export function ChainTab({ game }: {
             return;
         try {
             const data = await listQuestChains(gameId, { limit: 200 });
-            setChains(data.chains ?? []);
+            const nextChains = data.chains ?? [];
+            setChains(nextChains);
+            const memberResults = await Promise.all(nextChains.map((chain) => listChainMembers(gameId, chain.id)));
+            const nextAssignedIds = new Set<string>();
+            const nextCounts: Record<string, number> = {};
+            memberResults.forEach((result, index) => {
+                const members = result.members ?? [];
+                nextCounts[nextChains[index].id] = members.length;
+                members.forEach((member) => nextAssignedIds.add(member.quest_definition_id));
+            });
+            setAssignedQuestIds(nextAssignedIds);
+            setMemberCountMap(nextCounts);
         }
         catch (e) {
             const msg = e instanceof ApiError ? e.message : "Failed to load quest chains";
@@ -383,8 +397,7 @@ export function ChainTab({ game }: {
         setAddMemberOpen(true);
     };
     const getAvailableQuests = (): QuestDefinition[] => {
-        const memberQuestIds = new Set(expandedMembers.map((m) => m.quest_definition_id));
-        return allQuestDefs.filter((q) => !memberQuestIds.has(q.id) && q.quest_type !== 'daily' && !isQuestAssignedToPool(q));
+        return allQuestDefs.filter((q) => !assignedQuestIds.has(q.id) && q.quest_type !== 'daily' && !isQuestAssignedToPool(q));
     };
     const handleAddMember = async () => {
         if (!addMemberChainId || !addMemberForm.quest_definition_id) {
@@ -394,6 +407,7 @@ export function ChainTab({ game }: {
         setAddMemberSaving(true);
         try {
             await addChainMember(gameId, addMemberChainId, addMemberForm);
+            setAssignedQuestIds((prev) => new Set(prev).add(addMemberForm.quest_definition_id));
             toast({ title: t('quest.chain.questAddedToChain') });
             setAddMemberOpen(false);
             await Promise.all([refreshExpanded(addMemberChainId), loadQuestDefsMap()]);
@@ -448,6 +462,11 @@ export function ChainTab({ game }: {
         setRemoveMemberDeleting(true);
         try {
             await removeChainMember(gameId, removeMemberTarget.chainId, removeMemberTarget.questId);
+            setAssignedQuestIds((prev) => {
+                const next = new Set(prev);
+                next.delete(removeMemberTarget.questId);
+                return next;
+            });
             toast({ title: t('quest.chain.questRemovedFromChain') });
             setRemoveMemberTarget(null);
             if (expandedChainId)
@@ -706,7 +725,7 @@ export function ChainTab({ game }: {
 
                               {/* ── Graph View ────────────────────────────── */}
                               <TabsContent value="grid" className="mt-0">
-                                <ChainFlowView gameId={gameId} chainId={chain.id} members={expandedMembers} questDefsMap={questDefsMap} availableQuests={allQuestDefs.filter((q) => !expandedMembers.some((m) => m.quest_definition_id === q.id) && q.quest_type !== 'daily' && !isQuestAssignedToPool(q))} onQuickAdd={async (questId) => {
+                                <ChainFlowView gameId={gameId} chainId={chain.id} members={expandedMembers} questDefsMap={questDefsMap} availableQuests={getAvailableQuests()} onQuickAdd={async (questId) => {
                                 const nextSort = expandedMembers.length > 0
                                     ? Math.max(...expandedMembers.map((m) => m.sort_order)) + 1
                                     : 0;
@@ -715,6 +734,7 @@ export function ChainTab({ game }: {
                                     sort_order: nextSort,
                                     unlock_quest_ids: [],
                                 });
+                                setAssignedQuestIds((prev) => new Set(prev).add(questId));
                                 toast({ title: t('quest.chain.questAddedToChain') });
                                 await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()]);
                             }} onRefresh={async () => { await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()]); }} onEditMember={openEditMember} onRemoveMember={(member) => {
