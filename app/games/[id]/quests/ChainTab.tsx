@@ -37,6 +37,10 @@ function chainTypeBadgeVariant(type: ChainType) {
 function toSlugKey(str: string) {
     return toSlugUnderscore(str);
 }
+
+function isQuestAssignedToPool(quest: QuestDefinition) {
+    return quest.type_config?.pool_assigned === true;
+}
 // ─── Unlock Quest IDs Picker ──────────────────────────────────────────────────
 function UnlockQuestIdsPicker({ value, onChange, chainMembers, allQuestDefs, questDefsMap, excludeQuestId, }: {
     value: string[];
@@ -380,7 +384,7 @@ export function ChainTab({ game }: {
     };
     const getAvailableQuests = (): QuestDefinition[] => {
         const memberQuestIds = new Set(expandedMembers.map((m) => m.quest_definition_id));
-        return allQuestDefs.filter((q) => !memberQuestIds.has(q.id) && q.quest_type !== 'daily');
+        return allQuestDefs.filter((q) => !memberQuestIds.has(q.id) && q.quest_type !== 'daily' && !isQuestAssignedToPool(q));
     };
     const handleAddMember = async () => {
         if (!addMemberChainId || !addMemberForm.quest_definition_id) {
@@ -702,7 +706,7 @@ export function ChainTab({ game }: {
 
                               {/* ── Graph View ────────────────────────────── */}
                               <TabsContent value="grid" className="mt-0">
-                                <ChainFlowView gameId={gameId} chainId={chain.id} members={expandedMembers} questDefsMap={questDefsMap} availableQuests={allQuestDefs.filter((q) => !expandedMembers.some((m) => m.quest_definition_id === q.id) && q.quest_type !== 'daily')} onQuickAdd={async (questId) => {
+                                <ChainFlowView gameId={gameId} chainId={chain.id} members={expandedMembers} questDefsMap={questDefsMap} availableQuests={allQuestDefs.filter((q) => !expandedMembers.some((m) => m.quest_definition_id === q.id) && q.quest_type !== 'daily' && !isQuestAssignedToPool(q))} onQuickAdd={async (questId) => {
                                 const nextSort = expandedMembers.length > 0
                                     ? Math.max(...expandedMembers.map((m) => m.sort_order)) + 1
                                     : 0;

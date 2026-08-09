@@ -36,7 +36,6 @@ import { GameNavButtons } from "@/components/GameNavButtons";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { DailyTab } from "./DailyTab";
 import { SessionPoolsTab } from "./SessionPoolsTab";
-import { createDefaultSessionSchedule, SessionQuestScheduleFields } from "./SessionQuestScheduleFields";
 import { ChainTab } from "./ChainTab";
 import { SettingsTab } from "./SettingsTab";
 import { QuestDeliveryOverride } from "./QuestDeliveryOverride";
@@ -116,27 +115,6 @@ function getOneTimeExpirationMinutes(typeConfig?: Record<string, unknown>) {
     if (!expiration || typeof expiration !== "object" || Array.isArray(expiration)) return undefined;
     const minutes = (expiration as Record<string, unknown>).expire_after_minutes;
     return typeof minutes === "number" ? minutes : undefined;
-}
-function getSessionConfig(typeConfig?: Record<string, unknown>) {
-    const session = typeConfig?.session;
-    return session && typeof session === "object" && !Array.isArray(session)
-        ? session as Record<string, unknown>
-        : {};
-}
-function hasValidSessionSchedule(typeConfig?: Record<string, unknown>, requireFutureBoundary = false) {
-    const session = getSessionConfig(typeConfig);
-    if (session.repeatable === true) {
-        const cycleStart = typeof session.cycle_start_at === "string" ? Date.parse(session.cycle_start_at) : Number.NaN;
-        const repeatEveryMonths = session.repeat_every_months;
-        return Number.isFinite(cycleStart)
-            && Number.isInteger(repeatEveryMonths)
-            && Number(repeatEveryMonths) >= 1
-            && (!requireFutureBoundary || cycleStart > Date.now());
-    }
-    if (session.repeatable !== false) return false;
-    const start = typeof session.session_start_at === "string" ? Date.parse(session.session_start_at) : Number.NaN;
-    const end = typeof session.session_end_at === "string" ? Date.parse(session.session_end_at) : Number.NaN;
-    return Number.isFinite(start) && Number.isFinite(end) && start < end && (!requireFutureBoundary || end > Date.now());
 }
 type QuestDefinitionForm = CreateQuestDefinitionRequest & Pick<UpdateQuestDefinitionRequest, "sort_order">;
 const DEFAULT_FORM: QuestDefinitionForm = {
@@ -1331,16 +1309,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             toast({ variant: "destructive", title: t('common.error'), description: t('quest.codeNameRequired') });
             return;
         }
-        if (form.quest_type === "session" && !hasValidSessionSchedule(form.type_config, true)) {
-            toast({ variant: "destructive", title: t("common.error"), description: t("quest.sessionQuestInvalidWindow") });
-            return;
-        }
         setSaving(true);
         try {
             const resolvedForm = await resolveQuestDefinitionDraft(form);
             const createFields = { ...stripQuestUiFields(resolvedForm) };
             delete createFields.sort_order;
-            if (createFields.quest_type === "daily") createFields.type_config = {};
+            if (createFields.quest_type === "daily" || createFields.quest_type === "session") createFields.type_config = {};
             const payload: CreateQuestDefinitionRequest = {
                 ...createFields,
                 code_name: codeName,
@@ -1394,10 +1368,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             toast({ variant: "destructive", title: t('common.error'), description: t('quest.codeNameRequired') });
             return;
         }
-        if (form.quest_type === "session" && !hasValidSessionSchedule(form.type_config)) {
-            toast({ variant: "destructive", title: t("common.error"), description: t("quest.sessionQuestInvalidWindow") });
-            return;
-        }
         setSaving(true);
         try {
             const patch: UpdateQuestDefinitionRequest = {
@@ -1405,6 +1375,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 code_name: codeName,
             };
             if (form.quest_type === "daily") patch.type_config = {};
+            if (form.quest_type === "session") {
+                if (editQuest.quest_type === "session") delete patch.type_config;
+                else patch.type_config = {};
+            }
             const updated = await updateQuestDefinition(gameId, editQuest.id, patch, { suppressToast: true });
             toast({ title: t('quest.questUpdated'), description: form.name });
             window.dispatchEvent(new CustomEvent('ss:quest-created', {
@@ -1536,9 +1510,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               setForm((currentForm) => {
                   const nextForm = { ...currentForm, quest_type: questType };
                   if (questType === "daily") nextForm.type_config = {};
-                  if (questType === "session" && typeof getSessionConfig(nextForm.type_config).repeatable !== "boolean") {
-                      nextForm.type_config = { session: createDefaultSessionSchedule() };
-                  }
+                  if (questType === "session" && currentForm.quest_type !== "session") nextForm.type_config = {};
                   return nextForm;
               });
           }}>
@@ -1583,15 +1555,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
           t={t}
         />
       )}
-
-      {form.quest_type === "session" && (() => {
-          const session = getSessionConfig(form.type_config);
-          const updateSession = (nextSession: Record<string, unknown>) => setForm((current) => ({
-              ...current,
-              type_config: { session: nextSession },
-          }));
-          return <SessionQuestScheduleFields idScope={questFormScope} session={session} onChange={updateSession} t={t} />;
-      })()}
 
       {/* Conditions */}
       <div id={`quest-conditions-editor-${questFormScope}`} className="quest-conditions-editor">

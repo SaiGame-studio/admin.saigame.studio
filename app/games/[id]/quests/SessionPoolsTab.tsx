@@ -41,7 +41,7 @@ import {
     type SessionQuestPoolInput,
     type SessionWindowConfig,
 } from "@/lib/quest-api";
-import { createDefaultSessionSchedule } from "./SessionQuestScheduleFields";
+import { createDefaultSessionPoolSchedule } from "./sessionPoolSchedule";
 
 type FormState = {
     poolKey: string;
@@ -68,7 +68,7 @@ const EMPTY_FORM: FormState = {
 };
 
 function defaultScheduleForm() {
-    const schedule = createDefaultSessionSchedule();
+    const schedule = createDefaultSessionPoolSchedule();
     const startAt = typeof schedule.session_start_at === "string" ? toUserDatetime(schedule.session_start_at) : "";
     const endAt = typeof schedule.session_end_at === "string" ? toUserDatetime(schedule.session_end_at) : "";
     return { startAt, endAt, cycleStartAt: startAt, repeatEveryMonths: 1 };
