@@ -514,3 +514,6 @@ export async function addChainToSessionQuestPool(gameId: string, poolId: string,
 export async function removeChainFromSessionQuestPool(gameId: string, poolId: string, chainId: string): Promise<void> {
     return api.delete(`/api/v1/games/${gameId}/admin/session-quest-pools/${poolId}/chains/${chainId}`);
 }
+export async function reorderSessionQuestPoolChains(gameId: string, poolId: string, chainIds: string[]): Promise<void> {
+    return api.patch(`/api/v1/games/${gameId}/admin/session-quest-pools/${poolId}/chains/order`, { chain_ids: chainIds });
+}

@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { CalendarRange, ChevronDown, ChevronRight, ExternalLink, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -34,6 +37,7 @@ import {
     listSessionQuestPoolChains,
     listSessionQuestPools,
     removeChainFromSessionQuestPool,
+    reorderSessionQuestPoolChains,
     updateSessionQuestPool,
     type QuestChain,
     type SessionQuestPool,
@@ -42,6 +46,22 @@ import {
     type SessionWindowConfig,
 } from "@/lib/quest-api";
 import { createDefaultSessionPoolSchedule } from "./sessionPoolSchedule";
+
+function SortableBattlePassChain({ membership, chain, onRemove }: { membership: SessionQuestPoolChain; chain?: QuestChain; onRemove: () => void }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: membership.chain_id });
+    return (
+        <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} {...attributes} id={`battle-pass-assigned-chain-${membership.id}`} className={`flex items-center justify-between rounded-md border px-3 py-2 ${isDragging ? "z-10 bg-background shadow-lg" : ""}`}>
+            <div id={`battle-pass-assigned-chain-info-${membership.id}`} className="flex min-w-0 items-center gap-3">
+                <button id={`battle-pass-assigned-chain-drag-${membership.id}`} type="button" className="cursor-grab text-muted-foreground active:cursor-grabbing" aria-label="Reorder chain" {...listeners}>⋮⋮</button>
+                <span id={`battle-pass-assigned-chain-order-${membership.id}`} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">{membership.sort_order + 1}</span>
+                <span id={`battle-pass-assigned-chain-name-${membership.id}`} className="truncate">{chain?.display_name ?? membership.chain_id}</span>
+            </div>
+            <Button id={`battle-pass-assigned-chain-remove-${membership.id}`} size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={onRemove} title="Remove chain">
+                <Trash2 id={`battle-pass-assigned-chain-remove-icon-${membership.id}`} className="h-4 w-4" />
+            </Button>
+        </div>
+    );
+}
 
 type FormState = {
     poolKey: string;
@@ -92,6 +112,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
     const [expandedPoolId, setExpandedPoolId] = useState<string | null>(null);
     const [fullSessionOnly, setFullSessionOnly] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<SessionQuestPool | null>(null);
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
     const load = useCallback(async () => {
         setError("");
@@ -125,6 +146,24 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
         () => chains.filter((chain) => !assignedChainIds.has(chain.id)),
         [chains, assignedChainIds],
     );
+    const handleChainDragEnd = async (poolId: string, event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const current = memberships[poolId] ?? [];
+        const oldIndex = current.findIndex((item) => item.chain_id === active.id);
+        const newIndex = current.findIndex((item) => item.chain_id === over.id);
+        if (oldIndex < 0 || newIndex < 0) return;
+        const reordered = [...current];
+        const [moved] = reordered.splice(oldIndex, 1);
+        reordered.splice(newIndex, 0, moved);
+        setMemberships((prev) => ({ ...prev, [poolId]: reordered.map((item, index) => ({ ...item, sort_order: index })) }));
+        try {
+            await reorderSessionQuestPoolChains(gameId, poolId, reordered.map((item) => item.chain_id));
+        } catch (cause) {
+            setError(cause instanceof Error ? cause.message : t("quest.sessionPoolChainAddFailed"));
+            await load();
+        }
+    };
     const visibleAvailableChains = useMemo(
         () => fullSessionOnly
             ? availableChains.filter((chain) => chain.type_config?.content_type === "full_session")
@@ -333,24 +372,18 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                     <CardContent id={`battle-pass-content-${pool.id}`} className="grid gap-4 border-t px-4 pb-4 pt-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
                                         <section id={`battle-pass-assigned-section-${pool.id}`} className="min-w-0 space-y-2">
                                             <h3 id={`battle-pass-assigned-title-${pool.id}`} className="text-sm font-semibold">{t("quest.sessionPoolAssignedChains")}</h3>
+                                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void handleChainDragEnd(pool.id, event)}>
+                                            <SortableContext items={poolMemberships.map((membership) => membership.chain_id)} strategy={verticalListSortingStrategy}>
                                             <div id={`battle-pass-assigned-list-${pool.id}`} className="space-y-2">
                                                 {poolMemberships.length === 0 ? (
                                                     <p id={`battle-pass-assigned-empty-${pool.id}`} className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">{t("quest.sessionPoolNoAssignedChains")}</p>
-                                                ) : poolMemberships.map((membership, index) => {
+                                                ) : poolMemberships.map((membership) => {
                                                     const chain = chains.find((item) => item.id === membership.chain_id);
-                                                    return (
-                                                        <div id={`battle-pass-assigned-chain-${membership.id}`} key={membership.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                                                            <div id={`battle-pass-assigned-chain-info-${membership.id}`} className="flex min-w-0 items-center gap-3">
-                                                                <span id={`battle-pass-assigned-chain-order-${membership.id}`} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">{index + 1}</span>
-                                                                <span id={`battle-pass-assigned-chain-name-${membership.id}`} className="truncate">{chain?.display_name ?? membership.chain_id}</span>
-                                                            </div>
-                                                            <Button id={`battle-pass-assigned-chain-remove-${membership.id}`} size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={() => void removeChain(pool.id, membership.chain_id)} title={t("common.delete")}>
-                                                                <Trash2 id={`battle-pass-assigned-chain-remove-icon-${membership.id}`} className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    );
+                                                    return <SortableBattlePassChain key={membership.id} membership={membership} chain={chain} onRemove={() => void removeChain(pool.id, membership.chain_id)} />;
                                                 })}
                                             </div>
+                                            </SortableContext>
+                                            </DndContext>
                                         </section>
                                         <section id={`battle-pass-available-section-${pool.id}`} className="min-w-0 space-y-2">
                                             <div id={`battle-pass-available-header-${pool.id}`} className="flex items-center justify-between gap-2">
