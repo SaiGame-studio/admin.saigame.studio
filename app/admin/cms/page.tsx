@@ -102,9 +102,7 @@ function CmsPageInner() {
     const [activeTab, setActiveTab] = useState(["content", "category"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "content");
     const handleTabChange = useCallback((value: string) => {
         setActiveTab(value);
-        const sp = new URLSearchParams(searchParams.toString());
-        sp.set("tab", value);
-        router.replace(`?${sp.toString()}`, { scroll: false });
+        router.replace(value === "content" ? window.location.pathname : `${window.location.pathname}?tab=${encodeURIComponent(value)}`, { scroll: false });
     }, [router, searchParams]);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [createTitle, setCreateTitle] = useState("");

@@ -2012,15 +2012,7 @@ function QuestsPageInner() {
             .finally(() => setGameLoading(false));
     }, [gameId, toast]);
     const handleTabChange = (value: string) => {
-        const sp = new URLSearchParams(searchParams.toString());
-        if (value === "definitions") {
-            sp.delete("tab");
-        }
-        else {
-            sp.set("tab", value);
-        }
-        const qs = sp.toString();
-        router.push(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`);
+        router.push(value === "definitions" ? `/games/${gameId}/quests` : `/games/${gameId}/quests?tab=${encodeURIComponent(value)}`);
     };
     return (<div className="container mx-auto py-6">
       {/* Breadcrumb */}

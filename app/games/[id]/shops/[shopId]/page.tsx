@@ -979,9 +979,7 @@ export default function ShopDetailPage() {
 
       {/* Tabs: Items / Logs */}
       <Tabs value={searchParams.get("tab") === "logs" ? "logs" : "items"} onValueChange={(v) => {
-            const sp = new URLSearchParams(searchParams.toString());
-            sp.set("tab", v);
-            router.replace(`?${sp.toString()}`, { scroll: false });
+            router.replace(v === "items" ? window.location.pathname : `${window.location.pathname}?tab=${encodeURIComponent(v)}`, { scroll: false });
             if (v === "logs" && !logsLoaded) {
                 loadLogs({ offset: 0 });
             }

@@ -9,3 +9,4 @@
 - Search for an existing component or pattern before creating one.
 - Use English for code, comments, identifiers, logs, and documentation. When UI text changes, update every translation file as UTF-8.
 - Prefer focused changes that preserve the existing architecture. Flag rule conflicts and preserve user changes outside the requested scope.
+- When building internal links, include only the query parameters required for the destination flow; do not preserve the full current query string unless explicitly requested.

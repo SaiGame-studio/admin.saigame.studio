@@ -212,13 +212,7 @@ function PaymentPageContent() {
     const [expandedPayTxId, setExpandedPayTxIdState] = useState<string | null>(searchParams.get("txid") ?? null);
     function handleTabChange(value: string) {
         setActiveTab(value);
-        replaceParams((params) => {
-            params.set("tab", value);
-            if (value !== "transactions") {
-                params.delete("txid");
-                params.delete("subtab");
-            }
-        });
+        router.replace(value === "buy-scoin" ? "/payment" : `/payment?tab=${encodeURIComponent(value)}`, { scroll: false });
     }
     function handleTxSubTabChange(value: string) {
         setTxSubTab(value as "buy" | "use" | "use-sgem");

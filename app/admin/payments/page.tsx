@@ -2549,9 +2549,7 @@ export default function GiftCodesPage() {
     const rawTab = searchParams.get("tab");
     const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "payments";
     function handleTabChange(value: string) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("tab", value);
-        router.replace(`?${params.toString()}`, { scroll: false });
+        router.replace(value === "payments" ? window.location.pathname : `${window.location.pathname}?tab=${encodeURIComponent(value)}`, { scroll: false });
     }
     useEffect(() => {
         if (!capabilities.is_super_admin)

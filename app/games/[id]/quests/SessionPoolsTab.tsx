@@ -47,14 +47,17 @@ import {
 } from "@/lib/quest-api";
 import { createDefaultSessionPoolSchedule } from "./sessionPoolSchedule";
 
-function SortableBattlePassChain({ membership, chain, onRemove }: { membership: SessionQuestPoolChain; chain?: QuestChain; onRemove: () => void }) {
+function SortableBattlePassChain({ membership, chain, onRemove, onOpenChain }: { membership: SessionQuestPoolChain; chain?: QuestChain; onRemove: () => void; onOpenChain: () => void }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: membership.chain_id });
     return (
         <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} {...attributes} id={`battle-pass-assigned-chain-${membership.id}`} className={`flex items-center justify-between rounded-md border px-3 py-2 ${isDragging ? "z-10 bg-background shadow-lg" : ""}`}>
             <div id={`battle-pass-assigned-chain-info-${membership.id}`} className="flex min-w-0 items-center gap-3">
                 <button id={`battle-pass-assigned-chain-drag-${membership.id}`} type="button" className="cursor-grab text-muted-foreground active:cursor-grabbing" aria-label="Reorder chain" {...listeners}>⋮⋮</button>
                 <span id={`battle-pass-assigned-chain-order-${membership.id}`} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">{membership.sort_order + 1}</span>
-                <span id={`battle-pass-assigned-chain-name-${membership.id}`} className="truncate">{chain?.display_name ?? membership.chain_id}</span>
+                <button id={`battle-pass-assigned-chain-name-${membership.id}`} type="button" className="group flex min-w-0 items-center gap-1 truncate text-left text-sm hover:text-primary" onClick={onOpenChain} title={chain?.display_name ?? membership.chain_id}>
+                    <span className="truncate">{chain?.display_name ?? membership.chain_id}</span>
+                    <ExternalLink id={`battle-pass-assigned-chain-link-icon-${membership.id}`} className="h-3.5 w-3.5 shrink-0 opacity-60 group-hover:opacity-100" />
+                </button>
             </div>
             <Button id={`battle-pass-assigned-chain-remove-${membership.id}`} size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={onRemove} title="Remove chain">
                 <Trash2 id={`battle-pass-assigned-chain-remove-icon-${membership.id}`} className="h-4 w-4" />
@@ -379,7 +382,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                                     <p id={`battle-pass-assigned-empty-${pool.id}`} className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">{t("quest.sessionPoolNoAssignedChains")}</p>
                                                 ) : poolMemberships.map((membership) => {
                                                     const chain = chains.find((item) => item.id === membership.chain_id);
-                                                    return <SortableBattlePassChain key={membership.id} membership={membership} chain={chain} onRemove={() => void removeChain(pool.id, membership.chain_id)} />;
+                                                    return <SortableBattlePassChain key={membership.id} membership={membership} chain={chain} onRemove={() => void removeChain(pool.id, membership.chain_id)} onOpenChain={() => router.push(`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(membership.chain_id)}`)} />;
                                                 })}
                                             </div>
                                             </SortableContext>

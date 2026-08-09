@@ -529,10 +529,7 @@ export function ChainTab({ game }: {
     };
     // ── Navigate to quest edit in definitions tab ─────────────────────────────
     const navigateToQuestEdit = (questId: string) => {
-        const sp = new URLSearchParams(searchParams.toString());
-        sp.delete("tab");
-        sp.set("editQuestId", questId);
-        router.push(`/games/${gameId}/quests?${sp.toString()}`);
+        router.push(`/games/${gameId}/quests?editQuestId=${encodeURIComponent(questId)}`);
     };
     // ── Render ────────────────────────────────────────────────────────────────
     if (!game)
@@ -714,9 +711,7 @@ export function ChainTab({ game }: {
                         {/* Members — List / Grid tabs */}
                         <div>
                           <Tabs value={searchParams.get("subTab") === "list" ? "list" : "grid"} onValueChange={(v) => {
-                                const sp = new URLSearchParams(searchParams.toString());
-                                sp.set("subTab", v);
-                                router.replace(`?${sp.toString()}`, { scroll: false });
+                                router.replace(`?tab=chains&subTab=${encodeURIComponent(v)}`, { scroll: false });
                             }} className="w-full">
                             <div className="flex items-center justify-between mb-3">
                               <TabsList className="h-8">

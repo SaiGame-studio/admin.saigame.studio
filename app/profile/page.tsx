@@ -16,9 +16,7 @@ function ProfileTabs() {
     const rawTab = searchParams.get("tab");
     const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "profile";
     function handleTabChange(value: string) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("tab", value);
-        router.replace(`?${params.toString()}`, { scroll: false });
+        router.replace(value === "profile" ? "/profile" : `/profile?tab=${encodeURIComponent(value)}`, { scroll: false });
     }
     return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
