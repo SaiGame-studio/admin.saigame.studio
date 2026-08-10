@@ -28,6 +28,16 @@ export function SupportPresenceHeartbeat() {
       return void fetch(`${API_URL}/api/v1/support/presence/heartbeat`, { method: "POST", credentials: "include", headers: { "X-Support-Visitor-ID": visitorID, ...(is_super_admin ? { "X-Support-Hide-Presence": "1" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
+        if (!data) return;
+        if (data.status === "support_chat_disabled") {
+          window.sessionStorage.setItem("support-chat-status", "disabled");
+          window.sessionStorage.removeItem("support-chat-invitation");
+          window.dispatchEvent(new CustomEvent("support-chat-status", { detail: "disabled" }));
+          window.dispatchEvent(new CustomEvent("support-chat-invitation", { detail: null }));
+          return;
+        }
+        window.sessionStorage.setItem("support-chat-status", "enabled");
+        window.dispatchEvent(new CustomEvent("support-chat-status", { detail: "enabled" }));
         if (!data?.chat_invitation) {
           window.sessionStorage.removeItem("support-chat-invitation");
           window.dispatchEvent(new CustomEvent("support-chat-invitation", { detail: null }));

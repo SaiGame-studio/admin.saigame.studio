@@ -4,16 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/auth-context";
 import { useCapabilities } from "@/hooks/use-capabilities";
 import { useTranslation } from "@/lib/i18n/use-translation";
-import { getGuestSupportConversation, markGuestSupportMessagesRead, replyToGuestSupportConversation, SupportMessage } from "@/lib/support-chat-api";
+import { createUserSupportConversation, getGuestSupportConversation, markGuestSupportMessagesRead, replyToGuestSupportConversation, SupportMessage } from "@/lib/support-chat-api";
 
 type Invitation = { conversation_id: string; subject?: string };
 
 export function SupportChatWidget() {
+  const { isAuthenticated, isLoading } = useAuth();
   const { is_super_admin } = useCapabilities();
   const { t } = useTranslation();
   const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [supportEnabled, setSupportEnabled] = useState(true);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<SupportMessage[]>([]);
@@ -28,16 +31,18 @@ export function SupportChatWidget() {
 
   const loadConversation = useCallback(async () => {
     try {
-      const data = await getGuestSupportConversation();
+      const data = await getGuestSupportConversation(isAuthenticated);
       setMessages(data.messages);
     } catch {
       setMessages([]);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const receive = (event: Event) => setInvitation((event as CustomEvent<Invitation | null>).detail);
+    const receiveStatus = (event: Event) => setSupportEnabled((event as CustomEvent<"enabled" | "disabled">).detail !== "disabled");
     const savedInvitation = window.sessionStorage.getItem("support-chat-invitation");
+    setSupportEnabled(window.sessionStorage.getItem("support-chat-status") !== "disabled");
     if (savedInvitation) {
       try {
         setInvitation(JSON.parse(savedInvitation) as Invitation);
@@ -46,7 +51,11 @@ export function SupportChatWidget() {
       }
     }
     window.addEventListener("support-chat-invitation", receive);
-    return () => window.removeEventListener("support-chat-invitation", receive);
+    window.addEventListener("support-chat-status", receiveStatus);
+    return () => {
+      window.removeEventListener("support-chat-invitation", receive);
+      window.removeEventListener("support-chat-status", receiveStatus);
+    };
   }, []);
 
   useEffect(() => {
@@ -69,8 +78,8 @@ export function SupportChatWidget() {
   }, [invitation, messages, open]);
 
   useEffect(() => {
-    if (open && messages.some((item) => item.sender_kind === "agent" && !item.read_at)) void markGuestSupportMessagesRead();
-  }, [messages, open]);
+    if (open && messages.some((item) => item.sender_kind === "agent" && !item.read_at)) void markGuestSupportMessagesRead(isAuthenticated);
+  }, [isAuthenticated, messages, open]);
 
   useEffect(() => {
     if (open && autoScroll) messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: "smooth" });
@@ -103,8 +112,11 @@ export function SupportChatWidget() {
     if (!body || sending) return;
     setSending(true);
     try {
-      const data = await replyToGuestSupportConversation(body);
+      const data = invitation || !isAuthenticated
+        ? await replyToGuestSupportConversation(body, isAuthenticated)
+        : await createUserSupportConversation(body);
       setMessage("");
+      if (!invitation) setInvitation({ conversation_id: data.conversation.id, subject: data.conversation.subject });
       setMessages(data.messages);
       setAutoScroll(true);
       setPendingNewMessages(0);
@@ -114,7 +126,7 @@ export function SupportChatWidget() {
     }
   };
 
-  if (is_super_admin || !invitation) return null;
+  if (!supportEnabled || isLoading || is_super_admin || (!isAuthenticated && !invitation)) return null;
 
   return <div id="support-chat-widget" className="fixed bottom-5 right-5 z-50 flex w-80 flex-col items-end">
     {open && <div id="support-chat-window" className="relative mb-3 w-full overflow-hidden rounded-xl border bg-background shadow-xl">

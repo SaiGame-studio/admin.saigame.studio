@@ -48,16 +48,19 @@ export const deleteSupportConversation = (conversationID: string) =>
 export const updateSupportConversationSubject = (conversationID: string, subject: string) =>
   apiRequest(`/api/v1/admin/support/chat/conversations/${encodeURIComponent(conversationID)}`, { method: "PATCH", body: { subject } }) as Promise<{ conversation: SupportConversation }>;
 
-export const getGuestSupportConversation = () =>
-  apiRequest("/api/v1/support/chat/conversation", { requireAuth: false, credentials: "include", suppressToast: true }) as Promise<{ conversation: SupportConversation | null; messages: SupportMessage[] }>;
+export const createUserSupportConversation = (message: string, subject = "") =>
+  apiRequest("/api/v1/support/chat/conversations", { method: "POST", body: { message, subject }, credentials: "include" }) as Promise<{ conversation: SupportConversation; messages: SupportMessage[] }>;
 
-export const replyToGuestSupportConversation = (message: string) =>
+export const getGuestSupportConversation = (authenticated = false) =>
+  apiRequest("/api/v1/support/chat/conversation", { requireAuth: authenticated, credentials: "include", suppressToast: true }) as Promise<{ conversation: SupportConversation | null; messages: SupportMessage[] }>;
+
+export const replyToGuestSupportConversation = (message: string, authenticated = false) =>
   apiRequest("/api/v1/support/chat/messages", {
     method: "POST",
     body: { message },
-    requireAuth: false,
+    requireAuth: authenticated,
     credentials: "include",
   }) as Promise<{ conversation: SupportConversation; messages: SupportMessage[] }>;
 
-export const markGuestSupportMessagesRead = () =>
-  apiRequest("/api/v1/support/chat/conversation/read", { method: "POST", requireAuth: false, credentials: "include", suppressToast: true }) as Promise<{ marked_read: number }>;
+export const markGuestSupportMessagesRead = (authenticated = false) =>
+  apiRequest("/api/v1/support/chat/conversation/read", { method: "POST", requireAuth: authenticated, credentials: "include", suppressToast: true }) as Promise<{ marked_read: number }>;
