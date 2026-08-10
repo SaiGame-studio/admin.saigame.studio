@@ -4372,5 +4372,20 @@
     "guideChangeSyntax": "Point the backend to an existing database without renaming it:",
     "guideChangeExample": "Example (Use a restored QA database):",
     "guideNote": "Restore requires an empty target database and never drops existing tables. Database switching shows current/new statistics, asks for confirmation, updates DB_NAME and POSTGRES_DB without renaming a database, then reloads the backend automatically. Remote restart failures roll back the configuration."
+  },
+  "supportChat": {
+    "title": "Support",
+    "loading": "Loading conversation...",
+    "placeholder": "Write a message...",
+    "close": "Close support chat",
+    "send": "Send message",
+    "open": "Open support chat"
+  },
+  "supportAdmin": {
+    "deleteButton": "Delete conversation",
+    "deleteTitle": "Delete conversation?",
+    "deleteDescription": "This permanently deletes the conversation and all of its messages. This action cannot be undone.",
+    "deleteSuccess": "Conversation deleted permanently.",
+    "deleteFailed": "Unable to delete conversation"
   }
 }
