@@ -1,9 +1,12 @@
-import { getValidToken, clearToken, refreshAccessToken } from './auth-utils';
+import { getValidToken, getTimeUntilExpiration, clearToken, refreshAccessToken } from './auth-utils';
 import { toast } from '@/hooks/use-toast';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
+// Refresh before a token reaches its exact expiry to account for network latency
+// and small clock differences between the browser and API server.
+const TOKEN_REFRESH_SKEW_MS = 30_000;
 export class ApiError extends Error {
     public status: number;
     public data: any;
@@ -56,6 +59,15 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
     // Add authentication if required
     if (requireAuth) {
         const token = getValidToken();
+        if (token && retryCount === 0) {
+            const timeUntilExpiration = getTimeUntilExpiration();
+            if (timeUntilExpiration !== null && timeUntilExpiration <= TOKEN_REFRESH_SKEW_MS) {
+                const newToken = await getRefreshedToken();
+                if (newToken) {
+                    return apiRequest(endpoint, options, retryCount + 1);
+                }
+            }
+        }
         if (!token) {
             // Token is either missing or expired, try to refresh
             if (retryCount === 0) {
