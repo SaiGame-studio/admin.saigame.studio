@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Clock, Package } from "lucide-react";
+import { TipsBanner } from "@/components/TipsBanner";
 import { SITE_NAME } from "@/lib/utils/site-config";
 import { getUserTimezone } from "@/lib/utils/date-utils";
 export function Footer() {
@@ -24,7 +25,9 @@ export function Footer() {
         const id = setInterval(tick, 1000);
         return () => clearInterval(id);
     }, []);
-    return (<footer className="border-t py-2 px-4 text-xs text-muted-foreground flex items-center justify-center gap-3">
+    return (<footer id="app-footer" className="shrink-0 border-t py-2 px-4 text-xs text-muted-foreground flex items-center justify-between gap-3">
+      <TipsBanner />
+      <div id="app-footer-details" className="flex items-center gap-3">
       {timezone && (<span className="flex items-center gap-1 opacity-60" title={`Dates and times are shown in: ${timezone}`}>
           <Clock className="h-3 w-3"/>
           {timezone}
@@ -34,6 +37,7 @@ export function Footer() {
         {SITE_NAME} {version} • {new Date().getFullYear()}
       </span>
 
-      {time && (<span className="font-mono tabular-nums tracking-tight opacity-70">{time}</span>)}
+        {time && (<span className="font-mono tabular-nums tracking-tight opacity-70">{time}</span>)}
+      </div>
     </footer>);
 }
