@@ -3009,6 +3009,8 @@
             "dailyQuestDesc": "加重ランダム、固定ローテーションを備えたデイリークエスト",
             "battlePass": "バトルパス",
             "battlePassDesc": "セッションクエストチェーンのスケジュールに対応した共有月次バトルパスサイクル",
+            "supportChat": "サポートチャット",
+            "supportChatDesc": "訪問者、認証済みユーザー、スーパー管理者向けのアプリ内サポートチャット",
             "containers": "プレイヤーコンテナ",
             "containersDesc": "配置を備えたグリッドベースのインベントリコンテナ",
             "equipment": "装備スロットシステム",

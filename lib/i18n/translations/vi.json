@@ -3014,6 +3014,8 @@
             "dailyQuestDesc": "Danh sách nhiệm vụ hàng ngày với chiến lược phân bổ linh hoạt",
             "battlePass": "Battle Pass",
             "battlePassDesc": "Chu kỳ Battle Pass hằng tháng dùng chung với lịch chuỗi nhiệm vụ phiên",
+            "supportChat": "Chat hỗ trợ",
+            "supportChatDesc": "Chat hỗ trợ trong ứng dụng cho khách truy cập, người dùng đã đăng nhập và Super Admin",
             "containers": "Túi đồ dạng Lưới",
             "containersDesc": "Thùng chứa vật phẩm dạng lưới với không gian vật lý",
             "equipment": "Hệ thống Trang bị",

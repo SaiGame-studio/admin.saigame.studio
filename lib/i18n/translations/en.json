@@ -3048,6 +3048,8 @@
             "dailyQuestDesc": "Daily quest pools with weighted-random, fixed-rotation, weekly, and monthly assignment strategies",
             "battlePass": "Battle Pass",
             "battlePassDesc": "Shared monthly battle pass cycles with session quest chain scheduling",
+            "supportChat": "Support Chat",
+            "supportChatDesc": "In-app support chat for visitors, authenticated users, and Super Admins",
             "containers": "Player Containers",
             "containersDesc": "Grid-based inventory containers with item placement, grid visualisation, and per-player container management",
             "equipment": "Equipment Slot System",
