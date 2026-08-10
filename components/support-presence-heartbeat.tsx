@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { getValidToken } from "@/lib/auth-utils";
 import { useAuth } from "@/contexts/auth-context";
+import { useCapabilities } from "@/hooks/use-capabilities";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const VISITOR_ID_KEY = "support-chat-visitor-id";
@@ -17,13 +18,14 @@ function getPersistentVisitorID(): string {
 
 export function SupportPresenceHeartbeat() {
   const { isLoading } = useAuth();
+  const { is_super_admin } = useCapabilities();
 
   useEffect(() => {
     if (!API_URL || isLoading) return;
     const send = () => {
       const token = getValidToken();
       const visitorID = getPersistentVisitorID();
-      return void fetch(`${API_URL}/api/v1/support/presence/heartbeat`, { method: "POST", credentials: "include", headers: { "X-Support-Visitor-ID": visitorID, ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
+      return void fetch(`${API_URL}/api/v1/support/presence/heartbeat`, { method: "POST", credentials: "include", headers: { "X-Support-Visitor-ID": visitorID, ...(is_super_admin ? { "X-Support-Hide-Presence": "1" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
         if (!data?.chat_invitation) {
@@ -40,6 +42,6 @@ export function SupportPresenceHeartbeat() {
     send();
     const timer = window.setInterval(send, 5_000);
     return () => window.clearInterval(timer);
-  }, [isLoading]);
+  }, [isLoading, is_super_admin]);
   return null;
 }

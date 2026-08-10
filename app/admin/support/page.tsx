@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "@/hooks/use-toast";
 
 const EMPTY_PRESENCE: SupportPresence = { counts: { guests: 0, authenticated_users: 0, total: 0 }, targets: [] };
+const SELECTED_VISITOR_KEY = "support-chat-selected-visitor";
 
 function countryFlag(countryCode?: string): string {
   if (!countryCode || !/^[A-Z]{2}$/i.test(countryCode)) return "Globe";
@@ -56,6 +57,13 @@ export default function SupportPage() {
     const timer = window.setInterval(() => void load(), 10_000);
     return () => window.clearInterval(timer);
   }, [is_super_admin, load]);
+
+  useEffect(() => {
+    if (selectedVisitor || presence.targets.length === 0) return;
+    const visitorID = window.localStorage.getItem(SELECTED_VISITOR_KEY);
+    const visitor = presence.targets.find((target) => target.id === visitorID);
+    if (visitor) setSelectedVisitor(visitor);
+  }, [presence.targets, selectedVisitor]);
 
   useEffect(() => {
     if (!selectedVisitor) return;
@@ -143,7 +151,7 @@ export default function SupportPage() {
           </> : <div id="support-history-empty" className="flex min-h-80 items-center justify-center rounded-md border text-sm text-muted-foreground">Choose a visitor to view history.</div>}
         </CardContent>
       </Card>
-      <Card id="support-visitors" className="lg:col-span-3"><CardHeader id="support-visitors-header"><CardTitle id="support-visitors-title" className="flex items-center gap-2"><Users className="h-5 w-5" />Active visitors</CardTitle><CardDescription id="support-visitors-description">Click a visitor to display their history.</CardDescription></CardHeader><CardContent id="support-visitors-content"><div id="support-target-list" className="divide-y rounded-md border">{presence.targets.map((visitor) => <button id={`support-target-${visitor.id}`} type="button" key={`${visitor.kind}-${visitor.id}`} onClick={() => setSelectedVisitor(visitor)} className={`w-full p-4 text-left ${selectedVisitor?.id === visitor.id ? "bg-muted" : "hover:bg-muted/50"}`}><div id={`support-target-details-${visitor.id}`}><p id={`support-target-label-${visitor.id}`} className="truncate font-medium">{visitor.label}</p><p id={`support-target-location-${visitor.id}`} className="text-sm text-muted-foreground">{countryFlag(visitor.country_code)} {visitor.country_name || visitor.country_code || "Unknown country"} - {visitor.ip || "Unknown IP"}</p></div></button>)}{!loading && presence.targets.length === 0 && <p id="support-no-targets" className="p-6 text-center text-sm text-muted-foreground">No active visitors.</p>}</div></CardContent></Card>
+      <Card id="support-visitors" className="lg:col-span-3"><CardHeader id="support-visitors-header"><CardTitle id="support-visitors-title" className="flex items-center gap-2"><Users className="h-5 w-5" />Active visitors</CardTitle><CardDescription id="support-visitors-description">Click a visitor to display their history.</CardDescription></CardHeader><CardContent id="support-visitors-content"><div id="support-target-list" className="divide-y rounded-md border">{presence.targets.map((visitor) => <button id={`support-target-${visitor.id}`} type="button" key={`${visitor.kind}-${visitor.id}`} onClick={() => { window.localStorage.setItem(SELECTED_VISITOR_KEY, visitor.id); setSelectedVisitor(visitor); }} className={`w-full p-4 text-left ${selectedVisitor?.id === visitor.id ? "bg-muted" : "hover:bg-muted/50"}`}><div id={`support-target-details-${visitor.id}`}><p id={`support-target-label-${visitor.id}`} className="truncate font-medium">{visitor.label}</p><p id={`support-target-location-${visitor.id}`} className="text-sm text-muted-foreground">{countryFlag(visitor.country_code)} {visitor.country_name || visitor.country_code || "Unknown country"} - {visitor.ip || "Unknown IP"}</p></div></button>)}{!loading && presence.targets.length === 0 && <p id="support-no-targets" className="p-6 text-center text-sm text-muted-foreground">No active visitors.</p>}</div></CardContent></Card>
     </section>
     <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
       <AlertDialogContent id="support-delete-dialog">

@@ -21,6 +21,7 @@ export type SupportMessage = {
   sender_kind: "guest" | "user" | "agent";
   body: string;
   created_at: string;
+  read_at?: string | null;
 };
 
 export type SupportConversation = {
@@ -57,3 +58,6 @@ export const replyToGuestSupportConversation = (message: string) =>
     requireAuth: false,
     credentials: "include",
   }) as Promise<{ conversation: SupportConversation; messages: SupportMessage[] }>;
+
+export const markGuestSupportMessagesRead = () =>
+  apiRequest("/api/v1/support/chat/conversation/read", { method: "POST", requireAuth: false, credentials: "include", suppressToast: true }) as Promise<{ marked_read: number }>;
