@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Pencil, RefreshCw, Send, Trash2, Users } from "lucide-react";
 import { useCapabilities } from "@/hooks/use-capabilities";
 import { deleteSupportConversation, getSupportConversation, getSupportPresence, PresenceTarget, startSupportConversation, SupportConversation, SupportMessage, SupportPresence, updateSupportConversationSubject } from "@/lib/support-chat-api";
@@ -39,16 +39,30 @@ export default function SupportPage() {
   const historyRef = useRef<HTMLDivElement>(null);
   const knownHistoryMessageIDs = useRef(new Set<string>());
   const historyInitialized = useRef(false);
+  const visitorOrder = useRef(new Map<string, number>());
+  const [viewedPendingMessages, setViewedPendingMessages] = useState<Map<string, string>>(() => new Map());
 
   const load = useCallback(async () => {
     try {
-      setPresence(await getSupportPresence());
+      const nextPresence = await getSupportPresence();
+      nextPresence.targets.forEach((visitor) => {
+        const visitorKey = `${visitor.kind}-${visitor.id}`;
+        if (!visitorOrder.current.has(visitorKey)) visitorOrder.current.set(visitorKey, visitorOrder.current.size);
+      });
+      setPresence(nextPresence);
     } catch (error) {
       toast({ variant: "destructive", title: "Unable to load visitors", description: error instanceof Error ? error.message : "Please try again." });
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const sortedVisitors = useMemo(() => [...presence.targets].sort((first, second) => {
+    const firstHasPendingMessage = first.conversation_status === "waiting_for_agent";
+    const secondHasPendingMessage = second.conversation_status === "waiting_for_agent";
+    if (firstHasPendingMessage !== secondHasPendingMessage) return firstHasPendingMessage ? -1 : 1;
+    return (visitorOrder.current.get(`${first.kind}-${first.id}`) ?? 0) - (visitorOrder.current.get(`${second.kind}-${second.id}`) ?? 0);
+  }), [presence.targets]);
 
   const loadConversation = useCallback(async (visitorID: string) => {
     const data = await getSupportConversation(visitorID);
@@ -59,7 +73,7 @@ export default function SupportPage() {
   useEffect(() => {
     if (!is_super_admin) return;
     void load();
-    const timer = window.setInterval(() => void load(), 10_000);
+    const timer = window.setInterval(() => void load(), 5_000);
     return () => window.clearInterval(timer);
   }, [is_super_admin, load]);
 
@@ -68,6 +82,19 @@ export default function SupportPage() {
     const visitorID = window.localStorage.getItem(SELECTED_VISITOR_KEY);
     const visitor = presence.targets.find((target) => target.id === visitorID);
     if (visitor) setSelectedVisitor(visitor);
+  }, [presence.targets, selectedVisitor]);
+
+  useEffect(() => {
+    if (!selectedVisitor) return;
+    const currentVisitor = presence.targets.find((visitor) => visitor.id === selectedVisitor.id && visitor.kind === selectedVisitor.kind);
+    if (!currentVisitor?.latest_user_message_id) return;
+    const visitorKey = `${currentVisitor.kind}-${currentVisitor.id}`;
+    setViewedPendingMessages((current) => {
+      if (current.get(visitorKey) === currentVisitor.latest_user_message_id) return current;
+      const next = new Map(current);
+      next.set(visitorKey, currentVisitor.latest_user_message_id);
+      return next;
+    });
   }, [presence.targets, selectedVisitor]);
 
   useEffect(() => {
@@ -180,7 +207,19 @@ export default function SupportPage() {
           </> : <div id="support-history-empty" className="flex h-full items-center justify-center rounded-md border text-sm text-muted-foreground">Choose a visitor to view history.</div>}
         </CardContent>
       </Card>
-      <Card id="support-visitors" className="lg:col-span-3"><CardHeader id="support-visitors-header"><CardTitle id="support-visitors-title" className="flex items-center gap-2"><Users className="h-5 w-5" />Active visitors</CardTitle><div id="support-visitor-counts" className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground"><span id="support-count-guests" className="rounded-full bg-muted px-2 py-1">Guests: {presence.counts.guests}</span><span id="support-count-authenticated-users" className="rounded-full bg-muted px-2 py-1">Auth: {presence.counts.authenticated_users}</span><span id="support-count-total-active" className="rounded-full bg-muted px-2 py-1">Total: {presence.counts.total}</span></div><CardDescription id="support-visitors-description">Click a visitor to display their history.</CardDescription></CardHeader><CardContent id="support-visitors-content"><div id="support-target-list" className="divide-y rounded-md border">{presence.targets.map((visitor) => <button id={`support-target-${visitor.id}`} type="button" key={`${visitor.kind}-${visitor.id}`} onClick={() => { window.localStorage.setItem(SELECTED_VISITOR_KEY, visitor.id); setSelectedVisitor(visitor); }} className={`w-full px-3 py-2 text-left ${selectedVisitor?.id === visitor.id ? "bg-muted" : "hover:bg-muted/50"}`}><div id={`support-target-details-${visitor.id}`} className="min-w-0"><p id={`support-target-label-${visitor.id}`} className="truncate text-sm font-medium">{visitor.label}</p><p id={`support-target-location-${visitor.id}`} className="truncate text-xs text-muted-foreground">{countryFlag(visitor.country_code)} {visitor.country_name || visitor.country_code || "Unknown country"} · {visitor.ip || "Unknown IP"}</p></div></button>)}{!loading && presence.targets.length === 0 && <p id="support-no-targets" className="p-6 text-center text-sm text-muted-foreground">No active visitors.</p>}</div></CardContent></Card>
+      <Card id="support-visitors" className="lg:col-span-3">
+        <CardHeader id="support-visitors-header">
+          <CardTitle id="support-visitors-title" className="flex items-center gap-2"><Users className="h-5 w-5" />Active visitors</CardTitle>
+          <div id="support-visitor-counts" className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground"><span id="support-count-guests" className="rounded-full bg-muted px-2 py-1">Guests: {presence.counts.guests}</span><span id="support-count-authenticated-users" className="rounded-full bg-muted px-2 py-1">Auth: {presence.counts.authenticated_users}</span><span id="support-count-total-active" className="rounded-full bg-muted px-2 py-1">Total: {presence.counts.total}</span></div>
+          <CardDescription id="support-visitors-description">Click a visitor to display their history.</CardDescription>
+        </CardHeader>
+        <CardContent id="support-visitors-content">
+          <div id="support-target-list" className="divide-y rounded-md border">
+            {sortedVisitors.map((visitor) => <button id={`support-target-${visitor.id}`} type="button" key={`${visitor.kind}-${visitor.id}`} onClick={() => { window.localStorage.setItem(SELECTED_VISITOR_KEY, visitor.id); setSelectedVisitor(visitor); }} className={`w-full px-3 py-2 text-left ${selectedVisitor?.id === visitor.id ? "bg-muted" : "hover:bg-muted/50"}`}><div id={`support-target-details-${visitor.id}`} className="min-w-0"><div id={`support-target-label-row-${visitor.id}`} className="flex items-center gap-2"><p id={`support-target-label-${visitor.id}`} className="min-w-0 flex-1 truncate text-sm font-medium">{visitor.label}</p>{selectedVisitor?.id !== visitor.id && visitor.conversation_status === "waiting_for_agent" && visitor.latest_user_message_id !== viewedPendingMessages.get(`${visitor.kind}-${visitor.id}`) && <span id={`support-target-new-message-indicator-${visitor.id}`} className="h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="New message" />}</div><p id={`support-target-location-${visitor.id}`} className="truncate text-xs text-muted-foreground">{countryFlag(visitor.country_code)} {visitor.country_name || visitor.country_code || "Unknown country"} · {visitor.ip || "Unknown IP"}</p></div></button>)}
+            {!loading && presence.targets.length === 0 && <p id="support-no-targets" className="p-6 text-center text-sm text-muted-foreground">No active visitors.</p>}
+          </div>
+        </CardContent>
+      </Card>
     </section>
     <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
       <AlertDialogContent id="support-delete-dialog">

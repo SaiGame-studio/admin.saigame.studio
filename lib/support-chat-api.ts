@@ -8,6 +8,8 @@ export type PresenceTarget = {
   country_code?: string;
   country_name?: string;
   path?: string;
+  conversation_status?: string;
+  latest_user_message_id?: string;
   last_seen_at: string;
 };
 
