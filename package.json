@@ -1,6 +1,6 @@
 {
   "name": "sai-game",
-  "version": "0.2.29",
+  "version": "0.2.35",
   "private": true,
   "scripts": {
     "predev": "node -e \"fs.rmSync('.next',{recursive:true,force:true})\"",
