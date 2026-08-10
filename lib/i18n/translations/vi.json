@@ -4404,13 +4404,15 @@
     "placeholder": "Viết tin nhắn...",
     "close": "Đóng cửa sổ hỗ trợ",
     "send": "Gửi tin nhắn",
-    "open": "Mở cửa sổ hỗ trợ"
+    "open": "Mở cửa sổ hỗ trợ",
+    "newMessages": "{count} tin nhắn mới"
   },
   "supportAdmin": {
     "deleteButton": "Xóa cuộc hội thoại",
     "deleteTitle": "Xóa cuộc hội thoại?",
     "deleteDescription": "Thao tác này xóa vĩnh viễn cuộc hội thoại và tất cả tin nhắn. Không thể hoàn tác.",
     "deleteSuccess": "Đã xóa vĩnh viễn cuộc hội thoại.",
-    "deleteFailed": "Không thể xóa cuộc hội thoại"
+    "deleteFailed": "Không thể xóa cuộc hội thoại",
+    "newMessages": "{count} tin nhắn mới"
   }
 }

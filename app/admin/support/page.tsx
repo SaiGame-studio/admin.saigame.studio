@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Pencil, RefreshCw, Send, Trash2, Users } from "lucide-react";
 import { useCapabilities } from "@/hooks/use-capabilities";
 import { deleteSupportConversation, getSupportConversation, getSupportPresence, PresenceTarget, startSupportConversation, SupportConversation, SupportMessage, SupportPresence, updateSupportConversationSubject } from "@/lib/support-chat-api";
@@ -34,6 +34,11 @@ export default function SupportPage() {
   const [deleting, setDeleting] = useState(false);
   const [editingSubject, setEditingSubject] = useState(false);
   const [subjectInput, setSubjectInput] = useState("");
+  const [historyAutoScroll, setHistoryAutoScroll] = useState(true);
+  const [pendingHistoryMessages, setPendingHistoryMessages] = useState(0);
+  const historyRef = useRef<HTMLDivElement>(null);
+  const knownHistoryMessageIDs = useRef(new Set<string>());
+  const historyInitialized = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -73,12 +78,38 @@ export default function SupportPage() {
     return () => window.clearInterval(timer);
   }, [selectedVisitor, loadConversation]);
 
+  useEffect(() => {
+    if (selectedVisitor && historyAutoScroll) historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: "smooth" });
+  }, [historyAutoScroll, messages, selectedVisitor]);
+
+  useEffect(() => {
+    knownHistoryMessageIDs.current.clear();
+    historyInitialized.current = false;
+    setPendingHistoryMessages(0);
+  }, [selectedVisitor]);
+
+  useEffect(() => {
+    if (!historyInitialized.current) {
+      messages.forEach((item) => knownHistoryMessageIDs.current.add(item.id));
+      historyInitialized.current = true;
+      return;
+    }
+    const newMessageCount = messages.filter((item) => !knownHistoryMessageIDs.current.has(item.id)).length;
+    messages.forEach((item) => knownHistoryMessageIDs.current.add(item.id));
+    if (!historyAutoScroll && newMessageCount > 0) setPendingHistoryMessages((count) => count + newMessageCount);
+  }, [historyAutoScroll, messages]);
+
+  useEffect(() => {
+    if (historyAutoScroll) setPendingHistoryMessages(0);
+  }, [historyAutoScroll]);
+
   const startChat = async () => {
     if (!selectedVisitor || !message.trim()) return;
     setSending(true);
     try {
       await startSupportConversation(selectedVisitor, "Support chat", message.trim());
       setMessage("");
+      setHistoryAutoScroll(true);
       await loadConversation(selectedVisitor.id);
     } catch (error) {
       toast({ variant: "destructive", title: "Unable to start chat", description: error instanceof Error ? error.message : "Please try again." });
@@ -129,29 +160,27 @@ export default function SupportPage() {
       <div id="support-heading"><h1 id="support-title" className="text-2xl font-semibold">Support chat</h1><p id="support-description" className="text-sm text-muted-foreground">Select an active visitor to inspect their conversation.</p></div>
       <Button id="support-refresh" variant="outline" size="icon" title="Refresh" onClick={() => void load()} disabled={loading} aria-label="Refresh visitors"><RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} /></Button>
     </div>
-    <section id="support-counts" className="grid gap-4 md:grid-cols-3">
-      {[["Guests", presence.counts.guests], ["Authenticated users", presence.counts.authenticated_users], ["Total active", presence.counts.total]].map(([label, count]) => <Card id={`support-count-${String(label).toLowerCase().replaceAll(" ", "-")}`} key={String(label)}><CardHeader id={`support-count-header-${String(label).toLowerCase().replaceAll(" ", "-")}`} className="pb-2"><CardDescription id={`support-count-label-${String(label).toLowerCase().replaceAll(" ", "-")}`}>{label}</CardDescription><CardTitle id={`support-count-value-${String(label).toLowerCase().replaceAll(" ", "-")}`}>{count}</CardTitle></CardHeader></Card>)}
-    </section>
     <section id="support-workspace" className="grid gap-4 lg:grid-cols-10">
       <Card id="support-conversation-panel" className="lg:col-span-7">
         <CardHeader id="support-conversation-header" className="flex-row items-center justify-between gap-4 space-y-0">
           <div id="support-conversation-heading" className="flex min-w-0 flex-1 items-center gap-2">{editingSubject ? <Input id="support-conversation-title" className="h-10 flex-1" value={subjectInput} onChange={(event) => setSubjectInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void saveSubject(); } if (event.key === "Escape") setEditingSubject(false); }} maxLength={160} autoFocus /> : <CardTitle id="support-conversation-title" className="flex-1 break-words whitespace-normal">{conversation?.subject || "Conversation history"}</CardTitle>}<Button id="support-edit-subject" variant="outline" size="icon" onClick={() => void (editingSubject ? saveSubject() : startEditingSubject())} disabled={!conversation} aria-label="Edit conversation subject">{editingSubject ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}</Button></div>
           <div id="support-conversation-actions" className="flex shrink-0 gap-2">{conversation && <Button id="support-delete-conversation" variant="destructive" size="icon" onClick={() => setDeleteOpen(true)} aria-label={t("supportAdmin.deleteButton")}><Trash2 className="h-4 w-4" /></Button>}</div>
         </CardHeader>
-        <CardContent id="support-conversation-content">
+        <CardContent id="support-conversation-content" className="h-[calc(100vh-16rem)] overflow-hidden">
           {selectedVisitor ? <>
-            <div id={`support-history-${selectedVisitor.id}`} className="min-h-64 space-y-2 rounded-md border p-4 text-sm">
+            <div id={`support-history-${selectedVisitor.id}`} ref={historyRef} onScroll={(event) => { const element = event.currentTarget; setHistoryAutoScroll(element.scrollHeight - element.scrollTop - element.clientHeight <= 24); }} className="h-[calc(100%_-_3.5rem)] space-y-2 overflow-y-auto rounded-md border p-4 text-sm">
               {messages.map((item) => <p id={`support-message-${item.id}`} key={item.id} className={item.sender_kind === "agent" ? "text-right" : "text-left"}>{item.body}</p>)}
               {messages.length === 0 && <p id="support-history-no-messages" className="text-muted-foreground">No messages yet.</p>}
             </div>
+            {pendingHistoryMessages > 0 && <Button id="support-history-new-message-indicator" size="sm" className="relative z-10 mx-auto -mt-10 flex" onClick={() => { setHistoryAutoScroll(true); setPendingHistoryMessages(0); historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: "smooth" }); }}>{t("supportAdmin.newMessages", { count: pendingHistoryMessages })}</Button>}
             <div id="support-message-composer" className="mt-4 flex gap-2">
               <Textarea id="support-message" className="h-10 min-h-10 resize-none" value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void startChat(); } }} placeholder="Write a message..." maxLength={4000} />
               <Button id="support-send" size="icon" className="h-10 w-10 shrink-0" onClick={() => void startChat()} disabled={sending || !message.trim()} aria-label="Send message"><Send className="h-4 w-4" /></Button>
             </div>
-          </> : <div id="support-history-empty" className="flex min-h-80 items-center justify-center rounded-md border text-sm text-muted-foreground">Choose a visitor to view history.</div>}
+          </> : <div id="support-history-empty" className="flex h-full items-center justify-center rounded-md border text-sm text-muted-foreground">Choose a visitor to view history.</div>}
         </CardContent>
       </Card>
-      <Card id="support-visitors" className="lg:col-span-3"><CardHeader id="support-visitors-header"><CardTitle id="support-visitors-title" className="flex items-center gap-2"><Users className="h-5 w-5" />Active visitors</CardTitle><CardDescription id="support-visitors-description">Click a visitor to display their history.</CardDescription></CardHeader><CardContent id="support-visitors-content"><div id="support-target-list" className="divide-y rounded-md border">{presence.targets.map((visitor) => <button id={`support-target-${visitor.id}`} type="button" key={`${visitor.kind}-${visitor.id}`} onClick={() => { window.localStorage.setItem(SELECTED_VISITOR_KEY, visitor.id); setSelectedVisitor(visitor); }} className={`w-full p-4 text-left ${selectedVisitor?.id === visitor.id ? "bg-muted" : "hover:bg-muted/50"}`}><div id={`support-target-details-${visitor.id}`}><p id={`support-target-label-${visitor.id}`} className="truncate font-medium">{visitor.label}</p><p id={`support-target-location-${visitor.id}`} className="text-sm text-muted-foreground">{countryFlag(visitor.country_code)} {visitor.country_name || visitor.country_code || "Unknown country"} - {visitor.ip || "Unknown IP"}</p></div></button>)}{!loading && presence.targets.length === 0 && <p id="support-no-targets" className="p-6 text-center text-sm text-muted-foreground">No active visitors.</p>}</div></CardContent></Card>
+      <Card id="support-visitors" className="lg:col-span-3"><CardHeader id="support-visitors-header"><CardTitle id="support-visitors-title" className="flex items-center gap-2"><Users className="h-5 w-5" />Active visitors</CardTitle><div id="support-visitor-counts" className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground"><span id="support-count-guests" className="rounded-full bg-muted px-2 py-1">Guests: {presence.counts.guests}</span><span id="support-count-authenticated-users" className="rounded-full bg-muted px-2 py-1">Auth: {presence.counts.authenticated_users}</span><span id="support-count-total-active" className="rounded-full bg-muted px-2 py-1">Total: {presence.counts.total}</span></div><CardDescription id="support-visitors-description">Click a visitor to display their history.</CardDescription></CardHeader><CardContent id="support-visitors-content"><div id="support-target-list" className="divide-y rounded-md border">{presence.targets.map((visitor) => <button id={`support-target-${visitor.id}`} type="button" key={`${visitor.kind}-${visitor.id}`} onClick={() => { window.localStorage.setItem(SELECTED_VISITOR_KEY, visitor.id); setSelectedVisitor(visitor); }} className={`w-full px-3 py-2 text-left ${selectedVisitor?.id === visitor.id ? "bg-muted" : "hover:bg-muted/50"}`}><div id={`support-target-details-${visitor.id}`} className="min-w-0"><p id={`support-target-label-${visitor.id}`} className="truncate text-sm font-medium">{visitor.label}</p><p id={`support-target-location-${visitor.id}`} className="truncate text-xs text-muted-foreground">{countryFlag(visitor.country_code)} {visitor.country_name || visitor.country_code || "Unknown country"} · {visitor.ip || "Unknown IP"}</p></div></button>)}{!loading && presence.targets.length === 0 && <p id="support-no-targets" className="p-6 text-center text-sm text-muted-foreground">No active visitors.</p>}</div></CardContent></Card>
     </section>
     <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
       <AlertDialogContent id="support-delete-dialog">

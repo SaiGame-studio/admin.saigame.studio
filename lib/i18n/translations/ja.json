@@ -4336,13 +4336,15 @@
     "placeholder": "メッセージを入力...",
     "close": "サポートチャットを閉じる",
     "send": "メッセージを送信",
-    "open": "サポートチャットを開く"
+    "open": "サポートチャットを開く",
+    "newMessages": "新しいメッセージ {count} 件"
   },
   "supportAdmin": {
     "deleteButton": "会話を削除",
     "deleteTitle": "会話を削除しますか？",
     "deleteDescription": "この操作により、会話とすべてのメッセージが完全に削除されます。元に戻すことはできません。",
     "deleteSuccess": "会話を完全に削除しました。",
-    "deleteFailed": "会話を削除できません"
+    "deleteFailed": "会話を削除できません",
+    "newMessages": "新しいメッセージ {count} 件"
   }
 }
