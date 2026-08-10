@@ -128,8 +128,8 @@ export function SupportChatWidget() {
 
   if (!supportEnabled || isLoading || is_super_admin || (!isAuthenticated && !invitation)) return null;
 
-  return <div id="support-chat-widget" className="fixed bottom-5 right-5 z-50 flex w-80 flex-col items-end">
-    {open && <div id="support-chat-window" className="relative mb-3 w-full overflow-hidden rounded-xl border bg-background shadow-xl">
+  return <div id="support-chat-widget" className="fixed bottom-[30px] right-5 z-50 flex w-80 flex-col items-end">
+    {open && <div id="support-chat-window" className="relative w-full overflow-hidden rounded-xl border bg-background shadow-xl">
       <div id="support-chat-window-header" className="flex items-center justify-between bg-primary px-3 py-2 text-primary-foreground">
         <div id="support-chat-agent-profile" className="flex items-center gap-2"><img id="support-chat-agent-header-avatar" src="/sai-avatar.png" alt="Simon Sai" className="h-7 w-7 rounded-full object-cover" /><div id="support-chat-agent-header-details" className="leading-tight"><p id="support-chat-agent-header-name" className="text-sm font-medium">Simon Sai</p><p id="support-chat-window-title" className="text-xs opacity-80">Super Admin</p></div></div>
         <Button id="support-chat-close" size="icon" variant="ghost" onClick={() => setOpen(false)} aria-label={t("supportChat.close")}><X className="h-4 w-4" /></Button>
