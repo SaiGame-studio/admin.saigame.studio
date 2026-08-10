@@ -37,6 +37,7 @@ interface RequestOptions {
     body?: any;
     requireAuth?: boolean;
     suppressToast?: boolean;
+    credentials?: RequestCredentials;
 }
 /**
  * Enhanced fetch wrapper with automatic token handling and refresh
@@ -45,7 +46,7 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
     if (!API_URL) {
         throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
     }
-    const { method = 'GET', headers = {}, body, requireAuth = true, suppressToast = false, } = options;
+    const { method = 'GET', headers = {}, body, requireAuth = true, suppressToast = false, credentials, } = options;
     // Prepare headers
     const requestHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -74,7 +75,8 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
     // Prepare request config
     const config: RequestInit = {
         method,
-        headers: requestHeaders
+        headers: requestHeaders,
+        credentials,
     };
     // Add body if provided
     if (body) {

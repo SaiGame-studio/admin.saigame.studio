@@ -116,6 +116,7 @@ export default function RoadmapPage() {
                 { name: t('roadmap.page.phases.2.items.cloneGame'), description: t('roadmap.page.phases.2.items.cloneGameDesc'), completed: "Jul 5, 2026" },
                 { name: t('roadmap.page.phases.2.items.gameGiftCode'), description: t('roadmap.page.phases.2.items.gameGiftCodeDesc'), completed: "Jul 24, 2026" },
                 { name: t('roadmap.page.phases.2.items.battlePass'), description: t('roadmap.page.phases.2.items.battlePassDesc'), completed: "Aug 10, 2026" },
+                { name: t('roadmap.page.phases.2.items.supportChat'), description: t('roadmap.page.phases.2.items.supportChatDesc'), completed: "Aug 10, 2026" },
             ],
             planned: [
                 { name: t('roadmap.page.phases.2.items.worldQuest'), group: "Progression" },
