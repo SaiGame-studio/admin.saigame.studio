@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils";
 import { fromUserDatetime, getUserTimezone, toUserDatetime } from "@/lib/utils/date-utils";
 import {
     addChainToSessionQuestPool,
@@ -90,6 +91,10 @@ const EMPTY_FORM: FormState = {
     active: true,
 };
 
+function expandedBattlePassStorageKey(gameId: string) {
+    return `ss_quests_battle_pass_expanded_${gameId}`;
+}
+
 function defaultScheduleForm() {
     const schedule = createDefaultSessionPoolSchedule();
     const startAt = typeof schedule.session_start_at === "string" ? toUserDatetime(schedule.session_start_at) : "";
@@ -126,6 +131,16 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
             ]);
             const nextPools = poolResult.pools ?? [];
             setPools(nextPools);
+            const storageKey = expandedBattlePassStorageKey(gameId);
+            const storedExpandedPoolId = safeGetItem(storageKey);
+            if (storedExpandedPoolId && nextPools.some((pool) => pool.id === storedExpandedPoolId)) {
+                setExpandedPoolId(storedExpandedPoolId);
+            } else if (storedExpandedPoolId) {
+                safeRemoveItem(storageKey);
+                setExpandedPoolId(null);
+            } else {
+                setExpandedPoolId((currentPoolId) => nextPools.some((pool) => pool.id === currentPoolId) ? currentPoolId : null);
+            }
             setChains(chainResult.chains ?? []);
             const entries = await Promise.all(nextPools.map(async (pool) => [
                 pool.id,
@@ -173,6 +188,15 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
             : availableChains,
         [availableChains, fullSessionOnly],
     );
+    const toggleExpandedPool = (poolId: string) => {
+        const storageKey = expandedBattlePassStorageKey(gameId);
+        setExpandedPoolId((currentPoolId) => {
+            const nextPoolId = currentPoolId === poolId ? null : poolId;
+            if (nextPoolId) safeSetItem(storageKey, nextPoolId);
+            else safeRemoveItem(storageKey);
+            return nextPoolId;
+        });
+    };
 
     const openCreate = () => {
         setEditing(null);
@@ -265,6 +289,10 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
         if (!deleteTarget) return;
         try {
             await deleteSessionQuestPool(gameId, deleteTarget.id);
+            if (expandedPoolId === deleteTarget.id) {
+                safeRemoveItem(expandedBattlePassStorageKey(gameId));
+                setExpandedPoolId(null);
+            }
             setDeleteTarget(null);
             await load();
         } catch (cause) {
@@ -334,11 +362,11 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                             variant="ghost"
                                             size="icon"
                                             className="h-7 w-7 shrink-0"
-                                            onClick={() => setExpandedPoolId(isExpanded ? null : pool.id)}
+                                            onClick={() => toggleExpandedPool(pool.id)}
                                         >
                                             {isExpanded ? <ChevronDown id={`battle-pass-collapse-icon-${pool.id}`} className="h-4 w-4" /> : <ChevronRight id={`battle-pass-expand-icon-${pool.id}`} className="h-4 w-4" />}
                                         </Button>
-                                        <div id={`battle-pass-info-${pool.id}`} className="min-w-0 flex-1 cursor-pointer" onClick={() => setExpandedPoolId(isExpanded ? null : pool.id)}>
+                                        <div id={`battle-pass-info-${pool.id}`} className="min-w-0 flex-1 cursor-pointer" onClick={() => toggleExpandedPool(pool.id)}>
                                             <div id={`battle-pass-name-row-${pool.id}`} className="flex flex-wrap items-center gap-2">
                                                 <CardTitle id={`battle-pass-name-${pool.id}`} className="text-base">{pool.display_name}</CardTitle>
                                                 <Badge id={`battle-pass-status-${pool.id}`} variant={pool.is_active ? "default" : "secondary"} className={pool.is_active ? "bg-green-600 text-xs" : "text-xs"}>
