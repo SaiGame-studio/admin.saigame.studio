@@ -460,7 +460,8 @@ export interface SessionWindowConfig {
     } | {
         repeatable: true;
         cycle_start_at: string;
-        repeat_every_months: number;
+        repeat_type: 'day' | 'week' | 'month';
+        repeat_amount: number;
     };
 }
 export interface SessionQuestPool {

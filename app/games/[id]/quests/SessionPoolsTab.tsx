@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,7 +75,8 @@ type FormState = {
     startAt: string;
     endAt: string;
     cycleStartAt: string;
-    repeatEveryMonths: number;
+    repeatType: "day" | "week" | "month";
+    repeatAmount: number;
     repeatable: boolean;
     active: boolean;
 };
@@ -86,7 +88,8 @@ const EMPTY_FORM: FormState = {
     startAt: "",
     endAt: "",
     cycleStartAt: "",
-    repeatEveryMonths: 1,
+    repeatType: "month",
+    repeatAmount: 1,
     repeatable: false,
     active: true,
 };
@@ -99,7 +102,7 @@ function defaultScheduleForm() {
     const schedule = createDefaultSessionPoolSchedule();
     const startAt = typeof schedule.session_start_at === "string" ? toUserDatetime(schedule.session_start_at) : "";
     const endAt = typeof schedule.session_end_at === "string" ? toUserDatetime(schedule.session_end_at) : "";
-    return { startAt, endAt, cycleStartAt: startAt, repeatEveryMonths: 1 };
+    return { startAt, endAt, cycleStartAt: startAt, repeatType: "month" as const, repeatAmount: 1 };
 }
 
 export function SessionPoolsTab({ gameId }: { gameId: string }) {
@@ -212,8 +215,9 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
         };
         const recurringSchedule = session.repeatable ? {
             cycleStartAt: toUserDatetime(session.cycle_start_at),
-            repeatEveryMonths: session.repeat_every_months,
-        } : { cycleStartAt: "", repeatEveryMonths: 1 };
+            repeatType: session.repeat_type,
+            repeatAmount: session.repeat_amount,
+        } : { cycleStartAt: "", repeatType: "month" as const, repeatAmount: 1 };
         setEditing(pool);
         setForm({
             poolKey: pool.pool_key,
@@ -235,14 +239,14 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
 
     const save = async () => {
         const invalidSchedule = form.repeatable
-            ? !form.cycleStartAt || !Number.isInteger(form.repeatEveryMonths) || form.repeatEveryMonths < 1
+            ? !form.cycleStartAt || !Number.isInteger(form.repeatAmount) || form.repeatAmount < 1
             : !form.startAt || !form.endAt || form.startAt >= form.endAt;
         if (!form.poolKey.trim() || !form.displayName.trim() || invalidSchedule) {
             setError(t("quest.sessionPoolInvalidForm"));
             return;
         }
         const session: SessionWindowConfig["session"] = form.repeatable
-            ? { repeatable: true, cycle_start_at: fromUserDatetime(form.cycleStartAt), repeat_every_months: form.repeatEveryMonths }
+            ? { repeatable: true, cycle_start_at: fromUserDatetime(form.cycleStartAt), repeat_type: form.repeatType, repeat_amount: form.repeatAmount }
             : { repeatable: false, session_start_at: fromUserDatetime(form.startAt), session_end_at: fromUserDatetime(form.endAt) };
         const payload: SessionQuestPoolInput = {
             pool_key: form.poolKey.trim(),
@@ -382,7 +386,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                                 <span id={`battle-pass-meta-separator-${pool.id}`}>·</span>
                                                 <span id={`battle-pass-window-${pool.id}`}>
                                                     {session.repeatable
-                                                        ? `${toUserDatetime(session.cycle_start_at)} (${timeZone}) · ${t("quest.sessionRepeatEveryMonths")}: ${session.repeat_every_months}`
+                                                        ? `${toUserDatetime(session.cycle_start_at)} (${timeZone}) · ${t("quest.sessionRepeatEvery")}: ${session.repeat_amount} ${t(`quest.sessionRepeatType${session.repeat_type.charAt(0).toUpperCase()}${session.repeat_type.slice(1)}`)}`
                                                         : `${toUserDatetime(session.session_start_at)} — ${toUserDatetime(session.session_end_at)} (${timeZone})`}
                                                 </span>
                                                 <span id={`battle-pass-chain-count-${pool.id}`}>· {poolMemberships.length} {t("quest.tabChains")}</span>
@@ -483,24 +487,37 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                             />
                         </div>
                         {form.repeatable ? (
-                            <div id="battle-pass-recurring-schedule" className="grid gap-4 sm:grid-cols-2">
+                            <div id="battle-pass-recurring-schedule" className="grid gap-4 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
                                 <div id="battle-pass-cycle-start-field" className="space-y-1">
                                     <Label id="battle-pass-cycle-start-label" htmlFor="battle-pass-cycle-start-input">{t("quest.sessionCycleStartAt")}</Label>
                                     <Input id="battle-pass-cycle-start-input" type="datetime-local" value={form.cycleStartAt} onChange={(event) => setForm({ ...form, cycleStartAt: event.target.value })} />
                                 </div>
-                                <div id="battle-pass-repeat-months-field" className="space-y-1">
-                                    <Label id="battle-pass-repeat-months-label" htmlFor="battle-pass-repeat-months-input">{t("quest.sessionRepeatEveryMonths")}</Label>
-                                    <Input
-                                        id="battle-pass-repeat-months-input"
-                                        type="number"
-                                        min={1}
-                                        step={1}
-                                        value={form.repeatEveryMonths}
-                                        onChange={(event) => {
-                                            const months = event.target.valueAsNumber;
-                                            if (Number.isInteger(months) && months >= 1) setForm({ ...form, repeatEveryMonths: months });
-                                        }}
-                                    />
+                                <div id="battle-pass-repeat-field" className="space-y-1">
+                                    <Label id="battle-pass-repeat-label">{t("quest.sessionRepeatEvery")}</Label>
+                                    <div id="battle-pass-repeat-controls" className="grid grid-cols-[90px_minmax(0,1fr)] gap-2">
+                                        <Input
+                                            id="battle-pass-repeat-amount-input"
+                                            aria-label={t("quest.sessionRepeatAmount")}
+                                            type="number"
+                                            min={1}
+                                            step={1}
+                                            value={form.repeatAmount}
+                                            onChange={(event) => {
+                                                const amount = event.target.valueAsNumber;
+                                                if (Number.isInteger(amount) && amount >= 1) setForm({ ...form, repeatAmount: amount });
+                                            }}
+                                        />
+                                        <Select value={form.repeatType} onValueChange={(repeatType) => setForm({ ...form, repeatType: repeatType as FormState["repeatType"] })}>
+                                            <SelectTrigger id="battle-pass-repeat-type-trigger" aria-label={t("quest.sessionRepeatType")}>
+                                                <SelectValue id="battle-pass-repeat-type-value" />
+                                            </SelectTrigger>
+                                            <SelectContent id="battle-pass-repeat-type-content">
+                                                <SelectItem id="battle-pass-repeat-type-day" value="day">{t("quest.sessionRepeatTypeDay")}</SelectItem>
+                                                <SelectItem id="battle-pass-repeat-type-week" value="week">{t("quest.sessionRepeatTypeWeek")}</SelectItem>
+                                                <SelectItem id="battle-pass-repeat-type-month" value="month">{t("quest.sessionRepeatTypeMonth")}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
