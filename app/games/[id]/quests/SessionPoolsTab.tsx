@@ -77,7 +77,7 @@ type FormState = {
     cycleStartAt: string;
     repeatType: "day" | "week" | "month";
     repeatAmount: number;
-    repeatable: boolean;
+    scheduleMode: "fixed" | "interval" | "annual";
     active: boolean;
 };
 
@@ -90,7 +90,7 @@ const EMPTY_FORM: FormState = {
     cycleStartAt: "",
     repeatType: "month",
     repeatAmount: 1,
-    repeatable: false,
+    scheduleMode: "fixed",
     active: true,
 };
 
@@ -209,14 +209,13 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
 
     const openEdit = (pool: SessionQuestPool) => {
         const session = pool.type_config.session;
-        const fixedSchedule = session.repeatable ? { startAt: "", endAt: "" } : {
+        const fixedSchedule = session.schedule_mode === "interval" ? { startAt: "", endAt: "" } : {
             startAt: toUserDatetime(session.session_start_at),
             endAt: toUserDatetime(session.session_end_at),
         };
-        const recurringSchedule = session.repeatable ? {
+        const recurringSchedule = session.schedule_mode === "interval" ? {
             cycleStartAt: toUserDatetime(session.cycle_start_at),
-            repeatType: session.repeat_type,
-            repeatAmount: session.repeat_amount,
+            repeatType: session.repeat_type, repeatAmount: session.repeat_amount,
         } : { cycleStartAt: "", repeatType: "month" as const, repeatAmount: 1 };
         setEditing(pool);
         setForm({
@@ -225,7 +224,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
             description: pool.description ?? "",
             ...fixedSchedule,
             ...recurringSchedule,
-            repeatable: session.repeatable,
+            scheduleMode: session.schedule_mode,
             active: pool.is_active,
         });
         setFormOpen(true);
@@ -238,16 +237,16 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
     };
 
     const save = async () => {
-        const invalidSchedule = form.repeatable
+        const invalidSchedule = form.scheduleMode === "interval"
             ? !form.cycleStartAt || !Number.isInteger(form.repeatAmount) || form.repeatAmount < 1
-            : !form.startAt || !form.endAt || form.startAt >= form.endAt;
+            : !form.startAt || !form.endAt || form.startAt >= form.endAt || (form.scheduleMode === "annual" && form.startAt.slice(0, 4) !== form.endAt.slice(0, 4));
         if (!form.poolKey.trim() || !form.displayName.trim() || invalidSchedule) {
             setError(t("quest.sessionPoolInvalidForm"));
             return;
         }
-        const session: SessionWindowConfig["session"] = form.repeatable
-            ? { repeatable: true, cycle_start_at: fromUserDatetime(form.cycleStartAt), repeat_type: form.repeatType, repeat_amount: form.repeatAmount }
-            : { repeatable: false, session_start_at: fromUserDatetime(form.startAt), session_end_at: fromUserDatetime(form.endAt) };
+        const session: SessionWindowConfig["session"] = form.scheduleMode === "interval"
+            ? { schedule_mode: "interval", cycle_start_at: fromUserDatetime(form.cycleStartAt), repeat_type: form.repeatType, repeat_amount: form.repeatAmount }
+            : { schedule_mode: form.scheduleMode, session_start_at: fromUserDatetime(form.startAt), session_end_at: fromUserDatetime(form.endAt) };
         const payload: SessionQuestPoolInput = {
             pool_key: form.poolKey.trim(),
             display_name: form.displayName.trim(),
@@ -376,7 +375,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                                 <Badge id={`battle-pass-status-${pool.id}`} variant={pool.is_active ? "default" : "secondary"} className={pool.is_active ? "bg-green-600 text-xs" : "text-xs"}>
                                                     {t(pool.is_active ? "common.active" : "common.inactive")}
                                                 </Badge>
-                                                {session.repeatable && (
+                                                {session.schedule_mode !== "fixed" && (
                                                     <Badge id={`battle-pass-repeatable-${pool.id}`} variant="outline" className="text-xs">{t("quest.sessionRepeatable")}</Badge>
                                                 )}
                                                 {pool.description && <span id={`battle-pass-description-${pool.id}`} className="max-w-sm truncate text-sm text-muted-foreground">{pool.description}</span>}
@@ -385,8 +384,10 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                                 <span id={`battle-pass-key-${pool.id}`} className="font-mono">{pool.pool_key}</span>
                                                 <span id={`battle-pass-meta-separator-${pool.id}`}>·</span>
                                                 <span id={`battle-pass-window-${pool.id}`}>
-                                                    {session.repeatable
+                                                    {session.schedule_mode === "interval"
                                                         ? `${toUserDatetime(session.cycle_start_at)} (${timeZone}) · ${t("quest.sessionRepeatEvery")}: ${session.repeat_amount} ${t(`quest.sessionRepeatType${session.repeat_type.charAt(0).toUpperCase()}${session.repeat_type.slice(1)}`)}`
+                                                        : session.schedule_mode === "annual"
+                                                            ? `${toUserDatetime(session.session_start_at)} — ${toUserDatetime(session.session_end_at)} (${timeZone}) · ${t("quest.sessionScheduleAnnual")}`
                                                         : `${toUserDatetime(session.session_start_at)} — ${toUserDatetime(session.session_end_at)} (${timeZone})`}
                                                 </span>
                                                 <span id={`battle-pass-chain-count-${pool.id}`}>· {poolMemberships.length} {t("quest.tabChains")}</span>
@@ -478,15 +479,18 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                             <Label id="battle-pass-key-label" htmlFor="battle-pass-key-input">{t("quest.poolKey")}</Label>
                             <Input id="battle-pass-key-input" value={form.poolKey} disabled={!!editing} onChange={(event) => setForm({ ...form, poolKey: event.target.value })} />
                         </div>
-                        <div id="battle-pass-repeatable-field" className="flex items-center justify-between gap-3 rounded-md border p-3">
-                            <Label id="battle-pass-repeatable-label" htmlFor="battle-pass-repeatable-input">{t("quest.sessionRepeatable")}</Label>
-                            <Switch
-                                id="battle-pass-repeatable-input"
-                                checked={form.repeatable}
-                                onCheckedChange={(repeatable) => setForm({ ...form, ...defaultScheduleForm(), repeatable })}
-                            />
+                        <div id="battle-pass-schedule-mode-field" className="space-y-1">
+                            <Label id="battle-pass-schedule-mode-label" htmlFor="battle-pass-schedule-mode-trigger">{t("quest.sessionScheduleMode")}</Label>
+                            <Select value={form.scheduleMode} onValueChange={(scheduleMode) => setForm({ ...form, ...defaultScheduleForm(), scheduleMode: scheduleMode as FormState["scheduleMode"] })}>
+                                <SelectTrigger id="battle-pass-schedule-mode-trigger"><SelectValue id="battle-pass-schedule-mode-value" /></SelectTrigger>
+                                <SelectContent id="battle-pass-schedule-mode-content">
+                                    <SelectItem id="battle-pass-schedule-mode-fixed" value="fixed">{t("quest.sessionScheduleFixed")}</SelectItem>
+                                    <SelectItem id="battle-pass-schedule-mode-interval" value="interval">{t("quest.sessionScheduleInterval")}</SelectItem>
+                                    <SelectItem id="battle-pass-schedule-mode-annual" value="annual">{t("quest.sessionScheduleAnnual")}</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                        {form.repeatable ? (
+                        {form.scheduleMode === "interval" ? (
                             <div id="battle-pass-recurring-schedule" className="grid gap-4 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
                                 <div id="battle-pass-cycle-start-field" className="space-y-1">
                                     <Label id="battle-pass-cycle-start-label" htmlFor="battle-pass-cycle-start-input">{t("quest.sessionCycleStartAt")}</Label>
