@@ -454,13 +454,18 @@ export async function deleteDailyQuestPool(gameId: string, poolId: string): Prom
 
 export interface SessionWindowConfig {
     session: {
-        repeatable: false;
+        schedule_mode: 'fixed';
         session_start_at: string;
         session_end_at: string;
     } | {
-        repeatable: true;
+        schedule_mode: 'interval';
         cycle_start_at: string;
-        repeat_every_months: number;
+        repeat_type: 'day' | 'week' | 'month';
+        repeat_amount: number;
+    } | {
+        schedule_mode: 'annual';
+        session_start_at: string;
+        session_end_at: string;
     };
 }
 export interface SessionQuestPool {
