@@ -131,6 +131,7 @@ export async function listQuestDefinitions(gameId: string, params?: {
     after?: string;
     sort_by?: string;
     order?: string;
+    pool_assigned?: boolean;
 }): Promise<ListQuestDefinitionsResponse> {
     const qs = new URLSearchParams();
     if (params?.status !== undefined)
@@ -143,6 +144,8 @@ export async function listQuestDefinitions(gameId: string, params?: {
         qs.set('sort_by', params.sort_by);
     if (params?.order)
         qs.set('order', params.order);
+    if (params?.pool_assigned !== undefined)
+        qs.set('pool_assigned', String(params.pool_assigned));
     const query = qs.toString() ? `?${qs}` : '';
     return api.get(`/api/v1/games/${gameId}/quest-definitions${query}`);
 }

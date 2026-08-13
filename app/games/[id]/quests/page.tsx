@@ -669,6 +669,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const [filterSearch, setFilterSearch] = useState(() => searchParams.get("q") ?? "");
     const [filterType, setFilterType] = useState(() => searchParams.get("type") ?? "all");
     const [filterActive, setFilterActive] = useState(() => searchParams.get("active") ?? "all");
+    const [filterPoolAssigned, setFilterPoolAssigned] = useState(() => searchParams.get("poolAssigned") ?? "all");
     const [sortBy, setSortBy] = useState(() => searchParams.get("sortBy") ?? "updated_at");
     const [sortOrder, setSortOrder] = useState(() => searchParams.get("sortOrder") ?? "desc");
     const questIdSearch = filterSearch.trim();
@@ -688,6 +689,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             sp.set("active", filterActive);
         else
             sp.delete("active");
+        if (filterPoolAssigned !== "all")
+            sp.set("poolAssigned", filterPoolAssigned);
+        else
+            sp.delete("poolAssigned");
         if (sortBy !== "updated_at")
             sp.set("sortBy", sortBy);
         else
@@ -698,7 +703,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             sp.delete("sortOrder");
         router.replace(`/games/${gameId}/quests?${sp.toString()}`, { scroll: false });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterSearch, filterType, filterActive, sortBy, sortOrder]);
+    }, [filterSearch, filterType, filterActive, filterPoolAssigned, sortBy, sortOrder]);
     useEffect(() => {
         const nextSearch = searchParams.get("q") ?? "";
         if (nextSearch !== filterSearch)
@@ -709,6 +714,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         const nextActive = searchParams.get("active") ?? "all";
         if (nextActive !== filterActive)
             setFilterActive(nextActive);
+        const nextPoolAssigned = searchParams.get("poolAssigned") ?? "all";
+        if (nextPoolAssigned !== filterPoolAssigned)
+            setFilterPoolAssigned(nextPoolAssigned);
         const nextSortBy = searchParams.get("sortBy") ?? "updated_at";
         if (nextSortBy !== sortBy)
             setSortBy(nextSortBy);
@@ -775,8 +783,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             return;
         setExpandedQuestId(filteredQuests[0].id);
     }, [filterSearch, filteredQuests]);
-    const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || sortBy !== "updated_at" || sortOrder !== "desc";
-    const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setSortBy("updated_at"); setSortOrder("desc"); };
+    const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || filterPoolAssigned !== "all" || sortBy !== "updated_at" || sortOrder !== "desc";
+    const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setFilterPoolAssigned("all"); setSortBy("updated_at"); setSortOrder("desc"); };
     // ── Data loading ─────────────────────────────────────────────────────────────
     const loadQuests = useCallback(async (after?: string) => {
         if (!game)
@@ -796,6 +804,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 after,
                 sort_by: sortBy,
                 order: sortOrder,
+                pool_assigned: filterPoolAssigned === "all" ? undefined : filterPoolAssigned === "assigned",
             });
             const newQuests = res.quests ?? [];
             if (after) {
@@ -812,7 +821,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             const msg = e instanceof ApiError ? e.message : "Failed to load quest definitions";
             setError(msg);
         }
-    }, [game, gameId, limit, filterActive, sortBy, sortOrder, hasQuestIdSearch, questIdSearch]);
+    }, [game, gameId, limit, filterActive, filterPoolAssigned, sortBy, sortOrder, hasQuestIdSearch, questIdSearch]);
     
     useEffect(() => {
         if (!game)
@@ -1631,6 +1640,16 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               <SelectItem value="all">{t('quest.allStatus')}</SelectItem>
               <SelectItem value="active">{t('quest.activeStatus')}</SelectItem>
               <SelectItem value="inactive">{t('quest.inactiveStatus')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterPoolAssigned} onValueChange={setFilterPoolAssigned}>
+            <SelectTrigger id="quest-list-filter-pool-assigned" className="quest-list-filter-pool-assigned h-8 w-[160px] text-xs">
+              <SelectValue placeholder={t('quest.allPoolAssignments')}/>
+            </SelectTrigger>
+            <SelectContent id="quest-list-filter-pool-assigned-options" className="quest-list-filter-pool-assigned-options">
+              <SelectItem id="quest-list-filter-pool-assigned-all" value="all">{t('quest.allPoolAssignments')}</SelectItem>
+              <SelectItem id="quest-list-filter-pool-assigned-yes" value="assigned">{t('quest.poolAssigned')}</SelectItem>
+              <SelectItem id="quest-list-filter-pool-assigned-no" value="unassigned">{t('quest.poolUnassigned')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o); }}>
