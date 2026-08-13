@@ -1610,19 +1610,34 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         </Alert>)}
 
       {/* Filters */}
-      {!loading && (<div id="quest-list-filters" className="quest-list-filters flex flex-wrap items-center gap-2">
-          <p id="quest-list-filter-summary" className="quest-list-filter-summary text-sm text-muted-foreground mr-auto">
-            {quests.length > 0
-                ? `${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
-                : `0 ${t('quest.questDefinitions')}`}
-          </p>
-          <div id="quest-list-filter-search" className="quest-list-filter-search relative min-w-[200px] max-w-xs">
-            <Search id="quest-list-filter-search-icon" className="quest-list-filter-search-icon absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-            <Input id="quest-list-filter-search-input" className="quest-list-filter-search-input h-8 pl-8 pr-8 text-sm" placeholder={t('quest.searchByNameDesc')} value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)}/>
-            {filterSearch.trim() && (<button id="quest-list-filter-search-clear" type="button" aria-label={t('common.clear')} onClick={() => setFilterSearch("")} className="quest-list-filter-search-clear absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
-                <X id="quest-list-filter-search-clear-icon" className="quest-list-filter-search-clear-icon h-3 w-3"/>
-              </button>)}
+      {!loading && (<div id="quest-list-filters" className="quest-list-filters space-y-2">
+          <div id="quest-list-filter-actions" className="quest-list-filter-actions flex flex-wrap items-center justify-end gap-2">
+            <p id="quest-list-filter-summary" className="quest-list-filter-summary mr-auto text-sm text-muted-foreground">
+              {quests.length > 0
+                  ? `${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
+                  : `0 ${t('quest.questDefinitions')}`}
+            </p>
+            <div id="quest-list-filter-search" className="quest-list-filter-search relative min-w-[200px] max-w-xs">
+              <Search id="quest-list-filter-search-icon" className="quest-list-filter-search-icon absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+              <Input id="quest-list-filter-search-input" className="quest-list-filter-search-input h-8 pl-8 pr-8 text-sm" placeholder={t('quest.searchByNameDesc')} value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)}/>
+              {filterSearch.trim() && (<button id="quest-list-filter-search-clear" type="button" aria-label={t('common.clear')} onClick={() => setFilterSearch("")} className="quest-list-filter-search-clear absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+                  <X id="quest-list-filter-search-clear-icon" className="quest-list-filter-search-clear-icon h-3 w-3"/>
+                </button>)}
+            </div>
+            <Button id="quest-list-filter-refresh" variant="outline" size="icon" className="quest-list-filter-refresh h-8 w-8" onClick={refresh} disabled={loading || refreshing}>
+              <RefreshCw id="quest-list-filter-refresh-icon" className={`quest-list-filter-refresh-icon h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
+            </Button>
+            <Button id="quest-list-filter-create" size="sm" className="quest-list-filter-create h-8" onClick={() => openCreate()} disabled={loading || !game}>
+              <Plus id="quest-list-filter-create-icon" className="quest-list-filter-create-icon h-4 w-4 mr-1"/>
+              {t('quest.newQuest')}
+            </Button>
           </div>
+          <div id="quest-list-filter-controls" className="quest-list-filter-controls flex flex-wrap items-end justify-end gap-2">
+          {hasActiveFilters && (<Button id="quest-list-filter-clear" variant="ghost" size="sm" className="quest-list-filter-clear h-8 text-xs" onClick={clearFilters}>
+              <X id="quest-list-filter-clear-icon" className="quest-list-filter-clear-icon h-3.5 w-3.5 mr-1"/> {t('quest.clear')}
+            </Button>)}
+          <div id="quest-list-filter-type-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-type-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-type">{t('quest.questType')}</Label>
           <Select value={filterType} onValueChange={setFilterType}>
             <SelectTrigger id="quest-list-filter-type" className="quest-list-filter-type h-8 w-[140px] text-xs">
               <SelectValue id="quest-list-filter-type-value" className="quest-list-filter-type-value" placeholder={t('quest.allTypes')}/>
@@ -1632,6 +1647,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               {questTypeOptions.map((t) => (<SelectItem id={`quest-list-filter-type-${t.value}`} className="quest-list-filter-type-option" key={t.value} value={t.value}>{t.label}</SelectItem>))}
             </SelectContent>
           </Select>
+          </div>
+          <div id="quest-list-filter-status-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-status-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-status">{t('quest.filterStatus')}</Label>
           <Select value={filterActive} onValueChange={setFilterActive}>
             <SelectTrigger id="quest-list-filter-status" className="quest-list-filter-status h-8 w-[120px] text-xs">
               <SelectValue id="quest-list-filter-status-value" className="quest-list-filter-status-value" placeholder={t('quest.allStatus')}/>
@@ -1642,8 +1660,11 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               <SelectItem id="quest-list-filter-status-inactive" className="quest-list-filter-status-option" value="inactive">{t('quest.inactiveStatus')}</SelectItem>
             </SelectContent>
           </Select>
+          </div>
+          <div id="quest-list-filter-pool-assigned-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-pool-assigned-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-pool-assigned">{t('quest.filterPoolAssignment')}</Label>
           <Select value={filterPoolAssigned} onValueChange={setFilterPoolAssigned}>
-            <SelectTrigger id="quest-list-filter-pool-assigned" className="quest-list-filter-pool-assigned h-8 w-[160px] text-xs">
+            <SelectTrigger id="quest-list-filter-pool-assigned" className="quest-list-filter-pool-assigned h-8 w-[220px] text-xs">
               <SelectValue id="quest-list-filter-pool-assigned-value" className="quest-list-filter-pool-assigned-value" placeholder={t('quest.allPoolAssignments')}/>
             </SelectTrigger>
             <SelectContent id="quest-list-filter-pool-assigned-options" className="quest-list-filter-pool-assigned-options">
@@ -1652,6 +1673,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               <SelectItem id="quest-list-filter-pool-assigned-no" className="quest-list-filter-pool-assigned-option" value="unassigned">{t('quest.poolUnassigned')}</SelectItem>
             </SelectContent>
           </Select>
+          </div>
+          <div id="quest-list-filter-sort-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-sort-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-sort">{t('quest.filterSort')}</Label>
           <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o); }}>
             <SelectTrigger id="quest-list-filter-sort" className="quest-list-filter-sort h-8 w-[160px] text-xs">
               <SelectValue id="quest-list-filter-sort-value" className="quest-list-filter-sort-value" placeholder="Sort"/>
@@ -1667,16 +1691,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               <SelectItem id="quest-list-filter-sort-updated-at-asc" className="quest-list-filter-sort-option" value="updated_at:asc">{t('quest.leastRecentlyUpdated')}</SelectItem>
             </SelectContent>
           </Select>
-          <Button id="quest-list-filter-refresh" variant="outline" size="icon" className="quest-list-filter-refresh h-8 w-8" onClick={refresh} disabled={loading || refreshing}>
-            <RefreshCw id="quest-list-filter-refresh-icon" className={`quest-list-filter-refresh-icon h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
-          </Button>
-          <Button id="quest-list-filter-create" size="sm" className="quest-list-filter-create h-8" onClick={() => openCreate()} disabled={loading || !game}>
-            <Plus id="quest-list-filter-create-icon" className="quest-list-filter-create-icon h-4 w-4 mr-1"/>
-            {t('quest.newQuest')}
-          </Button>
-          {hasActiveFilters && (<Button id="quest-list-filter-clear" variant="ghost" size="sm" className="quest-list-filter-clear h-8 text-xs" onClick={clearFilters}>
-              <X id="quest-list-filter-clear-icon" className="quest-list-filter-clear-icon h-3.5 w-3.5 mr-1"/> {t('quest.clear')}
-            </Button>)}
+          </div>
+          </div>
         </div>)}
 
       {/* Table */}
