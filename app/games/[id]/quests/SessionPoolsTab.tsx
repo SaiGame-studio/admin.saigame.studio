@@ -513,6 +513,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                 <div id="battle-pass-cycle-start-field" className="space-y-1">
                                     <Label id="battle-pass-cycle-start-label" htmlFor="battle-pass-cycle-start-input">{t("quest.sessionCycleStartAt")}</Label>
                                     <Input id="battle-pass-cycle-start-input" type="datetime-local" value={form.cycleStartAt} onChange={(event) => setForm({ ...form, cycleStartAt: event.target.value })} />
+                                    <p id="battle-pass-cycle-start-timezone" className="battle-pass-timezone text-xs text-muted-foreground">{t("profilePage.timezone")}: {timeZone}</p>
                                 </div>
                                 <div id="battle-pass-repeat-field" className="space-y-1">
                                     <Label id="battle-pass-repeat-label">{t("quest.sessionRepeatEvery")}</Label>
@@ -547,10 +548,12 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                 <div id="battle-pass-start-field" className="space-y-1">
                                     <Label id="battle-pass-start-label" htmlFor="battle-pass-start-input">{t("quest.sessionStartAt")}</Label>
                                     <Input id="battle-pass-start-input" type="datetime-local" value={form.startAt} onChange={(event) => setForm({ ...form, startAt: event.target.value })} />
+                                    <p id="battle-pass-start-timezone" className="battle-pass-timezone text-xs text-muted-foreground">{t("profilePage.timezone")}: {timeZone}</p>
                                 </div>
                                 <div id="battle-pass-end-field" className="space-y-1">
                                     <Label id="battle-pass-end-label" htmlFor="battle-pass-end-input">{t("quest.sessionEndAt")}</Label>
                                     <Input id="battle-pass-end-input" type="datetime-local" value={form.endAt} onChange={(event) => setForm({ ...form, endAt: event.target.value })} />
+                                    <p id="battle-pass-end-timezone" className="battle-pass-timezone text-xs text-muted-foreground">{t("profilePage.timezone")}: {timeZone}</p>
                                 </div>
                             </div>
                         )}
