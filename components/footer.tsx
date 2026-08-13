@@ -2,14 +2,16 @@
 import { useEffect, useState } from "react";
 import { Clock, Package } from "lucide-react";
 import { TipsBanner } from "@/components/TipsBanner";
+import { useAuth } from "@/contexts/auth-context";
 import { SITE_NAME } from "@/lib/utils/site-config";
 import { getUserTimezone } from "@/lib/utils/date-utils";
 export function Footer() {
     const version = process.env.NEXT_PUBLIC_APP_VERSION;
+    const { user } = useAuth();
     const [timezone, setTimezone] = useState<string>("");
     const [time, setTime] = useState<string>("");
     useEffect(() => {
-        const tz = getUserTimezone();
+        const tz = user?.timezone || getUserTimezone();
         setTimezone(tz);
         const tick = () => {
             const now = new Date();
@@ -24,13 +26,13 @@ export function Footer() {
         tick();
         const id = setInterval(tick, 1000);
         return () => clearInterval(id);
-    }, []);
+    }, [user?.timezone]);
     return (<footer id="app-footer" className="shrink-0 border-t py-2 px-4 text-xs text-muted-foreground flex items-center justify-between gap-3">
       <TipsBanner />
       <div id="app-footer-details" className="flex items-center gap-3">
-      {timezone && (<span className="flex items-center gap-1 opacity-60" title={`Dates and times are shown in: ${timezone}`}>
-          <Clock className="h-3 w-3"/>
-          {timezone}
+      {timezone && (<span id="app-footer-timezone" className="app-footer-timezone flex items-center gap-1 opacity-60" title={`Dates and times are shown in: ${timezone}`}>
+          <Clock id="app-footer-timezone-icon" className="app-footer-timezone-icon h-3 w-3"/>
+          <span id="app-footer-timezone-value" className="app-footer-timezone-value">{timezone}</span>
         </span>)}
       <span className="flex items-center gap-1">
         <Package className="h-3 w-3"/>
