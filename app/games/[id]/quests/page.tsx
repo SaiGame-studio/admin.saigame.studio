@@ -1610,72 +1610,72 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         </Alert>)}
 
       {/* Filters */}
-      {!loading && (<div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm text-muted-foreground mr-auto">
+      {!loading && (<div id="quest-list-filters" className="quest-list-filters flex flex-wrap items-center gap-2">
+          <p id="quest-list-filter-summary" className="quest-list-filter-summary text-sm text-muted-foreground mr-auto">
             {quests.length > 0
                 ? `${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
                 : `0 ${t('quest.questDefinitions')}`}
           </p>
-          <div className="relative min-w-[200px] max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-            <Input placeholder={t('quest.searchByNameDesc')} value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} className="h-8 pl-8 pr-8 text-sm"/>
-            {filterSearch.trim() && (<button type="button" aria-label={t('common.clear')} onClick={() => setFilterSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
-                <X className="h-3 w-3"/>
+          <div id="quest-list-filter-search" className="quest-list-filter-search relative min-w-[200px] max-w-xs">
+            <Search id="quest-list-filter-search-icon" className="quest-list-filter-search-icon absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+            <Input id="quest-list-filter-search-input" className="quest-list-filter-search-input h-8 pl-8 pr-8 text-sm" placeholder={t('quest.searchByNameDesc')} value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)}/>
+            {filterSearch.trim() && (<button id="quest-list-filter-search-clear" type="button" aria-label={t('common.clear')} onClick={() => setFilterSearch("")} className="quest-list-filter-search-clear absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+                <X id="quest-list-filter-search-clear-icon" className="quest-list-filter-search-clear-icon h-3 w-3"/>
               </button>)}
           </div>
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="h-8 w-[140px] text-xs">
-              <SelectValue placeholder={t('quest.allTypes')}/>
+            <SelectTrigger id="quest-list-filter-type" className="quest-list-filter-type h-8 w-[140px] text-xs">
+              <SelectValue id="quest-list-filter-type-value" className="quest-list-filter-type-value" placeholder={t('quest.allTypes')}/>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('quest.allTypes')}</SelectItem>
-              {questTypeOptions.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
+            <SelectContent id="quest-list-filter-type-options" className="quest-list-filter-type-options">
+              <SelectItem id="quest-list-filter-type-all" className="quest-list-filter-type-option" value="all">{t('quest.allTypes')}</SelectItem>
+              {questTypeOptions.map((t) => (<SelectItem id={`quest-list-filter-type-${t.value}`} className="quest-list-filter-type-option" key={t.value} value={t.value}>{t.label}</SelectItem>))}
             </SelectContent>
           </Select>
           <Select value={filterActive} onValueChange={setFilterActive}>
-            <SelectTrigger className="h-8 w-[120px] text-xs">
-              <SelectValue placeholder={t('quest.allStatus')}/>
+            <SelectTrigger id="quest-list-filter-status" className="quest-list-filter-status h-8 w-[120px] text-xs">
+              <SelectValue id="quest-list-filter-status-value" className="quest-list-filter-status-value" placeholder={t('quest.allStatus')}/>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('quest.allStatus')}</SelectItem>
-              <SelectItem value="active">{t('quest.activeStatus')}</SelectItem>
-              <SelectItem value="inactive">{t('quest.inactiveStatus')}</SelectItem>
+            <SelectContent id="quest-list-filter-status-options" className="quest-list-filter-status-options">
+              <SelectItem id="quest-list-filter-status-all" className="quest-list-filter-status-option" value="all">{t('quest.allStatus')}</SelectItem>
+              <SelectItem id="quest-list-filter-status-active" className="quest-list-filter-status-option" value="active">{t('quest.activeStatus')}</SelectItem>
+              <SelectItem id="quest-list-filter-status-inactive" className="quest-list-filter-status-option" value="inactive">{t('quest.inactiveStatus')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterPoolAssigned} onValueChange={setFilterPoolAssigned}>
             <SelectTrigger id="quest-list-filter-pool-assigned" className="quest-list-filter-pool-assigned h-8 w-[160px] text-xs">
-              <SelectValue placeholder={t('quest.allPoolAssignments')}/>
+              <SelectValue id="quest-list-filter-pool-assigned-value" className="quest-list-filter-pool-assigned-value" placeholder={t('quest.allPoolAssignments')}/>
             </SelectTrigger>
             <SelectContent id="quest-list-filter-pool-assigned-options" className="quest-list-filter-pool-assigned-options">
-              <SelectItem id="quest-list-filter-pool-assigned-all" value="all">{t('quest.allPoolAssignments')}</SelectItem>
-              <SelectItem id="quest-list-filter-pool-assigned-yes" value="assigned">{t('quest.poolAssigned')}</SelectItem>
-              <SelectItem id="quest-list-filter-pool-assigned-no" value="unassigned">{t('quest.poolUnassigned')}</SelectItem>
+              <SelectItem id="quest-list-filter-pool-assigned-all" className="quest-list-filter-pool-assigned-option" value="all">{t('quest.allPoolAssignments')}</SelectItem>
+              <SelectItem id="quest-list-filter-pool-assigned-yes" className="quest-list-filter-pool-assigned-option" value="assigned">{t('quest.poolAssigned')}</SelectItem>
+              <SelectItem id="quest-list-filter-pool-assigned-no" className="quest-list-filter-pool-assigned-option" value="unassigned">{t('quest.poolUnassigned')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o); }}>
-            <SelectTrigger className="h-8 w-[160px] text-xs">
-              <SelectValue placeholder="Sort"/>
+            <SelectTrigger id="quest-list-filter-sort" className="quest-list-filter-sort h-8 w-[160px] text-xs">
+              <SelectValue id="quest-list-filter-sort-value" className="quest-list-filter-sort-value" placeholder="Sort"/>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sort_order:asc">{t('quest.sortOrderAsc')}</SelectItem>
-              <SelectItem value="sort_order:desc">{t('quest.sortOrderDesc')}</SelectItem>
-              <SelectItem value="name:asc">{t('quest.nameAZ')}</SelectItem>
-              <SelectItem value="name:desc">{t('quest.nameZA')}</SelectItem>
-              <SelectItem value="created_at:desc">{t('quest.newestFirst')}</SelectItem>
-              <SelectItem value="created_at:asc">{t('quest.oldestFirst')}</SelectItem>
-              <SelectItem value="updated_at:desc">{t('quest.recentlyUpdated')}</SelectItem>
-              <SelectItem value="updated_at:asc">{t('quest.leastRecentlyUpdated')}</SelectItem>
+            <SelectContent id="quest-list-filter-sort-options" className="quest-list-filter-sort-options">
+              <SelectItem id="quest-list-filter-sort-order-asc" className="quest-list-filter-sort-option" value="sort_order:asc">{t('quest.sortOrderAsc')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-order-desc" className="quest-list-filter-sort-option" value="sort_order:desc">{t('quest.sortOrderDesc')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-name-asc" className="quest-list-filter-sort-option" value="name:asc">{t('quest.nameAZ')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-name-desc" className="quest-list-filter-sort-option" value="name:desc">{t('quest.nameZA')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-created-at-desc" className="quest-list-filter-sort-option" value="created_at:desc">{t('quest.newestFirst')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-created-at-asc" className="quest-list-filter-sort-option" value="created_at:asc">{t('quest.oldestFirst')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-updated-at-desc" className="quest-list-filter-sort-option" value="updated_at:desc">{t('quest.recentlyUpdated')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-updated-at-asc" className="quest-list-filter-sort-option" value="updated_at:asc">{t('quest.leastRecentlyUpdated')}</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={refresh} disabled={loading || refreshing}>
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
+          <Button id="quest-list-filter-refresh" variant="outline" size="icon" className="quest-list-filter-refresh h-8 w-8" onClick={refresh} disabled={loading || refreshing}>
+            <RefreshCw id="quest-list-filter-refresh-icon" className={`quest-list-filter-refresh-icon h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
           </Button>
-          <Button size="sm" className="h-8" onClick={() => openCreate()} disabled={loading || !game}>
-            <Plus className="h-4 w-4 mr-1"/>
+          <Button id="quest-list-filter-create" size="sm" className="quest-list-filter-create h-8" onClick={() => openCreate()} disabled={loading || !game}>
+            <Plus id="quest-list-filter-create-icon" className="quest-list-filter-create-icon h-4 w-4 mr-1"/>
             {t('quest.newQuest')}
           </Button>
-          {hasActiveFilters && (<Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
-              <X className="h-3.5 w-3.5 mr-1"/> {t('quest.clear')}
+          {hasActiveFilters && (<Button id="quest-list-filter-clear" variant="ghost" size="sm" className="quest-list-filter-clear h-8 text-xs" onClick={clearFilters}>
+              <X id="quest-list-filter-clear-icon" className="quest-list-filter-clear-icon h-3.5 w-3.5 mr-1"/> {t('quest.clear')}
             </Button>)}
         </div>)}
 
