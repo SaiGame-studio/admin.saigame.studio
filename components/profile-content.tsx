@@ -15,7 +15,7 @@ import { CopyButton } from "@/components/CopyButton";
 // Using a static list avoids relying on the browser's Intl.supportedValuesOf(),
 // which may return deprecated names (e.g. Pacific/Truk) that are rejected by
 // the server's Alpine Linux tzdata package.
-const ALL_TIMEZONES: string[] = [
+export const ALL_TIMEZONES: string[] = [
     "Africa/Abidjan", "Africa/Accra", "Africa/Addis_Ababa", "Africa/Algiers", "Africa/Asmara",
     "Africa/Bamako", "Africa/Bangui", "Africa/Banjul", "Africa/Bissau", "Africa/Blantyre",
     "Africa/Brazzaville", "Africa/Bujumbura", "Africa/Cairo", "Africa/Casablanca", "Africa/Ceuta",
