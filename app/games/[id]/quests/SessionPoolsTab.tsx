@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarRange, ChevronDown, ChevronRight, ExternalLink, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { CalendarRange, ChevronDown, ChevronRight, ExternalLink, Loader2, Pencil, Plus, RefreshCw, Trash2, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils";
 import { fromUserDatetime, getUserTimezone, toUserDatetime } from "@/lib/utils/date-utils";
+import { toSlugUnderscore } from "@/lib/utils";
 import {
     addChainToSessionQuestPool,
     createSessionQuestPool,
@@ -119,6 +120,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
     const [error, setError] = useState("");
     const [editing, setEditing] = useState<SessionQuestPool | null>(null);
     const [form, setForm] = useState<FormState>(EMPTY_FORM);
+    const [autoSlug, setAutoSlug] = useState(true);
     const [formOpen, setFormOpen] = useState(false);
     const [expandedPoolId, setExpandedPoolId] = useState<string | null>(null);
     const [fullSessionOnly, setFullSessionOnly] = useState(false);
@@ -203,6 +205,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
 
     const openCreate = () => {
         setEditing(null);
+        setAutoSlug(true);
         setForm({ ...EMPTY_FORM, ...defaultScheduleForm() });
         setFormOpen(true);
     };
@@ -218,6 +221,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
             repeatType: session.repeat_type, repeatAmount: session.repeat_amount,
         } : { cycleStartAt: "", repeatType: "month" as const, repeatAmount: 1 };
         setEditing(pool);
+        setAutoSlug(false);
         setForm({
             poolKey: pool.pool_key,
             displayName: pool.display_name,
@@ -473,11 +477,25 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                     <div id="battle-pass-form" className="space-y-4 py-4">
                         <div id="battle-pass-name-field" className="space-y-1">
                             <Label id="battle-pass-name-label" htmlFor="battle-pass-name-input">{t("quest.displayName")}</Label>
-                            <Input id="battle-pass-name-input" value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} />
+                            <Input id="battle-pass-name-input" value={form.displayName} onChange={(event) => {
+                                const displayName = event.target.value;
+                                setForm({ ...form, displayName, ...(autoSlug ? { poolKey: toSlugUnderscore(displayName) } : {}) });
+                            }} />
                         </div>
                         <div id="battle-pass-key-field" className="space-y-1">
                             <Label id="battle-pass-key-label" htmlFor="battle-pass-key-input">{t("quest.poolKey")}</Label>
-                            <Input id="battle-pass-key-input" value={form.poolKey} disabled={!!editing} onChange={(event) => setForm({ ...form, poolKey: event.target.value })} />
+                            <div id="battle-pass-key-row" className="flex gap-2">
+                                <Input id="battle-pass-key-input" value={form.poolKey} disabled={!!editing} onChange={(event) => {
+                                    setAutoSlug(false);
+                                    setForm({ ...form, poolKey: event.target.value });
+                                }} />
+                                <Button id="battle-pass-key-auto-slug-button" type="button" variant={autoSlug ? "default" : "outline"} size="icon" className="shrink-0" disabled={!!editing} title={autoSlug ? t("items.autoSlugOn") : t("items.autoSlugOff")} onClick={() => {
+                                    setAutoSlug(true);
+                                    setForm({ ...form, poolKey: toSlugUnderscore(form.displayName) });
+                                }}>
+                                    <Wand2 id="battle-pass-key-auto-slug-icon" className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                         <div id="battle-pass-schedule-mode-field" className="space-y-1">
                             <Label id="battle-pass-schedule-mode-label" htmlFor="battle-pass-schedule-mode-trigger">{t("quest.sessionScheduleMode")}</Label>
@@ -495,6 +513,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                 <div id="battle-pass-cycle-start-field" className="space-y-1">
                                     <Label id="battle-pass-cycle-start-label" htmlFor="battle-pass-cycle-start-input">{t("quest.sessionCycleStartAt")}</Label>
                                     <Input id="battle-pass-cycle-start-input" type="datetime-local" value={form.cycleStartAt} onChange={(event) => setForm({ ...form, cycleStartAt: event.target.value })} />
+                                    <p id="battle-pass-cycle-start-timezone" className="battle-pass-timezone text-xs text-muted-foreground">{t("profilePage.timezone")}: {timeZone}</p>
                                 </div>
                                 <div id="battle-pass-repeat-field" className="space-y-1">
                                     <Label id="battle-pass-repeat-label">{t("quest.sessionRepeatEvery")}</Label>
@@ -529,10 +548,12 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                 <div id="battle-pass-start-field" className="space-y-1">
                                     <Label id="battle-pass-start-label" htmlFor="battle-pass-start-input">{t("quest.sessionStartAt")}</Label>
                                     <Input id="battle-pass-start-input" type="datetime-local" value={form.startAt} onChange={(event) => setForm({ ...form, startAt: event.target.value })} />
+                                    <p id="battle-pass-start-timezone" className="battle-pass-timezone text-xs text-muted-foreground">{t("profilePage.timezone")}: {timeZone}</p>
                                 </div>
                                 <div id="battle-pass-end-field" className="space-y-1">
                                     <Label id="battle-pass-end-label" htmlFor="battle-pass-end-input">{t("quest.sessionEndAt")}</Label>
                                     <Input id="battle-pass-end-input" type="datetime-local" value={form.endAt} onChange={(event) => setForm({ ...form, endAt: event.target.value })} />
+                                    <p id="battle-pass-end-timezone" className="battle-pass-timezone text-xs text-muted-foreground">{t("profilePage.timezone")}: {timeZone}</p>
                                 </div>
                             </div>
                         )}
