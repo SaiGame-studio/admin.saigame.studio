@@ -1641,9 +1641,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                   <X id="quest-list-filter-search-clear-icon" className="quest-list-filter-search-clear-icon h-3 w-3"/>
                 </button>)}
             </div>
-            <Button id="quest-list-filter-refresh" variant="outline" size="icon" className="quest-list-filter-refresh h-8 w-8" onClick={refresh} disabled={refreshing}>
-              <RefreshCw id="quest-list-filter-refresh-icon" className={`quest-list-filter-refresh-icon h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
-            </Button>
             <Button id="quest-list-filter-create" size="sm" className="quest-list-filter-create h-8" onClick={() => openCreate()} disabled={!game}>
               <Plus id="quest-list-filter-create-icon" className="quest-list-filter-create-icon h-4 w-4 mr-1"/>
               {t('quest.newQuest')}
@@ -1709,6 +1706,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             </SelectContent>
           </Select>
           </div>
+          <Button id="quest-list-filter-refresh" variant="outline" size="icon" className="quest-list-filter-refresh h-8 w-8" onClick={refresh} disabled={refreshing}>
+            <RefreshCw id="quest-list-filter-refresh-icon" className={`quest-list-filter-refresh-icon h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
+          </Button>
           </div>
         </div>
 
@@ -1735,9 +1735,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               <TableHeader id="quest-list-table-header" className="quest-list-table-header">
                 <TableRow id="quest-list-table-header-row" className="quest-list-table-header-row">
                   <TableHead id="quest-list-table-name-header" className="quest-list-table-header-cell">{t('quest.name')}</TableHead>
-                  <TableHead id="quest-list-table-code-header" className="quest-list-table-header-cell">{t('quest.codeName')}</TableHead>
+                  <TableHead id="quest-list-table-code-header" className="quest-list-table-header-cell hidden">{t('quest.codeName')}</TableHead>
                   <TableHead id="quest-list-table-type-header" className="quest-list-table-header-cell">{t('quest.type')}</TableHead>
-                  <TableHead id="quest-list-table-conditions-header" className="quest-list-table-header-cell">{t('quest.conditions')}</TableHead>
+                  <TableHead id="quest-list-table-conditions-header" className="quest-list-table-header-cell hidden">{t('quest.conditions')}</TableHead>
                   <TableHead id="quest-list-table-rewards-header" className="quest-list-table-header-cell">{t('quest.rewards')}</TableHead>
                   <TableHead id="quest-list-table-delivery-header" className="quest-list-table-header-cell">{t('quest.delivery.column')}</TableHead>
 
@@ -1756,7 +1756,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                         <span id={`quest-list-item-name-text-${q.id}`} className="quest-list-item-name-text font-medium truncate">{q.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell id={`quest-list-item-code-cell-${q.id}`} className="quest-list-item-cell" onClick={(e) => e.stopPropagation()}>
+                    <TableCell id={`quest-list-item-code-cell-${q.id}`} className="quest-list-item-cell hidden" onClick={(e) => e.stopPropagation()}>
                       {q.code_name ? (<div id={`quest-list-item-code-${q.id}`} className="quest-list-item-code text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
                           <span id={`quest-list-item-code-text-${q.id}`} className="quest-list-item-code-text truncate max-w-[220px]">{q.code_name}</span>
                           <CopyButton text={q.code_name} size="h-3 w-3"/>
@@ -1767,7 +1767,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                         {q.quest_type}
                       </Badge>
                     </TableCell>
-                    <TableCell id={`quest-list-item-conditions-cell-${q.id}`} className="quest-list-item-cell text-sm">
+                    <TableCell id={`quest-list-item-conditions-cell-${q.id}`} className="quest-list-item-cell hidden text-sm">
                       {q.conditions ? (<span id={`quest-list-item-conditions-${q.id}`} className="quest-list-item-conditions inline-flex items-center gap-1">
                           <Badge id={`quest-list-item-conditions-operator-${q.id}`} variant="outline" className="quest-list-item-conditions-operator font-mono text-xs">
                             {q.conditions.operator}
@@ -1834,16 +1834,23 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                   </TableRow>
                   {/* Expanded detail row */}
                   {expandedQuestId === q.id && (<TableRow id={`quest-list-item-details-row-${q.id}`} className="quest-list-item-details-row bg-muted/20 hover:bg-muted/20">
-                      <TableCell id={`quest-list-item-details-cell-${q.id}`} colSpan={8} className="quest-list-item-details-cell p-0">
+                      <TableCell id={`quest-list-item-details-cell-${q.id}`} colSpan={6} className="quest-list-item-details-cell p-0">
                         <div id={`quest-list-item-details-${q.id}`} className="quest-list-item-details px-6 py-4 space-y-4 border-t border-dashed">
                           {/* Row 1: Quest ID + Description */}
-                          <div id={`quest-list-item-details-summary-${q.id}`} className="quest-list-item-details-summary grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div id={`quest-list-item-details-summary-${q.id}`} className="quest-list-item-details-summary grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                             <div id={`quest-list-item-id-${q.id}`} className="quest-list-item-details-field">
                               <p id={`quest-list-item-id-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
                               <div id={`quest-list-item-id-value-wrap-${q.id}`} className="quest-list-item-details-value flex items-center gap-1">
                                 <p id={`quest-list-item-id-value-${q.id}`} className="quest-list-item-id-value font-mono text-xs break-all">{q.id}</p>
                                 <CopyButton text={q.id} size="h-3 w-3"/>
                               </div>
+                            </div>
+                            <div id={`quest-list-item-code-detail-${q.id}`} className="quest-list-item-details-field">
+                              <p id={`quest-list-item-code-detail-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.codeName')}</p>
+                              {q.code_name ? (<div id={`quest-list-item-code-detail-value-wrap-${q.id}`} className="quest-list-item-details-value flex items-center gap-1">
+                                  <p id={`quest-list-item-code-detail-value-${q.id}`} className="quest-list-item-code-detail-value font-mono text-xs break-all">{q.code_name}</p>
+                                  <CopyButton text={q.code_name} size="h-3 w-3"/>
+                                </div>) : (<span id={`quest-list-item-code-detail-empty-${q.id}`} className="quest-list-item-code-detail-empty text-xs text-muted-foreground">—</span>)}
                             </div>
                             {q.description && (<div id={`quest-list-item-description-${q.id}`} className="quest-list-item-details-field">
                                 <p id={`quest-list-item-description-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
