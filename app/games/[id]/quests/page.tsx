@@ -713,7 +713,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             sp.set("sortOrder", sortOrder);
         else
             sp.delete("sortOrder");
-        router.replace(`/games/${gameId}/quests?${sp.toString()}`, { scroll: false });
+        const nextPath = `/games/${gameId}/quests?${sp.toString()}`;
+        if (filterSearch !== (searchParams.get("q") ?? "")) {
+            window.history.replaceState(window.history.state, "", nextPath);
+            return;
+        }
+        router.replace(nextPath, { scroll: false });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterSearch, filterType, filterActive, filterPoolAssigned, sortBy, sortOrder]);
     useEffect(() => {
@@ -1622,7 +1627,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         </Alert>)}
 
       {/* Filters */}
-      {!loading && (<div id="quest-list-filters" className="quest-list-filters space-y-2">
+      <div id="quest-list-filters" className="quest-list-filters space-y-2">
           <div id="quest-list-filter-actions" className="quest-list-filter-actions flex flex-wrap items-center justify-end gap-2">
             <p id="quest-list-filter-summary" className="quest-list-filter-summary mr-auto text-sm text-muted-foreground">
               {quests.length > 0
@@ -1636,10 +1641,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                   <X id="quest-list-filter-search-clear-icon" className="quest-list-filter-search-clear-icon h-3 w-3"/>
                 </button>)}
             </div>
-            <Button id="quest-list-filter-refresh" variant="outline" size="icon" className="quest-list-filter-refresh h-8 w-8" onClick={refresh} disabled={loading || refreshing}>
+            <Button id="quest-list-filter-refresh" variant="outline" size="icon" className="quest-list-filter-refresh h-8 w-8" onClick={refresh} disabled={refreshing}>
               <RefreshCw id="quest-list-filter-refresh-icon" className={`quest-list-filter-refresh-icon h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
             </Button>
-            <Button id="quest-list-filter-create" size="sm" className="quest-list-filter-create h-8" onClick={() => openCreate()} disabled={loading || !game}>
+            <Button id="quest-list-filter-create" size="sm" className="quest-list-filter-create h-8" onClick={() => openCreate()} disabled={!game}>
               <Plus id="quest-list-filter-create-icon" className="quest-list-filter-create-icon h-4 w-4 mr-1"/>
               {t('quest.newQuest')}
             </Button>
@@ -1705,7 +1710,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
           </Select>
           </div>
           </div>
-        </div>)}
+        </div>
 
       {/* Table */}
       <Card id="quest-list-card" className="quest-list-card">
