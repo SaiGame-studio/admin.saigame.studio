@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } fr
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { Plus, RefreshCw, Trash2, Pencil, GitFork, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, Boxes, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, GitFork, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, Boxes, Workflow, } from "lucide-react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,6 +121,11 @@ function getQuestChainAssignment(typeConfig?: Record<string, unknown>) {
     if (typeConfig?.pool_assigned !== true || typeof typeConfig.chain_id !== "string" || !typeConfig.chain_id || typeof typeConfig.chain_name !== "string" || !typeConfig.chain_name)
         return null;
     return { id: typeConfig.chain_id, name: typeConfig.chain_name };
+}
+function getQuestDailyPoolAssignment(typeConfig?: Record<string, unknown>) {
+    if (typeConfig?.pool_assigned !== true || typeof typeConfig.pool_id !== "string" || !typeConfig.pool_id || typeof typeConfig.pool_name !== "string" || !typeConfig.pool_name)
+        return null;
+    return { id: typeConfig.pool_id, name: typeConfig.pool_name };
 }
 type QuestDefinitionForm = CreateQuestDefinitionRequest & Pick<UpdateQuestDefinitionRequest, "sort_order">;
 const DEFAULT_FORM: QuestDefinitionForm = {
@@ -649,6 +654,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const [editQuest, setEditQuest] = useState<QuestDefinition | null>(null);
     const [deleteQuest, setDeleteQuest] = useState<QuestDefinition | null>(null);
     const [assignedChainQuest, setAssignedChainQuest] = useState<QuestDefinition | null>(null);
+    const [assignedDailyPoolQuest, setAssignedDailyPoolQuest] = useState<QuestDefinition | null>(null);
     // Form state
     const [form, setForm] = useState<QuestDefinitionForm>({ ...DEFAULT_FORM });
     const [autoSlug, setAutoSlug] = useState(true);
@@ -1800,9 +1806,17 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                         <Button id={`quest-list-item-edit-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-edit-btn h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
                           <Pencil id={`quest-list-item-edit-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
                         </Button>
-                        {getQuestChainAssignment(q.type_config) ? (
-                          <Button id={`quest-list-item-chain-assignment-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-chain-assignment-btn h-8 w-8" aria-label={t("quest.chainAssignment")} onClick={(e) => { e.stopPropagation(); setAssignedChainQuest(q); }}>
-                            <Boxes id={`quest-list-item-chain-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                        {getQuestChainAssignment(q.type_config) || getQuestDailyPoolAssignment(q.type_config) ? (
+                          <Button id={`quest-list-item-pool-assignment-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-pool-assignment-btn h-8 w-8" aria-label={t("quest.poolAssignment")} onClick={(e) => {
+                            e.stopPropagation();
+                            if (getQuestChainAssignment(q.type_config)) setAssignedChainQuest(q);
+                            else setAssignedDailyPoolQuest(q);
+                          }}>
+                            {getQuestChainAssignment(q.type_config) ? (
+                              <Workflow id={`quest-list-item-chain-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                            ) : (
+                              <Boxes id={`quest-list-item-daily-pool-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                            )}
                           </Button>
                         ) : (
                           <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
@@ -2055,7 +2069,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
           <AlertDialogHeader id="quest-chain-assignment-header">
             <AlertDialogTitle id="quest-chain-assignment-title">{t("quest.chainAssignment")}</AlertDialogTitle>
             <AlertDialogDescription id="quest-chain-assignment-description">
-              {t("quest.chainAssignmentDescription")} <strong id="quest-chain-assignment-name">{getQuestChainAssignment(assignedChainQuest?.type_config)?.name}</strong>.
+              {t("quest.chainAssignmentDescription")} <Link id="quest-chain-assignment-name" href={`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(getQuestChainAssignment(assignedChainQuest?.type_config)?.id ?? "")}`} className="inline-flex items-center gap-1 font-semibold text-primary underline underline-offset-2">
+                {getQuestChainAssignment(assignedChainQuest?.type_config)?.name}
+                <ExternalLink id="quest-chain-assignment-name-external-icon" className="h-3.5 w-3.5"/>
+              </Link>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter id="quest-chain-assignment-footer">
@@ -2066,6 +2083,27 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 router.push(`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(assignment.id)}`);
               setAssignedChainQuest(null);
             }}>{t("quest.openChain")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!assignedDailyPoolQuest} onOpenChange={(open) => !open && setAssignedDailyPoolQuest(null)}>
+        <AlertDialogContent id="quest-daily-pool-assignment-dialog">
+          <AlertDialogHeader id="quest-daily-pool-assignment-header">
+            <AlertDialogTitle id="quest-daily-pool-assignment-title">{t("quest.dailyPoolAssignment")}</AlertDialogTitle>
+            <AlertDialogDescription id="quest-daily-pool-assignment-description">
+              {t("quest.dailyPoolAssignmentDescription")} <Link id="quest-daily-pool-assignment-name" href={`/games/${gameId}/quests?tab=daily`} className="inline-flex items-center gap-1 font-semibold text-primary underline underline-offset-2">
+                {getQuestDailyPoolAssignment(assignedDailyPoolQuest?.type_config)?.name}
+                <ExternalLink id="quest-daily-pool-assignment-name-external-icon" className="h-3.5 w-3.5"/>
+              </Link>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter id="quest-daily-pool-assignment-footer">
+            <AlertDialogCancel id="quest-daily-pool-assignment-cancel">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction id="quest-daily-pool-assignment-open" onClick={() => {
+              router.push(`/games/${gameId}/quests?tab=daily`);
+              setAssignedDailyPoolQuest(null);
+            }}>{t("quest.openDailyPool")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
