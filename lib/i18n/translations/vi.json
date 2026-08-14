@@ -3290,6 +3290,8 @@
     "sessionPoolSaveFailed": "Không thể lưu Battle Pass",
     "sessionPoolChainAddFailed": "Không thể thêm chuỗi vào Battle Pass",
     "sessionPoolChainRemoveFailed": "Không thể gỡ chuỗi khỏi Battle Pass",
+    "sessionPoolRemoveChainTitle": "Gỡ chuỗi khỏi Battle Pass",
+    "sessionPoolRemoveChainDescription": "Bạn có chắc muốn gỡ",
     "sessionPoolDeleteFailed": "Không thể xóa Battle Pass",
     "sessionPoolEdit": "Sửa Battle Pass",
     "sessionPoolCreate": "Tạo Battle Pass",

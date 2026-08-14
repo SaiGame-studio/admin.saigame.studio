@@ -151,7 +151,7 @@ function ChainFlowViewContent({ gameId, chainId, members, questDefsMap, availabl
                     sortOrder: member.sort_order,
                     description: def?.description,
                     member,
-                    editHref: `/games/${gameId}/quests?editQuestId=${member.quest_definition_id}`,
+                    editHref: `/games/${gameId}/quests?tab=definitions&q=${encodeURIComponent(member.quest_definition_id)}`,
                     onEdit: onEditMember,
                     onRemove: onRemoveMember,
                 },

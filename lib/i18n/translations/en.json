@@ -3324,6 +3324,8 @@
     "sessionPoolSaveFailed": "Failed to save Battle Pass",
     "sessionPoolChainAddFailed": "Failed to add chain to Battle Pass",
     "sessionPoolChainRemoveFailed": "Failed to remove chain from Battle Pass",
+    "sessionPoolRemoveChainTitle": "Remove Chain from Battle Pass",
+    "sessionPoolRemoveChainDescription": "Are you sure you want to remove",
     "sessionPoolDeleteFailed": "Failed to delete Battle Pass",
     "sessionPoolEdit": "Edit Battle Pass",
     "sessionPoolCreate": "Create Battle Pass",

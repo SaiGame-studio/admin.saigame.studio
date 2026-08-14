@@ -3283,6 +3283,8 @@
     "sessionPoolSaveFailed": "バトルパスを保存できませんでした",
     "sessionPoolChainAddFailed": "チェーンをバトルパスに追加できませんでした",
     "sessionPoolChainRemoveFailed": "チェーンをバトルパスから外せませんでした",
+    "sessionPoolRemoveChainTitle": "バトルパスからチェーンを削除",
+    "sessionPoolRemoveChainDescription": "次のチェーンを削除してもよろしいですか：",
     "sessionPoolDeleteFailed": "バトルパスを削除できませんでした",
     "sessionPoolEdit": "バトルパスを編集",
     "sessionPoolCreate": "バトルパスを作成",
