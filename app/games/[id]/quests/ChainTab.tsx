@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils";
 import type { Game } from "@/types/game";
 import { listQuestChains, createQuestChain, updateQuestChain, deleteQuestChain, listQuestDefinitions, listChainMembers, addChainMember, updateChainMember, removeChainMember, type QuestChain, type QuestChainMember, type ChainType, type ChainContentType, type CreateQuestChainRequest, type UpdateQuestChainRequest, type QuestDefinition, type AddChainMemberRequest, type UpdateChainMemberRequest, } from "@/lib/quest-api";
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -37,6 +38,9 @@ function chainTypeBadgeVariant(type: ChainType) {
 }
 function toSlugKey(str: string) {
     return toSlugUnderscore(str);
+}
+function expandedQuestChainStorageKey(gameId: string) {
+    return `ss_quests_chain_expanded_${gameId}`;
 }
 
 function chainContentLabel(type: ChainContentType | undefined, t: (key: string) => string) {
@@ -148,6 +152,7 @@ export function ChainTab({ game }: {
     const [copiedChainId, setCopiedChainId] = useState<string | null>(null);
     // Expanded chain detail
     const [expandedChainId, setExpandedChainId] = useState<string | null>(null);
+    const hasRestoredExpandedChain = useRef(false);
     const [expandedChain, setExpandedChain] = useState<QuestChain | null>(null);
     const [expandedMembers, setExpandedMembers] = useState<QuestChainMember[]>([]);
     const [expandedLoading, setExpandedLoading] = useState(false);
@@ -298,13 +303,16 @@ export function ChainTab({ game }: {
         return () => window.clearTimeout(timer);
     }, [chainSearch]);
     const toggleExpand = async (chainId: string) => {
+		const storageKey = expandedQuestChainStorageKey(gameId);
         if (expandedChainId === chainId) {
             setExpandedChainId(null);
+            safeRemoveItem(storageKey);
             setExpandedChain(null);
             setExpandedMembers([]);
             return;
         }
         setExpandedChainId(chainId);
+        safeSetItem(storageKey, chainId);
         setExpandedChain(null);
         setExpandedMembers([]);
         setExpandedLoading(true);
@@ -399,6 +407,7 @@ export function ChainTab({ game }: {
             setDeleteTarget(null);
             if (expandedChainId === deleteTarget.id) {
                 setExpandedChainId(null);
+                safeRemoveItem(expandedQuestChainStorageKey(gameId));
                 setExpandedChain(null);
                 setExpandedMembers([]);
             }
@@ -440,6 +449,20 @@ export function ChainTab({ game }: {
     const getAvailableQuests = (): QuestDefinition[] => {
         return allQuestDefs.filter((q) => !assignedQuestIds.has(q.id) && q.quest_type !== 'daily' && !isQuestAssignedToPool(q));
     };
+	useEffect(() => {
+		if (loading || hasRestoredExpandedChain.current || !gameId || chainSearch.trim())
+			return;
+		hasRestoredExpandedChain.current = true;
+		const storedChainId = safeGetItem(expandedQuestChainStorageKey(gameId));
+		if (!storedChainId)
+			return;
+		if (!chains.some((chain) => chain.id === storedChainId)) {
+			safeRemoveItem(expandedQuestChainStorageKey(gameId));
+			return;
+		}
+		void toggleExpand(storedChainId);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [loading, chains, chainSearch, gameId]);
     const handleAddMember = async () => {
         if (!addMemberChainId || !addMemberForm.quest_definition_id) {
             toast({ variant: "destructive", title: t('quest.chain.validationError'), description: t('quest.chain.selectQuestDef') });
@@ -512,7 +535,7 @@ export function ChainTab({ game }: {
             setRemoveMemberTarget(null);
             if (expandedChainId)
                 await refreshExpanded(expandedChainId);
-            await loadChains();
+            await Promise.all([loadChains(), loadQuestDefsMap()]);
         }
         catch (e) {
             if (e instanceof ApiError && e.status === 404) {
@@ -1079,17 +1102,20 @@ export function ChainTab({ game }: {
 
       {/* ─── Remove Member Confirmation ───────────────────────────────────── */}
       <AlertDialog open={!!removeMemberTarget} onOpenChange={(open) => !open && setRemoveMemberTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('quest.chain.removeQuestTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('quest.chain.removeQuestConfirm')} <strong>{removeMemberTarget?.questName}</strong> {t('quest.chain.removeQuestDesc')}
+        <AlertDialogContent id="quest-chain-remove-member-dialog">
+          <AlertDialogHeader id="quest-chain-remove-member-header">
+            <AlertDialogTitle id="quest-chain-remove-member-title">{t('quest.chain.removeQuestTitle')}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div id="quest-chain-remove-member-description" className="space-y-2">
+                <p id="quest-chain-remove-member-confirmation">{t('quest.chain.removeQuestConfirm')} <strong id="quest-chain-remove-member-name">{removeMemberTarget?.questName}</strong> {t('quest.chain.removeQuestFromChain')}</p>
+                <p id="quest-chain-remove-member-note">{t('quest.chain.removeQuestDesc')}</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={removeMemberDeleting}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemoveMember} disabled={removeMemberDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {removeMemberDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin"/>}
+          <AlertDialogFooter id="quest-chain-remove-member-footer">
+            <AlertDialogCancel id="quest-chain-remove-member-cancel" disabled={removeMemberDeleting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction id="quest-chain-remove-member-confirm" onClick={handleRemoveMember} disabled={removeMemberDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {removeMemberDeleting && <Loader2 id="quest-chain-remove-member-loading" className="h-4 w-4 mr-2 animate-spin"/>}
               {t('common.remove')}
             </AlertDialogAction>
           </AlertDialogFooter>

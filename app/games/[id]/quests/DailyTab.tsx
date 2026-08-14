@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { getUserTimezone } from "@/lib/utils/date-utils";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils";
 import type { Game } from "@/types/game";
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays";
 import { listDailyQuestPools, getDailyQuestPool, listPoolQuests, createDailyQuestPool, updateDailyQuestPool, deleteDailyQuestPool, updateQuestDefinition, addQuestToPool, removeQuestFromPool, listQuestDefinitions, type DailyQuestPool, type DailyQuestPoolQuest, type CreateDailyQuestPoolRequest, type UpdateDailyQuestPoolRequest, type AddQuestToPoolRequest, type AssignmentStrategy, type QuestDefinition, } from "@/lib/quest-api";
@@ -303,6 +304,9 @@ function formatDailyPoolResetTime(resetHourUTC: number, timeZone: string) {
     const resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), resetHourUTC));
     return new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(resetAt);
 }
+function expandedDailyQuestPoolStorageKey(gameId: string) {
+    return `ss_quests_daily_pool_expanded_${gameId}`;
+}
 // ─── Reward Editor (inline, reused from DefinitionsTab pattern) ───────────────
 // ─── Daily Tab (exported) ────────────────────────────────────────────────────
 export function DailyTab({ game, onGameUpdate }: {
@@ -327,6 +331,7 @@ export function DailyTab({ game, onGameUpdate }: {
     const [error, setError] = useState<string | null>(null);
     // Expanded pool detail
     const [expandedPoolId, setExpandedPoolId] = useState<string | null>(null);
+    const hasRestoredExpandedPool = useRef(false);
     const [expandedPool, setExpandedPool] = useState<DailyQuestPool | null>(null);
     const [expandedQuests, setExpandedQuests] = useState<DailyQuestPoolQuest[]>([]);
     const [expandedLoading, setExpandedLoading] = useState(false);
@@ -413,13 +418,16 @@ export function DailyTab({ game, onGameUpdate }: {
     };
     // ── Load pool detail (expand) ─────────────────────────────────────────────
     const toggleExpand = async (poolId: string) => {
+		const storageKey = expandedDailyQuestPoolStorageKey(gameId);
         if (expandedPoolId === poolId) {
             setExpandedPoolId(null);
+            safeRemoveItem(storageKey);
             setExpandedPool(null);
             setExpandedQuests([]);
             return;
         }
         setExpandedPoolId(poolId);
+        safeSetItem(storageKey, poolId);
         setExpandedPool(null);
         setExpandedQuests([]);
         setAddQuestForm({ quest_id: "", weight: 10, sequence_order: 0 });
@@ -449,6 +457,20 @@ export function DailyTab({ game, onGameUpdate }: {
             setExpandedLoading(false);
         }
     };
+	useEffect(() => {
+		if (loading || hasRestoredExpandedPool.current || !gameId)
+			return;
+		hasRestoredExpandedPool.current = true;
+		const storedPoolId = safeGetItem(expandedDailyQuestPoolStorageKey(gameId));
+		if (!storedPoolId)
+			return;
+		if (!pools.some((pool) => pool.id === storedPoolId)) {
+			safeRemoveItem(expandedDailyQuestPoolStorageKey(gameId));
+			return;
+		}
+		void toggleExpand(storedPoolId);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [loading, pools, gameId]);
     const refreshExpanded = async (poolId: string) => {
         try {
             const [detail, questsData] = await Promise.all([
@@ -534,6 +556,7 @@ export function DailyTab({ game, onGameUpdate }: {
             setDeletePool(null);
             if (expandedPoolId === deletePool.id) {
                 setExpandedPoolId(null);
+                safeRemoveItem(expandedDailyQuestPoolStorageKey(gameId));
                 setExpandedPool(null);
                 setExpandedQuests([]);
             }

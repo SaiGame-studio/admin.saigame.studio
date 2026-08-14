@@ -125,6 +125,8 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
     const [expandedPoolId, setExpandedPoolId] = useState<string | null>(null);
     const [fullSessionOnly, setFullSessionOnly] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<SessionQuestPool | null>(null);
+    const [removeChainTarget, setRemoveChainTarget] = useState<{ poolId: string; chainId: string; chainName: string } | null>(null);
+    const [removingChain, setRemovingChain] = useState(false);
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
     const load = useCallback(async () => {
@@ -284,11 +286,15 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
     };
 
     const removeChain = async (poolId: string, chainId: string) => {
+		setRemovingChain(true);
         try {
             await removeChainFromSessionQuestPool(gameId, poolId, chainId);
+		setRemoveChainTarget(null);
             await load();
         } catch (cause) {
             setError(cause instanceof Error ? cause.message : t("quest.sessionPoolChainRemoveFailed"));
+		} finally {
+			setRemovingChain(false);
         }
     };
 
@@ -419,7 +425,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                                     <p id={`battle-pass-assigned-empty-${pool.id}`} className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">{t("quest.sessionPoolNoAssignedChains")}</p>
                                                 ) : poolMemberships.map((membership) => {
                                                     const chain = chains.find((item) => item.id === membership.chain_id);
-                                                    return <SortableBattlePassChain key={membership.id} membership={membership} chain={chain} onRemove={() => void removeChain(pool.id, membership.chain_id)} onOpenChain={() => router.push(`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(membership.chain_id)}`)} />;
+                                                    return <SortableBattlePassChain key={membership.id} membership={membership} chain={chain} onRemove={() => setRemoveChainTarget({ poolId: pool.id, chainId: membership.chain_id, chainName: chain?.display_name ?? membership.chain_id })} onOpenChain={() => router.push(`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(membership.chain_id)}`)} />;
                                                 })}
                                             </div>
                                             </SortableContext>
@@ -587,6 +593,22 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                     <AlertDialogFooter id="battle-pass-delete-footer">
                         <AlertDialogCancel id="battle-pass-delete-cancel">{t("common.cancel")}</AlertDialogCancel>
                         <AlertDialogAction id="battle-pass-delete-confirm" onClick={() => void confirmDelete()}>{t("common.delete")}</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={!!removeChainTarget} onOpenChange={(open) => !open && !removingChain && setRemoveChainTarget(null)}>
+                <AlertDialogContent id="battle-pass-remove-chain-dialog">
+                    <AlertDialogHeader id="battle-pass-remove-chain-header">
+                        <AlertDialogTitle id="battle-pass-remove-chain-title">{t("quest.sessionPoolRemoveChainTitle")}</AlertDialogTitle>
+                        <AlertDialogDescription id="battle-pass-remove-chain-description">{t("quest.sessionPoolRemoveChainDescription")} <strong id="battle-pass-remove-chain-name">{removeChainTarget?.chainName}</strong>?</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter id="battle-pass-remove-chain-footer">
+                        <AlertDialogCancel id="battle-pass-remove-chain-cancel" disabled={removingChain}>{t("common.cancel")}</AlertDialogCancel>
+                        <AlertDialogAction id="battle-pass-remove-chain-confirm" disabled={removingChain} onClick={() => removeChainTarget && void removeChain(removeChainTarget.poolId, removeChainTarget.chainId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            {removingChain && <Loader2 id="battle-pass-remove-chain-loading" className="mr-2 h-4 w-4 animate-spin"/>}
+                            {t("common.remove")}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

@@ -62,8 +62,8 @@ function QuestNode({ data }: NodeProps<Node<QuestNodeData>>) {
             {data.label}
           </p>
           <div className="flex items-center gap-0.5 shrink-0">
-            <a href={data.editHref} target="_blank" rel="noopener noreferrer" className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors" title={t('quest.flow.openQuestDef')} onClick={(e) => e.stopPropagation()}>
-              <ExternalLink className="h-3 w-3 text-muted-foreground"/>
+            <a id={`quest-chain-graph-quest-link-${data.member.quest_definition_id}`} href={data.editHref} className="quest-chain-graph-quest-link h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors" title={t('quest.flow.openQuestDef')} onClick={(e) => e.stopPropagation()}>
+              <ExternalLink id={`quest-chain-graph-quest-link-icon-${data.member.quest_definition_id}`} className="quest-chain-graph-quest-link-icon h-3 w-3 text-muted-foreground"/>
             </a>
             <button className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors" title={t('quest.flow.editMembership')} onClick={(e) => { e.stopPropagation(); data.onEdit(data.member); }}>
               <Pencil className="h-3 w-3 text-muted-foreground"/>
@@ -151,7 +151,7 @@ function ChainFlowViewContent({ gameId, chainId, members, questDefsMap, availabl
                     sortOrder: member.sort_order,
                     description: def?.description,
                     member,
-                    editHref: `/games/${gameId}/quests?editQuestId=${member.quest_definition_id}`,
+                    editHref: `/games/${gameId}/quests?tab=definitions&q=${encodeURIComponent(member.quest_definition_id)}`,
                     onEdit: onEditMember,
                     onRemove: onRemoveMember,
                 },
