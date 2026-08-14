@@ -5,7 +5,7 @@ import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type D
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { CalendarRange, ChevronDown, ChevronRight, ExternalLink, Loader2, Pencil, Plus, RefreshCw, Trash2, Wand2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
     AlertDialog,
@@ -50,17 +50,17 @@ import {
 } from "@/lib/quest-api";
 import { createDefaultSessionPoolSchedule } from "./sessionPoolSchedule";
 
-function SortableBattlePassChain({ membership, chain, onRemove, onOpenChain }: { membership: SessionQuestPoolChain; chain?: QuestChain; onRemove: () => void; onOpenChain: () => void }) {
+function SortableBattlePassChain({ membership, chain, onRemove, chainHref }: { membership: SessionQuestPoolChain; chain?: QuestChain; onRemove: () => void; chainHref: string }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: membership.chain_id });
     return (
         <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} {...attributes} id={`battle-pass-assigned-chain-${membership.id}`} className={`flex items-center justify-between rounded-md border px-3 py-2 ${isDragging ? "z-10 bg-background shadow-lg" : ""}`}>
             <div id={`battle-pass-assigned-chain-info-${membership.id}`} className="flex min-w-0 items-center gap-3">
                 <button id={`battle-pass-assigned-chain-drag-${membership.id}`} type="button" className="cursor-grab text-muted-foreground active:cursor-grabbing" aria-label="Reorder chain" {...listeners}>⋮⋮</button>
                 <span id={`battle-pass-assigned-chain-order-${membership.id}`} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">{membership.sort_order + 1}</span>
-                <button id={`battle-pass-assigned-chain-name-${membership.id}`} type="button" className="group flex min-w-0 items-center gap-1 truncate text-left text-sm hover:text-primary" onClick={onOpenChain} title={chain?.display_name ?? membership.chain_id}>
+                <Link id={`battle-pass-assigned-chain-name-${membership.id}`} href={chainHref} className="group flex min-w-0 items-center gap-1 truncate text-left text-sm hover:text-primary" title={chain?.display_name ?? membership.chain_id}>
                     <span className="truncate">{chain?.display_name ?? membership.chain_id}</span>
                     <ExternalLink id={`battle-pass-assigned-chain-link-icon-${membership.id}`} className="h-3.5 w-3.5 shrink-0 opacity-60 group-hover:opacity-100" />
-                </button>
+                </Link>
             </div>
             <Button id={`battle-pass-assigned-chain-remove-${membership.id}`} size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={onRemove} title="Remove chain">
                 <Trash2 id={`battle-pass-assigned-chain-remove-icon-${membership.id}`} className="h-4 w-4" />
@@ -107,7 +107,6 @@ function defaultScheduleForm() {
 }
 
 export function SessionPoolsTab({ gameId }: { gameId: string }) {
-    const router = useRouter();
     const { t } = useTranslation();
     const { toast } = useToast();
     const timeZone = getUserTimezone();
@@ -425,7 +424,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                                     <p id={`battle-pass-assigned-empty-${pool.id}`} className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">{t("quest.sessionPoolNoAssignedChains")}</p>
                                                 ) : poolMemberships.map((membership) => {
                                                     const chain = chains.find((item) => item.id === membership.chain_id);
-                                                    return <SortableBattlePassChain key={membership.id} membership={membership} chain={chain} onRemove={() => setRemoveChainTarget({ poolId: pool.id, chainId: membership.chain_id, chainName: chain?.display_name ?? membership.chain_id })} onOpenChain={() => router.push(`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(membership.chain_id)}`)} />;
+                                                    return <SortableBattlePassChain key={membership.id} membership={membership} chain={chain} onRemove={() => setRemoveChainTarget({ poolId: pool.id, chainId: membership.chain_id, chainName: chain?.display_name ?? membership.chain_id })} chainHref={`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(membership.chain_id)}`} />;
                                                 })}
                                             </div>
                                             </SortableContext>
@@ -455,10 +454,10 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                                     return (
                                                     <div id={`battle-pass-available-chain-${pool.id}-${chain.id}`} key={chain.id} className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 ${canAdd ? "" : "bg-muted/50 text-muted-foreground"}`}>
                                                         <div id={`battle-pass-available-chain-info-${pool.id}-${chain.id}`} className="flex min-w-0 items-center gap-2">
-                                                        <button id={`battle-pass-available-chain-name-${pool.id}-${chain.id}`} type="button" className="group flex min-w-0 items-center gap-1 truncate text-left text-sm hover:text-primary" onClick={() => router.push(`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(chain.id)}`)} title={chain.display_name}>
+                                                        <Link id={`battle-pass-available-chain-name-${pool.id}-${chain.id}`} href={`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(chain.id)}`} className="group flex min-w-0 items-center gap-1 truncate text-left text-sm hover:text-primary" title={chain.display_name}>
                                                             <span className="truncate">{chain.display_name}</span>
                                                             <ExternalLink id={`battle-pass-available-chain-link-icon-${pool.id}-${chain.id}`} className="h-3.5 w-3.5 shrink-0 opacity-60 group-hover:opacity-100" />
-                                                        </button>
+                                                        </Link>
                                                             <Badge id={`battle-pass-available-chain-content-${pool.id}-${chain.id}`} variant="secondary" className="shrink-0 text-[10px]">{contentLabel}</Badge>
                                                         </div>
                                                         <Button id={`battle-pass-available-chain-add-${pool.id}-${chain.id}`} size="sm" variant="outline" disabled={!canAdd} onClick={() => void addChain(pool.id, chain.id)}>{t("common.add")}</Button>
