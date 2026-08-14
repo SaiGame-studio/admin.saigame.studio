@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } fr
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { Plus, RefreshCw, Trash2, Pencil, GitFork, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, GitFork, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, Boxes, } from "lucide-react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,6 +116,11 @@ function getOneTimeExpirationMinutes(typeConfig?: Record<string, unknown>) {
     if (!expiration || typeof expiration !== "object" || Array.isArray(expiration)) return undefined;
     const minutes = (expiration as Record<string, unknown>).expire_after_minutes;
     return typeof minutes === "number" ? minutes : undefined;
+}
+function getQuestChainAssignment(typeConfig?: Record<string, unknown>) {
+    if (typeConfig?.pool_assigned !== true || typeof typeConfig.chain_id !== "string" || !typeConfig.chain_id || typeof typeConfig.chain_name !== "string" || !typeConfig.chain_name)
+        return null;
+    return { id: typeConfig.chain_id, name: typeConfig.chain_name };
 }
 type QuestDefinitionForm = CreateQuestDefinitionRequest & Pick<UpdateQuestDefinitionRequest, "sort_order">;
 const DEFAULT_FORM: QuestDefinitionForm = {
@@ -643,6 +648,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const [createOpen, setCreateOpen] = useState(false);
     const [editQuest, setEditQuest] = useState<QuestDefinition | null>(null);
     const [deleteQuest, setDeleteQuest] = useState<QuestDefinition | null>(null);
+    const [assignedChainQuest, setAssignedChainQuest] = useState<QuestDefinition | null>(null);
     // Form state
     const [form, setForm] = useState<QuestDefinitionForm>({ ...DEFAULT_FORM });
     const [autoSlug, setAutoSlug] = useState(true);
@@ -1794,9 +1800,15 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                         <Button id={`quest-list-item-edit-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-edit-btn h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
                           <Pencil id={`quest-list-item-edit-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
                         </Button>
-                        <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
-                          <Trash2 id={`quest-list-item-delete-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
-                        </Button>
+                        {getQuestChainAssignment(q.type_config) ? (
+                          <Button id={`quest-list-item-chain-assignment-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-chain-assignment-btn h-8 w-8" aria-label={t("quest.chainAssignment")} onClick={(e) => { e.stopPropagation(); setAssignedChainQuest(q); }}>
+                            <Boxes id={`quest-list-item-chain-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                          </Button>
+                        ) : (
+                          <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
+                            <Trash2 id={`quest-list-item-delete-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                          </Button>
+                        )}
                         </div>
                       </TooltipProvider>
                     </TableCell>
@@ -2034,6 +2046,26 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               {deleting && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
               {t('common.delete')}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!assignedChainQuest} onOpenChange={(open) => !open && setAssignedChainQuest(null)}>
+        <AlertDialogContent id="quest-chain-assignment-dialog">
+          <AlertDialogHeader id="quest-chain-assignment-header">
+            <AlertDialogTitle id="quest-chain-assignment-title">{t("quest.chainAssignment")}</AlertDialogTitle>
+            <AlertDialogDescription id="quest-chain-assignment-description">
+              {t("quest.chainAssignmentDescription")} <strong id="quest-chain-assignment-name">{getQuestChainAssignment(assignedChainQuest?.type_config)?.name}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter id="quest-chain-assignment-footer">
+            <AlertDialogCancel id="quest-chain-assignment-cancel">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction id="quest-chain-assignment-open" onClick={() => {
+              const assignment = getQuestChainAssignment(assignedChainQuest?.type_config);
+              if (assignment)
+                router.push(`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(assignment.id)}`);
+              setAssignedChainQuest(null);
+            }}>{t("quest.openChain")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

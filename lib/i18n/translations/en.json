@@ -3304,6 +3304,9 @@
   "quest": {
     "tabDefinitions": "Definitions",
     "cloneQuestDefinition": "Clone quest definition",
+    "chainAssignment": "Chain assignment",
+    "chainAssignmentDescription": "This quest belongs to the chain",
+    "openChain": "Open chain",
     "tabChains": "Chains",
     "tabDaily": "Daily",
     "tabSessionPools": "Battle Pass",

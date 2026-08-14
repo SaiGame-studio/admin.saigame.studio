@@ -3270,6 +3270,9 @@
   "quest": {
     "tabDefinitions": "Định nghĩa",
     "cloneQuestDefinition": "Sao chép định nghĩa quest",
+    "chainAssignment": "Gán chuỗi",
+    "chainAssignmentDescription": "Quest này thuộc chuỗi",
+    "openChain": "Mở chuỗi",
     "tabChains": "Chuỗi",
     "tabDaily": "Hàng ngày",
     "tabSessionPools": "Battle Pass",

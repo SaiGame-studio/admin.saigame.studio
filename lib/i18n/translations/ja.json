@@ -3263,6 +3263,9 @@
   "quest": {
     "tabDefinitions": "定義",
     "cloneQuestDefinition": "クエスト定義を複製",
+    "chainAssignment": "チェーン割り当て",
+    "chainAssignmentDescription": "このクエストは次のチェーンに属しています",
+    "openChain": "チェーンを開く",
     "tabChains": "チェーン",
     "tabDaily": "デイリー",
     "tabSessionPools": "バトルパス",
