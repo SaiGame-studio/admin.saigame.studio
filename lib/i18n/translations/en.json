@@ -503,7 +503,6 @@
     "sourceGameIsTarget": "Current Game",
     "sourceGameSelect": "Clone Game",
     "sourceGameStartCloneProgress": "Start Clone Progress",
-    "sourceGameCloneProgressStarted": "Clone progress started.",
     "sourceGameCloneProgressFailed": "Failed to start clone progress.",
     "sourceGameCloneProgressInsufficientBalance": "Insufficient balance.",
     "sourceGameMoreTitle": "More results available",

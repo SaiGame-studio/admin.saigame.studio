@@ -503,7 +503,6 @@
     "sourceGameIsTarget": "現在のゲーム",
     "sourceGameSelect": "ゲームを複製",
     "sourceGameStartCloneProgress": "複製進捗を開始",
-    "sourceGameCloneProgressStarted": "複製進捗を開始しました。",
     "sourceGameCloneProgressFailed": "複製進捗を開始できませんでした。",
     "sourceGameCloneProgressInsufficientBalance": "残高が不足しています。",
     "sourceGameMoreTitle": "さらに結果があります",

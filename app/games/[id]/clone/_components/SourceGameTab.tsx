@@ -268,10 +268,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         try {
             await createCloneSession(targetGameId, selectedGame.id, `${selectedGame.name} -> ${targetGameName}`);
             void loadCurrentSession();
-            toast({
-                title: t("common.saved"),
-                description: t("cloneGame.sourceGameCloneProgressStarted"),
-            });
         } catch (error) {
             const description = getCloneSessionErrorMessage(error, t);
 
