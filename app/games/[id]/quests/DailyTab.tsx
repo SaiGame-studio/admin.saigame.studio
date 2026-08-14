@@ -21,6 +21,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
+import { getUserTimezone } from "@/lib/utils/date-utils";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Game } from "@/types/game";
@@ -296,6 +298,11 @@ function strategyLabel(strategy: AssignmentStrategy, t: (key: string) => string)
     const option = STRATEGY_OPTIONS.find((s) => s.value === strategy);
     return option ? t(option.labelKey) : strategy;
 }
+function formatDailyPoolResetTime(resetHourUTC: number, timeZone: string) {
+    const now = new Date();
+    const resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), resetHourUTC));
+    return new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(resetAt);
+}
 // ─── Reward Editor (inline, reused from DefinitionsTab pattern) ───────────────
 // ─── Daily Tab (exported) ────────────────────────────────────────────────────
 export function DailyTab({ game, onGameUpdate }: {
@@ -307,6 +314,8 @@ export function DailyTab({ game, onGameUpdate }: {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const { user } = useAuth();
+    const userTimeZone = user?.timezone || getUserTimezone();
     const subTab = (searchParams.get("subTab") ?? "list") as "list" | "grid";
     const setSubTab = (v: "list" | "grid") => {
         router.replace(`?tab=daily&subTab=${encodeURIComponent(v)}`);
@@ -704,7 +713,7 @@ export function DailyTab({ game, onGameUpdate }: {
                           <span className="mx-2">·</span>
                           <span id={`daily-pool-card-slots-${pool.id}`} className="daily-pool-card-slots">{pool.slots_per_day} {t('quest.daily.slotsPerDayUnit')}</span>
                           <span className="mx-2">·</span>
-                          <span id={`daily-pool-card-reset-${pool.id}`} className="daily-pool-card-reset">{t('quest.daily.resetAt')} {pool.reset_hour_utc}:00 UTC</span>
+                          <span id={`daily-pool-card-reset-${pool.id}`} className="daily-pool-card-reset">{t('quest.daily.resetAt')} {formatDailyPoolResetTime(pool.reset_hour_utc, userTimeZone)} {userTimeZone}</span>
                           <span className="mx-2">·</span>
                           <span id={`daily-pool-card-quest-count-${pool.id}`} className="daily-pool-card-quest-count">{pool.quest_count || 0} {(pool.quest_count || 0) !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}</span>
                         </CardDescription>

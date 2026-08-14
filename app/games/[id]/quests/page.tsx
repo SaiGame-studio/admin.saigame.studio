@@ -26,6 +26,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { listGachaPacks, listItemDefinitions } from "@/lib/inventory-api";
 import type { GachaPack, ItemDefinition, Paginated } from "@/types/inventory";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
+import { formatISODate } from "@/lib/utils/date-utils";
 import { useEscapeLayer } from "@/hooks/use-escape-manager";
 import { getGame } from "@/lib/game-api";
 import { fetchStudioWithCache } from "@/lib/studio-api";
@@ -622,6 +624,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const { user } = useAuth();
     const [quests, setQuests] = useState<QuestDefinition[]>([]);
     const [totalQuests, setTotalQuests] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -1947,8 +1950,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
 
                           {/* Timestamps */}
                           <div id={`quest-list-item-timestamps-${q.id}`} className="quest-list-item-timestamps flex gap-6 text-xs text-muted-foreground">
-                            <span id={`quest-list-item-created-${q.id}`} className="quest-list-item-timestamp">{t('quest.created')} {new Date(q.created_at).toLocaleString()}</span>
-                            <span id={`quest-list-item-updated-${q.id}`} className="quest-list-item-timestamp">{t('quest.updated')} {new Date(q.updated_at).toLocaleString()}</span>
+                            <span id={`quest-list-item-created-${q.id}`} className="quest-list-item-timestamp">{t('quest.created')} {formatISODate(q.created_at, user?.timezone ?? undefined)}</span>
+                            <span id={`quest-list-item-updated-${q.id}`} className="quest-list-item-timestamp">{t('quest.updated')} {formatISODate(q.updated_at, user?.timezone ?? undefined)}</span>
                           </div>
                         </div>
                       </TableCell>
