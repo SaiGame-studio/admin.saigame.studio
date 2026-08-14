@@ -512,7 +512,7 @@ export function ChainTab({ game }: {
             setRemoveMemberTarget(null);
             if (expandedChainId)
                 await refreshExpanded(expandedChainId);
-            await loadChains();
+            await Promise.all([loadChains(), loadQuestDefsMap()]);
         }
         catch (e) {
             if (e instanceof ApiError && e.status === 404) {
@@ -1079,17 +1079,20 @@ export function ChainTab({ game }: {
 
       {/* ─── Remove Member Confirmation ───────────────────────────────────── */}
       <AlertDialog open={!!removeMemberTarget} onOpenChange={(open) => !open && setRemoveMemberTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('quest.chain.removeQuestTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('quest.chain.removeQuestConfirm')} <strong>{removeMemberTarget?.questName}</strong> {t('quest.chain.removeQuestDesc')}
+        <AlertDialogContent id="quest-chain-remove-member-dialog">
+          <AlertDialogHeader id="quest-chain-remove-member-header">
+            <AlertDialogTitle id="quest-chain-remove-member-title">{t('quest.chain.removeQuestTitle')}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div id="quest-chain-remove-member-description" className="space-y-2">
+                <p id="quest-chain-remove-member-confirmation">{t('quest.chain.removeQuestConfirm')} <strong id="quest-chain-remove-member-name">{removeMemberTarget?.questName}</strong> {t('quest.chain.removeQuestFromChain')}</p>
+                <p id="quest-chain-remove-member-note">{t('quest.chain.removeQuestDesc')}</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={removeMemberDeleting}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemoveMember} disabled={removeMemberDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {removeMemberDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin"/>}
+          <AlertDialogFooter id="quest-chain-remove-member-footer">
+            <AlertDialogCancel id="quest-chain-remove-member-cancel" disabled={removeMemberDeleting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction id="quest-chain-remove-member-confirm" onClick={handleRemoveMember} disabled={removeMemberDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {removeMemberDeleting && <Loader2 id="quest-chain-remove-member-loading" className="h-4 w-4 mr-2 animate-spin"/>}
               {t('common.remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
