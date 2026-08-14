@@ -598,7 +598,6 @@ export function DailyTab({ game, onGameUpdate }: {
         setAddQuestSaving(true);
         try {
             await addQuestToPool(gameId, expandedPoolId, addQuestForm);
-            toast({ title: t('quest.daily.questAddedToPool') });
             setAddQuestForm((prev) => ({ ...prev, quest_id: "" }));
             await refreshExpanded(expandedPoolId);
         }
@@ -617,7 +616,6 @@ export function DailyTab({ game, onGameUpdate }: {
         setRemoveQuestDeleting(true);
         try {
             await removeQuestFromPool(gameId, removeQuestTarget.poolId, removeQuestTarget.questId);
-            toast({ title: t('quest.daily.questRemovedFromPool') });
             setRemoveQuestTarget(null);
             if (expandedPoolId)
                 await refreshExpanded(expandedPoolId);
@@ -799,7 +797,6 @@ export function DailyTab({ game, onGameUpdate }: {
                                                 }
                                                 try {
                                                     await addQuestToPool(gameId, expandedPoolId, { quest_id: draggedQuestId, weight: 1, sequence_order: dow });
-                                                    toast({ title: t('quest.daily.questAssigned') });
                                                     await refreshExpanded(expandedPoolId);
                                                 }
                                                 catch (err) {
