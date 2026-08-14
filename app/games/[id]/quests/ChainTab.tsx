@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChainFlowView } from "./ChainFlowView";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Game } from "@/types/game";
@@ -132,6 +133,7 @@ export function ChainTab({ game }: {
     const searchParams = useSearchParams();
     const { toast } = useToast();
     const { t } = useTranslation();
+    const { user } = useAuth();
     const CHAIN_TYPE_OPTIONS = useMemo(() => [
         { value: "linear" as ChainType, label: t('quest.chain.typeLinear'), icon: <ArrowRight className="h-4 w-4"/>, description: t('quest.chain.typeLinearDesc') },
         { value: "branching" as ChainType, label: t('quest.chain.typeBranching'), icon: <GitBranch className="h-4 w-4"/>, description: t('quest.chain.typeBranchingDesc') },
@@ -689,7 +691,7 @@ export function ChainTab({ game }: {
                       {/* Created */}
                       <div className="text-center" title={t('quest.chain.created')}>
                         <p className="text-xs text-muted-foreground leading-none">{t('quest.chain.created')}</p>
-                        <p className="text-sm font-medium">{new Date(chain.created_at).toLocaleDateString()}</p>
+                        <p className="text-sm font-medium">{new Date(chain.created_at).toLocaleDateString(undefined, { timeZone: user?.timezone ?? undefined })}</p>
                       </div>
                       <Separator orientation="vertical" className="h-5"/>
                       <Button id={`quest-chain-edit-${chain.id}`} variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(chain)} title={t('quest.chain.editChain')}>

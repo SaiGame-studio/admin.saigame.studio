@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } fr
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { Plus, RefreshCw, Trash2, Pencil, GitFork, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, GitFork, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, Boxes, Workflow, } from "lucide-react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { listGachaPacks, listItemDefinitions } from "@/lib/inventory-api";
 import type { GachaPack, ItemDefinition, Paginated } from "@/types/inventory";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
+import { formatISODate } from "@/lib/utils/date-utils";
 import { useEscapeLayer } from "@/hooks/use-escape-manager";
 import { getGame } from "@/lib/game-api";
 import { fetchStudioWithCache } from "@/lib/studio-api";
@@ -116,6 +118,16 @@ function getOneTimeExpirationMinutes(typeConfig?: Record<string, unknown>) {
     if (!expiration || typeof expiration !== "object" || Array.isArray(expiration)) return undefined;
     const minutes = (expiration as Record<string, unknown>).expire_after_minutes;
     return typeof minutes === "number" ? minutes : undefined;
+}
+function getQuestChainAssignment(typeConfig?: Record<string, unknown>) {
+    if (typeConfig?.pool_assigned !== true || typeof typeConfig.chain_id !== "string" || !typeConfig.chain_id || typeof typeConfig.chain_name !== "string" || !typeConfig.chain_name)
+        return null;
+    return { id: typeConfig.chain_id, name: typeConfig.chain_name };
+}
+function getQuestDailyPoolAssignment(typeConfig?: Record<string, unknown>) {
+    if (typeConfig?.pool_assigned !== true || typeof typeConfig.pool_id !== "string" || !typeConfig.pool_id || typeof typeConfig.pool_name !== "string" || !typeConfig.pool_name)
+        return null;
+    return { id: typeConfig.pool_id, name: typeConfig.pool_name };
 }
 type QuestDefinitionForm = CreateQuestDefinitionRequest & Pick<UpdateQuestDefinitionRequest, "sort_order">;
 const DEFAULT_FORM: QuestDefinitionForm = {
@@ -612,6 +624,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const { user } = useAuth();
     const [quests, setQuests] = useState<QuestDefinition[]>([]);
     const [totalQuests, setTotalQuests] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -643,6 +656,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const [createOpen, setCreateOpen] = useState(false);
     const [editQuest, setEditQuest] = useState<QuestDefinition | null>(null);
     const [deleteQuest, setDeleteQuest] = useState<QuestDefinition | null>(null);
+    const [assignedChainQuest, setAssignedChainQuest] = useState<QuestDefinition | null>(null);
+    const [assignedDailyPoolQuest, setAssignedDailyPoolQuest] = useState<QuestDefinition | null>(null);
     // Form state
     const [form, setForm] = useState<QuestDefinitionForm>({ ...DEFAULT_FORM });
     const [autoSlug, setAutoSlug] = useState(true);
@@ -669,6 +684,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const [filterSearch, setFilterSearch] = useState(() => searchParams.get("q") ?? "");
     const [filterType, setFilterType] = useState(() => searchParams.get("type") ?? "all");
     const [filterActive, setFilterActive] = useState(() => searchParams.get("active") ?? "all");
+    const [filterPoolAssigned, setFilterPoolAssigned] = useState(() => searchParams.get("poolAssigned") ?? "all");
     const [sortBy, setSortBy] = useState(() => searchParams.get("sortBy") ?? "updated_at");
     const [sortOrder, setSortOrder] = useState(() => searchParams.get("sortOrder") ?? "desc");
     const questIdSearch = filterSearch.trim();
@@ -688,6 +704,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             sp.set("active", filterActive);
         else
             sp.delete("active");
+        if (filterPoolAssigned !== "all")
+            sp.set("poolAssigned", filterPoolAssigned);
+        else
+            sp.delete("poolAssigned");
         if (sortBy !== "updated_at")
             sp.set("sortBy", sortBy);
         else
@@ -696,9 +716,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             sp.set("sortOrder", sortOrder);
         else
             sp.delete("sortOrder");
-        router.replace(`/games/${gameId}/quests?${sp.toString()}`, { scroll: false });
+        const nextPath = `/games/${gameId}/quests?${sp.toString()}`;
+        if (filterSearch !== (searchParams.get("q") ?? "")) {
+            window.history.replaceState(window.history.state, "", nextPath);
+            return;
+        }
+        router.replace(nextPath, { scroll: false });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterSearch, filterType, filterActive, sortBy, sortOrder]);
+    }, [filterSearch, filterType, filterActive, filterPoolAssigned, sortBy, sortOrder]);
     useEffect(() => {
         const nextSearch = searchParams.get("q") ?? "";
         if (nextSearch !== filterSearch)
@@ -709,6 +734,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         const nextActive = searchParams.get("active") ?? "all";
         if (nextActive !== filterActive)
             setFilterActive(nextActive);
+        const nextPoolAssigned = searchParams.get("poolAssigned") ?? "all";
+        if (nextPoolAssigned !== filterPoolAssigned)
+            setFilterPoolAssigned(nextPoolAssigned);
         const nextSortBy = searchParams.get("sortBy") ?? "updated_at";
         if (nextSortBy !== sortBy)
             setSortBy(nextSortBy);
@@ -775,8 +803,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             return;
         setExpandedQuestId(filteredQuests[0].id);
     }, [filterSearch, filteredQuests]);
-    const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || sortBy !== "updated_at" || sortOrder !== "desc";
-    const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setSortBy("updated_at"); setSortOrder("desc"); };
+    const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || filterPoolAssigned !== "all" || sortBy !== "updated_at" || sortOrder !== "desc";
+    const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setFilterPoolAssigned("all"); setSortBy("updated_at"); setSortOrder("desc"); };
     // ── Data loading ─────────────────────────────────────────────────────────────
     const loadQuests = useCallback(async (after?: string) => {
         if (!game)
@@ -796,6 +824,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 after,
                 sort_by: sortBy,
                 order: sortOrder,
+                pool_assigned: filterPoolAssigned === "all" ? undefined : filterPoolAssigned === "assigned",
             });
             const newQuests = res.quests ?? [];
             if (after) {
@@ -812,7 +841,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             const msg = e instanceof ApiError ? e.message : "Failed to load quest definitions";
             setError(msg);
         }
-    }, [game, gameId, limit, filterActive, sortBy, sortOrder, hasQuestIdSearch, questIdSearch]);
+    }, [game, gameId, limit, filterActive, filterPoolAssigned, sortBy, sortOrder, hasQuestIdSearch, questIdSearch]);
     
     useEffect(() => {
         if (!game)
@@ -1601,64 +1630,90 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         </Alert>)}
 
       {/* Filters */}
-      {!loading && (<div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm text-muted-foreground mr-auto">
-            {quests.length > 0
-                ? `${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
-                : `0 ${t('quest.questDefinitions')}`}
-          </p>
-          <div className="relative min-w-[200px] max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-            <Input placeholder={t('quest.searchByNameDesc')} value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} className="h-8 pl-8 pr-8 text-sm"/>
-            {filterSearch.trim() && (<button type="button" aria-label={t('common.clear')} onClick={() => setFilterSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
-                <X className="h-3 w-3"/>
-              </button>)}
+      <div id="quest-list-filters" className="quest-list-filters space-y-2">
+          <div id="quest-list-filter-actions" className="quest-list-filter-actions flex flex-wrap items-center justify-end gap-2">
+            <p id="quest-list-filter-summary" className="quest-list-filter-summary mr-auto text-sm text-muted-foreground">
+              {quests.length > 0
+                  ? `${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
+                  : `0 ${t('quest.questDefinitions')}`}
+            </p>
+            <div id="quest-list-filter-search" className="quest-list-filter-search relative min-w-[200px] max-w-xs">
+              <Search id="quest-list-filter-search-icon" className="quest-list-filter-search-icon absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+              <Input id="quest-list-filter-search-input" className="quest-list-filter-search-input h-8 pl-8 pr-8 text-sm" placeholder={t('quest.searchByNameDesc')} value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)}/>
+              {filterSearch.trim() && (<button id="quest-list-filter-search-clear" type="button" aria-label={t('common.clear')} onClick={() => setFilterSearch("")} className="quest-list-filter-search-clear absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+                  <X id="quest-list-filter-search-clear-icon" className="quest-list-filter-search-clear-icon h-3 w-3"/>
+                </button>)}
+            </div>
+            <Button id="quest-list-filter-create" size="sm" className="quest-list-filter-create h-8" onClick={() => openCreate()} disabled={!game}>
+              <Plus id="quest-list-filter-create-icon" className="quest-list-filter-create-icon h-4 w-4 mr-1"/>
+              {t('quest.newQuest')}
+            </Button>
           </div>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="h-8 w-[140px] text-xs">
-              <SelectValue placeholder={t('quest.allTypes')}/>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('quest.allTypes')}</SelectItem>
-              {questTypeOptions.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
-            </SelectContent>
-          </Select>
-          <Select value={filterActive} onValueChange={setFilterActive}>
-            <SelectTrigger className="h-8 w-[120px] text-xs">
-              <SelectValue placeholder={t('quest.allStatus')}/>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('quest.allStatus')}</SelectItem>
-              <SelectItem value="active">{t('quest.activeStatus')}</SelectItem>
-              <SelectItem value="inactive">{t('quest.inactiveStatus')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o); }}>
-            <SelectTrigger className="h-8 w-[160px] text-xs">
-              <SelectValue placeholder="Sort"/>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sort_order:asc">{t('quest.sortOrderAsc')}</SelectItem>
-              <SelectItem value="sort_order:desc">{t('quest.sortOrderDesc')}</SelectItem>
-              <SelectItem value="name:asc">{t('quest.nameAZ')}</SelectItem>
-              <SelectItem value="name:desc">{t('quest.nameZA')}</SelectItem>
-              <SelectItem value="created_at:desc">{t('quest.newestFirst')}</SelectItem>
-              <SelectItem value="created_at:asc">{t('quest.oldestFirst')}</SelectItem>
-              <SelectItem value="updated_at:desc">{t('quest.recentlyUpdated')}</SelectItem>
-              <SelectItem value="updated_at:asc">{t('quest.leastRecentlyUpdated')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={refresh} disabled={loading || refreshing}>
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
-          </Button>
-          <Button size="sm" className="h-8" onClick={() => openCreate()} disabled={loading || !game}>
-            <Plus className="h-4 w-4 mr-1"/>
-            {t('quest.newQuest')}
-          </Button>
-          {hasActiveFilters && (<Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
-              <X className="h-3.5 w-3.5 mr-1"/> {t('quest.clear')}
+          <div id="quest-list-filter-controls" className="quest-list-filter-controls flex flex-wrap items-end justify-end gap-2">
+          {hasActiveFilters && (<Button id="quest-list-filter-clear" variant="ghost" size="sm" className="quest-list-filter-clear h-8 text-xs" onClick={clearFilters}>
+              <X id="quest-list-filter-clear-icon" className="quest-list-filter-clear-icon h-3.5 w-3.5 mr-1"/> {t('quest.clear')}
             </Button>)}
-        </div>)}
+          <div id="quest-list-filter-type-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-type-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-type">{t('quest.questType')}</Label>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger id="quest-list-filter-type" className="quest-list-filter-type h-8 w-[140px] text-xs">
+              <SelectValue id="quest-list-filter-type-value" className="quest-list-filter-type-value" placeholder={t('quest.allTypes')}/>
+            </SelectTrigger>
+            <SelectContent id="quest-list-filter-type-options" className="quest-list-filter-type-options">
+              <SelectItem id="quest-list-filter-type-all" className="quest-list-filter-type-option" value="all">{t('quest.allTypes')}</SelectItem>
+              {questTypeOptions.map((t) => (<SelectItem id={`quest-list-filter-type-${t.value}`} className="quest-list-filter-type-option" key={t.value} value={t.value}>{t.label}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          </div>
+          <div id="quest-list-filter-status-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-status-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-status">{t('quest.filterStatus')}</Label>
+          <Select value={filterActive} onValueChange={setFilterActive}>
+            <SelectTrigger id="quest-list-filter-status" className="quest-list-filter-status h-8 w-[120px] text-xs">
+              <SelectValue id="quest-list-filter-status-value" className="quest-list-filter-status-value" placeholder={t('quest.allStatus')}/>
+            </SelectTrigger>
+            <SelectContent id="quest-list-filter-status-options" className="quest-list-filter-status-options">
+              <SelectItem id="quest-list-filter-status-all" className="quest-list-filter-status-option" value="all">{t('quest.allStatus')}</SelectItem>
+              <SelectItem id="quest-list-filter-status-active" className="quest-list-filter-status-option" value="active">{t('quest.activeStatus')}</SelectItem>
+              <SelectItem id="quest-list-filter-status-inactive" className="quest-list-filter-status-option" value="inactive">{t('quest.inactiveStatus')}</SelectItem>
+            </SelectContent>
+          </Select>
+          </div>
+          <div id="quest-list-filter-pool-assigned-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-pool-assigned-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-pool-assigned">{t('quest.filterPoolAssignment')}</Label>
+          <Select value={filterPoolAssigned} onValueChange={setFilterPoolAssigned}>
+            <SelectTrigger id="quest-list-filter-pool-assigned" className="quest-list-filter-pool-assigned h-8 w-[220px] text-xs">
+              <SelectValue id="quest-list-filter-pool-assigned-value" className="quest-list-filter-pool-assigned-value" placeholder={t('quest.allPoolAssignments')}/>
+            </SelectTrigger>
+            <SelectContent id="quest-list-filter-pool-assigned-options" className="quest-list-filter-pool-assigned-options">
+              <SelectItem id="quest-list-filter-pool-assigned-all" className="quest-list-filter-pool-assigned-option" value="all">{t('quest.allPoolAssignments')}</SelectItem>
+              <SelectItem id="quest-list-filter-pool-assigned-yes" className="quest-list-filter-pool-assigned-option" value="assigned">{t('quest.poolAssigned')}</SelectItem>
+              <SelectItem id="quest-list-filter-pool-assigned-no" className="quest-list-filter-pool-assigned-option" value="unassigned">{t('quest.poolUnassigned')}</SelectItem>
+            </SelectContent>
+          </Select>
+          </div>
+          <div id="quest-list-filter-sort-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-sort-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-sort">{t('quest.filterSort')}</Label>
+          <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o); }}>
+            <SelectTrigger id="quest-list-filter-sort" className="quest-list-filter-sort h-8 w-[160px] text-xs">
+              <SelectValue id="quest-list-filter-sort-value" className="quest-list-filter-sort-value" placeholder="Sort"/>
+            </SelectTrigger>
+            <SelectContent id="quest-list-filter-sort-options" className="quest-list-filter-sort-options">
+              <SelectItem id="quest-list-filter-sort-order-asc" className="quest-list-filter-sort-option" value="sort_order:asc">{t('quest.sortOrderAsc')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-order-desc" className="quest-list-filter-sort-option" value="sort_order:desc">{t('quest.sortOrderDesc')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-name-asc" className="quest-list-filter-sort-option" value="name:asc">{t('quest.nameAZ')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-name-desc" className="quest-list-filter-sort-option" value="name:desc">{t('quest.nameZA')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-created-at-desc" className="quest-list-filter-sort-option" value="created_at:desc">{t('quest.newestFirst')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-created-at-asc" className="quest-list-filter-sort-option" value="created_at:asc">{t('quest.oldestFirst')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-updated-at-desc" className="quest-list-filter-sort-option" value="updated_at:desc">{t('quest.recentlyUpdated')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-updated-at-asc" className="quest-list-filter-sort-option" value="updated_at:asc">{t('quest.leastRecentlyUpdated')}</SelectItem>
+            </SelectContent>
+          </Select>
+          </div>
+          <Button id="quest-list-filter-refresh" variant="outline" size="icon" className="quest-list-filter-refresh h-8 w-8" onClick={refresh} disabled={refreshing}>
+            <RefreshCw id="quest-list-filter-refresh-icon" className={`quest-list-filter-refresh-icon h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
+          </Button>
+          </div>
+        </div>
 
       {/* Table */}
       <Card id="quest-list-card" className="quest-list-card">
@@ -1683,9 +1738,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               <TableHeader id="quest-list-table-header" className="quest-list-table-header">
                 <TableRow id="quest-list-table-header-row" className="quest-list-table-header-row">
                   <TableHead id="quest-list-table-name-header" className="quest-list-table-header-cell">{t('quest.name')}</TableHead>
-                  <TableHead id="quest-list-table-code-header" className="quest-list-table-header-cell">{t('quest.codeName')}</TableHead>
+                  <TableHead id="quest-list-table-code-header" className="quest-list-table-header-cell hidden">{t('quest.codeName')}</TableHead>
                   <TableHead id="quest-list-table-type-header" className="quest-list-table-header-cell">{t('quest.type')}</TableHead>
-                  <TableHead id="quest-list-table-conditions-header" className="quest-list-table-header-cell">{t('quest.conditions')}</TableHead>
+                  <TableHead id="quest-list-table-conditions-header" className="quest-list-table-header-cell hidden">{t('quest.conditions')}</TableHead>
                   <TableHead id="quest-list-table-rewards-header" className="quest-list-table-header-cell">{t('quest.rewards')}</TableHead>
                   <TableHead id="quest-list-table-delivery-header" className="quest-list-table-header-cell">{t('quest.delivery.column')}</TableHead>
 
@@ -1704,7 +1759,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                         <span id={`quest-list-item-name-text-${q.id}`} className="quest-list-item-name-text font-medium truncate">{q.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell id={`quest-list-item-code-cell-${q.id}`} className="quest-list-item-cell" onClick={(e) => e.stopPropagation()}>
+                    <TableCell id={`quest-list-item-code-cell-${q.id}`} className="quest-list-item-cell hidden" onClick={(e) => e.stopPropagation()}>
                       {q.code_name ? (<div id={`quest-list-item-code-${q.id}`} className="quest-list-item-code text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
                           <span id={`quest-list-item-code-text-${q.id}`} className="quest-list-item-code-text truncate max-w-[220px]">{q.code_name}</span>
                           <CopyButton text={q.code_name} size="h-3 w-3"/>
@@ -1715,7 +1770,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                         {q.quest_type}
                       </Badge>
                     </TableCell>
-                    <TableCell id={`quest-list-item-conditions-cell-${q.id}`} className="quest-list-item-cell text-sm">
+                    <TableCell id={`quest-list-item-conditions-cell-${q.id}`} className="quest-list-item-cell hidden text-sm">
                       {q.conditions ? (<span id={`quest-list-item-conditions-${q.id}`} className="quest-list-item-conditions inline-flex items-center gap-1">
                           <Badge id={`quest-list-item-conditions-operator-${q.id}`} variant="outline" className="quest-list-item-conditions-operator font-mono text-xs">
                             {q.conditions.operator}
@@ -1759,25 +1814,46 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                         <Button id={`quest-list-item-edit-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-edit-btn h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
                           <Pencil id={`quest-list-item-edit-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
                         </Button>
-                        <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
-                          <Trash2 id={`quest-list-item-delete-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
-                        </Button>
+                        {getQuestChainAssignment(q.type_config) || getQuestDailyPoolAssignment(q.type_config) ? (
+                          <Button id={`quest-list-item-pool-assignment-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-pool-assignment-btn h-8 w-8" aria-label={t("quest.poolAssignment")} onClick={(e) => {
+                            e.stopPropagation();
+                            if (getQuestChainAssignment(q.type_config)) setAssignedChainQuest(q);
+                            else setAssignedDailyPoolQuest(q);
+                          }}>
+                            {getQuestChainAssignment(q.type_config) ? (
+                              <Workflow id={`quest-list-item-chain-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                            ) : (
+                              <Boxes id={`quest-list-item-daily-pool-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                            )}
+                          </Button>
+                        ) : (
+                          <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
+                            <Trash2 id={`quest-list-item-delete-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                          </Button>
+                        )}
                         </div>
                       </TooltipProvider>
                     </TableCell>
                   </TableRow>
                   {/* Expanded detail row */}
                   {expandedQuestId === q.id && (<TableRow id={`quest-list-item-details-row-${q.id}`} className="quest-list-item-details-row bg-muted/20 hover:bg-muted/20">
-                      <TableCell id={`quest-list-item-details-cell-${q.id}`} colSpan={8} className="quest-list-item-details-cell p-0">
+                      <TableCell id={`quest-list-item-details-cell-${q.id}`} colSpan={6} className="quest-list-item-details-cell p-0">
                         <div id={`quest-list-item-details-${q.id}`} className="quest-list-item-details px-6 py-4 space-y-4 border-t border-dashed">
                           {/* Row 1: Quest ID + Description */}
-                          <div id={`quest-list-item-details-summary-${q.id}`} className="quest-list-item-details-summary grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div id={`quest-list-item-details-summary-${q.id}`} className="quest-list-item-details-summary grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                             <div id={`quest-list-item-id-${q.id}`} className="quest-list-item-details-field">
                               <p id={`quest-list-item-id-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
                               <div id={`quest-list-item-id-value-wrap-${q.id}`} className="quest-list-item-details-value flex items-center gap-1">
                                 <p id={`quest-list-item-id-value-${q.id}`} className="quest-list-item-id-value font-mono text-xs break-all">{q.id}</p>
                                 <CopyButton text={q.id} size="h-3 w-3"/>
                               </div>
+                            </div>
+                            <div id={`quest-list-item-code-detail-${q.id}`} className="quest-list-item-details-field">
+                              <p id={`quest-list-item-code-detail-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.codeName')}</p>
+                              {q.code_name ? (<div id={`quest-list-item-code-detail-value-wrap-${q.id}`} className="quest-list-item-details-value flex items-center gap-1">
+                                  <p id={`quest-list-item-code-detail-value-${q.id}`} className="quest-list-item-code-detail-value font-mono text-xs break-all">{q.code_name}</p>
+                                  <CopyButton text={q.code_name} size="h-3 w-3"/>
+                                </div>) : (<span id={`quest-list-item-code-detail-empty-${q.id}`} className="quest-list-item-code-detail-empty text-xs text-muted-foreground">—</span>)}
                             </div>
                             {q.description && (<div id={`quest-list-item-description-${q.id}`} className="quest-list-item-details-field">
                                 <p id={`quest-list-item-description-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
@@ -1874,8 +1950,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
 
                           {/* Timestamps */}
                           <div id={`quest-list-item-timestamps-${q.id}`} className="quest-list-item-timestamps flex gap-6 text-xs text-muted-foreground">
-                            <span id={`quest-list-item-created-${q.id}`} className="quest-list-item-timestamp">{t('quest.created')} {new Date(q.created_at).toLocaleString()}</span>
-                            <span id={`quest-list-item-updated-${q.id}`} className="quest-list-item-timestamp">{t('quest.updated')} {new Date(q.updated_at).toLocaleString()}</span>
+                            <span id={`quest-list-item-created-${q.id}`} className="quest-list-item-timestamp">{t('quest.created')} {formatISODate(q.created_at, user?.timezone ?? undefined)}</span>
+                            <span id={`quest-list-item-updated-${q.id}`} className="quest-list-item-timestamp">{t('quest.updated')} {formatISODate(q.updated_at, user?.timezone ?? undefined)}</span>
                           </div>
                         </div>
                       </TableCell>
@@ -1999,6 +2075,50 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
               {deleting && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
               {t('common.delete')}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!assignedChainQuest} onOpenChange={(open) => !open && setAssignedChainQuest(null)}>
+        <AlertDialogContent id="quest-chain-assignment-dialog">
+          <AlertDialogHeader id="quest-chain-assignment-header">
+            <AlertDialogTitle id="quest-chain-assignment-title">{t("quest.chainAssignment")}</AlertDialogTitle>
+            <AlertDialogDescription id="quest-chain-assignment-description">
+              {t("quest.chainAssignmentDescription")} <Link id="quest-chain-assignment-name" href={`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(getQuestChainAssignment(assignedChainQuest?.type_config)?.id ?? "")}`} className="inline-flex items-center gap-1 font-semibold text-primary underline underline-offset-2">
+                {getQuestChainAssignment(assignedChainQuest?.type_config)?.name}
+                <ExternalLink id="quest-chain-assignment-name-external-icon" className="h-3.5 w-3.5"/>
+              </Link>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter id="quest-chain-assignment-footer">
+            <AlertDialogCancel id="quest-chain-assignment-cancel">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction id="quest-chain-assignment-open" onClick={() => {
+              const assignment = getQuestChainAssignment(assignedChainQuest?.type_config);
+              if (assignment)
+                router.push(`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(assignment.id)}`);
+              setAssignedChainQuest(null);
+            }}>{t("quest.openChain")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!assignedDailyPoolQuest} onOpenChange={(open) => !open && setAssignedDailyPoolQuest(null)}>
+        <AlertDialogContent id="quest-daily-pool-assignment-dialog">
+          <AlertDialogHeader id="quest-daily-pool-assignment-header">
+            <AlertDialogTitle id="quest-daily-pool-assignment-title">{t("quest.dailyPoolAssignment")}</AlertDialogTitle>
+            <AlertDialogDescription id="quest-daily-pool-assignment-description">
+              {t("quest.dailyPoolAssignmentDescription")} <Link id="quest-daily-pool-assignment-name" href={`/games/${gameId}/quests?tab=daily`} className="inline-flex items-center gap-1 font-semibold text-primary underline underline-offset-2">
+                {getQuestDailyPoolAssignment(assignedDailyPoolQuest?.type_config)?.name}
+                <ExternalLink id="quest-daily-pool-assignment-name-external-icon" className="h-3.5 w-3.5"/>
+              </Link>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter id="quest-daily-pool-assignment-footer">
+            <AlertDialogCancel id="quest-daily-pool-assignment-cancel">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction id="quest-daily-pool-assignment-open" onClick={() => {
+              router.push(`/games/${gameId}/quests?tab=daily`);
+              setAssignedDailyPoolQuest(null);
+            }}>{t("quest.openDailyPool")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
