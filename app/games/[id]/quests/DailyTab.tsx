@@ -369,6 +369,7 @@ export function DailyTab({ game, onGameUpdate }: {
         poolId: string;
         questId: string;
         questName: string;
+        entryId?: string;
     } | null>(null);
     const [removeQuestDeleting, setRemoveQuestDeleting] = useState(false);
     const selectedStrategyOption = STRATEGY_OPTIONS.find((s) => s.value === poolForm.assignment_strategy);
@@ -518,11 +519,9 @@ export function DailyTab({ game, onGameUpdate }: {
                     reset_hour_utc: poolForm.reset_hour_utc,
                     is_active: poolForm.is_active,
                 });
-                toast({ title: t('quest.daily.poolUpdated') });
             }
             else {
                 await createDailyQuestPool(gameId, poolForm);
-                toast({ title: t('quest.daily.poolCreated') });
             }
             setCreateOpen(false);
             await loadPools();
@@ -607,7 +606,7 @@ export function DailyTab({ game, onGameUpdate }: {
             return;
         setRemoveQuestDeleting(true);
         try {
-            await removeQuestFromPool(gameId, removeQuestTarget.poolId, removeQuestTarget.questId);
+            await removeQuestFromPool(gameId, removeQuestTarget.poolId, removeQuestTarget.questId, removeQuestTarget.entryId);
             setRemoveQuestTarget(null);
             if (expandedPoolId)
                 await Promise.all([refreshExpanded(expandedPoolId), loadQuestDefsMap()]);
@@ -803,7 +802,7 @@ export function DailyTab({ game, onGameUpdate }: {
                                                 const qDef = questDefsMap[pq.quest_definition_id];
                                                 return (<div key={pq.id} id={`daily-pool-weekly-quest-${pq.id}`} className="daily-pool-weekly-quest flex items-center gap-1 text-xs bg-muted/50 rounded px-1.5 py-1 group">
                                                 <span className="flex-1 truncate leading-tight">{qDef?.name ?? pq.quest_definition_id.slice(0, 8)}</span>
-                                                <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })} title="Remove">
+                                                <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id, entryId: pq.id })} title="Remove">
                                                   <Trash2 className="h-3 w-3"/>
                                                 </button>
                                               </div>);
@@ -887,7 +886,8 @@ export function DailyTab({ game, onGameUpdate }: {
                                 const isWeekly = pool.assignment_strategy === "weekly_schedule";
                                 const filtered = allQuestDefs.filter((q) => {
                                     const matchSearch = !addQuestSearch || q.name.toLowerCase().includes(addQuestSearch.toLowerCase());
-                                    return matchSearch && q.quest_type === "daily" && q.type_config?.pool_assigned !== true;
+                                    const assignedPoolID = q.type_config?.pool_id;
+                                    return matchSearch && q.quest_type === "daily" && (q.type_config?.pool_assigned !== true || assignedPoolID === pool.id);
                                 });
                                 if (filtered.length === 0) {
                                     return <p className="text-xs text-muted-foreground text-center py-6">{addQuestSearch ? t('quest.daily.noResults') : t('quest.daily.allQuestsAdded')}</p>;

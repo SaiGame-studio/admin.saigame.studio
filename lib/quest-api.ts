@@ -377,8 +377,9 @@ export async function updateDailyQuestPool(gameId: string, poolId: string, data:
 export async function addQuestToPool(gameId: string, poolId: string, data: AddQuestToPoolRequest): Promise<DailyQuestPoolQuest> {
     return api.post(`/api/v1/games/${gameId}/admin/daily-quest-pools/${poolId}/quests`, data);
 }
-export async function removeQuestFromPool(gameId: string, poolId: string, questId: string): Promise<void> {
-    return api.delete(`/api/v1/games/${gameId}/admin/daily-quest-pools/${poolId}/quests/${questId}`);
+export async function removeQuestFromPool(gameId: string, poolId: string, questId: string, entryId?: string): Promise<void> {
+    const entryQuery = entryId ? `?entry_id=${encodeURIComponent(entryId)}` : "";
+    return api.delete(`/api/v1/games/${gameId}/admin/daily-quest-pools/${poolId}/quests/${questId}${entryQuery}`);
 }
 export async function setCompletionBonus(gameId: string, poolId: string, data: SetCompletionBonusRequest): Promise<CompletionBonus> {
     return api.put(`/api/v1/games/${gameId}/admin/daily-quest-pools/${poolId}/completion-bonus`, data);
