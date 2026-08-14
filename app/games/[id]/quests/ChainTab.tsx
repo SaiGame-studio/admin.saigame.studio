@@ -472,7 +472,6 @@ export function ChainTab({ game }: {
         try {
             await addChainMember(gameId, addMemberChainId, addMemberForm);
             setAssignedQuestIds((prev) => new Set(prev).add(addMemberForm.quest_definition_id));
-            toast({ title: t('quest.chain.questAddedToChain') });
             setAddMemberOpen(false);
             await Promise.all([refreshExpanded(addMemberChainId), loadQuestDefsMap(), loadChains()]);
         }
@@ -531,7 +530,6 @@ export function ChainTab({ game }: {
                 next.delete(removeMemberTarget.questId);
                 return next;
             });
-            toast({ title: t('quest.chain.questRemovedFromChain') });
             setRemoveMemberTarget(null);
             if (expandedChainId)
                 await refreshExpanded(expandedChainId);
@@ -836,7 +834,6 @@ export function ChainTab({ game }: {
                                     unlock_quest_ids: [],
                                 });
                                 setAssignedQuestIds((prev) => new Set(prev).add(questId));
-                                toast({ title: t('quest.chain.questAddedToChain') });
                                 await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap(), loadChains()]);
                             }} onRefresh={async () => { await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()]); }} onEditMember={openEditMember} onRemoveMember={(member) => {
                                 const questDef = questDefsMap[member.quest_definition_id];

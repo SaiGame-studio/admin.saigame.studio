@@ -337,6 +337,7 @@ export function DailyTab({ game, onGameUpdate }: {
     const [expandedLoading, setExpandedLoading] = useState(false);
     // Quest definitions lookup (for displaying quest names in pool)
     const [questDefsMap, setQuestDefsMap] = useState<Record<string, QuestDefinition>>({});
+    const [allQuestDefs, setAllQuestDefs] = useState<QuestDefinition[]>([]);
     // Pool create / edit / delete
     const [createOpen, setCreateOpen] = useState(false);
     const [editPool, setEditPool] = useState<DailyQuestPool | null>(null);
@@ -354,8 +355,6 @@ export function DailyTab({ game, onGameUpdate }: {
     const [poolSaving, setPoolSaving] = useState(false);
     const [autoSlug, setAutoSlug] = useState(true);
     // Add quest to pool (inline)
-    const [dailyQuestDefs, setDailyQuestDefs] = useState<QuestDefinition[]>([]);
-    const [dailyQuestDefsLoading, setDailyQuestDefsLoading] = useState(false);
     const [addQuestForm, setAddQuestForm] = useState<AddQuestToPoolRequest>({
         quest_id: "",
         weight: 10,
@@ -370,6 +369,7 @@ export function DailyTab({ game, onGameUpdate }: {
         poolId: string;
         questId: string;
         questName: string;
+        entryId?: string;
     } | null>(null);
     const [removeQuestDeleting, setRemoveQuestDeleting] = useState(false);
     const selectedStrategyOption = STRATEGY_OPTIONS.find((s) => s.value === poolForm.assignment_strategy);
@@ -385,6 +385,7 @@ export function DailyTab({ game, onGameUpdate }: {
             for (const d of defs)
                 map[d.id] = d;
             setQuestDefsMap(map);
+            setAllQuestDefs(defs);
         }
         catch {
             // non-critical – names just won't resolve
@@ -433,14 +434,6 @@ export function DailyTab({ game, onGameUpdate }: {
         setAddQuestForm({ quest_id: "", weight: 10, sequence_order: 0 });
         setAddQuestSearch("");
         setExpandedLoading(true);
-        // Load quest defs for the search panel if not already loaded
-        if (dailyQuestDefs.length === 0 && !dailyQuestDefsLoading) {
-            setDailyQuestDefsLoading(true);
-            listQuestDefinitions(gameId, { limit: 200 })
-                .then((res) => { setDailyQuestDefs((res.quests ?? []).filter((q) => q.quest_type === "daily")); })
-                .catch(() => { })
-                .finally(() => setDailyQuestDefsLoading(false));
-        }
         try {
             const [detail, questsData] = await Promise.all([
                 getDailyQuestPool(gameId, poolId),
@@ -526,11 +519,9 @@ export function DailyTab({ game, onGameUpdate }: {
                     reset_hour_utc: poolForm.reset_hour_utc,
                     is_active: poolForm.is_active,
                 });
-                toast({ title: t('quest.daily.poolUpdated') });
             }
             else {
                 await createDailyQuestPool(gameId, poolForm);
-                toast({ title: t('quest.daily.poolCreated') });
             }
             setCreateOpen(false);
             await loadPools();
@@ -598,9 +589,8 @@ export function DailyTab({ game, onGameUpdate }: {
         setAddQuestSaving(true);
         try {
             await addQuestToPool(gameId, expandedPoolId, addQuestForm);
-            toast({ title: t('quest.daily.questAddedToPool') });
             setAddQuestForm((prev) => ({ ...prev, quest_id: "" }));
-            await refreshExpanded(expandedPoolId);
+            await Promise.all([refreshExpanded(expandedPoolId), loadQuestDefsMap()]);
         }
         catch (e) {
             const msg = e instanceof ApiError ? e.message : t('quest.daily.failedAddQuestToPool');
@@ -616,11 +606,10 @@ export function DailyTab({ game, onGameUpdate }: {
             return;
         setRemoveQuestDeleting(true);
         try {
-            await removeQuestFromPool(gameId, removeQuestTarget.poolId, removeQuestTarget.questId);
-            toast({ title: t('quest.daily.questRemovedFromPool') });
+            await removeQuestFromPool(gameId, removeQuestTarget.poolId, removeQuestTarget.questId, removeQuestTarget.entryId);
             setRemoveQuestTarget(null);
             if (expandedPoolId)
-                await refreshExpanded(expandedPoolId);
+                await Promise.all([refreshExpanded(expandedPoolId), loadQuestDefsMap()]);
         }
         catch (e) {
             const msg = e instanceof ApiError ? e.message : t('quest.daily.failedRemoveQuest');
@@ -799,8 +788,7 @@ export function DailyTab({ game, onGameUpdate }: {
                                                 }
                                                 try {
                                                     await addQuestToPool(gameId, expandedPoolId, { quest_id: draggedQuestId, weight: 1, sequence_order: dow });
-                                                    toast({ title: t('quest.daily.questAssigned') });
-                                                    await refreshExpanded(expandedPoolId);
+                                                    await Promise.all([refreshExpanded(expandedPoolId), loadQuestDefsMap()]);
                                                 }
                                                 catch (err) {
                                                     toast({ variant: "destructive", title: t('common.error'), description: err instanceof ApiError ? err.message : t('common.error') });
@@ -814,7 +802,7 @@ export function DailyTab({ game, onGameUpdate }: {
                                                 const qDef = questDefsMap[pq.quest_definition_id];
                                                 return (<div key={pq.id} id={`daily-pool-weekly-quest-${pq.id}`} className="daily-pool-weekly-quest flex items-center gap-1 text-xs bg-muted/50 rounded px-1.5 py-1 group">
                                                 <span className="flex-1 truncate leading-tight">{qDef?.name ?? pq.quest_definition_id.slice(0, 8)}</span>
-                                                <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })} title="Remove">
+                                                <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id, entryId: pq.id })} title="Remove">
                                                   <Trash2 className="h-3 w-3"/>
                                                 </button>
                                               </div>);
@@ -894,17 +882,12 @@ export function DailyTab({ game, onGameUpdate }: {
                             </div>
                           </div>
                           <div className="flex-1 overflow-y-auto p-2 space-y-0.5 max-h-96">
-                            {dailyQuestDefsLoading ? (<div className="flex items-center justify-center py-6 text-muted-foreground text-xs gap-1.5">
-                                <Loader2 className="h-3.5 w-3.5 animate-spin"/> {t('common.loading')}
-                              </div>) : (() => {
+                            {(() => {
                                 const isWeekly = pool.assignment_strategy === "weekly_schedule";
-                                const inPoolIds = new Set(expandedQuests.map((q) => q.quest_definition_id));
-                                const filtered = dailyQuestDefs.filter((q) => {
+                                const filtered = allQuestDefs.filter((q) => {
                                     const matchSearch = !addQuestSearch || q.name.toLowerCase().includes(addQuestSearch.toLowerCase());
-                                    // In weekly_schedule, each day is its own sub-pool and quests can be reused across days,
-                                    // so don't hide quests already added somewhere in the week.
-                                    const notInPool = isWeekly || !inPoolIds.has(q.id);
-                                    return matchSearch && notInPool;
+                                    const assignedPoolID = q.type_config?.pool_id;
+                                    return matchSearch && q.quest_type === "daily" && (q.type_config?.pool_assigned !== true || assignedPoolID === pool.id);
                                 });
                                 if (filtered.length === 0) {
                                     return <p className="text-xs text-muted-foreground text-center py-6">{addQuestSearch ? t('quest.daily.noResults') : t('quest.daily.allQuestsAdded')}</p>;
