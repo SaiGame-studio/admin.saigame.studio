@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Pencil, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type ItemDescriptionSectionProps = {
     itemId: string;
@@ -34,10 +35,18 @@ export function ItemDescriptionSection({ itemId, description, saving, onSave, t 
                     {t("items.description")}
                 </span>
                 {!isEditing && (
-                    <Button id={`item-description-${itemId}-edit-btn`} size="sm" variant="outline" className="h-6 px-2 text-xs gap-1" onClick={() => setIsEditing(true)}>
-                        <Pencil id={`item-description-${itemId}-edit-icon`} className="h-3 w-3"/>
-                        {t("common.edit")}
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button id={`item-description-${itemId}-edit-btn`} size="icon" variant="outline" className="h-6 w-6" aria-label={t("common.edit")} onClick={() => setIsEditing(true)}>
+                                    <Pencil id={`item-description-${itemId}-edit-icon`} className="h-3 w-3"/>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent id={`item-description-${itemId}-edit-tooltip`} side="top">
+                                {t("common.edit")}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 )}
             </div>
 
