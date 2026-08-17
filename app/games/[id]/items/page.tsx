@@ -34,7 +34,7 @@ import { GameNavButtons } from "@/components/GameNavButtons";
 import { CopyButton } from "@/components/CopyButton";
 import { CraftingTab } from "@/components/crafting/crafting-tab";
 import { EquipmentsTab, EquipmentSlotSheet } from '@/components/EquipmentsTab';
-import { CreateItemDefinitionDialog } from '@/components/CreateItemDefinitionDialog';
+import { CreateItemDefinitionDialog, type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog';
 import { GachaPackSheet } from "./_components/GachaPackSheet";
 import { ExplanationPanel } from "./_components/ExplanationPanel";
 import { CreatePresetDefinitionSheet } from "./_components/CreatePresetDefinitionSheet";
@@ -192,6 +192,7 @@ export default function GameItemsPage() {
     // modal
     const [showCreate, setShowCreate] = useState(false);
     const [createInitCategory, setCreateInitCategory] = useState<ItemCategory | undefined>(undefined);
+    const [createInitialValues, setCreateInitialValues] = useState<CreateItemInitialValues | undefined>(undefined);
     const [categories, setCategories] = useState<ItemCategory[]>([]);
     const [rarities, setRarities] = useState<ItemRarity[]>([]);
     // tab state management
@@ -901,6 +902,50 @@ export default function GameItemsPage() {
         setRarities,
         setItemTags,
     });
+    const handleCloneItem = useCallback((item: ItemDefinition) => {
+        const metadata = item.metadata ?? {};
+        const generatorConfig = metadata.generator_config as Record<string, unknown> | undefined;
+        const generatorOutputPool: NonNullable<CreateItemInitialValues['gen_output_pool']> | undefined = Array.isArray(generatorConfig?.output_pool)
+            ? generatorConfig.output_pool.flatMap((entry) => {
+                if (!entry || typeof entry !== 'object')
+                    return [];
+                const poolEntry = entry as Record<string, unknown>;
+                return [{
+                    item_definition_id: String(poolEntry.item_definition_id ?? ''),
+                    drop_rate: String(poolEntry.drop_rate ?? 1),
+                    quantity_min: String(poolEntry.quantity_min ?? 1),
+                    quantity_max: String(poolEntry.quantity_max ?? 1),
+                    collect_cap: String(poolEntry.collect_cap ?? 5),
+                    initial_output: String(poolEntry.initial_output ?? 0),
+                }];
+            })
+            : undefined;
+        setCreateInitCategory(item.category);
+        setCreateInitialValues({
+            name: item.name,
+            item_code: item.item_code,
+            category: item.category,
+            rarity: item.rarity,
+            is_stackable: item.is_stackable,
+            max_stack_size: item.max_stack_size?.toString() ?? '',
+            max_owned_quantity: item.max_owned_quantity?.toString() ?? '',
+            grid_width: item.grid_width.toString(),
+            grid_height: item.grid_height.toString(),
+            stats: Object.entries(item.base_stats ?? {}).map(([key, value]) => ({ key, value: String(value) })),
+            metadata_entries: Object.entries(metadata)
+                .filter(([key]) => key !== 'generator_config')
+                .map(([key, value]) => ({ key, value: typeof value === 'string' ? value : JSON.stringify(value) ?? '' })),
+            client_writable: item.client_writable,
+            allow_client_update_qty: item.allow_client_update_qty ?? false,
+            gen_output_pool: generatorOutputPool,
+            gen_interval_seconds: generatorConfig?.production_interval_seconds !== undefined ? String(generatorConfig.production_interval_seconds) : undefined,
+            gen_tick_capacity: generatorConfig?.tick_capacity !== undefined ? String(generatorConfig.tick_capacity) : undefined,
+            gen_collect_destination: generatorConfig?.collect_destination === 'inventory' ? 'inventory' : generatorConfig?.collect_destination === 'mailbox' ? 'mailbox' : undefined,
+            gen_mailbox_title: typeof generatorConfig?.mailbox_title === 'string' ? generatorConfig.mailbox_title : undefined,
+            gen_mailbox_body: typeof generatorConfig?.mailbox_body === 'string' ? generatorConfig.mailbox_body : undefined,
+        });
+        setShowCreate(true);
+    }, []);
     // Content linking helpers
     // Link a preset definition to the active (or a newly created) conversation
     async function handleLinkPresetToConversation(def: PresetDefinition) {
@@ -1163,6 +1208,7 @@ export default function GameItemsPage() {
             setTagFilterOpen={setTagFilterOpen}
             setOffset={setOffset}
             setShowCreate={setShowCreate}
+            onCloneItem={handleCloneItem}
             setExplanationTopic={setExplanationTopic}
             setShowExplanationPanel={setShowExplanationPanel}
             t={t}
@@ -1506,10 +1552,12 @@ export default function GameItemsPage() {
         onClose={() => {
           setShowCreate(false);
           setCreateInitCategory(undefined);
+          setCreateInitialValues(undefined);
         }}
         categories={categories}
         rarities={rarities}
         initialCategory={createInitCategory}
+        initialValues={createInitialValues}
       />
       { /* Create Container Definition Modal */ }
       <CreateContainerDefinitionDialog

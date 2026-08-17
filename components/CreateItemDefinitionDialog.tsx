@@ -53,6 +53,8 @@ export interface CreateItemInitialValues {
     gen_interval_seconds?: string;
     gen_tick_capacity?: string;
     gen_collect_destination?: 'mailbox' | 'inventory';
+    gen_mailbox_title?: string;
+    gen_mailbox_body?: string;
 }
 type ItemDefinitionDialogMode = 'create' | 'edit';
 // ─── Local helpers ────────────────────────────────────────────────────────────
@@ -230,6 +232,10 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
                 setGenTickCapacity(v.gen_tick_capacity);
             if (v.gen_collect_destination !== undefined)
                 setGenCollectDestination(v.gen_collect_destination);
+            if (v.gen_mailbox_title !== undefined)
+                setGenMailboxTitle(v.gen_mailbox_title);
+            if (v.gen_mailbox_body !== undefined)
+                setGenMailboxBody(v.gen_mailbox_body);
         }
         prevOpenRef.current = open;
     }, [open, initialValues]);
