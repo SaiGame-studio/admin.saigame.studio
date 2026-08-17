@@ -482,7 +482,6 @@ export default function ItemDefinitionDetailPage() {
             const res = await updateItemDefinition({ gameId }, itemId, trimStrings(patch));
             setItem(res.item);
             setEditingField(null);
-            toast({ title: t('common.saved') });
         }
         catch (err: any) {
             toast({ variant: "destructive", title: t('items.saveFailed'), description: err?.message ?? t('common.unknown') });
@@ -649,7 +648,6 @@ export default function ItemDefinitionDetailPage() {
                 client_writable: item.client_writable,
                 allow_client_update_qty: item.allow_client_update_qty,
             });
-            toast({ title: t('common.saved') });
             router.push(`/games/${gameId}/items/${res.item.id}`);
         }
         catch (err: any) {
