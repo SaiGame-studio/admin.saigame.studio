@@ -442,6 +442,11 @@ export function ItemsPageCatalogueSection({
                         >
                           {item.name}
                         </Link>
+                        {item.description && (
+                          <p id={`items-row-${item.id}-description`} className="line-clamp-1 text-xs text-muted-foreground">
+                            {item.description}
+                          </p>
+                        )}
                         <div className="flex items-center gap-1">
                           <span className="text-[11px] font-mono text-muted-foreground">{item.id}</span>
                           <CopyButton text={item.id} size="h-3 w-3" />

@@ -923,6 +923,7 @@ export default function GameItemsPage() {
         setCreateInitCategory(item.category);
         setCreateInitialValues({
             name: item.name,
+            description: item.description,
             item_code: item.item_code,
             category: item.category,
             rarity: item.rarity,
@@ -933,7 +934,7 @@ export default function GameItemsPage() {
             grid_height: item.grid_height.toString(),
             stats: Object.entries(item.base_stats ?? {}).map(([key, value]) => ({ key, value: String(value) })),
             metadata_entries: Object.entries(metadata)
-                .filter(([key]) => key !== 'generator_config')
+                .filter(([key]) => key !== 'generator_config' && key !== 'description')
                 .map(([key, value]) => ({ key, value: typeof value === 'string' ? value : JSON.stringify(value) ?? '' })),
             client_writable: item.client_writable,
             allow_client_update_qty: item.allow_client_update_qty ?? false,
