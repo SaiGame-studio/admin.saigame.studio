@@ -9,6 +9,7 @@ export interface ItemDefinition {
     game_id: string;
     item_code: string;
     name: string;
+    description: string;
     category: ItemCategory;
     rarity: ItemRarity;
     is_stackable: boolean;
@@ -28,6 +29,7 @@ export interface ItemDefinition {
 export interface CreateItemRequest {
     item_code?: string;
     name: string;
+    description?: string;
     category: ItemCategory;
     rarity: ItemRarity;
     is_stackable?: boolean;
@@ -43,6 +45,7 @@ export interface CreateItemRequest {
 export interface UpdateItemRequest {
     item_code?: string;
     name?: string;
+    description?: string;
     category?: ItemCategory;
     rarity?: ItemRarity;
     is_stackable?: boolean;

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } fr
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { Plus, RefreshCw, Trash2, Pencil, GitFork, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, Boxes, Workflow, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, Copy, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, Boxes, Workflow, } from "lucide-react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1804,7 +1804,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button id={`quest-list-item-clone-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-clone-btn h-8 w-8" aria-label={t("quest.cloneQuestDefinition")} onClick={(e) => { e.stopPropagation(); cloneQuest(q); }}>
-                              <GitFork id={`quest-list-item-clone-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                              <Copy id={`quest-list-item-clone-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent id={`quest-list-item-clone-tooltip-${q.id}`} className="quest-list-item-clone-tooltip" side="top">

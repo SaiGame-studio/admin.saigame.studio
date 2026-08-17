@@ -34,6 +34,7 @@ import { safeGetItem } from "@/lib/storage-utils";
 import { BaseStatsSection } from "./_components/BaseStatsSection";
 import { ItemExplanationSheet, type ItemExplanationTopic } from "./_components/ItemExplanationSheet";
 import { MetadataSection } from "./_components/MetadataSection";
+import { ItemDescriptionSection } from "./_components/ItemDescriptionSection";
 // ─── helpers ─────────────────────────────────────────────────────────────────
 function trimStrings<T>(obj: T): T {
     if (typeof obj === 'string')
@@ -474,18 +475,19 @@ export default function ItemDefinitionDetailPage() {
         if (field === "max_owned_quantity")
             setTmpMaxOwnedQuantity(item.max_owned_quantity != null ? String(item.max_owned_quantity) : "");
     }
-    async function saveField(patch: UpdateItemRequest) {
+    async function saveField(patch: UpdateItemRequest): Promise<boolean> {
         if (!item)
-            return;
+            return false;
         setSaving(true);
         try {
             const res = await updateItemDefinition({ gameId }, itemId, trimStrings(patch));
             setItem(res.item);
             setEditingField(null);
-            toast({ title: t('common.saved') });
+            return true;
         }
         catch (err: any) {
             toast({ variant: "destructive", title: t('items.saveFailed'), description: err?.message ?? t('common.unknown') });
+            return false;
         }
         finally {
             setSaving(false);
@@ -636,6 +638,7 @@ export default function ItemDefinitionDetailPage() {
             const suffix = `_copy`;
             const res = await createItemDefinition({ gameId }, {
                 name: `${item.name} (Copy)`,
+                description: item.description,
                 item_code: `${item.item_code}${suffix}`,
                 category: item.category,
                 rarity: item.rarity,
@@ -649,7 +652,6 @@ export default function ItemDefinitionDetailPage() {
                 client_writable: item.client_writable,
                 allow_client_update_qty: item.allow_client_update_qty,
             });
-            toast({ title: t('common.saved') });
             router.push(`/games/${gameId}/items/${res.item.id}`);
         }
         catch (err: any) {
@@ -907,6 +909,13 @@ export default function ItemDefinitionDetailPage() {
                     </span>))}
                 </div>)}
             </div>
+            <ItemDescriptionSection
+              itemId={item.id}
+              description={item.description}
+              saving={saving}
+              onSave={(description) => saveField({ description })}
+              t={t}
+            />
           </CardContent>
         </Card>
 

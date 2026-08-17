@@ -1331,7 +1331,6 @@ function PoolExpandedContent({ pool, gameId, onSaved, }: {
                 body.description = editDescription.trim();
             }
             const updated = await updateEntityPool(gameId, pool.id, body);
-            toast({ title: t('common.saved') });
             onSaved(updated);
             setDetail(prev => prev ? { ...prev, ...updated } : prev);
             setEditingField(null);
@@ -1429,7 +1428,6 @@ function PoolExpandedContent({ pool, gameId, onSaved, }: {
             await createEntityPoolEntry(gameId, pool.id, { entity_definition_id: addDefId.trim(), weight });
             const updated = await getEntityPool(gameId, pool.id);
             setDetail(updated);
-            toast({ title: t('common.saved') });
             setAddDefId("");
             setAddDefLabel("");
             setAddWeight(String(DEFAULT_ENTRY_WEIGHT));
@@ -1489,7 +1487,6 @@ function PoolExpandedContent({ pool, gameId, onSaved, }: {
             await updateEntityPoolEntry(gameId, pool.id, entryId, { weight });
             const updated = await getEntityPool(gameId, pool.id);
             setDetail(updated);
-            toast({ title: t('common.saved') });
             setEditingWeightId(null);
         }
         catch (err) {

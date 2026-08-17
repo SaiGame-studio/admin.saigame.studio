@@ -42,7 +42,7 @@ export interface CreateItemInitialValues {
     grid_height?: string;
     /** base_stats as editable KV rows */
     stats?: KVEntry[];
-    /** goes into metadata.description */
+    /** Item definition description. */
     description?: string;
     /** editable metadata key-value rows */
     metadata_entries?: KVEntry[];
@@ -53,6 +53,8 @@ export interface CreateItemInitialValues {
     gen_interval_seconds?: string;
     gen_tick_capacity?: string;
     gen_collect_destination?: 'mailbox' | 'inventory';
+    gen_mailbox_title?: string;
+    gen_mailbox_body?: string;
 }
 type ItemDefinitionDialogMode = 'create' | 'edit';
 // ─── Local helpers ────────────────────────────────────────────────────────────
@@ -121,6 +123,7 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
     const scrollBodyRef = useRef<HTMLDivElement>(null);
     const isEditMode = mode === 'edit';
     const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
     const [itemCode, setItemCode] = useState('');
     const [autoSlug, setAutoSlug] = useState(true);
     const [category, setCategory] = useState<ItemCategory>(initialCategory ?? 'weapon');
@@ -188,6 +191,8 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
             const v = initialValues;
             if (v.name !== undefined)
                 setName(v.name);
+            if (v.description !== undefined)
+                setDescription(v.description);
             if (v.item_code) {
                 setItemCode(v.item_code);
                 setAutoSlug(false);
@@ -213,9 +218,6 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
             if (v.stats)
                 setStats(v.stats);
             const metadataEntries = [...(v.metadata_entries ?? [])];
-            if (v.description && !metadataEntries.some((entry) => entry.key === 'description')) {
-                metadataEntries.unshift({ key: 'description', value: v.description });
-            }
             if (metadataEntries.length > 0)
                 setMeta(metadataEntries);
             if (v.client_writable !== undefined)
@@ -230,6 +232,10 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
                 setGenTickCapacity(v.gen_tick_capacity);
             if (v.gen_collect_destination !== undefined)
                 setGenCollectDestination(v.gen_collect_destination);
+            if (v.gen_mailbox_title !== undefined)
+                setGenMailboxTitle(v.gen_mailbox_title);
+            if (v.gen_mailbox_body !== undefined)
+                setGenMailboxBody(v.gen_mailbox_body);
         }
         prevOpenRef.current = open;
     }, [open, initialValues]);
@@ -240,6 +246,7 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
     }, [open, initialCategory]);
     function resetForm() {
         setName('');
+        setDescription('');
         setItemCode('');
         setAutoSlug(true);
         setCategory(initialCategory ?? 'weapon');
@@ -387,6 +394,7 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
             const body: CreateItemRequest = {
                 item_code: itemCode.trim(),
                 name: name.trim(),
+                description: description.trim(),
                 category,
                 rarity,
                 is_stackable: isStackable,
@@ -480,6 +488,11 @@ export function CreateItemDefinitionDialog({ open, gameId, studioId, onCreated, 
               </Button>
             </div>
             {errors.itemCode && <p id="create-item-def-code-error" className="text-xs text-destructive">{errors.itemCode}</p>}
+          </div>
+
+          <div id="create-item-def-description-section" className="space-y-1">
+            <Label id="create-item-def-description-label" htmlFor="create-item-def-description-input">{t('items.description')}</Label>
+            <Textarea id="create-item-def-description-input" placeholder="Describe this item" value={description} onChange={(e) => setDescription(e.target.value)} rows={3}/>
           </div>
 
           {/* Category + Rarity */}

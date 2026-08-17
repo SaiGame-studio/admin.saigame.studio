@@ -75,7 +75,7 @@ export function SseUpdateSheet({ open, onClose, onApplied, item, gameId, sseData
             }
             // description → metadata
             if (sseData.description?.trim()) {
-                patch.metadata = { ...(item.metadata ?? {}), description: sseData.description.trim() };
+                patch.description = sseData.description.trim();
             }
             const res = await updateItemDefinition({ gameId }, item.id, patch);
             toast({ title: t('llmConversation.sseUpdateApplied') });
@@ -121,7 +121,7 @@ export function SseUpdateSheet({ open, onClose, onApplied, item, gameId, sseData
           {sseData.is_stackable !== undefined && (<FieldRow label={t('items.stackable')} current={item.is_stackable ? '✓' : '✗'} proposed={sseData.is_stackable ? '✓' : '✗'}/>)}
           {sseData.max_stack_size !== undefined && (<FieldRow label={t('items.maxStackSize') || 'Max Stack'} current={item.max_stack_size ?? '∞'} proposed={sseData.max_stack_size || '∞'}/>)}
           {sseData.max_owned_quantity !== undefined && (<FieldRow label={t('items.maxOwnedQuantity')} current={item.max_owned_quantity ?? '∞'} proposed={sseData.max_owned_quantity || '∞'}/>)}
-          {sseData.description !== undefined && sseData.description !== '' && (<FieldRow label={t('items.description')} current={(item.metadata?.description as string | undefined) ?? '—'} proposed={sseData.description}/>)}
+          {sseData.description !== undefined && sseData.description !== '' && (<FieldRow label={t('items.description')} current={item.description || '—'} proposed={sseData.description}/>)}
           {sseData.stats && sseData.stats.length > 0 && (<FieldRow label={t('items.baseStats')} current={Object.keys(item.base_stats ?? {}).length > 0
                 ? Object.entries(item.base_stats ?? {}).map(([k, v]) => `${k}=${v}`).join(', ')
                 : '—'} proposed={sseData.stats.map(({ key, value }) => `${key}=${value}`).join(', ')}/>)}

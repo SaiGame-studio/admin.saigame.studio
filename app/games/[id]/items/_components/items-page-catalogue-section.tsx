@@ -4,6 +4,7 @@ import { type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import {
   Plus,
+  Copy,
   Search,
   RefreshCw,
   Package,
@@ -108,6 +109,7 @@ type ItemsCatalogueSectionProps = {
   setTagFilterOpen: Dispatch<SetStateAction<boolean>>;
   setOffset: Dispatch<SetStateAction<number>>;
   setShowCreate: Dispatch<SetStateAction<boolean>>;
+  onCloneItem: (item: ItemDefinition) => void;
   setExplanationTopic: Dispatch<SetStateAction<"write_props" | "update_qty" | null>>;
   setShowExplanationPanel: Dispatch<SetStateAction<boolean>>;
   t: (key: string) => string;
@@ -150,6 +152,7 @@ export function ItemsPageCatalogueSection({
   setTagFilterOpen,
   setOffset,
   setShowCreate,
+  onCloneItem,
   setExplanationTopic,
   setShowExplanationPanel,
   t,
@@ -392,7 +395,7 @@ export function ItemsPageCatalogueSection({
                     </div>
                   </TableHead>
                   <TableHead className="text-center">{t("items.stackable")}</TableHead>
-                  {!convPanelOpen && <TableHead className="text-center">{t("items.actionsHeader")}</TableHead>}
+                  <TableHead id="items-table-header-actions" className="text-center">{t("items.actionsHeader")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -439,6 +442,11 @@ export function ItemsPageCatalogueSection({
                         >
                           {item.name}
                         </Link>
+                        {item.description && (
+                          <p id={`items-row-${item.id}-description`} className="line-clamp-1 text-xs text-muted-foreground">
+                            {item.description}
+                          </p>
+                        )}
                         <div className="flex items-center gap-1">
                           <span className="text-[11px] font-mono text-muted-foreground">{item.id}</span>
                           <CopyButton text={item.id} size="h-3 w-3" />
@@ -508,17 +516,33 @@ export function ItemsPageCatalogueSection({
                         <span className="text-muted-foreground text-sm">{t("common.no")}</span>
                       )}
                     </TableCell>
-                    {!convPanelOpen && (
-                      <TableCell className="text-center">
+                    <TableCell id={`items-row-${item.id}-actions-cell`} className="text-center">
                         <div className="flex items-center justify-center gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  id={`items-row-${item.id}-clone-btn`}
+                                  variant="ghost"
+                                  size="icon"
+                                  title={t("common.clone")}
+                                  onClick={() => onCloneItem(item)}
+                                >
+                                  <Copy id={`items-row-${item.id}-clone-icon`} className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent id={`items-row-${item.id}-clone-tooltip`} side="top">
+                                {t("common.clone")}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <Button variant="ghost" size="icon" asChild title="Edit">
                             <Link href={`/games/${gameId}/items/${item.id}`}>
                               <Pencil className="h-4 w-4" />
                             </Link>
                           </Button>
                         </div>
-                      </TableCell>
-                    )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
