@@ -32,6 +32,7 @@ import type { ItemDefinition } from "@/types/inventory";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { GameNavButtons } from "@/components/GameNavButtons";
+import { ITEMS_TABS } from "@/lib/items-tabs";
 // ─── Constants ────────────────────────────────────────────────────────────────
 const SHOP_TYPE_BADGE: Record<string, string> = {
     permanent: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
@@ -638,6 +639,20 @@ export default function ShopDetailPage() {
         <div className="flex gap-2 mt-4 md:mt-0 items-center flex-wrap">
           <GameNavButtons gameId={params.id} active="shops"/>
         </div>
+      </div>
+      <div id="shop-item-catalogue-tabs-container" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <Tabs value="shops">
+          <TabsList id="shop-item-catalogue-tab-list" className="w-auto inline-flex">
+            {ITEMS_TABS.map(({ key, icon: Icon, labelKey }) => (
+              <TabsTrigger id={`shop-item-catalogue-tab-${key}`} key={key} value={key} asChild>
+                <Link href={`/games/${params.id}/items?tab=${key}`}>
+                  <Icon id={`shop-item-catalogue-tab-icon-${key}`} className="mr-1.5 h-3.5 w-3.5" />
+                  {t(labelKey)}
+                </Link>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
       <Card className="group/card">
         <CardContent className="pt-5 pb-5">
