@@ -832,6 +832,7 @@ function MailBlockTab() {
     // Sync filter state to URL
     const updateUrl = useCallback((p: number, status: string, s?: string) => {
         const params = new URLSearchParams(searchParams.toString());
+        params.set("tab", "mailblock");
         params.set("status", status);
         params.set("page", String(p));
         if (s !== undefined) {
