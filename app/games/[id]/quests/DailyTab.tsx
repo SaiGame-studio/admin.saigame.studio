@@ -4,7 +4,7 @@ import { toSlugUnderscore } from "@/lib/utils";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff, ChevronsUpDown, Calendar, Shuffle, RotateCw, ChevronDown, ChevronRight, Clock, Weight, Hash, Wand2, Search, GripVertical, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff, ChevronsUpDown, Calendar, Shuffle, RotateCw, ChevronDown, ChevronRight, Clock, Weight, Hash, Wand2, Search, GripVertical, ExternalLink, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { getUserTimezone } from "@/lib/utils/date-utils";
@@ -286,6 +287,12 @@ const DAY_OF_WEEK_LABELS: Record<number, string> = {
     0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
     4: "Thursday", 5: "Friday", 6: "Saturday",
 };
+const WEEKLY_GRID_DAYS = [
+    { dow: 1, labelKey: "quest.daily.weekdayMonday" }, { dow: 2, labelKey: "quest.daily.weekdayTuesday" },
+    { dow: 3, labelKey: "quest.daily.weekdayWednesday" }, { dow: 4, labelKey: "quest.daily.weekdayThursday" },
+    { dow: 5, labelKey: "quest.daily.weekdayFriday" }, { dow: 6, labelKey: "quest.daily.weekdaySaturday" },
+    { dow: 0, labelKey: "quest.daily.weekdaySunday" },
+] as const;
 function strategyBadgeVariant(strategy: AssignmentStrategy) {
     switch (strategy) {
         case "weighted_random": return "default" as const;
@@ -645,7 +652,8 @@ export function DailyTab({ game, onGameUpdate }: {
         <AlertDescription>{error}</AlertDescription>
       </Alert>);
     }
-    return (<>
+    return (<TooltipProvider delayDuration={0}>
+      <>
       {/* Header */}
       <div id="daily-tab-header" className="daily-tab-header flex items-center justify-between mb-3">
         <div>
@@ -662,9 +670,14 @@ export function DailyTab({ game, onGameUpdate }: {
               <p className="text-[10px] text-muted-foreground/80 whitespace-nowrap">{t('game.dailyQuestAdvanceDaysDesc')}</p>
             </div>)}
           {subTab === "list" && (<>
-              <Button id="daily-tab-refresh-btn" variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="w-9 px-0">
-                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button id="daily-tab-refresh-btn" variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="w-9 px-0">
+                    <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent id="daily-tab-refresh-tooltip" side="top">{t('common.refresh')}</TooltipContent>
+              </Tooltip>
               <Button id="daily-tab-create-pool-btn" size="sm" onClick={openCreate} className="daily-tab-create-pool-btn">
                 <Plus className="h-4 w-4 mr-1"/>
                 {t('quest.daily.createPool')}
@@ -733,12 +746,22 @@ export function DailyTab({ game, onGameUpdate }: {
                     </div>
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <Switch id={`daily-pool-active-toggle-${pool.id}`} className="daily-pool-active-toggle" checked={pool.is_active} onCheckedChange={() => handleToggleActive(pool)} aria-label="Toggle active"/>
-                      <Button id={`daily-pool-edit-btn-${pool.id}`} className="daily-pool-edit-btn h-8 w-8" variant="ghost" size="icon" onClick={() => openEdit(pool)}>
-                        <Pencil className="h-4 w-4"/>
-                      </Button>
-                      <Button id={`daily-pool-delete-btn-${pool.id}`} className="daily-pool-delete-btn h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" variant="ghost" size="icon" onClick={() => setDeletePool(pool)}>
-                        <Trash2 className="h-4 w-4"/>
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button id={`daily-pool-edit-btn-${pool.id}`} className="daily-pool-edit-btn h-8 w-8" variant="ghost" size="icon" onClick={() => openEdit(pool)}>
+                            <Pencil className="h-4 w-4"/>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent id={`daily-pool-edit-tooltip-${pool.id}`} side="top">{t('common.edit')}</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button id={`daily-pool-delete-btn-${pool.id}`} className="daily-pool-delete-btn h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" variant="ghost" size="icon" onClick={() => setDeletePool(pool)}>
+                            <Trash2 className="h-4 w-4"/>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent id={`daily-pool-delete-tooltip-${pool.id}`} side="top">{t('common.delete')}</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardHeader>
@@ -770,11 +793,11 @@ export function DailyTab({ game, onGameUpdate }: {
                                     if (q.sequence_order >= 0 && q.sequence_order <= 6)
                                         questsByDay[q.sequence_order].push(q);
                                 }
-                                return (<div className="grid grid-cols-7 gap-2">
-                                  {([0, 1, 2, 3, 4, 5, 6] as const).map((dow) => {
+                                return (<div id={`daily-pool-weekly-grid-${pool.id}`} className="grid grid-cols-4 gap-2">
+                                  {WEEKLY_GRID_DAYS.map(({ dow, labelKey }) => {
                                         const dayQuests = questsByDay[dow] ?? [];
                                         const isDragOver = dragOverDay === dow;
-                                        return (<div key={dow} className={`min-h-[120px] rounded-lg border-2 flex flex-col transition-colors ${isDragOver ? "border-primary bg-primary/5" : "border-dashed border-muted-foreground/25"}`} onDragOver={(e) => { e.preventDefault(); setDragOverDay(dow); }} onDragLeave={(e) => {
+                                        return (<div key={dow} id={`daily-pool-weekly-day-${pool.id}-${dow}`} className={`min-h-[120px] rounded-lg border-2 flex flex-col transition-colors ${isDragOver ? "border-primary bg-primary/5" : "border-dashed border-muted-foreground/25"}`} onDragOver={(e) => { e.preventDefault(); setDragOverDay(dow); }} onDragLeave={(e) => {
                                                 if (!e.currentTarget.contains(e.relatedTarget as Node))
                                                     setDragOverDay(null);
                                             }} onDrop={async (e) => {
@@ -794,17 +817,25 @@ export function DailyTab({ game, onGameUpdate }: {
                                                     toast({ variant: "destructive", title: t('common.error'), description: err instanceof ApiError ? err.message : t('common.error') });
                                                 }
                                             }}>
-                                        <div className={`px-2 py-1 text-xs font-semibold text-center border-b rounded-t-md ${isDragOver ? "text-primary bg-primary/10 border-primary/20" : "text-muted-foreground bg-muted/30 border-muted"}`}>
-                                          {DAY_NAMES[dow]}
+                                        <div id={`daily-pool-weekly-day-label-${pool.id}-${dow}`} className={`px-2 py-1 text-xs font-semibold text-center border-b rounded-t-md ${isDragOver ? "text-primary bg-primary/10 border-primary/20" : "text-muted-foreground bg-muted/30 border-muted"}`}>
+                                          {t(labelKey)}
                                         </div>
                                         <div className="flex flex-col gap-1 p-1 flex-1">
                                           {dayQuests.map((pq) => {
                                                 const qDef = questDefsMap[pq.quest_definition_id];
                                                 return (<div key={pq.id} id={`daily-pool-weekly-quest-${pq.id}`} className="daily-pool-weekly-quest flex items-center gap-1 text-xs bg-muted/50 rounded px-1.5 py-1 group">
-                                                <span className="flex-1 truncate leading-tight">{qDef?.name ?? pq.quest_definition_id.slice(0, 8)}</span>
-                                                <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id, entryId: pq.id })} title="Remove">
-                                                  <Trash2 className="h-3 w-3"/>
-                                                </button>
+                                                <Link id={`daily-pool-weekly-quest-definition-link-${pq.id}`} href={`/games/${gameId}/quests?q=${pq.quest_definition_id}`} className="flex flex-1 min-w-0 items-center gap-1 hover:underline">
+                                                  <span id={`daily-pool-weekly-quest-name-${pq.id}`} className="truncate leading-tight">{qDef?.name ?? pq.quest_definition_id.slice(0, 8)}</span>
+                                                  <ExternalLink id={`daily-pool-weekly-quest-definition-link-icon-${pq.id}`} className="h-3 w-3 shrink-0 text-muted-foreground"/>
+                                                </Link>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id, entryId: pq.id })}>
+                                                      <Trash2 className="h-3 w-3"/>
+                                                    </button>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent id={`daily-pool-weekly-quest-remove-tooltip-${pq.id}`} side="top">{t('common.remove')}</TooltipContent>
+                                                </Tooltip>
                                               </div>);
                                             })}
                                           {dayQuests.length === 0 && !isDragOver && <span className="text-[10px] text-muted-foreground/40 text-center mt-auto pb-1">—</span>}
@@ -826,14 +857,13 @@ export function DailyTab({ game, onGameUpdate }: {
                                             return (<div key={pq.id} id={`daily-pool-quest-${pq.id}`} className="daily-pool-quest relative flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm">
                                           <div className="flex items-start justify-between gap-1 min-w-0">
                                             <div className="min-w-0">
-                                              <p className="text-sm font-medium leading-tight truncate">{qDef?.name ?? pq.quest_definition_id}</p>
-                                              <p className="text-xs text-muted-foreground font-mono flex items-center gap-0.5 mt-0.5 truncate">
-                                                {pq.quest_definition_id}
-                                                <CopyButton text={pq.quest_definition_id} size="h-3 w-3"/>
-                                              </p>
+                                              <Link id={`daily-pool-quest-definition-link-${pq.id}`} href={`/games/${gameId}/quests?q=${pq.quest_definition_id}`} className="flex items-center gap-1 text-sm font-medium leading-tight hover:underline">
+                                                <span id={`daily-pool-quest-name-${pq.id}`} className="min-w-0 truncate">{qDef?.name ?? pq.quest_definition_id}</span>
+                                                <ExternalLink id={`daily-pool-quest-definition-link-icon-${pq.id}`} className="h-3.5 w-3.5 shrink-0 text-muted-foreground"/>
+                                              </Link>
                                             </div>
                                             <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
-                                              <Switch id={`daily-pool-quest-active-toggle-${pq.id}`} className="daily-pool-quest-active-toggle" checked={qDef?.is_active ?? false} onCheckedChange={async (checked) => {
+                                              <Switch id={`daily-pool-quest-active-toggle-${pq.id}`} className="daily-pool-quest-active-toggle h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3" checked={qDef?.is_active ?? false} onCheckedChange={async (checked) => {
                                                     try {
                                                         await updateQuestDefinition(gameId, pq.quest_definition_id, { is_active: checked });
                                                         setQuestDefsMap((prev) => ({ ...prev, [pq.quest_definition_id]: { ...prev[pq.quest_definition_id], is_active: checked } }));
@@ -843,14 +873,24 @@ export function DailyTab({ game, onGameUpdate }: {
                                                         toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.failedUpdateQuest') });
                                                     }
                                                 }} aria-label="Toggle quest active"/>
-                                              <Button id={`daily-pool-quest-edit-btn-${pq.id}`} className="daily-pool-quest-edit-btn h-6 w-6 ml-2.5" variant="ghost" size="icon" title="Edit quest definition" asChild>
-                                                <Link href={(() => { const sp = new URLSearchParams(searchParams.toString()); sp.delete("tab"); sp.set("editQuestId", pq.quest_definition_id); return `/games/${gameId}/quests?${sp.toString()}`; })()}>
-                                                  <Pencil className="h-3 w-3"/>
-                                                </Link>
-                                              </Button>
-                                              <Button id={`daily-pool-quest-delete-btn-${pq.id}`} className="daily-pool-quest-delete-btn h-6 w-6 text-destructive ml-2.5" variant="ghost" size="icon" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })}>
-                                                <Trash2 className="h-3.5 w-3.5"/>
-                                              </Button>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button id={`daily-pool-quest-edit-btn-${pq.id}`} className="daily-pool-quest-edit-btn h-6 w-6 ml-2.5" variant="ghost" size="icon" asChild>
+                                                    <Link href={(() => { const sp = new URLSearchParams(searchParams.toString()); sp.delete("tab"); sp.set("editQuestId", pq.quest_definition_id); return `/games/${gameId}/quests?${sp.toString()}`; })()}>
+                                                      <Pencil className="h-3 w-3"/>
+                                                    </Link>
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent id={`daily-pool-quest-edit-tooltip-${pq.id}`} side="top">{t('common.edit')}</TooltipContent>
+                                              </Tooltip>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button id={`daily-pool-quest-delete-btn-${pq.id}`} className="daily-pool-quest-delete-btn h-6 w-6 text-destructive ml-2.5" variant="ghost" size="icon" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })}>
+                                                    <Trash2 className="h-3.5 w-3.5"/>
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent id={`daily-pool-quest-delete-tooltip-${pq.id}`} side="top">{t('common.remove')}</TooltipContent>
+                                              </Tooltip>
                                             </div>
                                           </div>
                                           <div className="space-y-1">
@@ -1128,5 +1168,6 @@ export function DailyTab({ game, onGameUpdate }: {
         </AlertDialogContent>
       </AlertDialog>
 
-    </>);
+      </>
+    </TooltipProvider>);
 }
