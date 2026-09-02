@@ -31,6 +31,8 @@ import { undo, redo } from "@codemirror/commands";
 import { linter, lintGutter } from "@codemirror/lint";
 import type { Diagnostic } from "@codemirror/lint";
 import luaparse from "luaparse";
+
+const SCRIPT_BODY_MAX_BYTES = 250 * 1024;
 // ---------------------------------------------------------------------------
 // Lua linter
 // ---------------------------------------------------------------------------
@@ -191,6 +193,10 @@ export default function ScriptEditPage() {
         return "core";
     });
     const [appendMode, setAppendMode] = useState(false);
+    const scriptBodyBytes = new TextEncoder().encode(scriptBody).length;
+    const scriptBodyUsagePercent = Math.min((scriptBodyBytes / SCRIPT_BODY_MAX_BYTES) * 100, 100);
+    const scriptBodyFillColor = `hsl(${Math.round(142 * (1 - scriptBodyUsagePercent / 100))} 72% 42%)`;
+    const scriptBodySizeLabel = `${(scriptBodyBytes / 1024).toFixed(1)} KB / 250 KB`;
     const loadData = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -406,10 +412,18 @@ export default function ScriptEditPage() {
             {/* Script body editor */}
             <div id="section-save-script" className="flex flex-1 min-w-0 flex-col gap-2 scroll-mt-[60px]">
               <div className="flex items-center justify-between shrink-0">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  {t('scripts.scriptBody')}
-                  <span className="ml-2 font-normal normal-case text-muted-foreground/60">(Lua)</span>
-                </p>
+                <div id="script-body-label-and-size" className="flex items-center gap-3 min-w-0">
+                  <p id="script-body-label" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                    {t('scripts.scriptBody')}
+                    <span id="script-body-language" className="ml-2 font-normal normal-case text-muted-foreground/60">(Lua)</span>
+                  </p>
+                  <div id="script-body-size-usage" className="flex items-center gap-2 min-w-0">
+                    <div id="script-body-size-progress" className="h-1.5 w-32 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={t('scripts.scriptBodySizeUsage')} aria-valuemin={0} aria-valuemax={SCRIPT_BODY_MAX_BYTES} aria-valuenow={scriptBodyBytes}>
+                      <div id="script-body-size-progress-fill" className="h-full rounded-full transition-[width,background-color] duration-150" style={{ width: `${scriptBodyUsagePercent}%`, backgroundColor: scriptBodyFillColor }}/>
+                    </div>
+                    <span id="script-body-size-value" className="text-[11px] tabular-nums text-muted-foreground whitespace-nowrap">{scriptBodySizeLabel}</span>
+                  </div>
+                </div>
                 <div className="flex items-center gap-1">
                   <Tooltip>
                     <TooltipTrigger asChild>

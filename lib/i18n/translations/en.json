@@ -3806,6 +3806,7 @@
     "tooltipSaveInfo": "Save info",
     "tooltipRefresh": "Refresh",
     "scriptBody": "Script Body",
+    "scriptBodySizeUsage": "Script body size usage",
     "tooltipUndo": "Undo (Ctrl+Z)",
     "tooltipRedo": "Redo (Ctrl+Y)",
     "tooltipDecreaseFontSize": "Decrease font size",

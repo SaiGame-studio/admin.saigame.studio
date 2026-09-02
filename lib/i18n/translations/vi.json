@@ -3772,6 +3772,7 @@
     "tooltipSaveInfo": "Lưu thông tin",
     "tooltipRefresh": "Làm mới",
     "scriptBody": "Nội dung Script",
+    "scriptBodySizeUsage": "Dung lượng nội dung script",
     "tooltipUndo": "Hoàn tác (Ctrl+Z)",
     "tooltipRedo": "Làm lại (Ctrl+Y)",
     "tooltipDecreaseFontSize": "Giảm cỡ chữ",
