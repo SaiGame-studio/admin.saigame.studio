@@ -28,7 +28,8 @@ import { GameNavButtons } from "@/components/GameNavButtons";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ITEMS_TABS } from "@/lib/items-tabs";
 import { SseUpdateSheet } from "@/components/SseUpdateSheet";
-import type { CreateItemInitialValues } from "@/components/CreateItemDefinitionDialog";
+import { CreateItemDefinitionDialog, type CreateItemInitialValues } from "@/components/CreateItemDefinitionDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createConversation, linkConversationContent } from "@/lib/llm-conversation-api";
 import { safeGetItem } from "@/lib/storage-utils";
 import { BaseStatsSection } from "./_components/BaseStatsSection";
@@ -114,6 +115,7 @@ export default function ItemDefinitionDetailPage() {
     const [editingField, setEditingField] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [showCloneDialog, setShowCloneDialog] = useState(false);
     // temp values per field
     const [tmpName, setTmpName] = useState("");
     const [tmpItemCode, setTmpItemCode] = useState("");
@@ -629,6 +631,9 @@ export default function ItemDefinitionDetailPage() {
             setDeleting(false);
         }
     }
+    function handleCloneItem() {
+        setShowCloneDialog(true);
+    }
     // ── render ─────────────────────────────────────────────────────────────────
     if (loading) {
         return (<div className="container mx-auto py-6 space-y-4">
@@ -644,6 +649,47 @@ export default function ItemDefinitionDetailPage() {
       </div>);
     }
     const c = RARITY_COLORS[item.rarity] ?? RARITY_COLORS['common'];
+    const cloneMetadata = item.metadata ?? {};
+    const cloneGeneratorConfig = cloneMetadata.generator_config as Record<string, unknown> | undefined;
+    const cloneGeneratorOutputPool: NonNullable<CreateItemInitialValues['gen_output_pool']> | undefined = Array.isArray(cloneGeneratorConfig?.output_pool)
+        ? cloneGeneratorConfig.output_pool.flatMap((entry) => {
+            if (!entry || typeof entry !== 'object')
+                return [];
+            const poolEntry = entry as Record<string, unknown>;
+            return [{
+                item_definition_id: String(poolEntry.item_definition_id ?? ''),
+                drop_rate: String(poolEntry.drop_rate ?? 1),
+                quantity_min: String(poolEntry.quantity_min ?? 1),
+                quantity_max: String(poolEntry.quantity_max ?? 1),
+                collect_cap: String(poolEntry.collect_cap ?? 5),
+                initial_output: String(poolEntry.initial_output ?? 0),
+            }];
+        })
+        : undefined;
+    const cloneInitialValues: CreateItemInitialValues = {
+        name: item.name,
+        description: item.description,
+        item_code: item.item_code,
+        category: item.category,
+        rarity: item.rarity,
+        is_stackable: item.is_stackable,
+        max_stack_size: item.max_stack_size?.toString() ?? '',
+        max_owned_quantity: item.max_owned_quantity?.toString() ?? '',
+        grid_width: item.grid_width.toString(),
+        grid_height: item.grid_height.toString(),
+        stats: Object.entries(item.base_stats ?? {}).map(([key, value]) => ({ key, value: String(value) })),
+        metadata_entries: Object.entries(cloneMetadata)
+            .filter(([key]) => key !== 'generator_config' && key !== 'description')
+            .map(([key, value]) => ({ key, value: typeof value === 'string' ? value : JSON.stringify(value) ?? '' })),
+        client_writable: item.client_writable,
+        allow_client_update_qty: item.allow_client_update_qty ?? false,
+        gen_output_pool: cloneGeneratorOutputPool,
+        gen_interval_seconds: cloneGeneratorConfig?.production_interval_seconds !== undefined ? String(cloneGeneratorConfig.production_interval_seconds) : undefined,
+        gen_tick_capacity: cloneGeneratorConfig?.tick_capacity !== undefined ? String(cloneGeneratorConfig.tick_capacity) : undefined,
+        gen_collect_destination: cloneGeneratorConfig?.collect_destination === 'inventory' ? 'inventory' : cloneGeneratorConfig?.collect_destination === 'mailbox' ? 'mailbox' : undefined,
+        gen_mailbox_title: typeof cloneGeneratorConfig?.mailbox_title === 'string' ? cloneGeneratorConfig.mailbox_title : undefined,
+        gen_mailbox_body: typeof cloneGeneratorConfig?.mailbox_body === 'string' ? cloneGeneratorConfig.mailbox_body : undefined,
+    };
     const linkedPackIds = (Array.isArray(item.metadata?.gacha_pack_ids) ? item.metadata.gacha_pack_ids : []) as string[];
     const craftInputIds = (Array.isArray(item.metadata?.craft_recipe_input_ids) ? item.metadata.craft_recipe_input_ids : []) as string[];
     const craftOutputIds = (Array.isArray(item.metadata?.craft_recipe_output_ids) ? item.metadata.craft_recipe_output_ids : []) as string[];
@@ -746,6 +792,25 @@ export default function ItemDefinitionDetailPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          <div id="item-detail-actions-divider" className="mx-0.5 h-6 w-px bg-border" aria-hidden="true" />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  id="item-detail-clone-btn"
+                  variant="outline"
+                  size="icon"
+                  title={t("common.clone")}
+                  onClick={handleCloneItem}
+                >
+                  <Copy id="item-detail-clone-icon" className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent id="item-detail-clone-tooltip" side="top">
+                {t("common.clone")}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -1366,6 +1431,16 @@ export default function ItemDefinitionDetailPage() {
 
       {/* ── Explanation Panel ───────────────────────────────────────────────── */}
       <ItemExplanationSheet open={showExplanationPanel} onOpenChange={setShowExplanationPanel} topic={explanationTopic} />
+      <CreateItemDefinitionDialog
+        open={showCloneDialog}
+        gameId={gameId}
+        onCreated={(createdItemId) => router.push(`/games/${gameId}/items/${createdItemId}`)}
+        onClose={() => setShowCloneDialog(false)}
+        categories={categories}
+        rarities={rarities}
+        initialCategory={item.category}
+        initialValues={cloneInitialValues}
+      />
       {item && ssePrefillData && (<SseUpdateSheet open={sseSheetOpen} onClose={() => { setSseSheetOpen(false); setSsePrefillData(null); }} onApplied={(updated) => { setItem(updated); setSseSheetOpen(false); setSsePrefillData(null); }} item={item} gameId={gameId} sseData={ssePrefillData}/>)}
     </div>);
 }
