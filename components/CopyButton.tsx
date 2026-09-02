@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 interface CopyButtonProps {
     text: string;
     className?: string;
@@ -12,6 +13,7 @@ interface CopyButtonProps {
 }
 export function CopyButton({ text, className, id, iconId, label = "Copy", size = "h-3.5 w-3.5" }: CopyButtonProps) {
     const [copied, setCopied] = useState(false);
+    const generatedTooltipId = useId();
     function handleCopy(e: React.MouseEvent) {
         e.stopPropagation();
         e.preventDefault();
@@ -38,9 +40,16 @@ export function CopyButton({ text, className, id, iconId, label = "Copy", size =
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     }
-    return (<button id={id} onClick={handleCopy} className={`ml-1 inline-flex items-center text-muted-foreground hover:text-foreground transition-colors${className ? ` ${className}` : ""}`} title={label} aria-label={label} type="button">
-      {copied
-            ? <Check id={iconId} className={`${size} text-green-500`}/>
-            : <Copy id={iconId} className={size}/>}
-    </button>);
+    return (<TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button id={id} onClick={handleCopy} className={`ml-1 inline-flex items-center text-muted-foreground hover:text-foreground transition-colors${className ? ` ${className}` : ""}`} aria-label={label} type="button">
+            {copied
+                ? <Check id={iconId} className={`${size} text-green-500`}/>
+                : <Copy id={iconId} className={size}/>}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent id={id ? `${id}-tooltip` : generatedTooltipId} side="top">{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>);
 }

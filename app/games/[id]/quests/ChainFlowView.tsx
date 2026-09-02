@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Pencil, Trash2, Loader2, Plus, Search, PanelRightClose, PanelRightOpen, RefreshCw, ExternalLink, Lock, Unlock, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/use-translation";
@@ -62,15 +63,21 @@ function QuestNode({ data }: NodeProps<Node<QuestNodeData>>) {
             {data.label}
           </p>
           <div className="flex items-center gap-0.5 shrink-0">
-            <a id={`quest-chain-graph-quest-link-${data.member.quest_definition_id}`} href={data.editHref} className="quest-chain-graph-quest-link h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors" title={t('quest.flow.openQuestDef')} onClick={(e) => e.stopPropagation()}>
-              <ExternalLink id={`quest-chain-graph-quest-link-icon-${data.member.quest_definition_id}`} className="quest-chain-graph-quest-link-icon h-3 w-3 text-muted-foreground"/>
-            </a>
-            <button className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors" title={t('quest.flow.editMembership')} onClick={(e) => { e.stopPropagation(); data.onEdit(data.member); }}>
-              <Pencil className="h-3 w-3 text-muted-foreground"/>
-            </button>
-            <button className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-destructive/10 transition-colors" title={t('quest.flow.removeFromChain')} onClick={(e) => { e.stopPropagation(); data.onRemove(data.member); }}>
-              <Trash2 className="h-3 w-3 text-destructive"/>
-            </button>
+            <Tooltip><TooltipTrigger asChild>
+              <a id={`quest-chain-graph-quest-link-${data.member.quest_definition_id}`} href={data.editHref} className="quest-chain-graph-quest-link h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors" onClick={(e) => e.stopPropagation()}>
+                <ExternalLink id={`quest-chain-graph-quest-link-icon-${data.member.quest_definition_id}`} className="quest-chain-graph-quest-link-icon h-3 w-3 text-muted-foreground"/>
+              </a>
+            </TooltipTrigger><TooltipContent id={`quest-chain-graph-quest-link-tooltip-${data.member.quest_definition_id}`} side="top">{t('quest.flow.openQuestDef')}</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild>
+              <button id={`quest-chain-graph-edit-${data.member.id}`} className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors" onClick={(e) => { e.stopPropagation(); data.onEdit(data.member); }}>
+                <Pencil className="h-3 w-3 text-muted-foreground"/>
+              </button>
+            </TooltipTrigger><TooltipContent id={`quest-chain-graph-edit-tooltip-${data.member.id}`} side="top">{t('quest.flow.editMembership')}</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild>
+              <button id={`quest-chain-graph-remove-${data.member.id}`} className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-destructive/10 transition-colors" onClick={(e) => { e.stopPropagation(); data.onRemove(data.member); }}>
+                <Trash2 className="h-3 w-3 text-destructive"/>
+              </button>
+            </TooltipTrigger><TooltipContent id={`quest-chain-graph-remove-tooltip-${data.member.id}`} side="top">{t('quest.flow.removeFromChain')}</TooltipContent></Tooltip>
           </div>
         </div>
 
@@ -358,7 +365,8 @@ function ChainFlowViewContent({ gameId, chainId, members, questDefsMap, availabl
         setNodes(laid);
         persistLayout(laid);
     }, [nodes, edges, setNodes, persistLayout]);
-    return (<div className="flex gap-0 h-[500px] w-full rounded-md border bg-background/50 overflow-hidden">
+    return (<TooltipProvider delayDuration={0}>
+      <div id="quest-chain-flow-view" className="flex gap-0 h-[500px] w-full rounded-md border bg-background/50 overflow-hidden">
       {/* ── Graph area ───────────────────────────────────── */}
       <div className="relative flex-1 min-w-0">
         {connecting && (<div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 rounded-md bg-primary/90 text-primary-foreground px-3 py-1 text-xs shadow-lg">
@@ -366,7 +374,7 @@ function ChainFlowViewContent({ gameId, chainId, members, questDefsMap, availabl
           </div>)}
         {/* Top-right buttons */}
         <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-          {onRefresh && (<Button size="icon" variant="ghost" className="h-7 w-7" onClick={async () => {
+          {onRefresh && (<Tooltip><TooltipTrigger asChild><Button id="quest-chain-flow-refresh" size="icon" variant="ghost" className="h-7 w-7" onClick={async () => {
                 setRefreshing(true);
                 try {
                     await onRefresh();
@@ -374,12 +382,12 @@ function ChainFlowViewContent({ gameId, chainId, members, questDefsMap, availabl
                 finally {
                     setRefreshing(false);
                 }
-            }} title={t('quest.flow.refreshGraph')} disabled={refreshing}>
+            }} disabled={refreshing}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
-            </Button>)}
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setSidebarOpen((v) => !v)} title={sidebarOpen ? t('quest.flow.hideQuestList') : t('quest.flow.showQuestList')}>
+            </Button></TooltipTrigger><TooltipContent id="quest-chain-flow-refresh-tooltip" side="top">{t('quest.flow.refreshGraph')}</TooltipContent></Tooltip>)}
+          <Tooltip><TooltipTrigger asChild><Button id="quest-chain-flow-sidebar-toggle" size="icon" variant="ghost" className="h-7 w-7" onClick={() => setSidebarOpen((v) => !v)}>
             {sidebarOpen ? <PanelRightClose className="h-4 w-4"/> : <PanelRightOpen className="h-4 w-4"/>}
-          </Button>
+          </Button></TooltipTrigger><TooltipContent id="quest-chain-flow-sidebar-toggle-tooltip" side="top">{sidebarOpen ? t('quest.flow.hideQuestList') : t('quest.flow.showQuestList')}</TooltipContent></Tooltip>
         </div>
 
           <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={handleConnect} onEdgesDelete={handleEdgesDelete} onNodeDragStop={handleNodeDragStop} onDragOver={onDragOver} onDrop={onDrop} nodeTypes={nodeTypes} nodesDraggable={!locked} nodesConnectable={!locked} elementsSelectable={!locked} fitView fitViewOptions={{ padding: 0.3 }} proOptions={{ hideAttribution: true }} minZoom={0.3} maxZoom={2} deleteKeyCode={locked ? [] : ["Backspace", "Delete"]} defaultEdgeOptions={{
@@ -428,12 +436,13 @@ function ChainFlowViewContent({ gameId, chainId, members, questDefsMap, availabl
                         {quest.is_active ? (<Badge className="text-[10px] px-1 py-0 h-3.5 bg-green-600">{t('quest.activeStatus')}</Badge>) : (<Badge variant="secondary" className="text-[10px] px-1 py-0 h-3.5">{t('quest.inactiveStatus')}</Badge>)}
                       </div>
                     </div>
-                    <button className="shrink-0 mt-0.5 h-5 w-5 inline-flex items-center justify-center rounded hover:bg-primary/20 transition-colors disabled:pointer-events-none" disabled={addingQuestId !== null} title={t('quest.flow.addToChain')} onClick={() => handleQuickAdd(quest.id)}>
+                    <Tooltip><TooltipTrigger asChild><button id={`quest-chain-flow-add-${quest.id}`} className="shrink-0 mt-0.5 h-5 w-5 inline-flex items-center justify-center rounded hover:bg-primary/20 transition-colors disabled:pointer-events-none" disabled={addingQuestId !== null} onClick={() => handleQuickAdd(quest.id)}>
                       {addingQuestId === quest.id ? (<Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground"/>) : (<Plus className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"/>)}
-                    </button>
+                    </button></TooltipTrigger><TooltipContent id={`quest-chain-flow-add-tooltip-${quest.id}`} side="top">{t('quest.flow.addToChain')}</TooltipContent></Tooltip>
                   </div>))}
               </div>)}
           </ScrollArea>
         </div>)}
-    </div>);
+      </div>
+    </TooltipProvider>);
 }

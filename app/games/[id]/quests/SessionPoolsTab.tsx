@@ -62,9 +62,14 @@ function SortableBattlePassChain({ membership, chain, onRemove, chainHref }: { m
                     <ExternalLink id={`battle-pass-assigned-chain-link-icon-${membership.id}`} className="h-3.5 w-3.5 shrink-0 opacity-60 group-hover:opacity-100" />
                 </Link>
             </div>
-            <Button id={`battle-pass-assigned-chain-remove-${membership.id}`} size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={onRemove} title="Remove chain">
-                <Trash2 id={`battle-pass-assigned-chain-remove-icon-${membership.id}`} className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button id={`battle-pass-assigned-chain-remove-${membership.id}`} size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={onRemove}>
+                        <Trash2 id={`battle-pass-assigned-chain-remove-icon-${membership.id}`} className="h-4 w-4" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent id={`battle-pass-assigned-chain-remove-tooltip-${membership.id}`} side="top">Remove chain</TooltipContent>
+            </Tooltip>
         </div>
     );
 }
@@ -313,6 +318,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
     };
 
     return (
+        <TooltipProvider delayDuration={0}>
         <div id="battle-pass-tab" className="space-y-6">
             <div id="battle-pass-header" className="flex items-center justify-between gap-3">
                 <div id="battle-pass-header-copy">
@@ -320,7 +326,7 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                     <p id="battle-pass-description" className="text-sm text-muted-foreground">{t("quest.sessionPoolsDescription")}</p>
                 </div>
                 <div id="battle-pass-header-actions" className="flex items-center gap-2">
-                    <TooltipProvider delayDuration={300}>
+                    <TooltipProvider delayDuration={0}>
                         <Tooltip>
                             <TooltipTrigger id="battle-pass-refresh-tooltip-trigger" asChild>
                                 <Button id="battle-pass-refresh" variant="outline" size="icon" disabled={refreshing} onClick={() => void refresh()}>
@@ -403,12 +409,22 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                                             </div>
                                         </div>
                                         <div id={`battle-pass-actions-${pool.id}`} className="flex shrink-0 items-center gap-1">
-                                            <Button id={`battle-pass-edit-${pool.id}`} size="icon" variant="ghost" onClick={() => openEdit(pool)} title={t("common.edit")}>
-                                                <Pencil id={`battle-pass-edit-icon-${pool.id}`} className="h-4 w-4" />
-                                            </Button>
-                                            <Button id={`battle-pass-delete-${pool.id}`} size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(pool)} title={t("common.delete")}>
-                                                <Trash2 id={`battle-pass-delete-icon-${pool.id}`} className="h-4 w-4" />
-                                            </Button>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button id={`battle-pass-edit-${pool.id}`} size="icon" variant="ghost" onClick={() => openEdit(pool)}>
+                                                        <Pencil id={`battle-pass-edit-icon-${pool.id}`} className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent id={`battle-pass-edit-tooltip-${pool.id}`} side="top">{t("common.edit")}</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button id={`battle-pass-delete-${pool.id}`} size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(pool)}>
+                                                        <Trash2 id={`battle-pass-delete-icon-${pool.id}`} className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent id={`battle-pass-delete-tooltip-${pool.id}`} side="top">{t("common.delete")}</TooltipContent>
+                                            </Tooltip>
                                         </div>
                                     </div>
                                 </CardHeader>
@@ -612,5 +628,6 @@ export function SessionPoolsTab({ gameId }: { gameId: string }) {
                 </AlertDialogContent>
             </AlertDialog>
         </div>
+        </TooltipProvider>
     );
 }

@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { getUserTimezone } from "@/lib/utils/date-utils";
@@ -645,7 +646,8 @@ export function DailyTab({ game, onGameUpdate }: {
         <AlertDescription>{error}</AlertDescription>
       </Alert>);
     }
-    return (<>
+    return (<TooltipProvider delayDuration={0}>
+      <>
       {/* Header */}
       <div id="daily-tab-header" className="daily-tab-header flex items-center justify-between mb-3">
         <div>
@@ -662,9 +664,14 @@ export function DailyTab({ game, onGameUpdate }: {
               <p className="text-[10px] text-muted-foreground/80 whitespace-nowrap">{t('game.dailyQuestAdvanceDaysDesc')}</p>
             </div>)}
           {subTab === "list" && (<>
-              <Button id="daily-tab-refresh-btn" variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="w-9 px-0">
-                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button id="daily-tab-refresh-btn" variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="w-9 px-0">
+                    <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent id="daily-tab-refresh-tooltip" side="top">{t('common.refresh')}</TooltipContent>
+              </Tooltip>
               <Button id="daily-tab-create-pool-btn" size="sm" onClick={openCreate} className="daily-tab-create-pool-btn">
                 <Plus className="h-4 w-4 mr-1"/>
                 {t('quest.daily.createPool')}
@@ -733,12 +740,22 @@ export function DailyTab({ game, onGameUpdate }: {
                     </div>
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <Switch id={`daily-pool-active-toggle-${pool.id}`} className="daily-pool-active-toggle" checked={pool.is_active} onCheckedChange={() => handleToggleActive(pool)} aria-label="Toggle active"/>
-                      <Button id={`daily-pool-edit-btn-${pool.id}`} className="daily-pool-edit-btn h-8 w-8" variant="ghost" size="icon" onClick={() => openEdit(pool)}>
-                        <Pencil className="h-4 w-4"/>
-                      </Button>
-                      <Button id={`daily-pool-delete-btn-${pool.id}`} className="daily-pool-delete-btn h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" variant="ghost" size="icon" onClick={() => setDeletePool(pool)}>
-                        <Trash2 className="h-4 w-4"/>
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button id={`daily-pool-edit-btn-${pool.id}`} className="daily-pool-edit-btn h-8 w-8" variant="ghost" size="icon" onClick={() => openEdit(pool)}>
+                            <Pencil className="h-4 w-4"/>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent id={`daily-pool-edit-tooltip-${pool.id}`} side="top">{t('common.edit')}</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button id={`daily-pool-delete-btn-${pool.id}`} className="daily-pool-delete-btn h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" variant="ghost" size="icon" onClick={() => setDeletePool(pool)}>
+                            <Trash2 className="h-4 w-4"/>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent id={`daily-pool-delete-tooltip-${pool.id}`} side="top">{t('common.delete')}</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardHeader>
@@ -802,9 +819,14 @@ export function DailyTab({ game, onGameUpdate }: {
                                                 const qDef = questDefsMap[pq.quest_definition_id];
                                                 return (<div key={pq.id} id={`daily-pool-weekly-quest-${pq.id}`} className="daily-pool-weekly-quest flex items-center gap-1 text-xs bg-muted/50 rounded px-1.5 py-1 group">
                                                 <span className="flex-1 truncate leading-tight">{qDef?.name ?? pq.quest_definition_id.slice(0, 8)}</span>
-                                                <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id, entryId: pq.id })} title="Remove">
-                                                  <Trash2 className="h-3 w-3"/>
-                                                </button>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id, entryId: pq.id })}>
+                                                      <Trash2 className="h-3 w-3"/>
+                                                    </button>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent id={`daily-pool-weekly-quest-remove-tooltip-${pq.id}`} side="top">{t('common.remove')}</TooltipContent>
+                                                </Tooltip>
                                               </div>);
                                             })}
                                           {dayQuests.length === 0 && !isDragOver && <span className="text-[10px] text-muted-foreground/40 text-center mt-auto pb-1">—</span>}
@@ -843,14 +865,24 @@ export function DailyTab({ game, onGameUpdate }: {
                                                         toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.failedUpdateQuest') });
                                                     }
                                                 }} aria-label="Toggle quest active"/>
-                                              <Button id={`daily-pool-quest-edit-btn-${pq.id}`} className="daily-pool-quest-edit-btn h-6 w-6 ml-2.5" variant="ghost" size="icon" title="Edit quest definition" asChild>
-                                                <Link href={(() => { const sp = new URLSearchParams(searchParams.toString()); sp.delete("tab"); sp.set("editQuestId", pq.quest_definition_id); return `/games/${gameId}/quests?${sp.toString()}`; })()}>
-                                                  <Pencil className="h-3 w-3"/>
-                                                </Link>
-                                              </Button>
-                                              <Button id={`daily-pool-quest-delete-btn-${pq.id}`} className="daily-pool-quest-delete-btn h-6 w-6 text-destructive ml-2.5" variant="ghost" size="icon" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })}>
-                                                <Trash2 className="h-3.5 w-3.5"/>
-                                              </Button>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button id={`daily-pool-quest-edit-btn-${pq.id}`} className="daily-pool-quest-edit-btn h-6 w-6 ml-2.5" variant="ghost" size="icon" asChild>
+                                                    <Link href={(() => { const sp = new URLSearchParams(searchParams.toString()); sp.delete("tab"); sp.set("editQuestId", pq.quest_definition_id); return `/games/${gameId}/quests?${sp.toString()}`; })()}>
+                                                      <Pencil className="h-3 w-3"/>
+                                                    </Link>
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent id={`daily-pool-quest-edit-tooltip-${pq.id}`} side="top">{t('common.edit')}</TooltipContent>
+                                              </Tooltip>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button id={`daily-pool-quest-delete-btn-${pq.id}`} className="daily-pool-quest-delete-btn h-6 w-6 text-destructive ml-2.5" variant="ghost" size="icon" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })}>
+                                                    <Trash2 className="h-3.5 w-3.5"/>
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent id={`daily-pool-quest-delete-tooltip-${pq.id}`} side="top">{t('common.remove')}</TooltipContent>
+                                              </Tooltip>
                                             </div>
                                           </div>
                                           <div className="space-y-1">
@@ -1128,5 +1160,6 @@ export function DailyTab({ game, onGameUpdate }: {
         </AlertDialogContent>
       </AlertDialog>
 
-    </>);
+      </>
+    </TooltipProvider>);
 }

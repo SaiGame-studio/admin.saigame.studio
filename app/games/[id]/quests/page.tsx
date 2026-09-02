@@ -1808,7 +1808,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent id={`quest-list-item-clone-tooltip-${q.id}`} className="quest-list-item-clone-tooltip" side="top">
-                            {t("quest.cloneQuestDefinition")}
+                            {t("common.clone")}
                           </TooltipContent>
                         </Tooltip>
                         <Tooltip>

@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger, } from "@/components/ui/popove
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChainFlowView } from "./ChainFlowView";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
@@ -557,7 +558,8 @@ export function ChainTab({ game }: {
     // ── Render ────────────────────────────────────────────────────────────────
     if (!game)
         return null;
-    return (<div id="quest-chains-tab" className="quest-chains-tab space-y-4">
+    return (<TooltipProvider delayDuration={0}>
+      <div id="quest-chains-tab" className="quest-chains-tab space-y-4">
       {/* Header */}
       <div id="quest-chain-header" className="quest-chain-header flex items-center justify-between">
         <div id="quest-chain-header-copy" className="quest-chain-header-copy">
@@ -573,9 +575,14 @@ export function ChainTab({ game }: {
               </button>
             )}
           </div>
-          <Button id="quest-chain-refresh" variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing} title={t('quest.chain.refresh')}>
-            <RefreshCw id="quest-chain-refresh-icon" className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button id="quest-chain-refresh" variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing}>
+                <RefreshCw id="quest-chain-refresh-icon" className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent id="quest-chain-refresh-tooltip" side="top">{t('quest.chain.refresh')}</TooltipContent>
+          </Tooltip>
           <Button id="quest-chain-create" size="sm" onClick={openCreate}>
             <Plus id="quest-chain-create-icon" className="h-4 w-4 mr-1"/> {t('quest.chain.newChain')}
           </Button>
@@ -604,9 +611,14 @@ export function ChainTab({ game }: {
                 <CardHeader id={`quest-chain-card-header-${chain.id}`} className="quest-chain-card-header p-4">
                   <div id={`quest-chain-summary-${chain.id}`} className="quest-chain-summary flex items-center gap-3">
                     {/* Expand toggle */}
-                    <Button id={`quest-chain-expand-${chain.id}`} variant="ghost" size="icon" className="quest-chain-expand h-7 w-7 shrink-0" onClick={() => toggleExpand(chain.id)}>
-                      {isExpanded ? <ChevronDown id={`quest-chain-collapse-icon-${chain.id}`} className="h-4 w-4"/> : <ChevronRight id={`quest-chain-expand-icon-${chain.id}`} className="h-4 w-4"/>}
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button id={`quest-chain-expand-${chain.id}`} variant="ghost" size="icon" className="quest-chain-expand h-7 w-7 shrink-0" onClick={() => toggleExpand(chain.id)}>
+                          {isExpanded ? <ChevronDown id={`quest-chain-collapse-icon-${chain.id}`} className="h-4 w-4"/> : <ChevronRight id={`quest-chain-expand-icon-${chain.id}`} className="h-4 w-4"/>}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent id={`quest-chain-expand-tooltip-${chain.id}`} side="top">{isExpanded ? t('common.close') : t('common.viewDetails')}</TooltipContent>
+                    </Tooltip>
 
                     {/* Info */}
                     <div id={`quest-chain-info-${chain.id}`} className="quest-chain-info flex-1 min-w-0 cursor-pointer" onClick={() => toggleExpand(chain.id)}>
@@ -715,12 +727,22 @@ export function ChainTab({ game }: {
                         <p className="text-sm font-medium">{new Date(chain.created_at).toLocaleDateString(undefined, { timeZone: user?.timezone ?? undefined })}</p>
                       </div>
                       <Separator orientation="vertical" className="h-5"/>
-                      <Button id={`quest-chain-edit-${chain.id}`} variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(chain)} title={t('quest.chain.editChain')}>
-                        <Pencil id={`quest-chain-edit-icon-${chain.id}`} className="h-3.5 w-3.5"/>
-                      </Button>
-                      <Button id={`quest-chain-delete-${chain.id}`} variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(chain)} title={t('quest.chain.deleteChain')}>
-                        <Trash2 id={`quest-chain-delete-icon-${chain.id}`} className="h-3.5 w-3.5"/>
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button id={`quest-chain-edit-${chain.id}`} variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(chain)}>
+                            <Pencil id={`quest-chain-edit-icon-${chain.id}`} className="h-3.5 w-3.5"/>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent id={`quest-chain-edit-tooltip-${chain.id}`} side="top">{t('quest.chain.editChain')}</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button id={`quest-chain-delete-${chain.id}`} variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(chain)}>
+                            <Trash2 id={`quest-chain-delete-icon-${chain.id}`} className="h-3.5 w-3.5"/>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent id={`quest-chain-delete-tooltip-${chain.id}`} side="top">{t('quest.chain.deleteChain')}</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardHeader>
@@ -804,16 +826,26 @@ export function ChainTab({ game }: {
                                           </TableCell>
                                           <TableCell>
                                             <div className="flex items-center gap-0.5">
-                                              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" title="Edit membership" onClick={() => openEditMember(member)}>
-                                                <Pencil className="h-3 w-3"/>
-                                              </Button>
-                                              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-destructive" title="Remove from chain" onClick={() => setRemoveMemberTarget({
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button id={`quest-chain-member-edit-${member.id}`} variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEditMember(member)}>
+                                                    <Pencil className="h-3 w-3"/>
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent id={`quest-chain-member-edit-tooltip-${member.id}`} side="top">{t('quest.flow.editMembership')}</TooltipContent>
+                                              </Tooltip>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button id={`quest-chain-member-remove-${member.id}`} variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-destructive" onClick={() => setRemoveMemberTarget({
                                             chainId: chain.id,
                                             questId: member.quest_definition_id,
                                             questName: questDef?.name ?? member.quest_definition_id.slice(0, 8) + "…",
                                         })}>
                                                 <Trash2 className="h-3 w-3"/>
-                                              </Button>
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent id={`quest-chain-member-remove-tooltip-${member.id}`} side="top">{t('quest.flow.removeFromChain')}</TooltipContent>
+                                              </Tooltip>
                                             </div>
                                           </TableCell>
                                         </TableRow>);
@@ -1118,5 +1150,6 @@ export function ChainTab({ game }: {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>);
+      </div>
+    </TooltipProvider>);
 }
