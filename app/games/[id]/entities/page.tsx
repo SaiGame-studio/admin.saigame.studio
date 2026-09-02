@@ -949,6 +949,7 @@ export default function EntitiesPage() {
     useEscapeLayer(sheetOpen, () => setSheetOpen(false), 1);
     const [deleteTarget, setDeleteTarget] = useState<EntityDefinition | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [togglingEntityId, setTogglingEntityId] = useState<string | null>(null);
     // ── expandable rows ──────────────────────────────────────────────────────────
     const [expandedId, setExpandedId] = useState<string | null>(() => searchParams.get("expanded"));
     const [detailCache, setDetailCache] = useState<Record<string, EntityDefinition | "loading" | "error">>({});
@@ -1044,6 +1045,21 @@ export default function EntitiesPage() {
         newParams.delete("expanded");
         const qs = newParams.toString();
         router.replace(qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    }
+    async function toggleEntityActive(entity: EntityDefinition) {
+        setTogglingEntityId(entity.id);
+        try {
+            const updated = await updateEntityDefinition(gameId, entity.id, { is_active: !entity.is_active });
+            setEntities((prev) => prev.map((current) => current.id === updated.id ? updated : current));
+            setDetailCache((prev) => ({ ...prev, [updated.id]: updated }));
+        }
+        catch (err) {
+            const msg = err instanceof ApiError ? err.message : t('entity.failedSave');
+            toast({ title: t('common.error'), description: msg, variant: "destructive" });
+        }
+        finally {
+            setTogglingEntityId(null);
+        }
     }
     // ── form helpers ─────────────────────────────────────────────────────────────
     function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -1367,7 +1383,7 @@ export default function EntitiesPage() {
                               <TableCell><EntityTypeBadge type={entity.entity_type}/></TableCell>
                               <TableCell><RarityBadge rarity={entity.rarity}/></TableCell>
                               <TableCell>
-                                <Switch checked={entity.is_active} onCheckedChange={() => { }} disabled/>
+                                <Switch id={`entity-row-${entity.id}-active-switch`} checked={entity.is_active} disabled={togglingEntityId === entity.id} onCheckedChange={() => void toggleEntityActive(entity)} onClick={(event) => event.stopPropagation()}/>
                               </TableCell>
                               <TableCell className="text-right">
                                 <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(entity); }} className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
