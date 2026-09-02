@@ -1427,7 +1427,7 @@ function SortableItemRow({ item, index, gameId, itemDefs, onEdit, onDelete, onTo
         </div>
       </TableCell>
       <TableCell>
-        <Link href={`/games/${gameId}/items/${item.item_def_id}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-mono" target="_blank">
+        <Link href={`/games/${gameId}/items/${item.item_def_id}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-mono">
           {itemDefs.find((d) => d.id === item.item_def_id)?.name ?? item.item_def_id.slice(0, 8) + "…"}
           <ExternalLink className="h-3 w-3 shrink-0"/>
         </Link>
