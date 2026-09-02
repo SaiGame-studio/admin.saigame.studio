@@ -232,7 +232,6 @@ function EntityInlineEditForm({ entity, gameId, onSaved, rarities, availableType
         setEditingMetaKey(null);
         setEditingMetaFieldKey("");
         setEditingMetaFieldValue("");
-        setExpandedAbilityIdx(null);
         setEditingAbilityIdx(null);
         setEditingAbilityKey(null);
         setEditingAbilityFieldKey("");
@@ -810,7 +809,10 @@ function EntityInlineEditForm({ entity, gameId, onSaved, rarities, availableType
                                 </span>
                                 <span className="text-xs text-muted-foreground">:</span>
                                 <span className="text-xs font-mono flex-1">{String(v)}</span>
-                                {k !== "id" && (<Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/abfield:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteAbilityField(idx, k); }} disabled={saving}><X className="w-3 h-3"/></Button>)}
+                                {k !== "id" && (<Button id={`entity-ability-field-delete-${idx}-${k}`} size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/abfield:opacity-100 transition-opacity hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); deleteAbilityField(idx, k); }} disabled={saving}><Trash2 className="w-3 h-3 text-destructive"/></Button>)}
+                                <Button id={`entity-ability-field-edit-${idx}-${k}`} size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/abfield:opacity-100 transition-opacity text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); startEditAbilityField(idx, k, String(v)); }} disabled={saving}>
+                                  <Pencil className="w-3 h-3"/>
+                                </Button>
                               </div>)}
                           </div>))}
                         {editingAbilityIdx === idx && editingAbilityKey === "__new__" ? (<div className="flex items-center gap-1.5 py-0.5 mt-1">
