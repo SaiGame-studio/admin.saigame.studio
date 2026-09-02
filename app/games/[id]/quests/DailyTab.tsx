@@ -287,6 +287,12 @@ const DAY_OF_WEEK_LABELS: Record<number, string> = {
     0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
     4: "Thursday", 5: "Friday", 6: "Saturday",
 };
+const WEEKLY_GRID_DAYS = [
+    { dow: 1, labelKey: "quest.daily.weekdayMonday" }, { dow: 2, labelKey: "quest.daily.weekdayTuesday" },
+    { dow: 3, labelKey: "quest.daily.weekdayWednesday" }, { dow: 4, labelKey: "quest.daily.weekdayThursday" },
+    { dow: 5, labelKey: "quest.daily.weekdayFriday" }, { dow: 6, labelKey: "quest.daily.weekdaySaturday" },
+    { dow: 0, labelKey: "quest.daily.weekdaySunday" },
+] as const;
 function strategyBadgeVariant(strategy: AssignmentStrategy) {
     switch (strategy) {
         case "weighted_random": return "default" as const;
@@ -787,11 +793,11 @@ export function DailyTab({ game, onGameUpdate }: {
                                     if (q.sequence_order >= 0 && q.sequence_order <= 6)
                                         questsByDay[q.sequence_order].push(q);
                                 }
-                                return (<div className="grid grid-cols-7 gap-2">
-                                  {([0, 1, 2, 3, 4, 5, 6] as const).map((dow) => {
+                                return (<div id={`daily-pool-weekly-grid-${pool.id}`} className="grid grid-cols-4 gap-2">
+                                  {WEEKLY_GRID_DAYS.map(({ dow, labelKey }) => {
                                         const dayQuests = questsByDay[dow] ?? [];
                                         const isDragOver = dragOverDay === dow;
-                                        return (<div key={dow} className={`min-h-[120px] rounded-lg border-2 flex flex-col transition-colors ${isDragOver ? "border-primary bg-primary/5" : "border-dashed border-muted-foreground/25"}`} onDragOver={(e) => { e.preventDefault(); setDragOverDay(dow); }} onDragLeave={(e) => {
+                                        return (<div key={dow} id={`daily-pool-weekly-day-${pool.id}-${dow}`} className={`min-h-[120px] rounded-lg border-2 flex flex-col transition-colors ${isDragOver ? "border-primary bg-primary/5" : "border-dashed border-muted-foreground/25"}`} onDragOver={(e) => { e.preventDefault(); setDragOverDay(dow); }} onDragLeave={(e) => {
                                                 if (!e.currentTarget.contains(e.relatedTarget as Node))
                                                     setDragOverDay(null);
                                             }} onDrop={async (e) => {
@@ -811,14 +817,17 @@ export function DailyTab({ game, onGameUpdate }: {
                                                     toast({ variant: "destructive", title: t('common.error'), description: err instanceof ApiError ? err.message : t('common.error') });
                                                 }
                                             }}>
-                                        <div className={`px-2 py-1 text-xs font-semibold text-center border-b rounded-t-md ${isDragOver ? "text-primary bg-primary/10 border-primary/20" : "text-muted-foreground bg-muted/30 border-muted"}`}>
-                                          {DAY_NAMES[dow]}
+                                        <div id={`daily-pool-weekly-day-label-${pool.id}-${dow}`} className={`px-2 py-1 text-xs font-semibold text-center border-b rounded-t-md ${isDragOver ? "text-primary bg-primary/10 border-primary/20" : "text-muted-foreground bg-muted/30 border-muted"}`}>
+                                          {t(labelKey)}
                                         </div>
                                         <div className="flex flex-col gap-1 p-1 flex-1">
                                           {dayQuests.map((pq) => {
                                                 const qDef = questDefsMap[pq.quest_definition_id];
                                                 return (<div key={pq.id} id={`daily-pool-weekly-quest-${pq.id}`} className="daily-pool-weekly-quest flex items-center gap-1 text-xs bg-muted/50 rounded px-1.5 py-1 group">
-                                                <span className="flex-1 truncate leading-tight">{qDef?.name ?? pq.quest_definition_id.slice(0, 8)}</span>
+                                                <Link id={`daily-pool-weekly-quest-definition-link-${pq.id}`} href={`/games/${gameId}/quests?q=${pq.quest_definition_id}`} className="flex flex-1 min-w-0 items-center gap-1 hover:underline">
+                                                  <span id={`daily-pool-weekly-quest-name-${pq.id}`} className="truncate leading-tight">{qDef?.name ?? pq.quest_definition_id.slice(0, 8)}</span>
+                                                  <ExternalLink id={`daily-pool-weekly-quest-definition-link-icon-${pq.id}`} className="h-3 w-3 shrink-0 text-muted-foreground"/>
+                                                </Link>
                                                 <Tooltip>
                                                   <TooltipTrigger asChild>
                                                     <button id={`daily-pool-weekly-quest-remove-btn-${pq.id}`} className="daily-pool-weekly-quest-remove-btn opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id, entryId: pq.id })}>
