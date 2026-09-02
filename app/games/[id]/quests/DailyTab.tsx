@@ -4,7 +4,7 @@ import { toSlugUnderscore } from "@/lib/utils";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff, ChevronsUpDown, Calendar, Shuffle, RotateCw, ChevronDown, ChevronRight, Clock, Weight, Hash, Wand2, Search, GripVertical, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff, ChevronsUpDown, Calendar, Shuffle, RotateCw, ChevronDown, ChevronRight, Clock, Weight, Hash, Wand2, Search, GripVertical, ExternalLink, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -848,14 +848,13 @@ export function DailyTab({ game, onGameUpdate }: {
                                             return (<div key={pq.id} id={`daily-pool-quest-${pq.id}`} className="daily-pool-quest relative flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm">
                                           <div className="flex items-start justify-between gap-1 min-w-0">
                                             <div className="min-w-0">
-                                              <p className="text-sm font-medium leading-tight truncate">{qDef?.name ?? pq.quest_definition_id}</p>
-                                              <p className="text-xs text-muted-foreground font-mono flex items-center gap-0.5 mt-0.5 truncate">
-                                                {pq.quest_definition_id}
-                                                <CopyButton text={pq.quest_definition_id} size="h-3 w-3"/>
-                                              </p>
+                                              <Link id={`daily-pool-quest-definition-link-${pq.id}`} href={`/games/${gameId}/quests?q=${pq.quest_definition_id}`} className="flex items-center gap-1 text-sm font-medium leading-tight hover:underline">
+                                                <span id={`daily-pool-quest-name-${pq.id}`} className="min-w-0 truncate">{qDef?.name ?? pq.quest_definition_id}</span>
+                                                <ExternalLink id={`daily-pool-quest-definition-link-icon-${pq.id}`} className="h-3.5 w-3.5 shrink-0 text-muted-foreground"/>
+                                              </Link>
                                             </div>
                                             <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
-                                              <Switch id={`daily-pool-quest-active-toggle-${pq.id}`} className="daily-pool-quest-active-toggle" checked={qDef?.is_active ?? false} onCheckedChange={async (checked) => {
+                                              <Switch id={`daily-pool-quest-active-toggle-${pq.id}`} className="daily-pool-quest-active-toggle h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3" checked={qDef?.is_active ?? false} onCheckedChange={async (checked) => {
                                                     try {
                                                         await updateQuestDefinition(gameId, pq.quest_definition_id, { is_active: checked });
                                                         setQuestDefsMap((prev) => ({ ...prev, [pq.quest_definition_id]: { ...prev[pq.quest_definition_id], is_active: checked } }));
