@@ -1799,7 +1799,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                       <Switch id={`quest-list-item-active-toggle-${q.id}`} className="quest-list-item-active-toggle" checked={q.is_active} onCheckedChange={() => toggleActive(q)}/>
                     </TableCell>
                     <TableCell id={`quest-list-item-actions-cell-${q.id}`} className="quest-list-item-cell text-right">
-                      <TooltipProvider>
+                      <TooltipProvider delayDuration={0}>
                         <div id={`quest-list-item-actions-${q.id}`} className="quest-list-item-actions flex justify-end gap-1">
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1811,25 +1811,46 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                             {t("quest.cloneQuestDefinition")}
                           </TooltipContent>
                         </Tooltip>
-                        <Button id={`quest-list-item-edit-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-edit-btn h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
-                          <Pencil id={`quest-list-item-edit-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button id={`quest-list-item-edit-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-edit-btn h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
+                              <Pencil id={`quest-list-item-edit-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent id={`quest-list-item-edit-tooltip-${q.id}`} className="quest-list-item-edit-tooltip" side="top">
+                            {t("common.edit")}
+                          </TooltipContent>
+                        </Tooltip>
                         {getQuestChainAssignment(q.type_config) || getQuestDailyPoolAssignment(q.type_config) ? (
-                          <Button id={`quest-list-item-pool-assignment-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-pool-assignment-btn h-8 w-8" aria-label={t("quest.poolAssignment")} onClick={(e) => {
-                            e.stopPropagation();
-                            if (getQuestChainAssignment(q.type_config)) setAssignedChainQuest(q);
-                            else setAssignedDailyPoolQuest(q);
-                          }}>
-                            {getQuestChainAssignment(q.type_config) ? (
-                              <Workflow id={`quest-list-item-chain-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
-                            ) : (
-                              <Boxes id={`quest-list-item-daily-pool-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
-                            )}
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button id={`quest-list-item-pool-assignment-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-pool-assignment-btn h-8 w-8" aria-label={t("quest.poolAssignment")} onClick={(e) => {
+                                e.stopPropagation();
+                                if (getQuestChainAssignment(q.type_config)) setAssignedChainQuest(q);
+                                else setAssignedDailyPoolQuest(q);
+                              }}>
+                                {getQuestChainAssignment(q.type_config) ? (
+                                  <Workflow id={`quest-list-item-chain-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                                ) : (
+                                  <Boxes id={`quest-list-item-daily-pool-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent id={`quest-list-item-pool-assignment-tooltip-${q.id}`} className="quest-list-item-pool-assignment-tooltip" side="top">
+                              {t("quest.poolAssignment")}
+                            </TooltipContent>
+                          </Tooltip>
                         ) : (
-                          <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
-                            <Trash2 id={`quest-list-item-delete-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
+                                <Trash2 id={`quest-list-item-delete-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent id={`quest-list-item-delete-tooltip-${q.id}`} className="quest-list-item-delete-tooltip" side="top">
+                              {t("common.delete")}
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                         </div>
                       </TooltipProvider>
