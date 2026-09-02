@@ -3765,6 +3765,7 @@
     "tooltipSaveInfo": "情報を保存",
     "tooltipRefresh": "更新",
     "scriptBody": "スクリプト本文",
+    "scriptBodySizeUsage": "スクリプト本文のサイズ使用量",
     "tooltipUndo": "元に戻す (Ctrl+Z)",
     "tooltipRedo": "やり直し (Ctrl+Y)",
     "tooltipDecreaseFontSize": "フォントサイズを小さく",
