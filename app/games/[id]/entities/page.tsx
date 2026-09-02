@@ -40,6 +40,9 @@ const DEFAULT_ENTITY_TYPES: EntityType[] = ["enemy", "boss", "room", "relic", "d
 const ENTITY_RARITIES: EntityRarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
 const MAX_ABILITIES_PER_ENTITY = 50;
 const MAX_ABILITY_FIELDS = 50;
+function lsExpandedEntityDefinition(gameId: string) {
+    return `ss_expanded_entity_definition_${gameId}`;
+}
 function formatLabel(value: string) {
     return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -229,7 +232,6 @@ function EntityInlineEditForm({ entity, gameId, onSaved, rarities, availableType
         setEditingMetaKey(null);
         setEditingMetaFieldKey("");
         setEditingMetaFieldValue("");
-        setExpandedAbilityIdx(null);
         setEditingAbilityIdx(null);
         setEditingAbilityKey(null);
         setEditingAbilityFieldKey("");
@@ -697,7 +699,7 @@ function EntityInlineEditForm({ entity, gameId, onSaved, rarities, availableType
                 {getDropPackIds().map((packId) => {
             const pack = gachaPacks.find((p) => p.id === packId);
             return (<div key={packId} className="flex items-center gap-1.5 py-0.5 px-1 rounded bg-muted/40">
-                      <Link href={`/games/${gameId}/items?tab=gacha`} className="text-xs font-mono flex-1 truncate hover:underline inline-flex items-center gap-1" target="_blank">{pack ? pack.name : packId}<ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground"/></Link>
+                      <Link href={`/games/${gameId}/items?tab=gacha&q=${packId}`} className="text-xs font-mono flex-1 truncate hover:underline inline-flex items-center gap-1">{pack ? pack.name : packId}<ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground"/></Link>
                       <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeDropPack(packId)} disabled={saving}><X className="w-3 h-3"/></Button>
                     </div>);
         })}
@@ -807,7 +809,10 @@ function EntityInlineEditForm({ entity, gameId, onSaved, rarities, availableType
                                 </span>
                                 <span className="text-xs text-muted-foreground">:</span>
                                 <span className="text-xs font-mono flex-1">{String(v)}</span>
-                                {k !== "id" && (<Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/abfield:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteAbilityField(idx, k); }} disabled={saving}><X className="w-3 h-3"/></Button>)}
+                                {k !== "id" && (<Button id={`entity-ability-field-delete-${idx}-${k}`} size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/abfield:opacity-100 transition-opacity hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); deleteAbilityField(idx, k); }} disabled={saving}><Trash2 className="w-3 h-3 text-destructive"/></Button>)}
+                                <Button id={`entity-ability-field-edit-${idx}-${k}`} size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/abfield:opacity-100 transition-opacity text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); startEditAbilityField(idx, k, String(v)); }} disabled={saving}>
+                                  <Pencil className="w-3 h-3"/>
+                                </Button>
                               </div>)}
                           </div>))}
                         {editingAbilityIdx === idx && editingAbilityKey === "__new__" ? (<div className="flex items-center gap-1.5 py-0.5 mt-1">
@@ -925,11 +930,9 @@ export default function EntitiesPage() {
     const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Sync search from URL params (e.g. navigating from pool tab link)
     useEffect(() => {
-        const urlExpanded = searchParams.get("expanded") ?? "";
         const urlSearch = searchParams.get("search") ?? "";
-        const nextSearch = urlExpanded || urlSearch;
-        setSearchInput((prev) => (prev === nextSearch ? prev : nextSearch));
-        setSearchQuery((prev) => (prev === nextSearch ? prev : nextSearch));
+        setSearchInput((prev) => (prev === urlSearch ? prev : urlSearch));
+        setSearchQuery((prev) => (prev === urlSearch ? prev : urlSearch));
     }, [searchParams]);
     // ── create sheet state ───────────────────────────────────────────────────────
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -951,28 +954,25 @@ export default function EntitiesPage() {
     const [deleting, setDeleting] = useState(false);
     const [togglingEntityId, setTogglingEntityId] = useState<string | null>(null);
     // ── expandable rows ──────────────────────────────────────────────────────────
-    const [expandedId, setExpandedId] = useState<string | null>(() => searchParams.get("expanded"));
+    const [expandedId, setExpandedId] = useState<string | null>(null);
     const [detailCache, setDetailCache] = useState<Record<string, EntityDefinition | "loading" | "error">>({});
-    // Keep expanded row in sync with URL changes so linked-content navigation opens the row directly.
     useEffect(() => {
-        const id = searchParams.get("expanded");
+        const id = safeGetItem(lsExpandedEntityDefinition(gameId));
         setExpandedId(id);
-        if (!id || detailCache[id] === 'loading' || (detailCache[id] && detailCache[id] !== 'error'))
+        if (!id)
             return;
         setDetailCache((prev) => ({ ...prev, [id]: "loading" }));
         getEntityDefinition(gameId, id)
             .then((detail) => setDetailCache((prev) => ({ ...prev, [id]: detail })))
             .catch(() => setDetailCache((prev) => ({ ...prev, [id]: "error" })));
-    }, [gameId, searchParams, detailCache]);
+    }, [gameId]);
     function toggleExpand(entity: EntityDefinition) {
         const next = expandedId === entity.id ? null : entity.id;
         setExpandedId(next);
-        const sp = new URLSearchParams(searchParams.toString());
         if (next)
-            sp.set("expanded", next);
+            safeSetItem(lsExpandedEntityDefinition(gameId), next);
         else
-            sp.delete("expanded");
-        router.replace(`?${sp.toString()}`, { scroll: false });
+            safeRemoveItem(lsExpandedEntityDefinition(gameId));
         if (!next || detailCache[entity.id])
             return;
         setDetailCache((prev) => ({ ...prev, [entity.id]: "loading" }));
@@ -997,6 +997,15 @@ export default function EntitiesPage() {
             ]);
             setGame(g);
             setEntities(list);
+            if (searchQuery.trim() && list.length === 1) {
+                const [entity] = list;
+                setExpandedId(entity.id);
+                safeSetItem(lsExpandedEntityDefinition(gameId), entity.id);
+                setDetailCache((prev) => ({ ...prev, [entity.id]: "loading" }));
+                getEntityDefinition(gameId, entity.id)
+                    .then((detail) => setDetailCache((prev) => ({ ...prev, [entity.id]: detail })))
+                    .catch(() => setDetailCache((prev) => ({ ...prev, [entity.id]: "error" })));
+            }
         }
         catch (err) {
             const msg = err instanceof ApiError ? err.message : t('entity.failedLoad');
@@ -1034,15 +1043,24 @@ export default function EntitiesPage() {
         setSearchInput(value);
         if (searchDebounceRef.current)
             clearTimeout(searchDebounceRef.current);
-        searchDebounceRef.current = setTimeout(() => setSearchQuery(value), 400);
+        searchDebounceRef.current = setTimeout(() => {
+            setSearchQuery(value);
+            const newParams = new URLSearchParams(window.location.search);
+            if (value)
+                newParams.set("search", value);
+            else
+                newParams.delete("search");
+            const qs = newParams.toString();
+            router.replace(qs ? `${window.location.pathname}?${qs}` : window.location.pathname, { scroll: false });
+        }, 400);
     }
     function clearSearch() {
+        if (searchDebounceRef.current)
+            clearTimeout(searchDebounceRef.current);
         setSearchInput("");
         setSearchQuery("");
-        setExpandedId(null);
         const newParams = new URLSearchParams(searchParams.toString());
         newParams.delete("search");
-        newParams.delete("expanded");
         const qs = newParams.toString();
         router.replace(qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
     }
