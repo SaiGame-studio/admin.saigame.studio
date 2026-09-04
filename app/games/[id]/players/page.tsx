@@ -243,7 +243,7 @@ export default function GameUserProfilesPage({ params }: {
       <Tabs id="game-players-tabs" value={activeTab} onValueChange={handleTabChange} className="game-players-tabs">
         <TabsList id="game-players-tabs-list" className="game-players-tabs-list">
           <TabsTrigger id="game-players-tab-profiles" className="game-players-tab-trigger" value="profiles">{t('gameUsers.userProfiles')}</TabsTrigger>
-          <TabsTrigger id="game-players-tab-invited-emails" className="game-players-tab-trigger" value="invited-emails">{t('gameUsers.invitedEmails')} ({playerAccesses.length})</TabsTrigger>
+          <TabsTrigger id="game-players-tab-invited-emails" className="game-players-tab-trigger" value="invited-emails">{t('gameUsers.invitedEmails')}</TabsTrigger>
         </TabsList>
         <TabsContent id="game-players-tab-content-profiles" value="profiles" className="game-players-tab-content mt-4">
       {loading ? (<div id="game-players-loading-list" className="game-players-loading-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -373,7 +373,8 @@ export default function GameUserProfilesPage({ params }: {
           </div>
         </>)}</TabsContent>
         <TabsContent id="game-players-tab-content-invited-emails" value="invited-emails" className="game-players-tab-content mt-4">
-          <div id="game-players-invited-emails-toolbar" className="game-players-invited-emails-toolbar mb-2 flex justify-end">
+          <div id="game-players-invited-emails-toolbar" className="game-players-invited-emails-toolbar mb-2 flex items-center justify-between">
+            <p id="game-players-invited-emails-result-summary" className="game-players-invited-emails-result-summary text-sm text-muted-foreground">{playerAccesses.length} {t('gameUsers.invitedEmails')}</p>
           {game && <div id="game-players-allow-new-players-setting" className="game-players-allow-new-players-setting flex w-72 items-center gap-2 self-end px-2 py-1">
             <div id="game-players-allow-new-players-header" className="game-players-allow-new-players-header flex items-center gap-2">
               <div id="game-players-allow-new-players-copy" className="game-players-allow-new-players-copy">
