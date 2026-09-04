@@ -438,7 +438,7 @@ export default function GameDetailsPage({ params }: {
                                 <Label id="game-detail-allow-new-players-setting-label" htmlFor="game-detail-allow-new-players-switch" className="game-detail-setting-label text-sm font-medium cursor-pointer">
                                     {t('gameUsers.allowNewPlayers')}
                                 </Label>
-                                <Switch id="game-detail-allow-new-players-switch" className="game-detail-allow-new-players-switch" checked={game.settings?.allow_new_players ?? false} onCheckedChange={async (checked) => {
+                                <Switch id="game-detail-allow-new-players-switch" className="game-detail-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} onCheckedChange={async (checked) => {
             try {
                 const updated = await updateGame(game.id, {
                     settings: {

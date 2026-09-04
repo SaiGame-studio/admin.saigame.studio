@@ -294,14 +294,14 @@ export default function GameUserProfilesPage({ params }: {
                   <div id="game-players-allow-new-players-copy" className="game-players-allow-new-players-copy">
                     <p id="game-players-allow-new-players-label" className="game-players-allow-new-players-label whitespace-nowrap text-xs font-medium">{t('gameUsers.allowNewPlayers')}</p>
                   </div>
-                  <Switch id="game-players-allow-new-players-switch" className="game-players-allow-new-players-switch" checked={game.settings?.allow_new_players ?? false} onCheckedChange={handleAllowNewPlayersChange} disabled={updatingAllowNewPlayers}/>
+                  <Switch id="game-players-allow-new-players-switch" className="game-players-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} onCheckedChange={handleAllowNewPlayersChange} disabled={updatingAllowNewPlayers}/>
                 </div>
                 {allowNewPlayersError && <p id="game-players-allow-new-players-error" className="game-players-allow-new-players-error text-xs text-destructive">{allowNewPlayersError}</p>}
                 <div id="game-players-setting-action" className="game-players-setting-action grid h-7 shrink-0 items-center">
                   <TooltipProvider delayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button id="game-players-allow-new-players-help" type="button" variant="ghost" size="icon" aria-label={t('gameUsers.allowNewPlayersDescription')} className={`game-players-allow-new-players-help col-start-1 row-start-1 h-7 w-7 ${(game.settings?.allow_new_players ?? false) ? "" : "invisible"}`}>
+                        <Button id="game-players-allow-new-players-help" type="button" variant="ghost" size="icon" aria-label={t('gameUsers.allowNewPlayersDescription')} className={`game-players-allow-new-players-help col-start-1 row-start-1 h-7 w-7 ${(game.settings?.allow_new_players ?? true) ? "" : "invisible"}`}>
                           <CircleHelp id="game-players-allow-new-players-help-icon" className="h-3.5 w-3.5"/>
                         </Button>
                       </TooltipTrigger>
@@ -310,7 +310,7 @@ export default function GameUserProfilesPage({ params }: {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  <Button id="game-players-add-player-button" type="button" size="sm" aria-hidden={game.settings?.allow_new_players ?? false} tabIndex={(game.settings?.allow_new_players ?? false) ? -1 : undefined} className={`game-players-add-player-button col-start-1 row-start-1 h-7 gap-1 px-2 text-xs ${(game.settings?.allow_new_players ?? false) ? "invisible" : ""}`} onClick={() => setIsAddPlayerPanelOpen(true)}>
+                  <Button id="game-players-add-player-button" type="button" size="sm" aria-hidden={game.settings?.allow_new_players ?? true} tabIndex={(game.settings?.allow_new_players ?? true) ? -1 : undefined} className={`game-players-add-player-button col-start-1 row-start-1 h-7 gap-1 px-2 text-xs ${(game.settings?.allow_new_players ?? true) ? "invisible" : ""}`} onClick={() => setIsAddPlayerPanelOpen(true)}>
                     <UserPlus id="game-players-add-player-icon" className="h-3.5 w-3.5"/>
                     {t('gameUsers.addPlayer')}
                   </Button>
@@ -433,14 +433,14 @@ export default function GameUserProfilesPage({ params }: {
               <div id="game-players-allow-new-players-copy" className="game-players-allow-new-players-copy">
                 <p id="game-players-allow-new-players-label" className="game-players-allow-new-players-label whitespace-nowrap text-xs font-medium">{t('gameUsers.allowNewPlayers')}</p>
               </div>
-              <Switch id="game-players-allow-new-players-switch" className="game-players-allow-new-players-switch" checked={game.settings?.allow_new_players ?? false} onCheckedChange={handleAllowNewPlayersChange} disabled={updatingAllowNewPlayers}/>
+              <Switch id="game-players-allow-new-players-switch" className="game-players-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} onCheckedChange={handleAllowNewPlayersChange} disabled={updatingAllowNewPlayers}/>
             </div>
             {allowNewPlayersError && <p id="game-players-allow-new-players-error" className="game-players-allow-new-players-error text-xs text-destructive">{allowNewPlayersError}</p>}
             <div id="game-players-setting-action" className="game-players-setting-action grid h-7 shrink-0 items-center">
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button id="game-players-allow-new-players-help" type="button" variant="ghost" size="icon" aria-label={t('gameUsers.allowNewPlayersDescription')} className={`game-players-allow-new-players-help col-start-1 row-start-1 h-7 w-7 ${(game.settings?.allow_new_players ?? false) ? "" : "invisible"}`}>
+                    <Button id="game-players-allow-new-players-help" type="button" variant="ghost" size="icon" aria-label={t('gameUsers.allowNewPlayersDescription')} className={`game-players-allow-new-players-help col-start-1 row-start-1 h-7 w-7 ${(game.settings?.allow_new_players ?? true) ? "" : "invisible"}`}>
                       <CircleHelp id="game-players-allow-new-players-help-icon" className="h-3.5 w-3.5"/>
                     </Button>
                   </TooltipTrigger>
@@ -449,7 +449,7 @@ export default function GameUserProfilesPage({ params }: {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <Button id="game-players-add-player-button" type="button" size="sm" aria-hidden={game.settings?.allow_new_players ?? false} tabIndex={(game.settings?.allow_new_players ?? false) ? -1 : undefined} className={`game-players-add-player-button col-start-1 row-start-1 h-7 gap-1 px-2 text-xs ${(game.settings?.allow_new_players ?? false) ? "invisible" : ""}`} onClick={() => setIsAddPlayerPanelOpen(true)}>
+              <Button id="game-players-add-player-button" type="button" size="sm" aria-hidden={game.settings?.allow_new_players ?? true} tabIndex={(game.settings?.allow_new_players ?? true) ? -1 : undefined} className={`game-players-add-player-button col-start-1 row-start-1 h-7 gap-1 px-2 text-xs ${(game.settings?.allow_new_players ?? true) ? "invisible" : ""}`} onClick={() => setIsAddPlayerPanelOpen(true)}>
                 <UserPlus id="game-players-add-player-icon" className="h-3.5 w-3.5"/>
                 {t('gameUsers.addPlayer')}
               </Button>
