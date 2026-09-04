@@ -73,6 +73,7 @@ export async function updateGame(gameId: string, gameData: {
         [key: string]: any;
     };
     settings?: {
+        allow_new_players?: boolean;
         allow_player_trading?: boolean;
         clone_cost?: number;
         clone_cost_currency?: "sGem" | "sCoin" | string;
