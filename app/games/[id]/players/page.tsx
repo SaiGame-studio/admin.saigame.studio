@@ -2,19 +2,26 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import Link from "next/link";
-import { getGameProgressList, GameProgress, getPlayerIdentityMapByUserIds, PlayerIdentity } from "@/lib/game-user-api";
+import { addPlayerToGame, getGameProgressList, GameProgress, getPlayerIdentityMapByUserIds, PlayerIdentity } from "@/lib/game-user-api";
 import { getGame } from "@/lib/game-api";
 import { formatTimestamp } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, User, Trophy, Coins, Star, ArrowLeft, Hammer, Eye, Mail } from "lucide-react";
+import { CheckCircle2, Search, RefreshCw, User, UserPlus, Trophy, Coins, Star, ArrowLeft, Hammer, Eye, Mail, XCircle } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from '@/lib/i18n/use-translation';
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { CopyButton } from "@/components/CopyButton";
 import { createGamerProgress } from "@/lib/script-api";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+type AddPlayerResult = {
+    email: string;
+    status: "pending" | "success" | "error";
+    message?: string;
+};
 export default function GameUserProfilesPage({ params }: {
     params: Promise<{
         id: string;
@@ -33,6 +40,10 @@ export default function GameUserProfilesPage({ params }: {
     const [playerIdentityMap, setPlayerIdentityMap] = useState<Record<string, PlayerIdentity>>({});
     const [addingCurrentUser, setAddingCurrentUser] = useState(false);
     const [addCurrentUserError, setAddCurrentUserError] = useState<string | null>(null);
+    const [isAddPlayerPanelOpen, setIsAddPlayerPanelOpen] = useState(false);
+    const [playerEmails, setPlayerEmails] = useState("");
+    const [addingPlayer, setAddingPlayer] = useState(false);
+    const [addPlayerResults, setAddPlayerResults] = useState<AddPlayerResult[]>([]);
     const loadData = useCallback(async (displayName?: string) => {
         try {
             setLoading(true);
@@ -85,6 +96,33 @@ export default function GameUserProfilesPage({ params }: {
         }
         finally {
             setAddingCurrentUser(false);
+        }
+    };
+    const handleAddPlayer = async (event: React.FormEvent) => {
+        event.preventDefault();
+        const emails = playerEmails.split(/[\s,;]+/).map((email) => email.trim()).filter(Boolean);
+        if (emails.length === 0)
+            return;
+        setAddingPlayer(true);
+        setAddPlayerResults(emails.map((email) => ({ email, status: "pending" })));
+        try {
+            for (const [index, email] of emails.entries()) {
+                try {
+                    await addPlayerToGame(gameId, email);
+                    setAddPlayerResults((results) => results.map((result, resultIndex) => resultIndex === index ? { ...result, status: "success" } : result));
+                }
+                catch (err) {
+                    setAddPlayerResults((results) => results.map((result, resultIndex) => resultIndex === index ? {
+                        ...result,
+                        status: "error",
+                        message: err instanceof Error ? err.message : t('gameUsers.addPlayerFailed'),
+                    } : result));
+                }
+            }
+            await loadData();
+        }
+        finally {
+            setAddingPlayer(false);
         }
     };
     return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
@@ -204,6 +242,10 @@ export default function GameUserProfilesPage({ params }: {
               <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => loadData(searchQuery || undefined)} disabled={loading}>
                 <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}/>
               </Button>
+              <Button id="game-players-add-player-button" type="button" className="h-8 shrink-0" onClick={() => setIsAddPlayerPanelOpen(true)}>
+                <UserPlus id="game-players-add-player-icon" className="h-4 w-4"/>
+                {t('gameUsers.addPlayer')}
+              </Button>
             </form>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -270,5 +312,39 @@ export default function GameUserProfilesPage({ params }: {
             })}
           </div>
         </>)}
+      <Sheet open={isAddPlayerPanelOpen} onOpenChange={setIsAddPlayerPanelOpen}>
+        <SheetContent id="game-players-add-player-panel" side="right" className="flex h-full w-full flex-col overflow-hidden sm:max-w-xl">
+          <SheetHeader id="game-players-add-player-header" className="shrink-0">
+            <SheetTitle>{t('gameUsers.addPlayer')}</SheetTitle>
+            <SheetDescription>{t('gameUsers.addPlayerDescription')}</SheetDescription>
+          </SheetHeader>
+          <form id="game-players-add-player-form" className="shrink-0" onSubmit={handleAddPlayer}>
+            <div id="game-players-add-player-fields" className="py-4">
+              <Textarea id="game-players-add-player-email-input" value={playerEmails} onChange={(event) => { setPlayerEmails(event.target.value); setAddPlayerResults([]); }} placeholder={t('gameUsers.emailListPlaceholder')} autoComplete="email" required disabled={addingPlayer} rows={6} className="resize-y"/>
+              <p id="game-players-add-player-hint" className="mt-2 text-xs text-muted-foreground">{t('gameUsers.emailListHint')}</p>
+            </div>
+            <div id="game-players-add-player-footer" className="flex justify-end gap-2">
+              <Button id="game-players-add-player-cancel" type="button" variant="outline" onClick={() => setIsAddPlayerPanelOpen(false)} disabled={addingPlayer}>{t('gameUsers.cancel')}</Button>
+              <Button id="game-players-add-player-submit" type="submit" disabled={addingPlayer}>{addingPlayer ? t('gameUsers.addingPlayer') : t('gameUsers.addPlayer')}</Button>
+            </div>
+          </form>
+          {addPlayerResults.length > 0 && <div id="game-players-add-player-results-panel" className="mt-6 flex min-h-0 flex-1 flex-col">
+          <div id="game-players-add-player-results-header" className="shrink-0">
+            <p id="game-players-add-player-results-title" className="font-medium">{t('gameUsers.addPlayerResults')}</p>
+            <p id="game-players-add-player-results-description" className="text-sm text-muted-foreground">{t('gameUsers.addPlayerResultsDescription')}</p>
+          </div>
+          <p id="game-players-add-player-results-summary" className="shrink-0 text-sm text-muted-foreground">
+            {addPlayerResults.filter((result) => result.status === "success").length} {t('gameUsers.addPlayerSuccessCount')} · {addPlayerResults.filter((result) => result.status === "error").length} {t('gameUsers.addPlayerErrorCount')} · {addPlayerResults.length} {t('gameUsers.addPlayerTotalCount')}
+          </p>
+          <div id="game-players-add-player-results-list" className="mt-2 flex-1 space-y-2 overflow-y-auto pr-1">
+            {addPlayerResults.map((result, index) => <div id={`game-players-add-player-result-${index}`} key={`${result.email}-${index}`} className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${result.status === "success" ? "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400" : result.status === "error" ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-muted bg-muted/50 text-muted-foreground"}`}>
+              {result.status === "success" ? <CheckCircle2 id={`game-players-add-player-result-success-${index}`} className="h-4 w-4 shrink-0"/> : result.status === "error" ? <XCircle id={`game-players-add-player-result-error-${index}`} className="h-4 w-4 shrink-0"/> : <RefreshCw id={`game-players-add-player-result-pending-${index}`} className="h-4 w-4 shrink-0 animate-spin"/>}
+              <span id={`game-players-add-player-result-email-${index}`} className="min-w-0 truncate">{result.email}</span>
+              {result.message && <span id={`game-players-add-player-result-message-${index}`} className="min-w-0 truncate text-xs">{result.message}</span>}
+            </div>)}
+          </div>
+          </div>}
+        </SheetContent>
+      </Sheet>
     </div>);
 }

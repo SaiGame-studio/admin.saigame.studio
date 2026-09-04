@@ -39,6 +39,13 @@ export interface GameProgressDetail {
     banned_at?: string | null;
     banned_by?: string | null;
 }
+export interface GamePlayerAccess {
+    id: string;
+    game_id: string;
+    email: string;
+    created_at: string;
+    updated_at: string;
+}
 export interface PlayerIdentity {
     user_id: string;
     gamer_name: string;
@@ -169,6 +176,10 @@ export async function getGameProgressList(gameId: string, params?: {
         progress: data?.progress && Array.isArray(data.progress) ? data.progress : [],
         total_count: data?.total_count ?? 0,
     };
+}
+export async function addPlayerToGame(gameId: string, email: string): Promise<GamePlayerAccess> {
+    const data = await api.post(`/api/v1/games/${gameId}/players`, { email });
+    return data?.data ?? data;
 }
 // Get detail of a player progress
 export async function getGameProgressDetail(progressId: string): Promise<GameProgressDetail> {
