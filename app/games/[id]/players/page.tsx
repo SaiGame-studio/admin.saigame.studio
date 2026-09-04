@@ -267,7 +267,58 @@ export default function GameUserProfilesPage({ params }: {
               {t('gameUsers.tryAgain')}
             </Button>
           </CardContent>
-        </Card>) : progressList.length === 0 ? (<Card id="game-players-empty-card" className="text-center p-6">
+        </Card>) : (<>
+          <div id="game-players-toolbar" className="game-players-toolbar flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
+            <p id="game-players-result-summary" className="game-players-result-summary text-sm text-muted-foreground">
+              {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
+              {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
+            </p>
+            <div id="game-players-search-controls" className="game-players-search-controls flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <div id="game-players-search-form" className="game-players-search-form flex items-center gap-1 w-full sm:w-auto">
+                <div id="game-players-search-input-container" className="game-players-search-input-container relative grid flex-1 sm:flex-none">
+                  <span id="game-players-search-input-measure" className="game-players-search-input-measure invisible col-start-1 row-start-1 pl-8 pr-3 h-8 text-sm whitespace-pre pointer-events-none select-none border hidden sm:block" aria-hidden>
+                    {t('gameUsers.searchPlaceholder')}
+                  </span>
+                  <Search id="game-players-search-input-icon" className="game-players-search-input-icon absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+                  <Input id="game-players-search-input" placeholder={t('gameUsers.searchPlaceholder')} value={searchInput} onChange={(e) => handleSearchInput(e.target.value)} className="game-players-search-input col-start-1 row-start-1 pl-8 h-8 w-full text-sm"/>
+                </div>
+                {searchQuery && (<Button id="game-players-clear-search-button" type="button" variant="outline" size="icon" className="game-players-clear-search-button h-8 w-8 shrink-0" onClick={handleClearSearch}>
+                    ×
+                  </Button>)}
+                <Button id="game-players-refresh-button" type="button" variant="outline" size="icon" className="game-players-refresh-button h-8 w-8 shrink-0" onClick={() => loadData(searchQuery || undefined)} disabled={loading}>
+                  <RefreshCw id="game-players-refresh-icon" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}/>
+                </Button>
+              </div>
+              {game && <div id="game-players-allow-new-players-setting" className="game-players-allow-new-players-setting flex w-72 items-center gap-2 px-2 py-1">
+                <div id="game-players-allow-new-players-header" className="game-players-allow-new-players-header flex items-center gap-2">
+                  <div id="game-players-allow-new-players-copy" className="game-players-allow-new-players-copy">
+                    <p id="game-players-allow-new-players-label" className="game-players-allow-new-players-label whitespace-nowrap text-xs font-medium">{t('gameUsers.allowNewPlayers')}</p>
+                  </div>
+                  <Switch id="game-players-allow-new-players-switch" className="game-players-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} onCheckedChange={handleAllowNewPlayersChange} disabled={updatingAllowNewPlayers}/>
+                </div>
+                {allowNewPlayersError && <p id="game-players-allow-new-players-error" className="game-players-allow-new-players-error text-xs text-destructive">{allowNewPlayersError}</p>}
+                <div id="game-players-setting-action" className="game-players-setting-action grid h-7 shrink-0 items-center">
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button id="game-players-allow-new-players-help" type="button" variant="ghost" size="icon" aria-label={t('gameUsers.allowNewPlayersDescription')} className={`game-players-allow-new-players-help col-start-1 row-start-1 h-7 w-7 ${(game.settings?.allow_new_players ?? true) ? "" : "invisible"}`}>
+                          <CircleHelp id="game-players-allow-new-players-help-icon" className="h-3.5 w-3.5"/>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent id="game-players-allow-new-players-description" side="top" className="game-players-allow-new-players-description max-w-xs text-xs">
+                        {t('gameUsers.allowNewPlayersDescription')}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <Button id="game-players-add-player-button" type="button" size="sm" aria-hidden={game.settings?.allow_new_players ?? true} tabIndex={(game.settings?.allow_new_players ?? true) ? -1 : undefined} className={`game-players-add-player-button col-start-1 row-start-1 h-7 gap-1 px-2 text-xs ${(game.settings?.allow_new_players ?? true) ? "invisible" : ""}`} onClick={() => setIsAddPlayerPanelOpen(true)}>
+                    <UserPlus id="game-players-add-player-icon" className="h-3.5 w-3.5"/>
+                    {t('gameUsers.addPlayer')}
+                  </Button>
+                </div>
+              </div>}
+            </div>
+          </div>
+          {progressList.length === 0 ? (<Card id="game-players-empty-card" className="text-center p-6">
           <CardHeader id="game-players-empty-header">
             <User id="game-players-empty-icon" className="mx-auto h-12 w-12 text-muted-foreground"/>
             <CardTitle id="game-players-empty-title" className="mt-4">{t('gameUsers.noPlayers')}</CardTitle>
@@ -284,31 +335,7 @@ export default function GameUserProfilesPage({ params }: {
                 {addCurrentUserError && (<p id="game-players-add-me-error" className="text-sm text-destructive">{addCurrentUserError}</p>)}
               </div>)}
           </CardHeader>
-        </Card>) : (<>
-          <div id="game-players-toolbar" className="game-players-toolbar flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
-            <p id="game-players-result-summary" className="game-players-result-summary text-sm text-muted-foreground">
-              {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
-              {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
-            </p>
-            <div id="game-players-search-controls" className="game-players-search-controls flex w-full flex-col gap-2 sm:w-auto">
-            <div id="game-players-search-form" className="game-players-search-form flex items-center gap-1 w-full sm:w-auto">
-              <div id="game-players-search-input-container" className="game-players-search-input-container relative grid flex-1 sm:flex-none">
-                <span id="game-players-search-input-measure" className="game-players-search-input-measure invisible col-start-1 row-start-1 pl-8 pr-3 h-8 text-sm whitespace-pre pointer-events-none select-none border hidden sm:block" aria-hidden>
-                  {t('gameUsers.searchPlaceholder')}
-                </span>
-                <Search id="game-players-search-input-icon" className="game-players-search-input-icon absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-                <Input id="game-players-search-input" placeholder={t('gameUsers.searchPlaceholder')} value={searchInput} onChange={(e) => handleSearchInput(e.target.value)} className="game-players-search-input col-start-1 row-start-1 pl-8 h-8 w-full text-sm"/>
-              </div>
-              {searchQuery && (<Button id="game-players-clear-search-button" type="button" variant="outline" size="icon" className="game-players-clear-search-button h-8 w-8 shrink-0" onClick={handleClearSearch}>
-                  ×
-                </Button>)}
-              <Button id="game-players-refresh-button" type="button" variant="outline" size="icon" className="game-players-refresh-button h-8 w-8 shrink-0" onClick={() => loadData(searchQuery || undefined)} disabled={loading}>
-                <RefreshCw id="game-players-refresh-icon" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}/>
-              </Button>
-            </div>
-            </div>
-          </div>
-          <div id="game-players-list" className="game-players-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        </Card>) : (<div id="game-players-list" className="game-players-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {progressList.map((item) => {
                 const identity = playerIdentityMap[item.user_id];
                 return (<Card id={`game-players-card-${item.id}`} key={item.id} className="game-players-card">
@@ -367,10 +394,29 @@ export default function GameUserProfilesPage({ params }: {
                     </Button>
                   </div>
                 </div>
+
+                <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between items-center gap-3 flex-wrap">
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="truncate">{t('gameUsers.joined')}: {formatTimestamp(item.user_created_at)}</span>
+                    <span className="truncate">{t('gameUsers.updated')}: {formatTimestamp(item.updated_at)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button asChild variant="outline" size="icon" title={t('gameUsers.sendMail')}>
+                      <Link href={`/games/${gameId}/mailbox?userId=${item.id}`}>
+                        <Mail className="h-4 w-4"/>
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" size="icon" title={t('common.viewDetails')}>
+                      <Link href={`/games/${gameId}/players/${item.id}`}>
+                        <Eye className="h-4 w-4"/>
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>);
             })}
-          </div>
+          </div>)}
         </>)}</TabsContent>
         <TabsContent id="game-players-tab-content-invited-emails" value="invited-emails" className="game-players-tab-content mt-4">
           <div id="game-players-invited-emails-toolbar" className="game-players-invited-emails-toolbar mb-2 flex items-center justify-between">
@@ -387,14 +433,14 @@ export default function GameUserProfilesPage({ params }: {
               <div id="game-players-allow-new-players-copy" className="game-players-allow-new-players-copy">
                 <p id="game-players-allow-new-players-label" className="game-players-allow-new-players-label whitespace-nowrap text-xs font-medium">{t('gameUsers.allowNewPlayers')}</p>
               </div>
-              <Switch id="game-players-allow-new-players-switch" className="game-players-allow-new-players-switch" checked={game.settings?.allow_new_players ?? false} onCheckedChange={handleAllowNewPlayersChange} disabled={updatingAllowNewPlayers}/>
+              <Switch id="game-players-allow-new-players-switch" className="game-players-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} onCheckedChange={handleAllowNewPlayersChange} disabled={updatingAllowNewPlayers}/>
             </div>
             {allowNewPlayersError && <p id="game-players-allow-new-players-error" className="game-players-allow-new-players-error text-xs text-destructive">{allowNewPlayersError}</p>}
             <div id="game-players-setting-action" className="game-players-setting-action grid h-7 shrink-0 items-center">
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button id="game-players-allow-new-players-help" type="button" variant="ghost" size="icon" aria-label={t('gameUsers.allowNewPlayersDescription')} className={`game-players-allow-new-players-help col-start-1 row-start-1 h-7 w-7 ${(game.settings?.allow_new_players ?? false) ? "" : "invisible"}`}>
+                    <Button id="game-players-allow-new-players-help" type="button" variant="ghost" size="icon" aria-label={t('gameUsers.allowNewPlayersDescription')} className={`game-players-allow-new-players-help col-start-1 row-start-1 h-7 w-7 ${(game.settings?.allow_new_players ?? true) ? "" : "invisible"}`}>
                       <CircleHelp id="game-players-allow-new-players-help-icon" className="h-3.5 w-3.5"/>
                     </Button>
                   </TooltipTrigger>
@@ -403,7 +449,7 @@ export default function GameUserProfilesPage({ params }: {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <Button id="game-players-add-player-button" type="button" size="sm" aria-hidden={game.settings?.allow_new_players ?? false} tabIndex={(game.settings?.allow_new_players ?? false) ? -1 : undefined} className={`game-players-add-player-button col-start-1 row-start-1 h-7 gap-1 px-2 text-xs ${(game.settings?.allow_new_players ?? false) ? "invisible" : ""}`} onClick={() => setIsAddPlayerPanelOpen(true)}>
+              <Button id="game-players-add-player-button" type="button" size="sm" aria-hidden={game.settings?.allow_new_players ?? true} tabIndex={(game.settings?.allow_new_players ?? true) ? -1 : undefined} className={`game-players-add-player-button col-start-1 row-start-1 h-7 gap-1 px-2 text-xs ${(game.settings?.allow_new_players ?? true) ? "invisible" : ""}`} onClick={() => setIsAddPlayerPanelOpen(true)}>
                 <UserPlus id="game-players-add-player-icon" className="h-3.5 w-3.5"/>
                 {t('gameUsers.addPlayer')}
               </Button>

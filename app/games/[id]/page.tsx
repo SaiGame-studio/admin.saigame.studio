@@ -432,24 +432,24 @@ export default function GameDetailsPage({ params }: {
                             </p>
                         </div>
 
-                        {/* Toggle 1: Allow player trading and mailbox */}
-                        <div id="game-detail-trading-settings" className="game-detail-setting-row flex flex-col gap-2 py-2 border-b border-border">
-                            <div id="game-detail-trading-setting-control" className="game-detail-setting-control flex items-center justify-between gap-3 flex-wrap">
-                                <Label id="game-detail-trading-setting-label" htmlFor="game-detail-allow-trading-switch" className="game-detail-setting-label text-sm font-medium cursor-pointer">
-                                    {t('game.allowPlayerTrading')}
+                        {/* Toggle 1: Allow new players */}
+                        <div id="game-detail-allow-new-players-settings" className="game-detail-setting-row flex flex-col gap-2 py-2 border-b border-border">
+                            <div id="game-detail-allow-new-players-setting-control" className="game-detail-setting-control flex items-center justify-between gap-3 flex-wrap">
+                                <Label id="game-detail-allow-new-players-setting-label" htmlFor="game-detail-allow-new-players-switch" className="game-detail-setting-label text-sm font-medium cursor-pointer">
+                                    {t('gameUsers.allowNewPlayers')}
                                 </Label>
-                                <Switch id="game-detail-allow-trading-switch" className="game-detail-allow-trading-switch" checked={game.settings?.allow_player_trading ?? false} onCheckedChange={async (checked) => {
+                                <Switch id="game-detail-allow-new-players-switch" className="game-detail-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} onCheckedChange={async (checked) => {
             try {
                 const updated = await updateGame(game.id, {
                     settings: {
                         ...game.settings,
-                        allow_player_trading: checked
+                        allow_new_players: checked
                     }
                 });
                 setGame(updated);
                 toast({
                     title: t('game.settingsUpdated'),
-                    description: checked ? t('game.tradingEnabled') : t('game.tradingDisabled')
+                    description: t('gameUsers.allowNewPlayers')
                 });
             }
             catch (err) {
@@ -461,8 +461,8 @@ export default function GameDetailsPage({ params }: {
             }
         }}/>
                             </div>
-                            <p id="game-detail-trading-setting-description" className="game-detail-setting-description text-xs text-muted-foreground">
-                                {t('game.allowPlayerTradingDesc')}
+                            <p id="game-detail-allow-new-players-setting-description" className="game-detail-setting-description text-xs text-muted-foreground">
+                                {t('gameUsers.allowNewPlayersDescription')}
                             </p>
                         </div>
 
