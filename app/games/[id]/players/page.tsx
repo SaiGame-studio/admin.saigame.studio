@@ -374,8 +374,15 @@ export default function GameUserProfilesPage({ params }: {
         </>)}</TabsContent>
         <TabsContent id="game-players-tab-content-invited-emails" value="invited-emails" className="game-players-tab-content mt-4">
           <div id="game-players-invited-emails-toolbar" className="game-players-invited-emails-toolbar mb-2 flex items-center justify-between">
-            <p id="game-players-invited-emails-result-summary" className="game-players-invited-emails-result-summary text-sm text-muted-foreground">{playerAccesses.length} {t('gameUsers.invitedEmails')}</p>
-          {game && <div id="game-players-allow-new-players-setting" className="game-players-allow-new-players-setting flex w-72 items-center gap-2 self-end px-2 py-1">
+            <div id="game-players-invited-emails-toolbar-start" className="game-players-invited-emails-toolbar-start flex items-center gap-3">
+              <p id="game-players-invited-emails-result-summary" className="game-players-invited-emails-result-summary text-sm text-muted-foreground">{playerAccesses.length} {t('gameUsers.invitedEmails')}</p>
+            </div>
+            <div id="game-players-invited-emails-toolbar-end" className="game-players-invited-emails-toolbar-end flex items-center gap-3">
+              <div id="game-players-invited-emails-search-container" className="game-players-invited-emails-search-container relative w-72">
+                <Search id="game-players-invited-emails-search-icon" className="game-players-invited-emails-search-icon absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"/>
+                <Input id="game-players-invited-emails-search-input" value={invitedEmailSearch} onChange={(event) => setInvitedEmailSearch(event.target.value)} placeholder={t('gameUsers.searchInvitedEmailsPlaceholder')} className="game-players-invited-emails-search-input h-8 pl-8 text-sm"/>
+              </div>
+          {game && <div id="game-players-allow-new-players-setting" className="game-players-allow-new-players-setting flex w-72 items-center gap-2 px-2 py-1">
             <div id="game-players-allow-new-players-header" className="game-players-allow-new-players-header flex items-center gap-2">
               <div id="game-players-allow-new-players-copy" className="game-players-allow-new-players-copy">
                 <p id="game-players-allow-new-players-label" className="game-players-allow-new-players-label whitespace-nowrap text-xs font-medium">{t('gameUsers.allowNewPlayers')}</p>
@@ -403,11 +410,6 @@ export default function GameUserProfilesPage({ params }: {
             </div>
           </div>}
           </div>
-          <div id="game-players-invited-emails-search-row" className="game-players-invited-emails-search-row mb-4 flex justify-end">
-            <div id="game-players-invited-emails-search-container" className="game-players-invited-emails-search-container relative w-72">
-              <Search id="game-players-invited-emails-search-icon" className="game-players-invited-emails-search-icon absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"/>
-              <Input id="game-players-invited-emails-search-input" value={invitedEmailSearch} onChange={(event) => setInvitedEmailSearch(event.target.value)} placeholder={t('gameUsers.searchInvitedEmailsPlaceholder')} className="game-players-invited-emails-search-input h-8 pl-8 text-sm"/>
-            </div>
           </div>
           <Card id="game-players-access-list-card" className="game-players-access-list-card">
             <CardHeader id="game-players-access-list-header" className="game-players-access-list-header pb-3">
