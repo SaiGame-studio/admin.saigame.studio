@@ -181,33 +181,33 @@ export function GameStatusEditable({ game, gameId, onStatusUpdate }: GameStatusE
             setLoading(false);
         }
     };
-    return (<div className="group flex items-center gap-2">
+    return (<div id={`game-status-editable-${gameId}`} className="group flex items-center gap-2">
       {editing ? (<>
           <Select value={status} onValueChange={setStatus} disabled={loading}>
-            <SelectTrigger className="w-36 h-8 text-lg font-bold">
-              <SelectValue placeholder="Select status"/>
+            <SelectTrigger id={`game-status-editable-trigger-${gameId}`} className="w-36 h-8 text-sm">
+              <SelectValue id={`game-status-editable-value-${gameId}`} placeholder="Select status"/>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="development">Development</SelectItem>
-              <SelectItem value="alpha">Alpha</SelectItem>
-              <SelectItem value="beta">Beta</SelectItem>
-              <SelectItem value="released">Released</SelectItem>
-              <SelectItem value="archived">Archived</SelectItem>
+            <SelectContent id={`game-status-editable-content-${gameId}`}>
+              <SelectItem id={`game-status-editable-option-development-${gameId}`} value="development">Development</SelectItem>
+              <SelectItem id={`game-status-editable-option-alpha-${gameId}`} value="alpha">Alpha</SelectItem>
+              <SelectItem id={`game-status-editable-option-beta-${gameId}`} value="beta">Beta</SelectItem>
+              <SelectItem id={`game-status-editable-option-released-${gameId}`} value="released">Released</SelectItem>
+              <SelectItem id={`game-status-editable-option-archived-${gameId}`} value="archived">Archived</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4"/>
+          <Button id={`game-status-editable-save-${gameId}`} size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
+            <Save id={`game-status-editable-save-icon-${gameId}`} className="w-4 h-4"/>
           </Button>
-          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setStatus(game.status); }} disabled={loading}>
-            <X className="w-4 h-4"/>
+          <Button id={`game-status-editable-cancel-${gameId}`} size="icon" variant="ghost" onClick={() => { setEditing(false); setStatus(game.status); }} disabled={loading}>
+            <X id={`game-status-editable-cancel-icon-${gameId}`} className="w-4 h-4"/>
           </Button>
         </>) : (<>
-          <Badge className={`mt-1`}>{game.status}</Badge>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <Pencil className="w-4 h-4"/>
+          <Badge id={`game-status-editable-badge-${gameId}`} className={`mt-1`}>{game.status}</Badge>
+          <Button id={`game-status-editable-edit-${gameId}`} size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <Pencil id={`game-status-editable-edit-icon-${gameId}`} className="w-4 h-4"/>
           </Button>
         </>)}
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && <div id={`game-status-editable-error-${gameId}`} className="text-red-500 text-xs mt-1">{error}</div>}
     </div>);
 }
 interface StudioDescriptionEditableProps {
@@ -238,23 +238,23 @@ export function StudioDescriptionEditable({ studio, studioId, onDescriptionUpdat
             setLoading(false);
         }
     };
-    return (<div className="group flex items-center gap-2 mt-1">
+    return (<div id={`studio-description-editable-${studioId}`} className="group flex items-center gap-2 mt-1">
       {editing ? (<>
-          <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Add studio description..." className="w-96 h-8 px-2 text-sm" disabled={loading}/>
-          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4"/>
+          <Input id={`studio-description-editable-input-${studioId}`} value={description} onChange={e => setDescription(e.target.value)} placeholder="Add studio description..." className="w-96 h-8 px-2 text-sm" disabled={loading}/>
+          <Button id={`studio-description-editable-save-${studioId}`} size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
+            <Save id={`studio-description-editable-save-icon-${studioId}`} className="w-4 h-4"/>
           </Button>
-          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setDescription(studio.description || ''); }} disabled={loading}>
-            <X className="w-4 h-4"/>
+          <Button id={`studio-description-editable-cancel-${studioId}`} size="icon" variant="ghost" onClick={() => { setEditing(false); setDescription(studio.description || ''); }} disabled={loading}>
+            <X id={`studio-description-editable-cancel-icon-${studioId}`} className="w-4 h-4"/>
           </Button>
         </>) : (<>
-          <span className="text-sm text-muted-foreground">
+          <span id={`studio-description-editable-value-${studioId}`} className="text-sm text-muted-foreground">
             {description || "Add studio description..."}
           </span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <Pencil className="w-4 h-4"/>
+          <Button id={`studio-description-editable-edit-${studioId}`} size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <Pencil id={`studio-description-editable-edit-icon-${studioId}`} className="w-4 h-4"/>
           </Button>
         </>)}
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && <div id={`studio-description-editable-error-${studioId}`} className="text-red-500 text-xs mt-1">{error}</div>}
     </div>);
 }
