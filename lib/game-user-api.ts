@@ -181,6 +181,10 @@ export async function addPlayerToGame(gameId: string, email: string): Promise<Ga
     const data = await api.post(`/api/v1/games/${gameId}/players`, { email });
     return data?.data ?? data;
 }
+export async function getGamePlayerAccesses(gameId: string): Promise<GamePlayerAccess[]> {
+    const data = await api.get(`/api/v1/games/${gameId}/player-accesses`);
+    return data?.accesses && Array.isArray(data.accesses) ? data.accesses : [];
+}
 // Get detail of a player progress
 export async function getGameProgressDetail(progressId: string): Promise<GameProgressDetail> {
     const data = await api.get(`/api/v1/gamer-progress/${progressId}`);

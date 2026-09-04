@@ -2,9 +2,10 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import Link from "next/link";
-import { addPlayerToGame, getGameProgressList, GameProgress, getPlayerIdentityMapByUserIds, PlayerIdentity } from "@/lib/game-user-api";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { addPlayerToGame, getGamePlayerAccesses, getGameProgressList, GamePlayerAccess, GameProgress, getPlayerIdentityMapByUserIds, PlayerIdentity } from "@/lib/game-user-api";
 import { getGame, updateGame } from "@/lib/game-api";
-import { formatTimestamp } from "@/lib/utils/date-utils";
+import { formatISODate, formatTimestamp } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { createGamerProgress } from "@/lib/script-api";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type AddPlayerResult = {
     email: string;
     status: "pending" | "success" | "error";
@@ -31,8 +33,13 @@ export default function GameUserProfilesPage({ params }: {
 }) {
     const { id } = React.use(params);
     const gameId = id;
+    const pathname = usePathname();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const { t } = useTranslation();
     const [progressList, setProgressList] = useState<GameProgress[]>([]);
+    const [playerAccesses, setPlayerAccesses] = useState<GamePlayerAccess[]>([]);
+    const [invitedEmailSearch, setInvitedEmailSearch] = useState("");
     const [totalCount, setTotalCount] = useState(0);
     const [game, setGame] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -52,9 +59,10 @@ export default function GameUserProfilesPage({ params }: {
     const loadData = useCallback(async (displayName?: string) => {
         try {
             setLoading(true);
-            const [progressRes, gameRes] = await Promise.all([
+            const [progressRes, gameRes, accesses] = await Promise.all([
                 getGameProgressList(gameId, displayName ? { display_name: displayName } : undefined),
                 game ? Promise.resolve(game) : getGame(gameId),
+                getGamePlayerAccesses(gameId),
             ]);
             const identityMap = await getPlayerIdentityMapByUserIds(progressRes.progress.map((item) => item.user_id), progressRes.progress.map((item) => ({
                 user_id: item.user_id,
@@ -62,6 +70,7 @@ export default function GameUserProfilesPage({ params }: {
                 user_email: item.user_email,
             })));
             setProgressList(progressRes.progress);
+            setPlayerAccesses(accesses);
             setPlayerIdentityMap(identityMap);
             setTotalCount(progressRes.total_count);
             if (!game)
@@ -158,6 +167,21 @@ export default function GameUserProfilesPage({ params }: {
             setUpdatingAllowNewPlayers(false);
         }
     };
+    const filteredPlayerAccesses = playerAccesses.filter((access) => access.email.toLowerCase().includes(invitedEmailSearch.trim().toLowerCase()));
+    const activeTab = searchParams.get("tab") === "invited-emails" ? "invited-emails" : "profiles";
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        if (tab === "profiles" || tab === "invited-emails")
+            return;
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("tab", "profiles");
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    }, [pathname, router, searchParams]);
+    const handleTabChange = (tab: string) => {
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("tab", tab === "invited-emails" ? "invited-emails" : "profiles");
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    };
     return (<div id="game-players-page" className="game-players-page container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       {game && (<div id="game-players-breadcrumb-container" className="game-players-breadcrumb-container mb-2">
           <Breadcrumb id="game-players-breadcrumb" className="game-players-breadcrumb">
@@ -216,6 +240,12 @@ export default function GameUserProfilesPage({ params }: {
       </div>
 
       {/* Content */}
+      <Tabs id="game-players-tabs" value={activeTab} onValueChange={handleTabChange} className="game-players-tabs">
+        <TabsList id="game-players-tabs-list" className="game-players-tabs-list">
+          <TabsTrigger id="game-players-tab-profiles" className="game-players-tab-trigger" value="profiles">{t('gameUsers.userProfiles')}</TabsTrigger>
+          <TabsTrigger id="game-players-tab-invited-emails" className="game-players-tab-trigger" value="invited-emails">{t('gameUsers.invitedEmails')} ({playerAccesses.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent id="game-players-tab-content-profiles" value="profiles" className="game-players-tab-content mt-4">
       {loading ? (<div id="game-players-loading-list" className="game-players-loading-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (<Card id={`game-players-loading-card-${i}`} key={i} className="game-players-loading-card">
               <CardHeader id={`game-players-loading-card-header-${i}`} className="game-players-loading-card-header">
@@ -261,33 +291,6 @@ export default function GameUserProfilesPage({ params }: {
               {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
             </p>
             <div id="game-players-search-controls" className="game-players-search-controls flex w-full flex-col gap-2 sm:w-auto">
-              {game && <div id="game-players-allow-new-players-setting" className="game-players-allow-new-players-setting flex items-center gap-2 self-start px-2 py-1 sm:self-end">
-                <div id="game-players-allow-new-players-header" className="game-players-allow-new-players-header flex items-center gap-2">
-                  <div id="game-players-allow-new-players-copy" className="game-players-allow-new-players-copy">
-                    <p id="game-players-allow-new-players-label" className="game-players-allow-new-players-label whitespace-nowrap text-xs font-medium">{t('gameUsers.allowNewPlayers')}</p>
-                  </div>
-                  <Switch id="game-players-allow-new-players-switch" className="game-players-allow-new-players-switch" checked={game.settings?.allow_new_players ?? false} onCheckedChange={handleAllowNewPlayersChange} disabled={updatingAllowNewPlayers}/>
-                </div>
-                {allowNewPlayersError && <p id="game-players-allow-new-players-error" className="game-players-allow-new-players-error text-xs text-destructive">{allowNewPlayersError}</p>}
-                <div id="game-players-setting-action" className="game-players-setting-action grid h-7 shrink-0 items-center">
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button id="game-players-allow-new-players-help" type="button" variant="ghost" size="icon" aria-label={t('gameUsers.allowNewPlayersDescription')} className={`game-players-allow-new-players-help col-start-1 row-start-1 h-7 w-7 ${(game.settings?.allow_new_players ?? false) ? "" : "invisible"}`}>
-                          <CircleHelp id="game-players-allow-new-players-help-icon" className="h-3.5 w-3.5"/>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent id="game-players-allow-new-players-description" side="top" className="game-players-allow-new-players-description max-w-xs text-xs">
-                        {t('gameUsers.allowNewPlayersDescription')}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <Button id="game-players-add-player-button" type="button" size="sm" aria-hidden={game.settings?.allow_new_players ?? false} tabIndex={(game.settings?.allow_new_players ?? false) ? -1 : undefined} className={`game-players-add-player-button col-start-1 row-start-1 h-7 gap-1 px-2 text-xs ${(game.settings?.allow_new_players ?? false) ? "invisible" : ""}`} onClick={() => setIsAddPlayerPanelOpen(true)}>
-                    <UserPlus id="game-players-add-player-icon" className="h-3.5 w-3.5"/>
-                    {t('gameUsers.addPlayer')}
-                  </Button>
-                </div>
-              </div>}
             <div id="game-players-search-form" className="game-players-search-form flex items-center gap-1 w-full sm:w-auto">
               <div id="game-players-search-input-container" className="game-players-search-input-container relative grid flex-1 sm:flex-none">
                 <span id="game-players-search-input-measure" className="game-players-search-input-measure invisible col-start-1 row-start-1 pl-8 pr-3 h-8 text-sm whitespace-pre pointer-events-none select-none border hidden sm:block" aria-hidden>
@@ -368,7 +371,58 @@ export default function GameUserProfilesPage({ params }: {
             </Card>);
             })}
           </div>
-        </>)}
+        </>)}</TabsContent>
+        <TabsContent id="game-players-tab-content-invited-emails" value="invited-emails" className="game-players-tab-content mt-4">
+          <div id="game-players-invited-emails-toolbar" className="game-players-invited-emails-toolbar mb-2 flex justify-end">
+          {game && <div id="game-players-allow-new-players-setting" className="game-players-allow-new-players-setting flex w-72 items-center gap-2 self-end px-2 py-1">
+            <div id="game-players-allow-new-players-header" className="game-players-allow-new-players-header flex items-center gap-2">
+              <div id="game-players-allow-new-players-copy" className="game-players-allow-new-players-copy">
+                <p id="game-players-allow-new-players-label" className="game-players-allow-new-players-label whitespace-nowrap text-xs font-medium">{t('gameUsers.allowNewPlayers')}</p>
+              </div>
+              <Switch id="game-players-allow-new-players-switch" className="game-players-allow-new-players-switch" checked={game.settings?.allow_new_players ?? false} onCheckedChange={handleAllowNewPlayersChange} disabled={updatingAllowNewPlayers}/>
+            </div>
+            {allowNewPlayersError && <p id="game-players-allow-new-players-error" className="game-players-allow-new-players-error text-xs text-destructive">{allowNewPlayersError}</p>}
+            <div id="game-players-setting-action" className="game-players-setting-action grid h-7 shrink-0 items-center">
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button id="game-players-allow-new-players-help" type="button" variant="ghost" size="icon" aria-label={t('gameUsers.allowNewPlayersDescription')} className={`game-players-allow-new-players-help col-start-1 row-start-1 h-7 w-7 ${(game.settings?.allow_new_players ?? false) ? "" : "invisible"}`}>
+                      <CircleHelp id="game-players-allow-new-players-help-icon" className="h-3.5 w-3.5"/>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent id="game-players-allow-new-players-description" side="top" className="game-players-allow-new-players-description max-w-xs text-xs">
+                    {t('gameUsers.allowNewPlayersDescription')}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Button id="game-players-add-player-button" type="button" size="sm" aria-hidden={game.settings?.allow_new_players ?? false} tabIndex={(game.settings?.allow_new_players ?? false) ? -1 : undefined} className={`game-players-add-player-button col-start-1 row-start-1 h-7 gap-1 px-2 text-xs ${(game.settings?.allow_new_players ?? false) ? "invisible" : ""}`} onClick={() => setIsAddPlayerPanelOpen(true)}>
+                <UserPlus id="game-players-add-player-icon" className="h-3.5 w-3.5"/>
+                {t('gameUsers.addPlayer')}
+              </Button>
+            </div>
+          </div>}
+          </div>
+          <div id="game-players-invited-emails-search-row" className="game-players-invited-emails-search-row mb-4 flex justify-end">
+            <div id="game-players-invited-emails-search-container" className="game-players-invited-emails-search-container relative w-72">
+              <Search id="game-players-invited-emails-search-icon" className="game-players-invited-emails-search-icon absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"/>
+              <Input id="game-players-invited-emails-search-input" value={invitedEmailSearch} onChange={(event) => setInvitedEmailSearch(event.target.value)} placeholder={t('gameUsers.searchInvitedEmailsPlaceholder')} className="game-players-invited-emails-search-input h-8 pl-8 text-sm"/>
+            </div>
+          </div>
+          <Card id="game-players-access-list-card" className="game-players-access-list-card">
+            <CardHeader id="game-players-access-list-header" className="game-players-access-list-header pb-3">
+              <CardTitle id="game-players-access-list-title" className="game-players-access-list-title text-base">{t('gameUsers.invitedEmails')}</CardTitle>
+            </CardHeader>
+            <CardContent id="game-players-access-list-content" className="game-players-access-list-content">
+              {filteredPlayerAccesses.length === 0 ? <p id="game-players-access-list-empty" className="game-players-access-list-empty text-sm text-muted-foreground">{playerAccesses.length === 0 ? t('gameUsers.noInvitedEmails') : t('gameUsers.noResults')}</p> : <div id="game-players-access-list" className="game-players-access-list space-y-2">
+                {filteredPlayerAccesses.map((access) => <div id={`game-players-access-${access.id}`} key={access.id} className="game-players-access-item flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm">
+                  <span id={`game-players-access-email-${access.id}`} className="game-players-access-email min-w-0 truncate font-medium">{access.email}</span>
+                  <span id={`game-players-access-created-at-${access.id}`} className="game-players-access-created-at shrink-0 text-xs text-muted-foreground">{t('gameUsers.invitedOn')}: {formatISODate(access.created_at)}</span>
+                </div>)}
+              </div>}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
       <Sheet open={isAddPlayerPanelOpen} onOpenChange={setIsAddPlayerPanelOpen}>
         <SheetContent id="game-players-add-player-panel" side="right" className="flex h-full w-full flex-col overflow-hidden sm:max-w-xl">
           <SheetHeader id="game-players-add-player-header" className="shrink-0">
