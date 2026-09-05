@@ -841,7 +841,7 @@ function PaymentPageContent() {
                                 +{(tx.currency_amount ?? 0).toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">{tx.currency_type === "sgem" ? "💎" : "🪙"}</span>
                               </p>
                               <p className="text-xs text-muted-foreground tabular-nums">
-                                {tx.amount.toLocaleString()} {tx.currency}
+                                {formatPrice(tx.amount, tx.currency)}
                               </p>
                               <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="mt-1 text-[10px] h-4 capitalize sm:hidden">
                                 {tx.status.replace(/_/g, " ")}
@@ -875,7 +875,7 @@ function PaymentPageContent() {
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailAmount')}</p>
-                                  <p className="font-semibold">{tx.amount.toLocaleString()} {tx.currency}</p>
+                                  <p className="font-semibold">{formatPrice(tx.amount, tx.currency)}</p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{tx.currency_type === "sgem" ? "sGem" : "sCoin"}</p>
