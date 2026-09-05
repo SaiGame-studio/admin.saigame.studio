@@ -212,13 +212,7 @@ function PaymentPageContent() {
     const [expandedPayTxId, setExpandedPayTxIdState] = useState<string | null>(searchParams.get("txid") ?? null);
     function handleTabChange(value: string) {
         setActiveTab(value);
-        replaceParams((params) => {
-            params.set("tab", value);
-            if (value !== "transactions") {
-                params.delete("txid");
-                params.delete("subtab");
-            }
-        });
+        router.replace(value === "buy-scoin" ? "/payment" : `/payment?tab=${encodeURIComponent(value)}`, { scroll: false });
     }
     function handleTxSubTabChange(value: string) {
         setTxSubTab(value as "buy" | "use" | "use-sgem");
@@ -371,16 +365,14 @@ function PaymentPageContent() {
     const [checkingOut, setCheckingOut] = useState(false);
     const STORAGE_KEY_PACKAGE = "payment:lastPackageId";
     const STORAGE_KEY_METHOD = "payment:lastMethodId";
-    // Restore last selected package after packages are loaded
+    // Restore the saved package or select the first available package.
     useEffect(() => {
         if (packages.length === 0)
             return;
         const savedId = localStorage.getItem(STORAGE_KEY_PACKAGE);
-        if (savedId) {
-            const found = packages.find((p) => p.id === savedId);
-            if (found)
-                setSelectedPackage(found);
-        }
+        const selected = packages.find((p) => p.id === savedId) ?? packages[0];
+        setSelectedPackage(selected);
+        localStorage.setItem(STORAGE_KEY_PACKAGE, selected.id);
     }, [packages]);
     // Restore last selected method after methods are loaded
     useEffect(() => {
@@ -393,18 +385,12 @@ function PaymentPageContent() {
                 setSelectedMethod(found);
         }
     }, [methods]);
-    function handleSelectPackage(pkg: CoinPackage, isSelected: boolean) {
-        if (isSelected) {
-            setSelectedPackage(null);
-            localStorage.removeItem(STORAGE_KEY_PACKAGE);
-        }
-        else {
-            setSelectedPackage(pkg);
-            localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id);
-            if (pkg.bonus_scoin > 0) {
-                setStampingId(pkg.id);
-                setTimeout(() => setStampingId(null), 800);
-            }
+    function handleSelectPackage(pkg: CoinPackage) {
+        setSelectedPackage(pkg);
+        localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id);
+        if (pkg.bonus_scoin > 0) {
+            setStampingId(pkg.id);
+            setTimeout(() => setStampingId(null), 800);
         }
     }
     const fetchPackages = useCallback(async () => {
@@ -581,7 +567,7 @@ function PaymentPageContent() {
                   `}</style>
                   {packages.map((pkg) => {
                 const isSelected = selectedPackage?.id === pkg.id;
-                return (<Card key={pkg.id} className={`relative cursor-pointer transition-all hover:border-primary/60 ${isSelected ? "border-primary ring-2 ring-primary/30" : ""} ${stampingId === pkg.id ? "card-shake" : ""}`} onClick={() => handleSelectPackage(pkg, isSelected)}>
+                return (<Card key={pkg.id} className={`relative cursor-pointer transition-all hover:border-primary/60 ${isSelected ? "border-primary ring-2 ring-primary/30" : ""} ${stampingId === pkg.id ? "card-shake" : ""}`} onClick={() => handleSelectPackage(pkg)}>
                         {isSelected && (<div className="absolute right-3 top-3 rounded-full bg-primary p-0.5 text-primary-foreground shadow-md">
                             <CheckCircle2 className="h-5 w-5"/>
                           </div>)}
@@ -855,7 +841,7 @@ function PaymentPageContent() {
                                 +{(tx.currency_amount ?? 0).toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">{tx.currency_type === "sgem" ? "💎" : "🪙"}</span>
                               </p>
                               <p className="text-xs text-muted-foreground tabular-nums">
-                                {tx.amount.toLocaleString()} {tx.currency}
+                                {formatPrice(tx.amount, tx.currency)}
                               </p>
                               <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="mt-1 text-[10px] h-4 capitalize sm:hidden">
                                 {tx.status.replace(/_/g, " ")}
@@ -889,7 +875,7 @@ function PaymentPageContent() {
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailAmount')}</p>
-                                  <p className="font-semibold">{tx.amount.toLocaleString()} {tx.currency}</p>
+                                  <p className="font-semibold">{formatPrice(tx.amount, tx.currency)}</p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{tx.currency_type === "sgem" ? "sGem" : "sCoin"}</p>

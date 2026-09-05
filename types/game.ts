@@ -9,7 +9,6 @@ export interface GameLimits {
     max_event_types?: number;
     max_leaderboards?: number;
     max_daily_quest_sets?: number;
-    max_battle_pass_sets?: number;
     max_entity_defs?: number;
     max_scripts?: number;
     max_equipment_slots?: number;
@@ -49,6 +48,7 @@ export interface Game {
         [key: string]: any;
     };
     settings?: {
+        allow_new_players?: boolean;
         allow_player_trading?: boolean;
         allow_tracing_player_event?: boolean;
         leaderboard_tracing?: boolean;

@@ -188,6 +188,12 @@ export function SideNav({ mobile = false }: {
                     <span className="whitespace-nowrap">Monitor</span>
                   </Link>
                 </Button>
+                <Button variant={isActive("/admin/support") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/admin/support">
+                    <MessageCircle className="h-4 w-4 flex-shrink-0"/>
+                    <span className="whitespace-nowrap">Support chat</span>
+                  </Link>
+                </Button>
                 <Button variant={isActive("/admin/payments") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/admin/payments">
                     <ReceiptText className="h-4 w-4 flex-shrink-0"/>

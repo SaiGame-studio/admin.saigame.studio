@@ -11,6 +11,10 @@ export interface KeyReqRow {
     item_definition_id: string;
     quantity: string;
 }
+export interface DropGroupFormRow {
+    key: string;
+    pool: PoolRow[];
+}
 
 export type GachaLLMRow = {
     item_definition_id?: unknown;
@@ -35,12 +39,14 @@ export const EMPTY_KEY_ROW = (): KeyReqRow => ({
 export function emptyGachaForm() {
     return {
         name: "",
+        description: "",
         code_name: "",
         collect_destination: "mailbox" as "mailbox" | "inventory",
         is_enabled: true,
         mailbox_title: "",
         mailbox_body: "",
         pool: [EMPTY_ROW()],
+        dropGroups: [],
         keyReqs: [EMPTY_KEY_ROW()],
     };
 }
@@ -85,4 +91,3 @@ export function normalizeContainerDraftValues(draft: Record<string, unknown> | n
         metadata,
     };
 }
-

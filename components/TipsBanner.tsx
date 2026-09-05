@@ -47,7 +47,7 @@ export function TipsBanner() {
     }, [locale, mounted]);
     if (!mounted || tips.length === 0)
         return null;
-    return (<div className="hidden lg:flex flex-1 min-w-0 items-center gap-2" style={{
+    return (<div id="app-footer-tip" className="hidden lg:flex flex-1 min-w-0 items-center gap-2" style={{
             transition: "opacity 0.3s ease",
             opacity: animIn ? 1 : 0,
         }}>

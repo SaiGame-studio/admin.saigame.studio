@@ -93,7 +93,7 @@ export function QuestDeliveryOverride({ quest, game, onUpdated }: Props) {
                 else
                     delete nextMeta.mailbox_body;
             }
-            const updated = await updateQuestDefinition(game.studio_id, game.id, quest.id, { metadata: nextMeta });
+            const updated = await updateQuestDefinition(game.id, quest.id, { metadata: nextMeta });
             onUpdated(updated);
             toast({
                 title: t('common.saved'),
@@ -111,89 +111,89 @@ export function QuestDeliveryOverride({ quest, game, onUpdated }: Props) {
             setSaving(false);
         }
     };
-    return (<div className="border rounded-md p-3 bg-background space-y-3">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Settings2 className="h-4 w-4 text-muted-foreground"/>
-          <span className="text-sm font-medium">{t('quest.delivery.sectionTitle')}</span>
-          <Badge variant="outline" className="text-[10px] gap-1">
+    return (<div id={`quest-delivery-override-${quest.id}`} className="quest-delivery-override border rounded-md p-3 bg-background space-y-3">
+      <div id={`quest-delivery-override-header-${quest.id}`} className="quest-delivery-override-header flex items-center justify-between gap-4">
+        <div id={`quest-delivery-override-summary-${quest.id}`} className="quest-delivery-override-summary flex items-center gap-2">
+          <Settings2 id={`quest-delivery-override-icon-${quest.id}`} className="quest-delivery-override-icon h-4 w-4 text-muted-foreground"/>
+          <span id={`quest-delivery-override-title-${quest.id}`} className="quest-delivery-override-title text-sm font-medium">{t('quest.delivery.sectionTitle')}</span>
+          <Badge id={`quest-delivery-override-mode-${quest.id}`} variant="outline" className="quest-delivery-override-mode text-[10px] gap-1">
             {effectiveMode === "mailbox" ? (<>
-                <Mail className="h-3 w-3"/>
+                <Mail id={`quest-delivery-override-mailbox-icon-${quest.id}`} className="quest-delivery-override-mode-icon h-3 w-3"/>
                 {t('quest.delivery.modeMailbox')}
               </>) : (<>
-                <Zap className="h-3 w-3"/>
+                <Zap id={`quest-delivery-override-direct-icon-${quest.id}`} className="quest-delivery-override-mode-icon h-3 w-3"/>
                 {t('quest.delivery.modeDirect')}
               </>)}
           </Badge>
-          {!override && (<span className="text-xs text-muted-foreground">
+          {!override && (<span id={`quest-delivery-override-following-game-${quest.id}`} className="quest-delivery-override-following-game text-xs text-muted-foreground">
               {t('quest.delivery.followingGame')}
             </span>)}
         </div>
 
-        <Label htmlFor={`override-${quest.id}`} className="flex items-center gap-2 text-xs cursor-pointer">
+        <Label id={`quest-delivery-override-toggle-label-${quest.id}`} htmlFor={`override-${quest.id}`} className="quest-delivery-override-toggle-label flex items-center gap-2 text-xs cursor-pointer">
           {t('quest.delivery.overrideToggle')}
-          <Switch id={`override-${quest.id}`} checked={override} onCheckedChange={(v) => setOverride(v)}/>
+          <Switch id={`override-${quest.id}`} className="quest-delivery-override-toggle" checked={override} onCheckedChange={(v) => setOverride(v)}/>
         </Label>
       </div>
 
-      {override && (<div className="space-y-3 pl-6 border-l-2 border-muted">
+      {override && (<div id={`quest-delivery-override-options-${quest.id}`} className="quest-delivery-override-options space-y-3 pl-6 border-l-2 border-muted">
           <RadioGroup value={mode} onValueChange={(v) => {
                 if (v === "mailbox" || v === "direct")
                     setMode(v);
-            }} className="flex gap-4">
-            <Label htmlFor={`mode-mailbox-${quest.id}`} className="flex items-center gap-2 text-sm cursor-pointer">
-              <RadioGroupItem id={`mode-mailbox-${quest.id}`} value="mailbox"/>
-              <Mail className="h-3.5 w-3.5"/>
+            }} id={`quest-delivery-override-mode-options-${quest.id}`} className="quest-delivery-override-mode-options flex gap-4">
+            <Label id={`quest-delivery-override-mailbox-label-${quest.id}`} htmlFor={`mode-mailbox-${quest.id}`} className="quest-delivery-override-mode-label flex items-center gap-2 text-sm cursor-pointer">
+              <RadioGroupItem id={`mode-mailbox-${quest.id}`} value="mailbox" className="quest-delivery-override-mode-input"/>
+              <Mail id={`quest-delivery-override-mailbox-option-icon-${quest.id}`} className="quest-delivery-override-mode-icon h-3.5 w-3.5"/>
               {t('quest.delivery.modeMailbox')}
             </Label>
-            <Label htmlFor={`mode-direct-${quest.id}`} className="flex items-center gap-2 text-sm cursor-pointer">
-              <RadioGroupItem id={`mode-direct-${quest.id}`} value="direct"/>
-              <Zap className="h-3.5 w-3.5"/>
+            <Label id={`quest-delivery-override-direct-label-${quest.id}`} htmlFor={`mode-direct-${quest.id}`} className="quest-delivery-override-mode-label flex items-center gap-2 text-sm cursor-pointer">
+              <RadioGroupItem id={`mode-direct-${quest.id}`} value="direct" className="quest-delivery-override-mode-input"/>
+              <Zap id={`quest-delivery-override-direct-option-icon-${quest.id}`} className="quest-delivery-override-mode-icon h-3.5 w-3.5"/>
               {t('quest.delivery.modeDirect')}
             </Label>
           </RadioGroup>
 
-          {mode === "mailbox" && (<div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor={`title-${quest.id}`} className="text-xs">
+          {mode === "mailbox" && (<div id={`quest-delivery-override-mailbox-${quest.id}`} className="quest-delivery-override-mailbox space-y-3">
+              <div id={`quest-delivery-override-title-field-${quest.id}`} className="quest-delivery-override-field space-y-1.5">
+                <Label id={`quest-delivery-override-title-label-${quest.id}`} htmlFor={`title-${quest.id}`} className="quest-delivery-override-label text-xs">
                   {t('quest.delivery.mailboxTitle')}
                 </Label>
-                <Input id={`title-${quest.id}`} value={title} onChange={(e) => setTitle(e.target.value)} className="h-8 text-sm"/>
-                <p className="text-[11px] text-muted-foreground">
+                <Input id={`title-${quest.id}`} value={title} onChange={(e) => setTitle(e.target.value)} className="quest-delivery-override-input h-8 text-sm"/>
+                <p id={`quest-delivery-override-title-default-${quest.id}`} className="quest-delivery-override-default text-[11px] text-muted-foreground">
                   {gameTitleDefault
                     ? t('quest.delivery.defaultFromGame')
                     : t('quest.delivery.defaultFromSystem')}
                   {": "}
-                  <span className="italic">{gameTitleDefault || DEFAULT_TITLE_PLACEHOLDER}</span>
+                  <span id={`quest-delivery-override-title-placeholder-${quest.id}`} className="quest-delivery-override-placeholder italic">{gameTitleDefault || DEFAULT_TITLE_PLACEHOLDER}</span>
                 </p>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor={`body-${quest.id}`} className="text-xs">
+              <div id={`quest-delivery-override-body-field-${quest.id}`} className="quest-delivery-override-field space-y-1.5">
+                <Label id={`quest-delivery-override-body-label-${quest.id}`} htmlFor={`body-${quest.id}`} className="quest-delivery-override-label text-xs">
                   {t('quest.delivery.mailboxBody')}
                 </Label>
-                <Textarea id={`body-${quest.id}`} value={body} onChange={(e) => setBody(e.target.value)} rows={2} className="text-sm"/>
-                <p className="text-[11px] text-muted-foreground">
+                <Textarea id={`body-${quest.id}`} value={body} onChange={(e) => setBody(e.target.value)} rows={2} className="quest-delivery-override-input text-sm"/>
+                <p id={`quest-delivery-override-body-default-${quest.id}`} className="quest-delivery-override-default text-[11px] text-muted-foreground">
                   {gameBodyDefault
                     ? t('quest.delivery.defaultFromGame')
                     : t('quest.delivery.defaultFromSystem')}
                   {": "}
-                  <span className="italic">{gameBodyDefault || DEFAULT_BODY_PLACEHOLDER}</span>
+                  <span id={`quest-delivery-override-body-placeholder-${quest.id}`} className="quest-delivery-override-placeholder italic">{gameBodyDefault || DEFAULT_BODY_PLACEHOLDER}</span>
                 </p>
               </div>
             </div>)}
         </div>)}
 
-      {!override && (<div className="flex items-start gap-2 text-[11px] text-muted-foreground">
-          <Info className="h-3.5 w-3.5 shrink-0 mt-0.5"/>
-          <span>{t('quest.delivery.hintFollowing')}</span>
+      {!override && (<div id={`quest-delivery-override-hint-${quest.id}`} className="quest-delivery-override-hint flex items-start gap-2 text-[11px] text-muted-foreground">
+          <Info id={`quest-delivery-override-hint-icon-${quest.id}`} className="quest-delivery-override-hint-icon h-3.5 w-3.5 shrink-0 mt-0.5"/>
+          <span id={`quest-delivery-override-hint-text-${quest.id}`} className="quest-delivery-override-hint-text">{t('quest.delivery.hintFollowing')}</span>
         </div>)}
 
-      <div className="flex items-center justify-end gap-2">
-        {dirty && (<span className="text-[11px] text-muted-foreground">
+      <div id={`quest-delivery-override-actions-${quest.id}`} className="quest-delivery-override-actions flex items-center justify-end gap-2">
+        {dirty && (<span id={`quest-delivery-override-unsaved-${quest.id}`} className="quest-delivery-override-unsaved text-[11px] text-muted-foreground">
             {t('quest.delivery.unsaved')}
           </span>)}
-        <Button size="sm" onClick={handleSave} disabled={!dirty || saving}>
-          {saving ? (<Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin"/>) : (<Save className="h-3.5 w-3.5 mr-1.5"/>)}
+        <Button id={`quest-delivery-override-save-${quest.id}`} className="quest-delivery-override-save" size="sm" onClick={handleSave} disabled={!dirty || saving}>
+          {saving ? (<Loader2 id={`quest-delivery-override-save-loading-${quest.id}`} className="quest-delivery-override-save-icon h-3.5 w-3.5 mr-1.5 animate-spin"/>) : (<Save id={`quest-delivery-override-save-icon-${quest.id}`} className="quest-delivery-override-save-icon h-3.5 w-3.5 mr-1.5"/>)}
           {t('common.save')}
         </Button>
       </div>

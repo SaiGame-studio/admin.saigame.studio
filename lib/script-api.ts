@@ -1,5 +1,11 @@
 import { api } from '@/lib/api-client';
 import type { GameScript, CreateScriptRequest, UpdateScriptRequest, SampleScript } from '@/types/script';
+
+export interface GamerProgressSummary {
+    id: string;
+    user_id: string;
+    game_id: string;
+}
 /** GET /api/v1/games/:gameId/scripts — List all scripts */
 export async function listScripts(gameId: string): Promise<GameScript[]> {
     return api.get(`/api/v1/games/${gameId}/scripts`);
@@ -39,4 +45,12 @@ export async function deleteScript(gameId: string, scriptId: string): Promise<vo
 }
 export async function runScript(gameId: string, scriptId: string, payload: any): Promise<any> {
     return api.post(`/api/v1/games/${gameId}/scripts/${scriptId}/run`, payload);
+}
+
+export async function getMyGamerProgress(gameId: string): Promise<GamerProgressSummary> {
+    return api.get(`/api/v1/games/${gameId}/my-gamer-progress`, { suppressToast: true });
+}
+
+export async function createGamerProgress(gameId: string): Promise<GamerProgressSummary> {
+    return api.post(`/api/v1/games/${gameId}/gamer-progress`, {}, { suppressToast: true });
 }

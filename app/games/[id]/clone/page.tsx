@@ -108,14 +108,10 @@ export default function GameClonePage() {
   }, [gameId, t]);
 
   const updateTab = (nextTab: string) => {
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("tab", nextTab);
-    router.replace(`/games/${gameId}/clone?${nextParams.toString()}`, { scroll: false });
+    router.replace(`/games/${gameId}/clone?tab=${encodeURIComponent(nextTab)}`, { scroll: false });
   };
   const buildTabHref = (nextTab: string) => {
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("tab", nextTab);
-    return `/games/${gameId}/clone?${nextParams.toString()}`;
+    return `/games/${gameId}/clone?tab=${encodeURIComponent(nextTab)}`;
   };
 
   const handleShareLevelChange = async (nextShareLevel: Game["share_level"]) => {

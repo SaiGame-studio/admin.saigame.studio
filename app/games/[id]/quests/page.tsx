@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } fr
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
-import { Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, Copy, ScrollText, Loader2, Clock, ArrowLeft, ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2, Mail, Zap, Boxes, Workflow, } from "lucide-react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,23 +21,28 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator, } from "@/components/ui/breadcrumb";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, } from "@/components/ui/command";
 import { listGachaPacks, listItemDefinitions } from "@/lib/inventory-api";
 import type { GachaPack, ItemDefinition, Paginated } from "@/types/inventory";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
+import { formatISODate } from "@/lib/utils/date-utils";
 import { useEscapeLayer } from "@/hooks/use-escape-manager";
 import { getGame } from "@/lib/game-api";
 import { fetchStudioWithCache } from "@/lib/studio-api";
 import { ApiError } from "@/lib/api-client";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils";
 import type { Studio } from "@/types/studio";
-import { listQuestDefinitions, listQuestTypes, listQuestConditionTypes, createQuestDefinition, updateQuestDefinition, deleteQuestDefinition, isConditionLeaf, type QuestDefinition, type QuestType, type QuestReward, type QuestConditionLeaf, type QuestConditionGroup, type ItemRequirement, type CreateQuestDefinitionRequest, type UpdateQuestDefinitionRequest, type QuestConditionTypeOption, } from "@/lib/quest-api";
+import { listQuestDefinitions, getQuestDefinition, listQuestTypes, listQuestConditionTypes, createQuestDefinition, updateQuestDefinition, deleteQuestDefinition, isConditionLeaf, type QuestDefinition, type QuestType, type QuestReward, type QuestConditionLeaf, type QuestConditionGroup, type ItemRequirement, type CreateQuestDefinitionRequest, type UpdateQuestDefinitionRequest, type QuestConditionTypeOption, } from "@/lib/quest-api";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { DailyTab } from "./DailyTab";
+import { SessionPoolsTab } from "./SessionPoolsTab";
 import { ChainTab } from "./ChainTab";
 import { SettingsTab } from "./SettingsTab";
 import { QuestDeliveryOverride } from "./QuestDeliveryOverride";
+import { QuestDeliveryEditor } from "./QuestDeliveryEditor";
 import {
     DEFAULT_QUEST_EXPIRATION_MINUTES,
     QuestExpirationSettings,
@@ -48,7 +53,8 @@ import { getQuestApiErrorMessage } from "./questApiErrorUtils";
 import type { Game } from "@/types/game";
 import { lsPendingQuestCreate, lsPendingQuestEdit } from "@/components/llm-conversations/conversation-panel-utils";
 // ─── Tab config ────────────────────────────────────────────────────────────────
-type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest" | "settings";
+type TabValue = "definitions" | "chains" | "daily" | "session-pools" | "world-quest" | "settings";
+const QUEST_DEFINITION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Module-level cache so the same items?limit=200 request is only fired once per gameId
 // across ConditionEditor, RewardEditor, and the DefinitionsTab row display.
 const itemDefsCache = new Map<string, Promise<Paginated<ItemDefinition>>>();
@@ -81,7 +87,7 @@ const TABS: {
     { value: "definitions", labelKey: "quest.tabDefinitions" },
     { value: "chains", labelKey: "quest.tabChains" },
     { value: "daily", labelKey: "quest.tabDaily" },
-    { value: "battle-pass", labelKey: "quest.tabBattlePass" },
+    { value: "session-pools", labelKey: "quest.tabSessionPools" },
     { value: "world-quest", labelKey: "quest.tabWorldQuest" },
     { value: "settings", labelKey: "quest.tabSettings" },
 ];
@@ -94,8 +100,8 @@ const QUEST_TYPES: {
 }[] = [
     { value: "one_time", labelKey: "quest.typeOneTime", descKey: "quest.typeOneTimeDesc" },
     { value: "daily", labelKey: "quest.typeDaily", descKey: "quest.typeDailyDesc" },
+    { value: "session", labelKey: "quest.typeSession", descKey: "quest.typeSessionDesc" },
     { value: "repeatable", labelKey: "quest.typeRepeatable", descKey: "quest.typeRepeatableDesc" },
-    { value: "battle_pass_task", labelKey: "quest.typeBattlePassTask", descKey: "quest.typeBattlePassTaskDesc" },
     { value: "chain", labelKey: "quest.typeChain", descKey: "quest.typeChainDesc" },
 ];
 const KNOWN_CONDITION_TYPES = [
@@ -107,6 +113,22 @@ const KNOWN_CONDITION_TYPES = [
     { value: "gacha_opened", labelKey: "quest.condGachaOpened", descKey: "quest.condGachaOpenedDesc" },
 ];
 const DEFAULT_CONDITIONS: QuestConditionGroup = { operator: "AND", clauses: [] };
+function getOneTimeExpirationMinutes(typeConfig?: Record<string, unknown>) {
+    const expiration = typeConfig?.expiration;
+    if (!expiration || typeof expiration !== "object" || Array.isArray(expiration)) return undefined;
+    const minutes = (expiration as Record<string, unknown>).expire_after_minutes;
+    return typeof minutes === "number" ? minutes : undefined;
+}
+function getQuestChainAssignment(typeConfig?: Record<string, unknown>) {
+    if (typeConfig?.pool_assigned !== true || typeof typeConfig.chain_id !== "string" || !typeConfig.chain_id || typeof typeConfig.chain_name !== "string" || !typeConfig.chain_name)
+        return null;
+    return { id: typeConfig.chain_id, name: typeConfig.chain_name };
+}
+function getQuestDailyPoolAssignment(typeConfig?: Record<string, unknown>) {
+    if (typeConfig?.pool_assigned !== true || typeof typeConfig.pool_id !== "string" || !typeConfig.pool_id || typeof typeConfig.pool_name !== "string" || !typeConfig.pool_name)
+        return null;
+    return { id: typeConfig.pool_id, name: typeConfig.pool_name };
+}
 type QuestDefinitionForm = CreateQuestDefinitionRequest & Pick<UpdateQuestDefinitionRequest, "sort_order">;
 const DEFAULT_FORM: QuestDefinitionForm = {
     name: "",
@@ -123,8 +145,8 @@ function questTypeBadgeVariant(type: QuestType) {
     switch (type) {
         case "one_time": return "default";
         case "daily": return "secondary";
+        case "session": return "default";
         case "repeatable": return "outline";
-        case "battle_pass_task": return "outline";
         case "chain": return "secondary";
         default: return "outline";
     }
@@ -134,6 +156,7 @@ interface ConditionEditorProps {
     conditions: QuestConditionGroup;
     onChange: (c: QuestConditionGroup) => void;
     gameId: string;
+    itemDefsRefreshNonce: number;
     prefetchedItemDefs?: ItemDefinition[];
 }
 function genClauseId(type: string) {
@@ -151,7 +174,7 @@ function genClauseId(type: string) {
 function newLeaf(): QuestConditionLeaf {
     return { clause_id: genClauseId("login"), type: "login", target: 1 };
 }
-function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = [] }: ConditionEditorProps) {
+function ConditionEditor({ conditions, onChange, gameId, itemDefsRefreshNonce, prefetchedItemDefs = [] }: ConditionEditorProps) {
     const { t } = useTranslation();
     const [conditionTypes, setConditionTypes] = useState<QuestConditionTypeOption[]>([]);
     const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([]);
@@ -187,7 +210,7 @@ function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = []
             .then((res) => setItemDefs(res.items ?? []))
             .catch(() => setItemDefs([]))
             .finally(() => setItemDefsLoading(false));
-    }, [gameId]);
+    }, [gameId, itemDefsRefreshNonce]);
     const mergedItemDefs = useMemo(() => mergeItemDefs(itemDefs, prefetchedItemDefs), [itemDefs, prefetchedItemDefs]);
     const setOperator = (op: 'AND' | 'OR') => onChange({ ...conditions, operator: op });
     const resolveItemDef = useCallback((rawValue: string) => {
@@ -496,9 +519,10 @@ interface RewardEditorProps {
     rewards: QuestReward[];
     onChange: (rewards: QuestReward[]) => void;
     gameId: string;
+    itemDefsRefreshNonce: number;
     prefetchedItemDefs?: ItemDefinition[];
 }
-function RewardEditor({ rewards, onChange, gameId, prefetchedItemDefs = [] }: RewardEditorProps) {
+function RewardEditor({ rewards, onChange, gameId, itemDefsRefreshNonce, prefetchedItemDefs = [] }: RewardEditorProps) {
     const { t } = useTranslation();
     const [itemDefs, setItemDefs] = useState<ItemDefinition[]>([]);
     const [itemDefsLoading, setItemDefsLoading] = useState(false);
@@ -511,7 +535,7 @@ function RewardEditor({ rewards, onChange, gameId, prefetchedItemDefs = [] }: Re
             .then((res) => setItemDefs(res.items ?? []))
             .catch(() => setItemDefs([]))
             .finally(() => setItemDefsLoading(false));
-    }, [gameId]);
+    }, [gameId, itemDefsRefreshNonce]);
     const mergedItemDefs = useMemo(() => mergeItemDefs(itemDefs, prefetchedItemDefs), [itemDefs, prefetchedItemDefs]);
     const addReward = () => onChange([...rewards, { reward_type: "item", item_definition_id: "", quantity_min: 1, quantity_max: 1 }]);
     const removeReward = (i: number) => onChange(rewards.filter((_, idx) => idx !== i));
@@ -600,10 +624,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const { user } = useAuth();
     const [quests, setQuests] = useState<QuestDefinition[]>([]);
+    const [totalQuests, setTotalQuests] = useState(0);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [hasNextPage, setHasNextPage] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null);
     // Item definitions for expanded row display
     const [rowItemDefs, setRowItemDefs] = useState<ItemDefinition[]>([]);
@@ -623,17 +651,19 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             .catch(() => setRowGachaPacks([]));
     }, [gameId]);
     // Pagination
-    const offset = 0;
     const limit = 50;
     // Dialogs
     const [createOpen, setCreateOpen] = useState(false);
     const [editQuest, setEditQuest] = useState<QuestDefinition | null>(null);
     const [deleteQuest, setDeleteQuest] = useState<QuestDefinition | null>(null);
+    const [assignedChainQuest, setAssignedChainQuest] = useState<QuestDefinition | null>(null);
+    const [assignedDailyPoolQuest, setAssignedDailyPoolQuest] = useState<QuestDefinition | null>(null);
     // Form state
     const [form, setForm] = useState<QuestDefinitionForm>({ ...DEFAULT_FORM });
     const [autoSlug, setAutoSlug] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [itemDefsRefreshNonce, setItemDefsRefreshNonce] = useState(0);
     const [createQuestConvContext, setCreateQuestConvContext] = useState<{
         turnId: string;
         responseIdx: number;
@@ -654,8 +684,11 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     const [filterSearch, setFilterSearch] = useState(() => searchParams.get("q") ?? "");
     const [filterType, setFilterType] = useState(() => searchParams.get("type") ?? "all");
     const [filterActive, setFilterActive] = useState(() => searchParams.get("active") ?? "all");
+    const [filterPoolAssigned, setFilterPoolAssigned] = useState(() => searchParams.get("poolAssigned") ?? "all");
     const [sortBy, setSortBy] = useState(() => searchParams.get("sortBy") ?? "updated_at");
     const [sortOrder, setSortOrder] = useState(() => searchParams.get("sortOrder") ?? "desc");
+    const questIdSearch = filterSearch.trim();
+    const hasQuestIdSearch = QUEST_DEFINITION_ID_RE.test(questIdSearch);
     // Sync filter state → URL
     useEffect(() => {
         const sp = new URLSearchParams(searchParams.toString());
@@ -671,6 +704,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             sp.set("active", filterActive);
         else
             sp.delete("active");
+        if (filterPoolAssigned !== "all")
+            sp.set("poolAssigned", filterPoolAssigned);
+        else
+            sp.delete("poolAssigned");
         if (sortBy !== "updated_at")
             sp.set("sortBy", sortBy);
         else
@@ -679,9 +716,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             sp.set("sortOrder", sortOrder);
         else
             sp.delete("sortOrder");
-        router.replace(`/games/${gameId}/quests?${sp.toString()}`, { scroll: false });
+        const nextPath = `/games/${gameId}/quests?${sp.toString()}`;
+        if (filterSearch !== (searchParams.get("q") ?? "")) {
+            window.history.replaceState(window.history.state, "", nextPath);
+            return;
+        }
+        router.replace(nextPath, { scroll: false });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterSearch, filterType, filterActive, sortBy, sortOrder]);
+    }, [filterSearch, filterType, filterActive, filterPoolAssigned, sortBy, sortOrder]);
     useEffect(() => {
         const nextSearch = searchParams.get("q") ?? "";
         if (nextSearch !== filterSearch)
@@ -692,6 +734,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         const nextActive = searchParams.get("active") ?? "all";
         if (nextActive !== filterActive)
             setFilterActive(nextActive);
+        const nextPoolAssigned = searchParams.get("poolAssigned") ?? "all";
+        if (nextPoolAssigned !== filterPoolAssigned)
+            setFilterPoolAssigned(nextPoolAssigned);
         const nextSortBy = searchParams.get("sortBy") ?? "updated_at";
         if (nextSortBy !== sortBy)
             setSortBy(nextSortBy);
@@ -699,8 +744,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         if (nextSortOrder !== sortOrder)
             setSortOrder(nextSortOrder);
         const expandQuest = searchParams.get("expandQuest");
-        if (expandQuest !== expandedQuestId)
-            setExpandedQuestId(expandQuest);
+        if (expandQuest) {
+            if (expandQuest !== expandedQuestId)
+                setExpandedQuestId(expandQuest);
+        } else if (!QUEST_DEFINITION_ID_RE.test(nextSearch) && expandedQuestId) {
+            setExpandedQuestId(null);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
     // Quest type options:
@@ -749,34 +798,66 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         }
         return result;
     }, [quests, filterSearch, filterType]);
-    const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || sortBy !== "updated_at" || sortOrder !== "desc";
-    const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setSortBy("updated_at"); setSortOrder("desc"); };
+    useEffect(() => {
+        if (!filterSearch.trim() || filteredQuests.length !== 1)
+            return;
+        setExpandedQuestId(filteredQuests[0].id);
+    }, [filterSearch, filteredQuests]);
+    const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || filterPoolAssigned !== "all" || sortBy !== "updated_at" || sortOrder !== "desc";
+    const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setFilterPoolAssigned("all"); setSortBy("updated_at"); setSortOrder("desc"); };
     // ── Data loading ─────────────────────────────────────────────────────────────
-    const loadQuests = useCallback(async (off = 0) => {
+    const loadQuests = useCallback(async (after?: string) => {
         if (!game)
             return;
         try {
-            const res = await listQuestDefinitions(game.studio_id, gameId, {
+            if (!after && hasQuestIdSearch) {
+                const quest = await getQuestDefinition(gameId, questIdSearch);
+                setQuests([quest]);
+                setTotalQuests(1);
+                setHasNextPage(false);
+                setExpandedQuestId(quest.id);
+                return;
+            }
+            const res = await listQuestDefinitions(gameId, {
                 status: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
                 limit,
-                offset: off,
+                after,
                 sort_by: sortBy,
                 order: sortOrder,
+                pool_assigned: filterPoolAssigned === "all" ? undefined : filterPoolAssigned === "assigned",
             });
-            setQuests(res.quests ?? []);
+            const newQuests = res.quests ?? [];
+            if (after) {
+                setQuests((prev) => [...prev, ...newQuests]);
+            } else {
+                setQuests(newQuests);
+            }
+            if (res.total !== undefined) {
+                setTotalQuests(res.total);
+            }
+            setHasNextPage(newQuests.length === limit);
         }
         catch (e) {
             const msg = e instanceof ApiError ? e.message : "Failed to load quest definitions";
             setError(msg);
         }
-    }, [game, gameId, limit, filterActive, sortBy, sortOrder]);
+    }, [game, gameId, limit, filterActive, filterPoolAssigned, sortBy, sortOrder, hasQuestIdSearch, questIdSearch]);
+    
     useEffect(() => {
         if (!game)
             return;
         setLoading(true);
         setError(null);
-        loadQuests(0).finally(() => setLoading(false));
+        loadQuests().finally(() => setLoading(false));
     }, [game, loadQuests]);
+    
+    const handleLoadMore = useCallback(async () => {
+        if (loadingMore || !hasNextPage || quests.length === 0) return;
+        setLoadingMore(true);
+        const lastQuestId = quests[quests.length - 1].id;
+        await loadQuests(lastQuestId);
+        setLoadingMore(false);
+    }, [loadingMore, hasNextPage, quests, loadQuests]);
     // ── Edit ─────────────────────────────────────────────────────────────────────
     const openEdit = useCallback(async (q: QuestDefinition, draft?: Partial<QuestDefinitionForm>, turnContext?: {
         turnId: string;
@@ -792,11 +873,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         const nextConditions = (draft?.conditions ?? q.conditions ?? { operator: "AND", clauses: [] }) as QuestConditionGroup;
         const nextIsActive = typeof draft?.is_active === "boolean" ? draft.is_active : q.is_active;
         const nextSortOrder = typeof draft?.sort_order === "number" ? draft.sort_order : q.sort_order;
-        const nextExpireAfterMinutes = nextQuestType === "daily"
-            ? (typeof q.expire_after_minutes === "number" ? null : undefined)
-            : (typeof draft?.expire_after_minutes === "number" || draft?.expire_after_minutes === null
-                ? draft.expire_after_minutes
-                : q.expire_after_minutes);
+        const nextTypeConfig = nextQuestType === "daily"
+            ? {}
+            : (draft?.type_config ?? q.type_config ?? {});
         const nextRewards = Array.isArray(draft?.rewards) ? (draft.rewards as QuestReward[]) : (q.rewards ?? []);
         const nextMetadata = draft?.metadata && typeof draft.metadata === "object" && !Array.isArray(draft.metadata)
             ? draft.metadata as Record<string, unknown>
@@ -809,7 +888,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             conditions: nextConditions,
             is_active: nextIsActive,
             sort_order: nextSortOrder,
-            expire_after_minutes: nextExpireAfterMinutes,
+            type_config: nextTypeConfig,
             rewards: nextRewards,
             metadata: nextMetadata as Record<string, unknown> | undefined,
         };
@@ -863,7 +942,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     }, [editQuestId, gameId, quests, openEdit]);
     const refresh = async () => {
         setRefreshing(true);
-        await loadQuests(offset);
+        await loadQuests();
         setRefreshing(false);
     };
     // ── Create ───────────────────────────────────────────────────────────────────
@@ -1033,17 +1112,13 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             conditions: (initialValues?.conditions ?? DEFAULT_FORM.conditions) as QuestConditionGroup,
             is_active: typeof initialValues?.is_active === "boolean" ? initialValues.is_active : DEFAULT_FORM.is_active,
             sort_order: typeof initialValues?.sort_order === "number" ? initialValues.sort_order : DEFAULT_FORM.sort_order,
-            expire_after_minutes: typeof initialValues?.expire_after_minutes === "number"
-                ? initialValues.expire_after_minutes
-                : undefined,
+            type_config: initialValues?.type_config ?? {},
             rewards: Array.isArray(initialValues?.rewards) ? (initialValues.rewards as QuestReward[]) : DEFAULT_FORM.rewards,
             metadata: initialValues?.metadata && typeof initialValues.metadata === "object" && !Array.isArray(initialValues.metadata)
                 ? initialValues.metadata as Record<string, unknown>
                 : initialValues?.metadata,
         };
-        if (nextForm.quest_type === "daily") {
-            delete nextForm.expire_after_minutes;
-        }
+        if (nextForm.quest_type === "daily") nextForm.type_config = {};
         if (!nextForm.code_name?.trim() && nextForm.name.trim()) {
             nextForm.code_name = toSlugUnderscore(nextForm.name);
         }
@@ -1059,6 +1134,28 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         setCreateQuestConvContext(null);
         setCreateQuestResolvedItemDefs([]);
     }, []);
+    const cloneQuest = useCallback((quest: QuestDefinition) => {
+        const sourceCode = (quest.code_name?.trim() || toSlugUnderscore(quest.name) || "quest");
+        let cloneCode = `${sourceCode}_copy`;
+        let cloneIndex = 2;
+        const existingCodes = new Set(quests.map((candidate) => candidate.code_name?.trim()).filter(Boolean));
+        while (existingCodes.has(cloneCode)) {
+            cloneCode = `${sourceCode}_copy_${cloneIndex}`;
+            cloneIndex += 1;
+        }
+        void openCreate({
+            name: quest.name,
+            code_name: cloneCode,
+            description: quest.description ?? "",
+            quest_type: quest.quest_type,
+            conditions: structuredClone(quest.conditions ?? DEFAULT_CONDITIONS),
+            is_active: quest.is_active,
+            sort_order: quest.sort_order,
+            type_config: structuredClone(quest.type_config ?? {}),
+            rewards: structuredClone(quest.rewards ?? []),
+            metadata: quest.metadata ? structuredClone(quest.metadata) : undefined,
+        });
+    }, [openCreate, quests]);
     useEscapeLayer(createOpen, closeCreate, 1);
     // Consume pending LLM quest drafts when the sheet opens from conversation routing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1269,14 +1366,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             const resolvedForm = await resolveQuestDefinitionDraft(form);
             const createFields = { ...stripQuestUiFields(resolvedForm) };
             delete createFields.sort_order;
-            if (createFields.quest_type === "daily") {
-                delete createFields.expire_after_minutes;
-            }
+            if (createFields.quest_type === "daily" || createFields.quest_type === "session") createFields.type_config = {};
             const payload: CreateQuestDefinitionRequest = {
                 ...createFields,
                 code_name: codeName,
             };
-            const created = await createQuestDefinition(game.studio_id, gameId, payload);
+            const created = await createQuestDefinition(gameId, payload);
             toast({ title: t('quest.questCreated'), description: form.name });
             setCreateOpen(false);
             if (createQuestConvContext) {
@@ -1294,7 +1389,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 }));
                 setCreateQuestConvContext(null);
             }
-            await loadQuests(offset);
+            await loadQuests();
             getGame(gameId).then(onGameUpdate).catch(() => { });
         }
         catch (e) {
@@ -1331,15 +1426,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 ...stripQuestUiFields(form),
                 code_name: codeName,
             };
-            if (form.quest_type === "daily") {
-                if (typeof editQuest.expire_after_minutes === "number") {
-                    patch.expire_after_minutes = null;
-                }
-                else {
-                    delete patch.expire_after_minutes;
-                }
+            if (form.quest_type === "daily") patch.type_config = {};
+            if (form.quest_type === "session") {
+                if (editQuest.quest_type === "session") delete patch.type_config;
+                else patch.type_config = {};
             }
-            const updated = await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch, { suppressToast: true });
+            const updated = await updateQuestDefinition(gameId, editQuest.id, patch, { suppressToast: true });
             toast({ title: t('quest.questUpdated'), description: form.name });
             window.dispatchEvent(new CustomEvent('ss:quest-created', {
                 detail: {
@@ -1354,7 +1446,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                 },
             }));
             closeEdit();
-            await loadQuests(offset);
+            await loadQuests();
         }
         catch (e) {
             toast({
@@ -1373,10 +1465,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             return;
         setDeleting(true);
         try {
-            await deleteQuestDefinition(game.studio_id, gameId, deleteQuest.id);
+            await deleteQuestDefinition(gameId, deleteQuest.id);
             toast({ title: t('quest.questDeleted'), description: deleteQuest.name });
             setDeleteQuest(null);
-            await loadQuests(offset);
+            await loadQuests();
             getGame(gameId).then(onGameUpdate).catch(() => { });
         }
         catch (e) {
@@ -1395,7 +1487,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         if (!game)
             return;
         try {
-            await updateQuestDefinition(game.studio_id, gameId, q.id, { is_active: !q.is_active });
+            await updateQuestDefinition(gameId, q.id, { is_active: !q.is_active });
             setQuests((prev) => prev.map((x) => (x.id === q.id ? { ...x, is_active: !x.is_active } : x)));
         }
         catch (e) {
@@ -1408,23 +1500,22 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
     };
     // ── Form shared part ─────────────────────────────────────────────────────────
     const questFormScope = editQuest ? "edit" : "create";
+    const refreshQuestFormItems = useCallback(() => {
+        itemDefsCache.delete(`${gameId}:200`);
+        setItemDefsRefreshNonce((nonce) => nonce + 1);
+    }, [gameId]);
     const selectedQuestTypeDescription = questTypeOptions.find((option) => option.value === form.quest_type)?.description ?? "";
-    const updateQuestExpiration = (expireAfterMinutes?: number) => setForm((currentForm) => {
-        if (expireAfterMinutes === undefined && !editQuest) {
-            const nextForm = { ...currentForm };
-            delete nextForm.expire_after_minutes;
-            return nextForm;
-        }
-        return {
-            ...currentForm,
-            expire_after_minutes: expireAfterMinutes ?? null,
-        };
-    });
-    const QuestForm = (<div className="space-y-5">
+    const updateQuestExpiration = (expireAfterMinutes?: number) => setForm((currentForm) => ({
+        ...currentForm,
+        type_config: expireAfterMinutes === undefined ? {} : {
+            expiration: { expire_after_minutes: expireAfterMinutes },
+        },
+    }));
+    const QuestForm = (<div id={`quest-definition-form-${questFormScope}`} className="quest-definition-form space-y-5">
       {/* Name */}
-      <div className="space-y-1">
-        <Label htmlFor="qname">{t('quest.name')} <span className="text-red-500">*</span></Label>
-        <Input id="qname" value={form.name} onChange={(e) => {
+      <div id={`quest-name-field-${questFormScope}`} className="quest-name-field space-y-1">
+        <Label id={`quest-name-label-${questFormScope}`} className="quest-name-label" htmlFor={`quest-name-input-${questFormScope}`}>{t('quest.name')} <span id={`quest-name-required-${questFormScope}`} className="quest-name-required text-red-500">*</span></Label>
+        <Input id={`quest-name-input-${questFormScope}`} className="quest-name-input" value={form.name} onChange={(e) => {
             const v = e.target.value;
             setForm((f) => ({
                 ...f,
@@ -1435,100 +1526,101 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
       </div>
 
       {/* Code Name */}
-      <div className="space-y-1">
-        <Label htmlFor="qcode">
-          {t('quest.codeName')} <span className="text-red-500">*</span>{" "}
-          <span className="text-muted-foreground text-xs font-normal">({t('quest.codeNameHint')})</span>
+      <div id={`quest-code-name-field-${questFormScope}`} className="quest-code-name-field space-y-1">
+        <Label id={`quest-code-name-label-${questFormScope}`} className="quest-code-name-label" htmlFor={`quest-code-name-input-${questFormScope}`}>
+          {t('quest.codeName')} <span id={`quest-code-name-required-${questFormScope}`} className="quest-code-name-required text-red-500">*</span>{" "}
+          <span id={`quest-code-name-hint-${questFormScope}`} className="quest-code-name-hint text-muted-foreground text-xs font-normal">({t('quest.codeNameHint')})</span>
         </Label>
-        <div className="flex gap-2">
-          <Input id="qcode" value={form.code_name ?? ""} placeholder={t('quest.codeNamePlaceholder')} className="font-mono" onChange={(e) => {
+        <div id={`quest-code-name-control-row-${questFormScope}`} className="quest-code-name-control-row flex gap-2">
+          <Input id={`quest-code-name-input-${questFormScope}`} value={form.code_name ?? ""} placeholder={t('quest.codeNamePlaceholder')} className="quest-code-name-input font-mono" onChange={(e) => {
             setAutoSlug(false);
             setForm((f) => ({ ...f, code_name: e.target.value }));
         }}/>
-          <Button type="button" variant={autoSlug ? "default" : "outline"} size="icon" className="shrink-0" title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')} onClick={() => {
+          <Button id={`quest-code-name-auto-slug-${questFormScope}`} type="button" variant={autoSlug ? "default" : "outline"} size="icon" className="quest-code-name-auto-slug shrink-0" title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')} onClick={() => {
             const next = !autoSlug;
             setAutoSlug(next);
             if (next)
                 setForm((f) => ({ ...f, code_name: toSlugUnderscore(f.name) }));
         }}>
-            <Wand2 className="h-4 w-4"/>
+            <Wand2 id={`quest-code-name-auto-slug-icon-${questFormScope}`} className="quest-code-name-auto-slug-icon h-4 w-4"/>
           </Button>
         </div>
       </div>
 
       {/* Description */}
-      <div className="space-y-1">
-        <Label htmlFor="qdesc">{t('quest.description')}</Label>
-        <Textarea id="qdesc" rows={2} value={form.description ?? ""} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder={t('quest.questDescPlaceholder')}/>
+      <div id={`quest-description-field-${questFormScope}`} className="quest-description-field space-y-1">
+        <Label id={`quest-description-label-${questFormScope}`} className="quest-description-label" htmlFor={`quest-description-input-${questFormScope}`}>{t('quest.description')}</Label>
+        <Textarea id={`quest-description-input-${questFormScope}`} className="quest-description-input" rows={2} value={form.description ?? ""} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder={t('quest.questDescPlaceholder')}/>
       </div>
 
       {/* Quest Type */}
-      <div id={`quest-type-field-${questFormScope}`} className="space-y-1">
-        <Label id={`quest-type-label-${questFormScope}`}>{t('quest.questType')} <span id={`quest-type-required-${questFormScope}`} className="text-red-500">*</span></Label>
-        <div id={`quest-type-control-row-${questFormScope}`} className="grid grid-cols-[minmax(0,1fr)_280px] items-center gap-4">
+      <div id={`quest-type-field-${questFormScope}`} className="quest-type-field space-y-1">
+        <Label id={`quest-type-label-${questFormScope}`} className="quest-type-label">{t('quest.questType')} <span id={`quest-type-required-${questFormScope}`} className="quest-type-required text-red-500">*</span></Label>
+        <div id={`quest-type-control-row-${questFormScope}`} className="quest-type-control-row grid grid-cols-[minmax(0,1fr)_280px] items-center gap-4">
           <Select value={form.quest_type} onValueChange={(value) => {
               const questType = value as QuestType;
               setForm((currentForm) => {
                   const nextForm = { ...currentForm, quest_type: questType };
-                  if (questType === "daily") {
-                      if (editQuest && typeof editQuest.expire_after_minutes === "number") {
-                          nextForm.expire_after_minutes = null;
-                      }
-                      else {
-                          delete nextForm.expire_after_minutes;
-                      }
-                  }
+                  if (questType === "daily") nextForm.type_config = {};
+                  if (questType === "session" && currentForm.quest_type !== "session") nextForm.type_config = {};
                   return nextForm;
               });
           }}>
-            <SelectTrigger id={`quest-type-trigger-${questFormScope}`}>
-              <SelectValue id={`quest-type-value-${questFormScope}`} />
+            <SelectTrigger id={`quest-type-trigger-${questFormScope}`} className="quest-type-trigger">
+              <SelectValue id={`quest-type-value-${questFormScope}`} className="quest-type-value" />
             </SelectTrigger>
-            <SelectContent id={`quest-type-content-${questFormScope}`}>
+            <SelectContent id={`quest-type-content-${questFormScope}`} className="quest-type-content">
               {questTypeOptions.map((option) => (
-                <SelectItem id={`quest-type-option-${questFormScope}-${option.value}`} key={option.value} value={option.value}>
+                <SelectItem id={`quest-type-option-${questFormScope}-${option.value}`} key={option.value} value={option.value} className="quest-type-option">
                   {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {form.quest_type === "daily" ? (
-            <p id={`quest-expiration-daily-unavailable-${questFormScope}`} className="text-xs leading-tight text-muted-foreground">
-              {t('quest.expirationUnavailableDaily')}
+          {form.quest_type === "daily" || form.quest_type === "session" ? (
+            <p id={`quest-expiration-daily-unavailable-${questFormScope}`} className="quest-expiration-daily-unavailable text-xs leading-tight text-muted-foreground">
+              {form.quest_type === "session" ? t('quest.typeSessionDesc') : t('quest.expirationUnavailableDaily')}
             </p>
           ) : (
             <QuestExpirationToggle
               idScope={questFormScope}
-              checked={typeof form.expire_after_minutes === "number"}
+              checked={typeof getOneTimeExpirationMinutes(form.type_config) === "number"}
               onCheckedChange={(checked) => updateQuestExpiration(checked ? DEFAULT_QUEST_EXPIRATION_MINUTES : undefined)}
               t={t}
             />
           )}
         </div>
         {selectedQuestTypeDescription && (
-          <p id={`quest-type-description-${questFormScope}`} className="text-xs text-muted-foreground">
+          <p id={`quest-type-description-${questFormScope}`} className="quest-type-description text-xs text-muted-foreground">
             {selectedQuestTypeDescription}
           </p>
         )}
-        {(form.quest_type === "chain") && (<p id={`quest-type-chain-hint-${questFormScope}`} className="text-xs text-muted-foreground">{t('quest.storyChainHint')}</p>)}
+        {(form.quest_type === "chain") && (<p id={`quest-type-chain-hint-${questFormScope}`} className="quest-type-chain-hint text-xs text-muted-foreground">{t('quest.storyChainHint')}</p>)}
       </div>
 
       {/* Expiration */}
-      {form.quest_type !== "daily" && typeof form.expire_after_minutes === "number" && (
+      {form.quest_type !== "daily" && form.quest_type !== "session" && typeof getOneTimeExpirationMinutes(form.type_config) === "number" && (
         <QuestExpirationSettings
           idScope={questFormScope}
-          value={form.expire_after_minutes}
+          value={getOneTimeExpirationMinutes(form.type_config)!}
           onChange={updateQuestExpiration}
           t={t}
         />
       )}
 
       {/* Conditions */}
-      <ConditionEditor conditions={form.conditions ?? DEFAULT_CONDITIONS} onChange={(c) => setForm((f) => ({ ...f, conditions: c }))} gameId={gameId} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
+      <div id={`quest-conditions-editor-${questFormScope}`} className="quest-conditions-editor">
+        <ConditionEditor conditions={form.conditions ?? DEFAULT_CONDITIONS} onChange={(c) => setForm((f) => ({ ...f, conditions: c }))} gameId={gameId} itemDefsRefreshNonce={itemDefsRefreshNonce} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
+      </div>
 
 
       {/* Rewards */}
-      <RewardEditor rewards={form.rewards ?? []} onChange={(rewards) => setForm((f) => ({ ...f, rewards }))} gameId={gameId} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
+      <div id={`quest-rewards-editor-${questFormScope}`} className="quest-rewards-editor">
+        <RewardEditor rewards={form.rewards ?? []} onChange={(rewards) => setForm((f) => ({ ...f, rewards }))} gameId={gameId} itemDefsRefreshNonce={itemDefsRefreshNonce} prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}/>
+      </div>
+
+      {/* Reward delivery */}
+      {game && (<div id={`quest-delivery-editor-${questFormScope}`} className="quest-delivery-editor"><QuestDeliveryEditor game={game} metadata={form.metadata} idScope={questFormScope} onChange={(metadata) => setForm((currentForm) => ({ ...currentForm, metadata }))}/></div>)}
     </div>);
     // ── Render ───────────────────────────────────────────────────────────────────
     return (<>
@@ -1538,70 +1630,96 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
         </Alert>)}
 
       {/* Filters */}
-      {!loading && (<div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm text-muted-foreground mr-auto">
-            {quests.length > 0
-                ? `${filteredQuests.length} ${t('quest.ofQuests')} ${quests.length} ${quests.length !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
-                : `0 ${t('quest.questDefinitions')}`}
-          </p>
-          <div className="relative min-w-[200px] max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-            <Input placeholder={t('quest.searchByNameDesc')} value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} className="h-8 pl-8 pr-8 text-sm"/>
-            {filterSearch.trim() && (<button type="button" aria-label={t('common.clear')} onClick={() => setFilterSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
-                <X className="h-3 w-3"/>
-              </button>)}
+      <div id="quest-list-filters" className="quest-list-filters space-y-2">
+          <div id="quest-list-filter-actions" className="quest-list-filter-actions flex flex-wrap items-center justify-end gap-2">
+            <p id="quest-list-filter-summary" className="quest-list-filter-summary mr-auto text-sm text-muted-foreground">
+              {quests.length > 0
+                  ? `${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
+                  : `0 ${t('quest.questDefinitions')}`}
+            </p>
+            <div id="quest-list-filter-search" className="quest-list-filter-search relative min-w-[200px] max-w-xs">
+              <Search id="quest-list-filter-search-icon" className="quest-list-filter-search-icon absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+              <Input id="quest-list-filter-search-input" className="quest-list-filter-search-input h-8 pl-8 pr-8 text-sm" placeholder={t('quest.searchByNameDesc')} value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)}/>
+              {filterSearch.trim() && (<button id="quest-list-filter-search-clear" type="button" aria-label={t('common.clear')} onClick={() => setFilterSearch("")} className="quest-list-filter-search-clear absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+                  <X id="quest-list-filter-search-clear-icon" className="quest-list-filter-search-clear-icon h-3 w-3"/>
+                </button>)}
+            </div>
+            <Button id="quest-list-filter-create" size="sm" className="quest-list-filter-create h-8" onClick={() => openCreate()} disabled={!game}>
+              <Plus id="quest-list-filter-create-icon" className="quest-list-filter-create-icon h-4 w-4 mr-1"/>
+              {t('quest.newQuest')}
+            </Button>
           </div>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="h-8 w-[140px] text-xs">
-              <SelectValue placeholder={t('quest.allTypes')}/>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('quest.allTypes')}</SelectItem>
-              {questTypeOptions.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
-            </SelectContent>
-          </Select>
-          <Select value={filterActive} onValueChange={setFilterActive}>
-            <SelectTrigger className="h-8 w-[120px] text-xs">
-              <SelectValue placeholder={t('quest.allStatus')}/>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('quest.allStatus')}</SelectItem>
-              <SelectItem value="active">{t('quest.activeStatus')}</SelectItem>
-              <SelectItem value="inactive">{t('quest.inactiveStatus')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o); }}>
-            <SelectTrigger className="h-8 w-[160px] text-xs">
-              <SelectValue placeholder="Sort"/>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sort_order:asc">{t('quest.sortOrderAsc')}</SelectItem>
-              <SelectItem value="sort_order:desc">{t('quest.sortOrderDesc')}</SelectItem>
-              <SelectItem value="name:asc">{t('quest.nameAZ')}</SelectItem>
-              <SelectItem value="name:desc">{t('quest.nameZA')}</SelectItem>
-              <SelectItem value="created_at:desc">{t('quest.newestFirst')}</SelectItem>
-              <SelectItem value="created_at:asc">{t('quest.oldestFirst')}</SelectItem>
-              <SelectItem value="updated_at:desc">{t('quest.recentlyUpdated')}</SelectItem>
-              <SelectItem value="updated_at:asc">{t('quest.leastRecentlyUpdated')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={refresh} disabled={loading || refreshing}>
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
-          </Button>
-          <Button size="sm" className="h-8" onClick={() => openCreate()} disabled={loading || !game}>
-            <Plus className="h-4 w-4 mr-1"/>
-            {t('quest.newQuest')}
-          </Button>
-          {hasActiveFilters && (<Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
-              <X className="h-3.5 w-3.5 mr-1"/> {t('quest.clear')}
+          <div id="quest-list-filter-controls" className="quest-list-filter-controls flex flex-wrap items-end justify-end gap-2">
+          {hasActiveFilters && (<Button id="quest-list-filter-clear" variant="ghost" size="sm" className="quest-list-filter-clear h-8 text-xs" onClick={clearFilters}>
+              <X id="quest-list-filter-clear-icon" className="quest-list-filter-clear-icon h-3.5 w-3.5 mr-1"/> {t('quest.clear')}
             </Button>)}
-        </div>)}
+          <div id="quest-list-filter-type-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-type-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-type">{t('quest.questType')}</Label>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger id="quest-list-filter-type" className="quest-list-filter-type h-8 w-[140px] text-xs">
+              <SelectValue id="quest-list-filter-type-value" className="quest-list-filter-type-value" placeholder={t('quest.allTypes')}/>
+            </SelectTrigger>
+            <SelectContent id="quest-list-filter-type-options" className="quest-list-filter-type-options">
+              <SelectItem id="quest-list-filter-type-all" className="quest-list-filter-type-option" value="all">{t('quest.allTypes')}</SelectItem>
+              {questTypeOptions.map((t) => (<SelectItem id={`quest-list-filter-type-${t.value}`} className="quest-list-filter-type-option" key={t.value} value={t.value}>{t.label}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          </div>
+          <div id="quest-list-filter-status-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-status-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-status">{t('quest.filterStatus')}</Label>
+          <Select value={filterActive} onValueChange={setFilterActive}>
+            <SelectTrigger id="quest-list-filter-status" className="quest-list-filter-status h-8 w-[120px] text-xs">
+              <SelectValue id="quest-list-filter-status-value" className="quest-list-filter-status-value" placeholder={t('quest.allStatus')}/>
+            </SelectTrigger>
+            <SelectContent id="quest-list-filter-status-options" className="quest-list-filter-status-options">
+              <SelectItem id="quest-list-filter-status-all" className="quest-list-filter-status-option" value="all">{t('quest.allStatus')}</SelectItem>
+              <SelectItem id="quest-list-filter-status-active" className="quest-list-filter-status-option" value="active">{t('quest.activeStatus')}</SelectItem>
+              <SelectItem id="quest-list-filter-status-inactive" className="quest-list-filter-status-option" value="inactive">{t('quest.inactiveStatus')}</SelectItem>
+            </SelectContent>
+          </Select>
+          </div>
+          <div id="quest-list-filter-pool-assigned-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-pool-assigned-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-pool-assigned">{t('quest.filterPoolAssignment')}</Label>
+          <Select value={filterPoolAssigned} onValueChange={setFilterPoolAssigned}>
+            <SelectTrigger id="quest-list-filter-pool-assigned" className="quest-list-filter-pool-assigned h-8 w-[220px] text-xs">
+              <SelectValue id="quest-list-filter-pool-assigned-value" className="quest-list-filter-pool-assigned-value" placeholder={t('quest.allPoolAssignments')}/>
+            </SelectTrigger>
+            <SelectContent id="quest-list-filter-pool-assigned-options" className="quest-list-filter-pool-assigned-options">
+              <SelectItem id="quest-list-filter-pool-assigned-all" className="quest-list-filter-pool-assigned-option" value="all">{t('quest.allPoolAssignments')}</SelectItem>
+              <SelectItem id="quest-list-filter-pool-assigned-yes" className="quest-list-filter-pool-assigned-option" value="assigned">{t('quest.poolAssigned')}</SelectItem>
+              <SelectItem id="quest-list-filter-pool-assigned-no" className="quest-list-filter-pool-assigned-option" value="unassigned">{t('quest.poolUnassigned')}</SelectItem>
+            </SelectContent>
+          </Select>
+          </div>
+          <div id="quest-list-filter-sort-control" className="quest-list-filter-control flex flex-col gap-1">
+          <Label id="quest-list-filter-sort-label" className="quest-list-filter-label text-xs text-muted-foreground" htmlFor="quest-list-filter-sort">{t('quest.filterSort')}</Label>
+          <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o); }}>
+            <SelectTrigger id="quest-list-filter-sort" className="quest-list-filter-sort h-8 w-[160px] text-xs">
+              <SelectValue id="quest-list-filter-sort-value" className="quest-list-filter-sort-value" placeholder="Sort"/>
+            </SelectTrigger>
+            <SelectContent id="quest-list-filter-sort-options" className="quest-list-filter-sort-options">
+              <SelectItem id="quest-list-filter-sort-order-asc" className="quest-list-filter-sort-option" value="sort_order:asc">{t('quest.sortOrderAsc')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-order-desc" className="quest-list-filter-sort-option" value="sort_order:desc">{t('quest.sortOrderDesc')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-name-asc" className="quest-list-filter-sort-option" value="name:asc">{t('quest.nameAZ')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-name-desc" className="quest-list-filter-sort-option" value="name:desc">{t('quest.nameZA')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-created-at-desc" className="quest-list-filter-sort-option" value="created_at:desc">{t('quest.newestFirst')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-created-at-asc" className="quest-list-filter-sort-option" value="created_at:asc">{t('quest.oldestFirst')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-updated-at-desc" className="quest-list-filter-sort-option" value="updated_at:desc">{t('quest.recentlyUpdated')}</SelectItem>
+              <SelectItem id="quest-list-filter-sort-updated-at-asc" className="quest-list-filter-sort-option" value="updated_at:asc">{t('quest.leastRecentlyUpdated')}</SelectItem>
+            </SelectContent>
+          </Select>
+          </div>
+          <Button id="quest-list-filter-refresh" variant="outline" size="icon" className="quest-list-filter-refresh h-8 w-8" onClick={refresh} disabled={refreshing}>
+            <RefreshCw id="quest-list-filter-refresh-icon" className={`quest-list-filter-refresh-icon h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
+          </Button>
+          </div>
+        </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (<div className="p-4 space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (<Skeleton key={i} className="h-10 w-full"/>))}
+      <Card id="quest-list-card" className="quest-list-card">
+        <CardContent id="quest-list-card-content" className="quest-list-card-content p-0">
+          {loading ? (<div id="quest-list-loading" className="quest-list-loading p-4 space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (<Skeleton id={`quest-list-loading-row-${i}`} key={i} className="quest-list-loading-row h-10 w-full"/>))}
             </div>) : filteredQuests.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
               {hasActiveFilters ? (<>
                   <Search className="h-10 w-10 opacity-30"/>
@@ -1616,103 +1734,157 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                     <Plus className="h-4 w-4 mr-1"/> {t('quest.createFirstQuest')}
                   </Button>
                 </>)}
-            </div>) : (<Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('quest.name')}</TableHead>
-                  <TableHead>{t('quest.codeName')}</TableHead>
-                  <TableHead>{t('quest.type')}</TableHead>
-                  <TableHead>{t('quest.conditions')}</TableHead>
-                  <TableHead>{t('quest.rewards')}</TableHead>
-                  <TableHead>{t('quest.delivery.column')}</TableHead>
+            </div>) : (<Table id="quest-list-table" className="quest-list-table">
+              <TableHeader id="quest-list-table-header" className="quest-list-table-header">
+                <TableRow id="quest-list-table-header-row" className="quest-list-table-header-row">
+                  <TableHead id="quest-list-table-name-header" className="quest-list-table-header-cell">{t('quest.name')}</TableHead>
+                  <TableHead id="quest-list-table-code-header" className="quest-list-table-header-cell hidden">{t('quest.codeName')}</TableHead>
+                  <TableHead id="quest-list-table-type-header" className="quest-list-table-header-cell">{t('quest.type')}</TableHead>
+                  <TableHead id="quest-list-table-conditions-header" className="quest-list-table-header-cell hidden">{t('quest.conditions')}</TableHead>
+                  <TableHead id="quest-list-table-rewards-header" className="quest-list-table-header-cell">{t('quest.rewards')}</TableHead>
+                  <TableHead id="quest-list-table-delivery-header" className="quest-list-table-header-cell">{t('quest.delivery.column')}</TableHead>
 
-                  <TableHead>{t('quest.active')}</TableHead>
-                  <TableHead className="text-right">{t('quest.actions')}</TableHead>
+                  <TableHead id="quest-list-table-active-header" className="quest-list-table-header-cell">{t('quest.active')}</TableHead>
+                  <TableHead id="quest-list-table-actions-header" className="quest-list-table-header-cell text-right">{t('quest.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody id="quest-list-table-body" className="quest-list-table-body">
                 {filteredQuests.map((q) => (<React.Fragment key={q.id}>
-                  <TableRow className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setExpandedQuestId(expandedQuestId === q.id ? null : q.id)}>
-                    <TableCell>
-                      <div className="flex items-start gap-1.5">
+                  <TableRow id={`quest-list-item-${q.id}`} className="quest-list-item cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setExpandedQuestId(expandedQuestId === q.id ? null : q.id)}>
+                    <TableCell id={`quest-list-item-name-cell-${q.id}`} className="quest-list-item-cell">
+                      <div id={`quest-list-item-name-${q.id}`} className="quest-list-item-name flex items-start gap-1.5">
                         {expandedQuestId === q.id
-                    ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5"/>
-                    : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5"/>}
-                        <span className="font-medium truncate">{q.name}</span>
+                    ? <ChevronDown id={`quest-list-item-collapse-icon-${q.id}`} className="quest-list-item-expand-icon h-4 w-4 shrink-0 text-muted-foreground mt-0.5"/>
+                    : <ChevronRight id={`quest-list-item-expand-icon-${q.id}`} className="quest-list-item-expand-icon h-4 w-4 shrink-0 text-muted-foreground mt-0.5"/>}
+                        <span id={`quest-list-item-name-text-${q.id}`} className="quest-list-item-name-text font-medium truncate">{q.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {q.code_name ? (<div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
-                          <span className="truncate max-w-[220px]">{q.code_name}</span>
+                    <TableCell id={`quest-list-item-code-cell-${q.id}`} className="quest-list-item-cell hidden" onClick={(e) => e.stopPropagation()}>
+                      {q.code_name ? (<div id={`quest-list-item-code-${q.id}`} className="quest-list-item-code text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
+                          <span id={`quest-list-item-code-text-${q.id}`} className="quest-list-item-code-text truncate max-w-[220px]">{q.code_name}</span>
                           <CopyButton text={q.code_name} size="h-3 w-3"/>
                         </div>) : (<span className="text-xs text-muted-foreground">—</span>)}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={questTypeBadgeVariant(q.quest_type)}>
+                    <TableCell id={`quest-list-item-type-cell-${q.id}`} className="quest-list-item-cell">
+                      <Badge id={`quest-list-item-type-${q.id}`} variant={questTypeBadgeVariant(q.quest_type)} className="quest-list-item-type">
                         {q.quest_type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {q.conditions ? (<span className="inline-flex items-center gap-1">
-                          <Badge variant="outline" className="font-mono text-xs">
+                    <TableCell id={`quest-list-item-conditions-cell-${q.id}`} className="quest-list-item-cell hidden text-sm">
+                      {q.conditions ? (<span id={`quest-list-item-conditions-${q.id}`} className="quest-list-item-conditions inline-flex items-center gap-1">
+                          <Badge id={`quest-list-item-conditions-operator-${q.id}`} variant="outline" className="quest-list-item-conditions-operator font-mono text-xs">
                             {q.conditions.operator}
                           </Badge>
-                          <span className="text-muted-foreground">
+                          <span id={`quest-list-item-conditions-count-${q.id}`} className="quest-list-item-conditions-count text-muted-foreground">
                             {q.conditions.clauses?.length ?? 0} {(q.conditions.clauses?.length ?? 0) !== 1 ? t('quest.clausesCount') : t('quest.clauseCount')}
                           </span>
                         </span>) : (<span className="text-muted-foreground text-xs">—</span>)}
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell id={`quest-list-item-rewards-cell-${q.id}`} className="quest-list-item-cell text-sm">
                       {q.rewards?.length ?? 0}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {q.metadata?.override_game_delivery === true ? (q.metadata?.reward_delivery === "direct" ? (<Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-500/40 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400" title={t('quest.delivery.overridesGame')}>
-                            <Zap className="h-3 w-3"/>
+                    <TableCell id={`quest-list-item-delivery-cell-${q.id}`} className="quest-list-item-cell text-sm">
+                      {q.metadata?.override_game_delivery === true ? (q.metadata?.reward_delivery === "direct" ? (<Badge id={`quest-list-item-delivery-direct-${q.id}`} variant="outline" className="quest-list-item-delivery gap-1 text-xs text-amber-600 border-amber-500/40 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400" title={t('quest.delivery.overridesGame')}>
+                            <Zap id={`quest-list-item-delivery-direct-icon-${q.id}`} className="quest-list-item-delivery-icon h-3 w-3"/>
                             {t('quest.delivery.modeDirect')}
-                          </Badge>) : (<Badge variant="outline" className="gap-1 text-xs text-green-700 border-green-500/40 bg-green-50 dark:bg-green-900/20 dark:text-green-400" title={t('quest.delivery.overridesGame')}>
-                            <Mail className="h-3 w-3"/>
+                          </Badge>) : (<Badge id={`quest-list-item-delivery-mailbox-${q.id}`} variant="outline" className="quest-list-item-delivery gap-1 text-xs text-green-700 border-green-500/40 bg-green-50 dark:bg-green-900/20 dark:text-green-400" title={t('quest.delivery.overridesGame')}>
+                            <Mail id={`quest-list-item-delivery-mailbox-icon-${q.id}`} className="quest-list-item-delivery-icon h-3 w-3"/>
                             {t('quest.delivery.modeMailbox')}
-                          </Badge>)) : (<Badge variant="outline" className="text-xs text-muted-foreground">
+                          </Badge>)) : (<Badge id={`quest-list-item-delivery-default-${q.id}`} variant="outline" className="quest-list-item-delivery text-xs text-muted-foreground">
                           {t('quest.delivery.defaultLabel')}
                         </Badge>)}
                     </TableCell>
 
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Switch checked={q.is_active} onCheckedChange={() => toggleActive(q)}/>
+                    <TableCell id={`quest-list-item-active-cell-${q.id}`} className="quest-list-item-cell" onClick={(e) => e.stopPropagation()}>
+                      <Switch id={`quest-list-item-active-toggle-${q.id}`} className="quest-list-item-active-toggle" checked={q.is_active} onCheckedChange={() => toggleActive(q)}/>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
-                          <Pencil className="h-4 w-4"/>
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
-                          <Trash2 className="h-4 w-4"/>
-                        </Button>
-                      </div>
+                    <TableCell id={`quest-list-item-actions-cell-${q.id}`} className="quest-list-item-cell text-right">
+                      <TooltipProvider delayDuration={0}>
+                        <div id={`quest-list-item-actions-${q.id}`} className="quest-list-item-actions flex justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button id={`quest-list-item-clone-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-clone-btn h-8 w-8" aria-label={t("quest.cloneQuestDefinition")} onClick={(e) => { e.stopPropagation(); cloneQuest(q); }}>
+                              <Copy id={`quest-list-item-clone-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent id={`quest-list-item-clone-tooltip-${q.id}`} className="quest-list-item-clone-tooltip" side="top">
+                            {t("common.clone")}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button id={`quest-list-item-edit-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-edit-btn h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>
+                              <Pencil id={`quest-list-item-edit-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent id={`quest-list-item-edit-tooltip-${q.id}`} className="quest-list-item-edit-tooltip" side="top">
+                            {t("common.edit")}
+                          </TooltipContent>
+                        </Tooltip>
+                        {getQuestChainAssignment(q.type_config) || getQuestDailyPoolAssignment(q.type_config) ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button id={`quest-list-item-pool-assignment-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-pool-assignment-btn h-8 w-8" aria-label={t("quest.poolAssignment")} onClick={(e) => {
+                                e.stopPropagation();
+                                if (getQuestChainAssignment(q.type_config)) setAssignedChainQuest(q);
+                                else setAssignedDailyPoolQuest(q);
+                              }}>
+                                {getQuestChainAssignment(q.type_config) ? (
+                                  <Workflow id={`quest-list-item-chain-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                                ) : (
+                                  <Boxes id={`quest-list-item-daily-pool-assignment-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent id={`quest-list-item-pool-assignment-tooltip-${q.id}`} className="quest-list-item-pool-assignment-tooltip" side="top">
+                              {t("quest.poolAssignment")}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button id={`quest-list-item-delete-btn-${q.id}`} size="icon" variant="ghost" className="quest-list-item-delete-btn h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteQuest(q); }}>
+                                <Trash2 id={`quest-list-item-delete-icon-${q.id}`} className="quest-list-item-action-icon h-4 w-4"/>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent id={`quest-list-item-delete-tooltip-${q.id}`} className="quest-list-item-delete-tooltip" side="top">
+                              {t("common.delete")}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        </div>
+                      </TooltipProvider>
                     </TableCell>
                   </TableRow>
                   {/* Expanded detail row */}
-                  {expandedQuestId === q.id && (<TableRow className="bg-muted/20 hover:bg-muted/20">
-                      <TableCell colSpan={8} className="p-0">
-                        <div className="px-6 py-4 space-y-4 border-t border-dashed">
+                  {expandedQuestId === q.id && (<TableRow id={`quest-list-item-details-row-${q.id}`} className="quest-list-item-details-row bg-muted/20 hover:bg-muted/20">
+                      <TableCell id={`quest-list-item-details-cell-${q.id}`} colSpan={6} className="quest-list-item-details-cell p-0">
+                        <div id={`quest-list-item-details-${q.id}`} className="quest-list-item-details px-6 py-4 space-y-4 border-t border-dashed">
                           {/* Row 1: Quest ID + Description */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
-                              <div className="flex items-center gap-1">
-                                <p className="font-mono text-xs break-all">{q.id}</p>
+                          <div id={`quest-list-item-details-summary-${q.id}`} className="quest-list-item-details-summary grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div id={`quest-list-item-id-${q.id}`} className="quest-list-item-details-field">
+                              <p id={`quest-list-item-id-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
+                              <div id={`quest-list-item-id-value-wrap-${q.id}`} className="quest-list-item-details-value flex items-center gap-1">
+                                <p id={`quest-list-item-id-value-${q.id}`} className="quest-list-item-id-value font-mono text-xs break-all">{q.id}</p>
                                 <CopyButton text={q.id} size="h-3 w-3"/>
                               </div>
                             </div>
-                            {q.description && (<div>
-                                <p className="text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
-                                <p className="text-sm">{q.description}</p>
+                            <div id={`quest-list-item-code-detail-${q.id}`} className="quest-list-item-details-field">
+                              <p id={`quest-list-item-code-detail-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.codeName')}</p>
+                              {q.code_name ? (<div id={`quest-list-item-code-detail-value-wrap-${q.id}`} className="quest-list-item-details-value flex items-center gap-1">
+                                  <p id={`quest-list-item-code-detail-value-${q.id}`} className="quest-list-item-code-detail-value font-mono text-xs break-all">{q.code_name}</p>
+                                  <CopyButton text={q.code_name} size="h-3 w-3"/>
+                                </div>) : (<span id={`quest-list-item-code-detail-empty-${q.id}`} className="quest-list-item-code-detail-empty text-xs text-muted-foreground">—</span>)}
+                            </div>
+                            {q.description && (<div id={`quest-list-item-description-${q.id}`} className="quest-list-item-details-field">
+                                <p id={`quest-list-item-description-label-${q.id}`} className="quest-list-item-details-label text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
+                                <p id={`quest-list-item-description-value-${q.id}`} className="quest-list-item-description-value text-sm">{q.description}</p>
                               </div>)}
                           </div>
 
                           {/* Two-column layout: [Conditions + Rewards] | [Reward Delivery] */}
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-                          <div className="space-y-4">
+                          <div id={`quest-list-item-details-content-${q.id}`} className="quest-list-item-details-content grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                          <div id={`quest-list-item-details-left-${q.id}`} className="quest-list-item-details-left space-y-4">
                           {/* Conditions */}
                           {q.conditions && q.conditions.clauses?.length > 0 && (<div>
                               <p className="text-xs text-muted-foreground mb-1">{t('quest.conditions')} <Badge variant="outline" className="ml-1 font-mono text-xs">{q.conditions.operator}</Badge></p>
@@ -1779,7 +1951,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                                             <span className="text-muted-foreground">
                                               {r.quantity_min ?? 1}{r.quantity_max && r.quantity_max !== r.quantity_min ? `–${r.quantity_max}` : ""}
                                             </span>
-                                            <Link href={`/games/${gameId}/items/${r.item_definition_id}`} target="_blank" className="text-muted-foreground hover:text-foreground transition-colors" onClick={(e) => e.stopPropagation()} title={t('quest.openItemDef')}>
+                                            <Link href={`/games/${gameId}/items/${r.item_definition_id}`} className="text-muted-foreground hover:text-foreground transition-colors" onClick={(e) => e.stopPropagation()} title={t('quest.openItemDef')}>
                                               <ExternalLink className="h-3 w-3"/>
                                             </Link>
                                           </span>);
@@ -1792,15 +1964,15 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                           </div>
 
                           {/* Right column: Reward delivery override */}
-                          {game && (<div>
+                          {game && (<div id={`quest-list-item-delivery-override-${q.id}`} className="quest-list-item-delivery-override">
                               <QuestDeliveryOverride quest={q} game={game} onUpdated={(updated) => setQuests((prev) => prev.map((qd) => (qd.id === updated.id ? updated : qd)))}/>
                             </div>)}
                           </div>
 
                           {/* Timestamps */}
-                          <div className="flex gap-6 text-xs text-muted-foreground">
-                            <span>{t('quest.created')} {new Date(q.created_at).toLocaleString()}</span>
-                            <span>{t('quest.updated')} {new Date(q.updated_at).toLocaleString()}</span>
+                          <div id={`quest-list-item-timestamps-${q.id}`} className="quest-list-item-timestamps flex gap-6 text-xs text-muted-foreground">
+                            <span id={`quest-list-item-created-${q.id}`} className="quest-list-item-timestamp">{t('quest.created')} {formatISODate(q.created_at, user?.timezone ?? undefined)}</span>
+                            <span id={`quest-list-item-updated-${q.id}`} className="quest-list-item-timestamp">{t('quest.updated')} {formatISODate(q.updated_at, user?.timezone ?? undefined)}</span>
                           </div>
                         </div>
                       </TableCell>
@@ -1808,6 +1980,23 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
                   </React.Fragment>))}
               </TableBody>
             </Table>)}
+          {quests.length > 0 && !loading && (
+            <div id="quest-list-pagination" className="quest-list-pagination p-4 flex flex-col items-center justify-center border-t gap-3">
+              {hasNextPage && !hasQuestIdSearch && (
+                <Button id="quest-list-load-more" className="quest-list-load-more"
+                  variant="outline" 
+                  onClick={handleLoadMore} 
+                  disabled={loadingMore}
+                >
+                  {loadingMore && <Loader2 id="quest-list-load-more-loading" className="quest-list-load-more-icon h-4 w-4 mr-2 animate-spin" />}
+                  {t('common.loadMore')}
+                </Button>
+              )}
+              <p id="quest-list-pagination-summary" className="quest-list-pagination-summary text-sm text-muted-foreground">
+                {`${filteredQuests.length} ${t('quest.ofQuests')} ${totalQuests} ${totalQuests !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1818,22 +2007,30 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             else
                 closeCreate();
         }}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{t('quest.createQuestDef')}</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6">{QuestForm}</div>
-          <SheetFooter className="mt-6 sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Switch id="qactive-create" checked={form.is_active ?? true} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}/>
-              <Label htmlFor="qactive-create">{t('quest.active')}</Label>
+        <SheetContent id="quest-create-sheet" side="right" className="quest-create-sheet w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader id="quest-create-sheet-header" className="quest-create-sheet-header">
+            <div id="quest-create-sheet-title" className="quest-create-sheet-title">
+              <SheetTitle className="quest-create-sheet-title-text">{t('quest.createQuestDef')}</SheetTitle>
             </div>
-            <div className="flex items-center gap-2">
+          </SheetHeader>
+          <div id="quest-create-sheet-form" className="quest-create-sheet-form mt-6">{QuestForm}</div>
+          <SheetFooter id="quest-create-sheet-footer" className="quest-create-sheet-footer mt-6 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            <div id="quest-create-active-control" className="quest-create-active-control flex items-center gap-2">
+              <Switch id="quest-create-active-switch" className="quest-create-active-switch" checked={form.is_active ?? true} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}/>
+              <Label id="quest-create-active-label" className="quest-create-active-label" htmlFor="quest-create-active-switch">{t('quest.active')}</Label>
+            </div>
+            <div id="quest-create-fresh-items-action" className="quest-create-fresh-items-action flex justify-center">
+              <Button id="quest-fresh-items-create" type="button" variant="link" size="sm" className="quest-fresh-items h-auto p-0 text-xs" onClick={refreshQuestFormItems}>
+                <RefreshCw id="quest-fresh-items-icon-create" className="quest-fresh-items-icon mr-1 h-3 w-3"/>
+                {t('quest.freshItems')}
+              </Button>
+            </div>
+            <div id="quest-create-sheet-actions" className="quest-create-sheet-actions flex items-center gap-2 sm:justify-self-end">
               <SheetClose asChild>
-                <Button variant="outline" disabled={saving} onClick={() => setCreateQuestConvContext(null)}>{t('common.cancel')}</Button>
+                <Button id="quest-create-cancel" variant="outline" className="quest-create-cancel" disabled={saving} onClick={() => setCreateQuestConvContext(null)}>{t('common.cancel')}</Button>
               </SheetClose>
-              <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
-                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
+              <Button id="quest-create-submit" className="quest-create-submit" onClick={handleCreate} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+                {saving && <Loader2 id="quest-create-submit-loading" className="quest-create-submit-loading h-4 w-4 mr-1 animate-spin"/>}
                 {t('common.submit')}
               </Button>
             </div>
@@ -1846,26 +2043,34 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
             if (!o)
                 closeEdit();
         }}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{t('quest.editQuestDef')}</SheetTitle>
-            {editQuest && (<p className="flex items-center gap-0.5 text-xs text-muted-foreground font-mono mt-0.5">
+        <SheetContent id="quest-edit-sheet" side="right" className="quest-edit-sheet w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader id="quest-edit-sheet-header" className="quest-edit-sheet-header">
+            <div id="quest-edit-sheet-title" className="quest-edit-sheet-title">
+              <SheetTitle className="quest-edit-sheet-title-text">{t('quest.editQuestDef')}</SheetTitle>
+            </div>
+            {editQuest && (<p id="quest-edit-id" className="quest-edit-id flex items-center gap-0.5 text-xs text-muted-foreground font-mono mt-0.5">
                 {editQuest.id}
                 <CopyButton text={editQuest.id} size="h-3 w-3"/>
               </p>)}
           </SheetHeader>
-          <div className="mt-6">{QuestForm}</div>
-          <SheetFooter className="mt-6 sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Switch id="qactive-edit" checked={form.is_active ?? true} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}/>
-              <Label htmlFor="qactive-edit">{t('quest.active')}</Label>
+          <div id="quest-edit-sheet-form" className="quest-edit-sheet-form mt-6">{QuestForm}</div>
+          <SheetFooter id="quest-edit-sheet-footer" className="quest-edit-sheet-footer mt-6 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            <div id="quest-edit-active-control" className="quest-edit-active-control flex items-center gap-2">
+              <Switch id="quest-edit-active-switch" className="quest-edit-active-switch" checked={form.is_active ?? true} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}/>
+              <Label id="quest-edit-active-label" className="quest-edit-active-label" htmlFor="quest-edit-active-switch">{t('quest.active')}</Label>
             </div>
-            <div className="flex items-center gap-2">
+            <div id="quest-edit-fresh-items-action" className="quest-edit-fresh-items-action flex justify-center">
+              <Button id="quest-fresh-items-edit" type="button" variant="link" size="sm" className="quest-fresh-items h-auto p-0 text-xs" onClick={refreshQuestFormItems}>
+                <RefreshCw id="quest-fresh-items-icon-edit" className="quest-fresh-items-icon mr-1 h-3 w-3"/>
+                {t('quest.freshItems')}
+              </Button>
+            </div>
+            <div id="quest-edit-sheet-actions" className="quest-edit-sheet-actions flex items-center gap-2 sm:justify-self-end">
               <SheetClose asChild>
-                <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
+                <Button id="quest-edit-cancel" variant="outline" className="quest-edit-cancel" disabled={saving}>{t('common.cancel')}</Button>
               </SheetClose>
-              <Button onClick={handleEdit} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
-                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}
+              <Button id="quest-edit-submit" className="quest-edit-submit" onClick={handleEdit} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+                {saving && <Loader2 id="quest-edit-submit-loading" className="quest-edit-submit-loading h-4 w-4 mr-1 animate-spin"/>}
                 {t('common.save')}
               </Button>
             </div>
@@ -1894,6 +2099,50 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!assignedChainQuest} onOpenChange={(open) => !open && setAssignedChainQuest(null)}>
+        <AlertDialogContent id="quest-chain-assignment-dialog">
+          <AlertDialogHeader id="quest-chain-assignment-header">
+            <AlertDialogTitle id="quest-chain-assignment-title">{t("quest.chainAssignment")}</AlertDialogTitle>
+            <AlertDialogDescription id="quest-chain-assignment-description">
+              {t("quest.chainAssignmentDescription")} <Link id="quest-chain-assignment-name" href={`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(getQuestChainAssignment(assignedChainQuest?.type_config)?.id ?? "")}`} className="inline-flex items-center gap-1 font-semibold text-primary underline underline-offset-2">
+                {getQuestChainAssignment(assignedChainQuest?.type_config)?.name}
+                <ExternalLink id="quest-chain-assignment-name-external-icon" className="h-3.5 w-3.5"/>
+              </Link>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter id="quest-chain-assignment-footer">
+            <AlertDialogCancel id="quest-chain-assignment-cancel">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction id="quest-chain-assignment-open" onClick={() => {
+              const assignment = getQuestChainAssignment(assignedChainQuest?.type_config);
+              if (assignment)
+                router.push(`/games/${gameId}/quests?tab=chains&search=${encodeURIComponent(assignment.id)}`);
+              setAssignedChainQuest(null);
+            }}>{t("quest.openChain")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!assignedDailyPoolQuest} onOpenChange={(open) => !open && setAssignedDailyPoolQuest(null)}>
+        <AlertDialogContent id="quest-daily-pool-assignment-dialog">
+          <AlertDialogHeader id="quest-daily-pool-assignment-header">
+            <AlertDialogTitle id="quest-daily-pool-assignment-title">{t("quest.dailyPoolAssignment")}</AlertDialogTitle>
+            <AlertDialogDescription id="quest-daily-pool-assignment-description">
+              {t("quest.dailyPoolAssignmentDescription")} <Link id="quest-daily-pool-assignment-name" href={`/games/${gameId}/quests?tab=daily`} className="inline-flex items-center gap-1 font-semibold text-primary underline underline-offset-2">
+                {getQuestDailyPoolAssignment(assignedDailyPoolQuest?.type_config)?.name}
+                <ExternalLink id="quest-daily-pool-assignment-name-external-icon" className="h-3.5 w-3.5"/>
+              </Link>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter id="quest-daily-pool-assignment-footer">
+            <AlertDialogCancel id="quest-daily-pool-assignment-cancel">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction id="quest-daily-pool-assignment-open" onClick={() => {
+              router.push(`/games/${gameId}/quests?tab=daily`);
+              setAssignedDailyPoolQuest(null);
+            }}>{t("quest.openDailyPool")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>);
 }
 // ─── Coming Soon Panel ─────────────────────────────────────────────────────────
@@ -1901,10 +2150,10 @@ function ComingSoon({ title }: {
     title: string;
 }) {
     const { t } = useTranslation();
-    return (<div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4">
-      <Clock className="h-12 w-12 opacity-30"/>
-      <p className="text-lg font-medium">{title}</p>
-      <p className="text-sm opacity-70">{t('quest.comingSoon')}</p>
+    return (<div id="quests-coming-soon" className="quests-coming-soon flex flex-col items-center justify-center py-24 text-muted-foreground gap-4">
+      <Clock id="quests-coming-soon-icon" className="quests-coming-soon-icon h-12 w-12 opacity-30"/>
+      <p id="quests-coming-soon-title" className="quests-coming-soon-title text-lg font-medium">{title}</p>
+      <p id="quests-coming-soon-description" className="quests-coming-soon-description text-sm opacity-70">{t('quest.comingSoon')}</p>
     </div>);
 }
 // ─── Inner Page (needs useSearchParams) ───────────────────────────────────────
@@ -1939,112 +2188,104 @@ function QuestsPageInner() {
             .finally(() => setGameLoading(false));
     }, [gameId, toast]);
     const handleTabChange = (value: string) => {
-        const sp = new URLSearchParams(searchParams.toString());
-        if (value === "definitions") {
-            sp.delete("tab");
-        }
-        else {
-            sp.set("tab", value);
-        }
-        const qs = sp.toString();
-        router.push(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`);
+        router.push(value === "definitions" ? `/games/${gameId}/quests` : `/games/${gameId}/quests?tab=${encodeURIComponent(value)}`);
     };
-    return (<div className="container mx-auto py-6">
+    return (<div id="quests-page" className="quests-page container mx-auto py-6">
       {/* Breadcrumb */}
-      <div className="mb-2">
-        <Breadcrumb>
-          <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink>
+      <div id="quests-page-breadcrumb" className="quests-page-breadcrumb mb-2">
+        <Breadcrumb id="quests-page-breadcrumb-nav" className="quests-page-breadcrumb-nav">
+          <BreadcrumbList id="quests-page-breadcrumb-list" className="quests-page-breadcrumb-list flex-nowrap overflow-x-auto whitespace-nowrap">
+            <BreadcrumbItem id="quests-page-breadcrumb-studios" className="quests-page-breadcrumb-item">
+              <BreadcrumbLink id="quests-page-breadcrumb-studios-link" className="quests-page-breadcrumb-link" href="/studios">{t('common.studios')}</BreadcrumbLink>
             </BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbSeparator id="quests-page-breadcrumb-studio-separator" className="quests-page-breadcrumb-separator">/</BreadcrumbSeparator>
             {game?.studio_id && (<>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href={`/studios/${game.studio_id}`}>
+                <BreadcrumbItem id="quests-page-breadcrumb-studio" className="quests-page-breadcrumb-item">
+                  <BreadcrumbLink id="quests-page-breadcrumb-studio-link" className="quests-page-breadcrumb-link" href={`/studios/${game.studio_id}`}>
                     {studio?.name || game.studio?.name || t('common.studio')}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator>/</BreadcrumbSeparator>
+                <BreadcrumbSeparator id="quests-page-breadcrumb-game-separator" className="quests-page-breadcrumb-separator">/</BreadcrumbSeparator>
               </>)}
-            <BreadcrumbItem>
-              <BreadcrumbLink href={`/games/${gameId}`}>
+            <BreadcrumbItem id="quests-page-breadcrumb-game" className="quests-page-breadcrumb-item">
+              <BreadcrumbLink id="quests-page-breadcrumb-game-link" className="quests-page-breadcrumb-link" href={`/games/${gameId}`}>
                 {gameLoading ? gameId : (game?.name ?? gameId)}
               </BreadcrumbLink>
             </BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem>
-              <span className="">{t('quest.quests')}</span>
+            <BreadcrumbSeparator id="quests-page-breadcrumb-quests-separator" className="quests-page-breadcrumb-separator">/</BreadcrumbSeparator>
+            <BreadcrumbItem id="quests-page-breadcrumb-current" className="quests-page-breadcrumb-item">
+              <span id="quests-page-breadcrumb-current-label" className="quests-page-breadcrumb-current-label">{t('quest.quests')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
 
       {/* Page header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" onClick={() => router.push(`/games/${gameId}`)}>
-            <ArrowLeft className="h-4 w-4"/>
+      <div id="quests-page-header" className="quests-page-header flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div id="quests-page-header-main" className="quests-page-header-main flex items-center gap-3">
+          <Button id="quests-page-back" className="quests-page-back" variant="outline" size="icon" onClick={() => router.push(`/games/${gameId}`)}>
+            <ArrowLeft id="quests-page-back-icon" className="quests-page-back-icon h-4 w-4"/>
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <ScrollText className="h-5 w-5"/>
-              <h1 className="text-2xl font-bold">{t('quest.quests')}</h1>
+          <div id="quests-page-heading" className="quests-page-heading">
+            <div id="quests-page-title-wrap" className="quests-page-title-wrap flex items-center gap-2">
+              <ScrollText id="quests-page-title-icon" className="quests-page-title-icon h-5 w-5"/>
+              <h1 id="quests-page-title" className="quests-page-title text-2xl font-bold">{t('quest.quests')}</h1>
             </div>
-            {game && (<p className="text-sm text-muted-foreground flex items-center gap-2">
+            {game && (<p id="quests-page-usage" className="quests-page-usage text-sm text-muted-foreground flex items-center gap-2">
                 {game.limits?.max_quests != null ? (() => {
                 const used = game.usage?.quests ?? 0;
                 const max = game.limits.max_quests!;
                 const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0;
                 return (<>
-                      <span className={used >= max ? "text-destructive font-medium" : ""}>
+                      <span id="quests-page-usage-count" className={`quests-page-usage-count ${used >= max ? "text-destructive font-medium" : ""}`}>
                         {used.toLocaleString()} / {max.toLocaleString()} {t('quest.questsCount')}
                       </span>
-                      <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
-                        <span className={`block h-full rounded-full transition-all ${used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${pct}%` }}/>
+                      <span id="quests-page-usage-meter" className="quests-page-usage-meter inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                        <span id="quests-page-usage-meter-fill" className={`quests-page-usage-meter-fill block h-full rounded-full transition-all ${used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${pct}%` }}/>
                       </span>
-                      <Link href={`/games/${gameId}/plugins`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors" title={t('quest.managePlugins')}>
-                        <Hammer className="h-3.5 w-3.5"/>
+                      <Link id="quests-page-manage-plugins" href={`/games/${gameId}/plugins`} className="quests-page-manage-plugins inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors" title={t('quest.managePlugins')}>
+                        <Hammer id="quests-page-manage-plugins-icon" className="quests-page-manage-plugins-icon h-3.5 w-3.5"/>
                       </Link>
                     </>);
-            })() : <span>{game.name}</span>}
+            })() : <span id="quests-page-game-name" className="quests-page-game-name">{game.name}</span>}
               </p>)}
           </div>
         </div>
-        <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
+        <div id="quests-page-nav" className="quests-page-nav flex flex-col gap-2 mt-4 md:mt-0 items-end">
           <GameNavButtons gameId={gameId} active="quests"/>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList>
-          {TABS.map((tab) => (<TabsTrigger key={tab.value} value={tab.value}>
+      <div id="quests-page-tabs-wrap" className="quests-page-tabs-wrap space-y-6">
+      <Tabs id="quests-page-tabs" className="quests-page-tabs" value={activeTab} onValueChange={handleTabChange}>
+        <TabsList id="quests-page-tabs-list" className="quests-page-tabs-list">
+          {TABS.map((tab) => (<TabsTrigger id={`quests-page-tab-${tab.value}`} className="quests-page-tab" key={tab.value} value={tab.value}>
               {t(tab.labelKey)}
             </TabsTrigger>))}
         </TabsList>
 
-        <TabsContent value="definitions" className="mt-6 space-y-4">
+        <TabsContent id="quests-page-tab-definitions-content" value="definitions" className="quests-page-tab-content mt-6 space-y-4">
           <DefinitionsTab game={game} editQuestId={searchParams.get("editQuestId")} onGameUpdate={setGame}/>
         </TabsContent>
 
-        <TabsContent value="chains" className="mt-6 space-y-4">
+        <TabsContent id="quests-page-tab-chains-content" value="chains" className="quests-page-tab-content mt-6 space-y-4">
           <ChainTab game={game}/>
         </TabsContent>
 
-        <TabsContent value="daily" className="mt-6">
+        <TabsContent id="quests-page-tab-daily-content" value="daily" className="quests-page-tab-content mt-6">
           <DailyTab game={game} onGameUpdate={setGame}/>
         </TabsContent>
 
-        <TabsContent value="battle-pass" className="mt-6">
-          <ComingSoon title="Battle Pass"/>
+        <TabsContent id="quests-page-tab-session-pools-content" value="session-pools" className="quests-page-tab-content mt-6">
+          <SessionPoolsTab gameId={gameId}/>
         </TabsContent>
 
-        <TabsContent value="world-quest" className="mt-6">
+        <TabsContent id="quests-page-tab-world-quest-content" value="world-quest" className="quests-page-tab-content mt-6">
           <ComingSoon title="World Quest"/>
         </TabsContent>
 
-        <TabsContent value="settings" className="mt-6">
+        <TabsContent id="quests-page-tab-settings-content" value="settings" className="quests-page-tab-content mt-6">
           <SettingsTab game={game} onGameUpdate={setGame}/>
         </TabsContent>
       </Tabs>

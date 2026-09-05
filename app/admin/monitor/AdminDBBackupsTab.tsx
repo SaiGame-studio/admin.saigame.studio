@@ -39,8 +39,8 @@ import {
   getDBBackups, 
   downloadDBBackup, 
   deleteDBBackup,
+  triggerDBBackup,
   getWorkersStatus, 
-  triggerWorker, 
   getSystemStats,
   type DBBackupItem, 
   type Worker,
@@ -77,7 +77,7 @@ export function AdminDBBackupsTab() {
     if (worker?.state === "running") {
       return "A database backup is currently in progress.";
     }
-    if (worker?.state === "disabled" || worker?.state === "pending" || !worker) {
+    if (worker?.state === "pending" || !worker) {
       return "Database backup worker is disabled in configuration.";
     }
     return "";
@@ -207,7 +207,7 @@ export function AdminDBBackupsTab() {
   const handleTriggerBackup = async () => {
     setActionLoading("trigger");
     try {
-      await triggerWorker("db_backup");
+      await triggerDBBackup();
       toast({
         title: "Success",
         description: "Database backup completed successfully."
@@ -311,7 +311,7 @@ export function AdminDBBackupsTab() {
             </Tooltip>
           </TooltipProvider>
 
-          {worker?.state !== "idle" ? (
+          {worker?.state === "running" || worker?.state === "pending" || !worker ? (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>

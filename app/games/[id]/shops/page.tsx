@@ -23,6 +23,7 @@ import { getGame } from "@/lib/game-api";
 import { listItemDefinitions } from "@/lib/inventory-api";
 import type { ItemDefinition } from "@/types/inventory";
 import { listShops, createShopV1, updateShop, type ShopDefinition, type ShopType, type CreateShopPayload, } from "@/lib/shop-admin-api";
+import { ShopCollectDestinationField } from "./_components/ShopCollectDestinationField";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { CopyButton } from "@/components/CopyButton";
@@ -76,12 +77,18 @@ const defaultForm: CreateShopPayload = {
     is_active: true,
     starts_at: "",
     ends_at: "",
+    collect_destination: "mailbox",
     currency_item_def_id: "",
 };
-export default function GameShopsPage() {
+interface GameShopsPageProps {
+    embedded?: boolean;
+    active?: boolean;
+}
+export default function GameShopsPage({ embedded = false, active = true }: GameShopsPageProps) {
     const params = useParams() as {
         id: string;
     };
+    const gameId = params.id;
     const { t } = useTranslation();
     const SHOP_TYPE_LABELS: Record<ShopType, string> = {
         permanent: t('shop.permanent'),
@@ -117,7 +124,7 @@ export default function GameShopsPage() {
         itemDefsLoaded.current = true;
         setItemDefsLoading(true);
         try {
-            const resp = await listItemDefinitions({ gameId: params.id }, { limit: 200 });
+            const resp = await listItemDefinitions({ gameId }, { limit: 200 });
             setItemDefs(resp.items ?? []);
         }
         catch {
@@ -143,24 +150,24 @@ export default function GameShopsPage() {
     // Filters
     const [activeOnly, setActiveOnly] = useState(false);
     useEffect(() => {
-        if (hasFetched.current)
+        if (!active || hasFetched.current)
             return;
         hasFetched.current = true;
         loadData(false).then(() => {
             activeOnlyInitialized.current = true;
         });
-    }, [params.id]);
+    }, [gameId, active]);
     useEffect(() => {
-        if (!activeOnlyInitialized.current)
+        if (!active || !activeOnlyInitialized.current)
             return;
         loadData(activeOnly);
-    }, [activeOnly]);
+    }, [active, activeOnly]);
     async function loadData(filterActiveOnly = activeOnly) {
         try {
             setLoading(true);
-            const gameData = await getGame(params.id);
+            const gameData = await getGame(gameId);
             setGame(gameData);
-            const resp = await listShops(params.id, { activeOnly: filterActiveOnly });
+            const resp = await listShops(gameId, { activeOnly: filterActiveOnly });
             setShops(resp.shops ?? []);
             setTotal(resp.total ?? 0);
         }
@@ -213,6 +220,7 @@ export default function GameShopsPage() {
                 description: form.description?.trim() || undefined,
                 shop_type: form.shop_type,
                 is_active: form.is_active,
+                collect_destination: form.collect_destination ?? "mailbox",
             };
             if (form.starts_at)
                 payload.starts_at = new Date(form.starts_at).toISOString();
@@ -220,7 +228,7 @@ export default function GameShopsPage() {
                 payload.ends_at = new Date(form.ends_at).toISOString();
             if (form.currency_item_def_id?.trim())
                 payload.currency_item_def_id = form.currency_item_def_id.trim();
-            await createShopV1(params.id, payload);
+            await createShopV1(gameId, payload);
             setCreateOpen(false);
             setForm(defaultForm);
             hasFetched.current = false;
@@ -247,7 +255,7 @@ export default function GameShopsPage() {
             return;
         setToggling(true);
         try {
-            const updated = await updateShop(params.id, pendingToggle.shopId, { is_active: pendingToggle.newActive });
+            const updated = await updateShop(gameId, pendingToggle.shopId, { is_active: pendingToggle.newActive });
             setShops((prev) => prev.map((s) => s.id === updated.id ? updated : s));
         }
         catch (err: any) {
@@ -259,9 +267,9 @@ export default function GameShopsPage() {
         }
     }
     const needsDates = form.shop_type === "event";
-    return (<div className="container mx-auto py-6">
+    return (<div id="game-shops-page" className={embedded ? "space-y-4" : "container mx-auto py-6"}>
       {/* Breadcrumb */}
-      {game && (<div className="mb-2">
+      {!embedded && game && (<div className="mb-2">
           <Breadcrumb>
             <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
               <BreadcrumbItem>
@@ -269,7 +277,7 @@ export default function GameShopsPage() {
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
-                <BreadcrumbLink href={`/games/${params.id}`}>{game.name}</BreadcrumbLink>
+                <BreadcrumbLink href={`/games/${gameId}`}>{game.name}</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
@@ -280,10 +288,10 @@ export default function GameShopsPage() {
         </div>)}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      {!embedded && (<div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" asChild>
-            <Link href={`/games/${params.id}`}>
+            <Link href={`/games/${gameId}`}>
               <ArrowLeft className="h-4 w-4"/>
             </Link>
           </Button>
@@ -304,7 +312,7 @@ export default function GameShopsPage() {
                         <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
                           <span className={`block h-full rounded-full transition-all ${used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${pct}%` }}/>
                         </span>
-                        <Link href={`/games/${params.id}/plugins`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors" title="Manage plugins / raise limits">
+                        <Link href={`/games/${gameId}/plugins`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors" title="Manage plugins / raise limits">
                           <Hammer className="h-3.5 w-3.5"/>
                         </Link>
                       </>);
@@ -314,9 +322,9 @@ export default function GameShopsPage() {
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <GameNavButtons gameId={params.id} active="shops"/>
+          <GameNavButtons gameId={gameId} active="items"/>
         </div>
-      </div>
+      </div>)}
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
@@ -430,7 +438,7 @@ export default function GameShopsPage() {
                       {shop.item_limit != null && (<span className="text-muted-foreground">/ {shop.item_limit}</span>)}
                     </div>
                     <Button asChild variant="outline" size="icon" title={t('shop.viewShopDetails')}>
-                      <Link href={`/games/${params.id}/shops/${shop.id}`}>
+                      <Link href={`/games/${gameId}/shops/${shop.id}`}>
                         <Eye className="h-4 w-4"/>
                       </Link>
                     </Button>
@@ -528,6 +536,8 @@ export default function GameShopsPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <ShopCollectDestinationField value={form.collect_destination ?? "mailbox"} onValueChange={(value) => setField("collect_destination", value)} labels={{ title: t('shop.collectDestination'), mailbox: t('shop.collectDestinationMailbox'), inventory: t('shop.collectDestinationInventory'), mailboxHint: t('shop.collectDestinationMailboxHint'), inventoryHint: t('shop.collectDestinationInventoryHint') }}/>
 
             {needsDates && (<div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">

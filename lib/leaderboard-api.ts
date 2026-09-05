@@ -1,6 +1,6 @@
 /**
  * Leaderboard Admin API
- * Routes: /api/v1/studios/{studio_id}/games/{game_id}/leaderboards/...
+ * Routes: /api/v1/games/{game_id}/admin/leaderboards/...
  */
 import { api } from '@/lib/api-client';
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -51,18 +51,18 @@ export interface CreateBoardPayload {
     first_season_start_at?: string | null;
     first_season_name?: string | null;
 }
-export async function createBoard(studioId: string, gameId: string, payload: CreateBoardPayload): Promise<LeaderboardBoard> {
-    const data = await api.post(`/api/v1/studios/${studioId}/games/${gameId}/leaderboards`, payload);
+export async function createBoard(gameId: string, payload: CreateBoardPayload): Promise<LeaderboardBoard> {
+    const data = await api.post(`/api/v1/games/${gameId}/admin/leaderboards`, payload);
     return data.board;
 }
 // ─── List ─────────────────────────────────────────────────────────────────────
-export async function listBoards(studioId: string, gameId: string): Promise<LeaderboardBoard[]> {
-    const data = await api.get(`/api/v1/studios/${studioId}/games/${gameId}/leaderboards`);
+export async function listBoards(gameId: string): Promise<LeaderboardBoard[]> {
+    const data = await api.get(`/api/v1/games/${gameId}/admin/leaderboards`);
     return data.boards ?? [];
 }
 // ─── Get ──────────────────────────────────────────────────────────────────────
-export async function getBoard(studioId: string, gameId: string, boardId: string): Promise<LeaderboardBoard> {
-    const data = await api.get(`/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}`);
+export async function getBoard(gameId: string, boardId: string): Promise<LeaderboardBoard> {
+    const data = await api.get(`/api/v1/games/${gameId}/admin/leaderboards/${boardId}`);
     return data.board;
 }
 // ─── Update ───────────────────────────────────────────────────────────────────
@@ -71,34 +71,34 @@ export interface UpdateBoardPayload {
     description?: string;
     is_active?: boolean;
 }
-export async function updateBoard(studioId: string, gameId: string, boardId: string, payload: UpdateBoardPayload): Promise<LeaderboardBoard> {
-    const data = await api.put(`/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}`, payload);
+export async function updateBoard(gameId: string, boardId: string, payload: UpdateBoardPayload): Promise<LeaderboardBoard> {
+    const data = await api.put(`/api/v1/games/${gameId}/admin/leaderboards/${boardId}`, payload);
     return data.board;
 }
 // ─── Start Season ─────────────────────────────────────────────────────────────
-export async function startSeason(studioId: string, gameId: string, boardId: string, seasonName: string, startAt?: string | null): Promise<LeaderboardSeason> {
+export async function startSeason(gameId: string, boardId: string, seasonName: string, startAt?: string | null): Promise<LeaderboardSeason> {
     const body: Record<string, unknown> = { season_name: seasonName };
     if (startAt)
         body.start_at = startAt;
-    const data = await api.post(`/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons`, body);
+    const data = await api.post(`/api/v1/games/${gameId}/admin/leaderboards/${boardId}/seasons`, body);
     return data.season;
 }
 // ─── End Season ───────────────────────────────────────────────────────────────
-export async function endSeason(studioId: string, gameId: string, boardId: string): Promise<EndSeasonResult> {
-    const data = await api.post(`/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons/end`);
+export async function endSeason(gameId: string, boardId: string): Promise<EndSeasonResult> {
+    const data = await api.post(`/api/v1/games/${gameId}/admin/leaderboards/${boardId}/seasons/end`);
     return data.result;
 }
 // ─── Delete Season ────────────────────────────────────────────────────────────
-export async function deleteSeason(studioId: string, gameId: string, boardId: string, seasonId: string): Promise<void> {
-    await api.delete(`/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons/${seasonId}`);
+export async function deleteSeason(gameId: string, boardId: string, seasonId: string): Promise<void> {
+    await api.delete(`/api/v1/games/${gameId}/admin/leaderboards/${boardId}/seasons/${seasonId}`);
 }
 // ─── Delete ───────────────────────────────────────────────────────────────────
-export async function deleteBoard(studioId: string, gameId: string, boardId: string): Promise<void> {
-    await api.delete(`/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}`);
+export async function deleteBoard(gameId: string, boardId: string): Promise<void> {
+    await api.delete(`/api/v1/games/${gameId}/admin/leaderboards/${boardId}`);
 }
 // ─── History ─────────────────────────────────────────────────────────────────
-export async function getBoardHistory(studioId: string, gameId: string, boardId: string): Promise<LeaderboardSeason[]> {
-    const data = await api.get(`/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/history`);
+export async function getBoardHistory(gameId: string, boardId: string): Promise<LeaderboardSeason[]> {
+    const data = await api.get(`/api/v1/games/${gameId}/admin/leaderboards/${boardId}/history`);
     return data.seasons ?? [];
 }
 // ─── Current Season Raw ───────────────────────────────────────────────────────

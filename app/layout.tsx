@@ -12,6 +12,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { GoogleAuthProvider } from "@/components/google-auth-provider";
 import { PageTitleUpdater } from "@/components/page-title-updater";
 import { LLMConversationPanelGate } from "@/components/llm-conversations/ConversationPanelGate";
+import { SupportPresenceHeartbeat } from "@/components/support-presence-heartbeat";
+import { SupportChatWidget } from "@/components/support-chat-widget";
 export const metadata: Metadata = {
     title: {
         default: SITE_NAME,
@@ -65,6 +67,8 @@ export default function RootLayout({ children, }: {
           <GoogleAuthProvider>
             <AuthProvider>
               <LanguageProvider>
+                <SupportPresenceHeartbeat />
+                <SupportChatWidget />
                 <ProtectedLayout>{children}</ProtectedLayout>
                 <Toaster />
                 <PageTitleUpdater />

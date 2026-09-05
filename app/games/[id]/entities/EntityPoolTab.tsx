@@ -396,11 +396,7 @@ export function EntityPoolTab({ gameId }: {
         setCreateEntityConvContext(context);
         setCreateOpen(true);
         setEditOpen(false);
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("tab", "pools");
-        params.set("create", "1");
-        params.delete("editPool");
-        router.replace(`?${params.toString()}`, { scroll: false });
+        router.replace("?tab=pools&create=1", { scroll: false });
     }
     async function openEditWithForm(poolId: string, draft?: Record<string, unknown>, context?: {
         turnId: string;
@@ -448,11 +444,7 @@ export function EntityPoolTab({ gameId }: {
         setCreateEntityConvContext(context);
         setCreateOpen(false);
         setEditOpen(true);
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("tab", "pools");
-        params.set("editPool", poolId);
-        params.delete("create");
-        router.replace(`?${params.toString()}`, { scroll: false });
+        router.replace(`?tab=pools&editPool=${encodeURIComponent(poolId)}`, { scroll: false });
     }
     async function resolveEntityDefinitionId(rawId: string) {
         const trimmed = rawId.trim();
@@ -1339,7 +1331,6 @@ function PoolExpandedContent({ pool, gameId, onSaved, }: {
                 body.description = editDescription.trim();
             }
             const updated = await updateEntityPool(gameId, pool.id, body);
-            toast({ title: t('common.saved') });
             onSaved(updated);
             setDetail(prev => prev ? { ...prev, ...updated } : prev);
             setEditingField(null);
@@ -1437,7 +1428,6 @@ function PoolExpandedContent({ pool, gameId, onSaved, }: {
             await createEntityPoolEntry(gameId, pool.id, { entity_definition_id: addDefId.trim(), weight });
             const updated = await getEntityPool(gameId, pool.id);
             setDetail(updated);
-            toast({ title: t('common.saved') });
             setAddDefId("");
             setAddDefLabel("");
             setAddWeight(String(DEFAULT_ENTRY_WEIGHT));
@@ -1497,7 +1487,6 @@ function PoolExpandedContent({ pool, gameId, onSaved, }: {
             await updateEntityPoolEntry(gameId, pool.id, entryId, { weight });
             const updated = await getEntityPool(gameId, pool.id);
             setDetail(updated);
-            toast({ title: t('common.saved') });
             setEditingWeightId(null);
         }
         catch (err) {

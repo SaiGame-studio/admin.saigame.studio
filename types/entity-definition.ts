@@ -50,6 +50,7 @@ export interface UpdateEntityDefinitionRequest {
     stats?: Record<string, unknown>;
     abilities?: EntityAbility[];
     metadata?: Record<string, unknown>;
+    is_active?: boolean;
 }
 export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
     enemy: 'Enemy',

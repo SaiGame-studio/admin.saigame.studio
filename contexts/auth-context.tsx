@@ -5,6 +5,7 @@ import { getValidToken, saveToken, clearToken, isTokenExpired, getTimeUntilExpir
 import { fetchUserProfile } from "@/lib/api";
 import { safeSetItem, safeRemoveItem } from "@/lib/storage-utils";
 import { toast } from "@/hooks/use-toast";
+import { getCurrentRelativeUrl, getLoginUrl, getReturnToFromLocation } from "@/lib/auth-redirect";
 export interface UserCapabilities {
     is_super_admin: boolean;
     can_view_all_users: boolean;
@@ -187,17 +188,17 @@ export function AuthProvider({ children }: {
             const publicPrefixes = ["/tutorials"];
             const isPublicPage = authPages.includes(pathname) || publicPrefixes.some(p => pathname.startsWith(p));
             if (!isAuthenticated && !isPublicPage) {
-                router.push("/login");
+                router.replace(getLoginUrl(getCurrentRelativeUrl()));
             }
-            else if (isAuthenticated && authPages.includes(pathname) && !isPublicPage) {
-                router.push("/");
+            else if (isAuthenticated && authPages.includes(pathname)) {
+                router.replace(getReturnToFromLocation());
             }
         }
     }, [isAuthenticated, isLoading, pathname, router]);
     const login = (token: string, refreshToken?: string) => {
         saveToken(token, refreshToken);
         checkAuth();
-        router.push("/");
+        router.push(getReturnToFromLocation());
     };
     const logout = () => {
         clearToken();

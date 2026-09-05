@@ -9,10 +9,13 @@ export interface ItemDefinition {
     game_id: string;
     item_code: string;
     name: string;
+    description: string;
     category: ItemCategory;
     rarity: ItemRarity;
     is_stackable: boolean;
     max_stack_size: number | null;
+    /** Maximum quantity a single player may own across all active stacks; null means unlimited. */
+    max_owned_quantity: number | null;
     grid_width: number;
     grid_height: number;
     base_stats: Record<string, number>;
@@ -26,10 +29,12 @@ export interface ItemDefinition {
 export interface CreateItemRequest {
     item_code?: string;
     name: string;
+    description?: string;
     category: ItemCategory;
     rarity: ItemRarity;
     is_stackable?: boolean;
     max_stack_size?: number | null;
+    max_owned_quantity?: number | null;
     grid_width?: number;
     grid_height?: number;
     base_stats?: Record<string, number>;
@@ -40,10 +45,12 @@ export interface CreateItemRequest {
 export interface UpdateItemRequest {
     item_code?: string;
     name?: string;
+    description?: string;
     category?: ItemCategory;
     rarity?: ItemRarity;
     is_stackable?: boolean;
     max_stack_size?: number | null;
+    max_owned_quantity?: number | null;
     grid_width?: number;
     grid_height?: number;
     base_stats?: Record<string, number>;
@@ -62,14 +69,20 @@ export interface KeyRequirement {
     item_definition_id: string;
     quantity: number;
 }
+export interface GachaDropGroup {
+    key: string;
+    item_pool: GachaPoolEntry[];
+}
 export interface GachaPack {
     id: string;
     studio_id: string;
     game_id: string;
     name: string;
+    description: string;
     code_name?: string;
     collect_destination?: 'mailbox' | 'inventory';
     item_pool: GachaPoolEntry[];
+    drop_groups?: GachaDropGroup[];
     key_requirements: KeyRequirement[];
     is_enabled: boolean;
     metadata?: Record<string, unknown>;
@@ -78,19 +91,23 @@ export interface GachaPack {
 }
 export interface CreateGachaPackRequest {
     name: string;
+    description?: string;
     code_name?: string;
     collect_destination: 'mailbox' | 'inventory';
     is_enabled?: boolean;
     item_pool: GachaPoolEntry[];
+    drop_groups?: GachaDropGroup[];
     key_requirements: KeyRequirement[];
     metadata?: Record<string, unknown>;
 }
 export interface UpdateGachaPackRequest {
     name?: string;
+    description?: string;
     code_name?: string;
     collect_destination?: 'mailbox' | 'inventory';
     is_enabled?: boolean;
     item_pool?: GachaPoolEntry[];
+    drop_groups?: GachaDropGroup[];
     key_requirements?: KeyRequirement[];
     metadata?: Record<string, unknown>;
 }

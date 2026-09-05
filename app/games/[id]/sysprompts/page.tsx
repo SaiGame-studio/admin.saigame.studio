@@ -190,9 +190,7 @@ export default function GameSystemPromptsPage() {
 
   const handleTabChange = useCallback((value: string) => {
     const nextTab = value === "default-prompts" ? "default-prompts" : "game-prompts";
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("tab", nextTab);
-    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    router.replace(nextTab === "game-prompts" ? pathname : `${pathname}?tab=${encodeURIComponent(nextTab)}`, { scroll: false });
   }, [pathname, router, searchParams]);
 
   const onRefresh = useCallback(() => {

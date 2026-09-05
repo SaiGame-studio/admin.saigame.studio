@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X, Check, ChevronRight, ChevronLeft, Play, Braces, } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X, Check, ChevronRight, ChevronLeft, Play, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -18,40 +18,21 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { getGame } from "@/lib/game-api";
-import { getScript, updateScript, listSampleScripts, listTurnBaseSampleScripts, listEntitiesPoolSamples, runScript } from "@/lib/script-api";
+import { getScript, updateScript, listSampleScripts, listTurnBaseSampleScripts, listEntitiesPoolSamples } from "@/lib/script-api";
+import { RunScriptPanel } from "./RunScriptPanel";
 import type { Game } from "@/types/game";
 import type { GameScript, SampleScript } from "@/types/script";
 import CodeMirror from "@uiw/react-codemirror";
 import { StreamLanguage } from "@codemirror/language";
 import { lua } from "@codemirror/legacy-modes/mode/lua";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { undo, redo } from "@codemirror/commands";
 import { linter, lintGutter } from "@codemirror/lint";
 import type { Diagnostic } from "@codemirror/lint";
-import { json } from "@codemirror/lang-json";
 import luaparse from "luaparse";
-// ---------------------------------------------------------------------------
-// JSON linter
-// ---------------------------------------------------------------------------
-function jsonLinter(view: EditorView): Diagnostic[] {
-    const code = view.state.doc.toString();
-    if (!code.trim())
-        return [];
-    try {
-        JSON.parse(code);
-        return [];
-    }
-    catch (err: unknown) {
-        if (err instanceof SyntaxError) {
-            const match = err.message.match(/position\s+(\d+)/i);
-            const pos = match ? Math.min(Number(match[1]), view.state.doc.length) : 0;
-            const line = view.state.doc.lineAt(pos);
-            return [{ from: pos, to: Math.max(pos + 1, line.to), severity: "error", message: err.message }];
-        }
-        return [];
-    }
-}
+
+const SCRIPT_BODY_MAX_BYTES = 250 * 1024;
 // ---------------------------------------------------------------------------
 // Lua linter
 // ---------------------------------------------------------------------------
@@ -212,79 +193,10 @@ export default function ScriptEditPage() {
         return "core";
     });
     const [appendMode, setAppendMode] = useState(false);
-    // Run script state
-    const defaultPayload = '{\n  "payload": {\n\n  }\n}';
-    const [runPayload, setRunPayload] = useState(() => {
-        if (typeof window !== "undefined") {
-            const saved = localStorage.getItem(`run_payload_${scriptId}`);
-            return saved ?? defaultPayload;
-        }
-        return defaultPayload;
-    });
-    const [runResult, setRunResult] = useState<string>("");
-    const [runDuration, setRunDuration] = useState<number | null>(null);
-    const [runningScript, setRunningScript] = useState(false);
-    const [payloadKey, setPayloadKey] = useState(0);
-    const [savedPayloadFlag, setSavedPayloadFlag] = useState(false);
-    const savedPayloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const payloadDirty = useRef(false);
-    function savePayloadToStorage() {
-        if (script?.name) {
-            localStorage.setItem(`run_payload_${script.name}`, runPayload);
-            payloadDirty.current = false;
-            if (savedPayloadTimer.current)
-                clearTimeout(savedPayloadTimer.current);
-            setSavedPayloadFlag(true);
-            savedPayloadTimer.current = setTimeout(() => setSavedPayloadFlag(false), 2000);
-        }
-    }
-    // Mark dirty when payload changes
-    const handlePayloadChange = useCallback((v: string) => {
-        setRunPayload(v);
-        payloadDirty.current = true;
-    }, []);
-    const savePayloadRef = useRef(savePayloadToStorage);
-    useEffect(() => { savePayloadRef.current = savePayloadToStorage; });
-    const payloadKeymapExt = useMemo(() => keymap.of([{
-            key: "Mod-s",
-            run: () => { savePayloadRef.current(); return true; },
-        }]), []);
-    // Auto-save every 10s if dirty
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (payloadDirty.current && script?.name) {
-                savePayloadToStorage();
-            }
-        }, 10000);
-        return () => clearInterval(interval);
-    }, [script?.name, runPayload]);
-    async function handleRunScript() {
-        setRunningScript(true);
-        setRunResult("");
-        setRunDuration(null);
-        try {
-            let payload: any = {};
-            try {
-                payload = JSON.parse(runPayload);
-            }
-            catch {
-                setRunResult("❌ Invalid JSON payload");
-                setRunningScript(false);
-                return;
-            }
-            const result = await runScript(gameId, script?.name ?? scriptId, payload);
-            if (result && typeof result === "object" && "duration_ms" in result) {
-                setRunDuration(result.duration_ms as number);
-            }
-            setRunResult(JSON.stringify(result, null, 2));
-        }
-        catch (err: unknown) {
-            setRunResult(`❌ Error: ${err instanceof Error ? err.message : String(err)}`);
-        }
-        finally {
-            setRunningScript(false);
-        }
-    }
+    const scriptBodyBytes = new TextEncoder().encode(scriptBody).length;
+    const scriptBodyUsagePercent = Math.min((scriptBodyBytes / SCRIPT_BODY_MAX_BYTES) * 100, 100);
+    const scriptBodyFillColor = `hsl(${Math.round(142 * (1 - scriptBodyUsagePercent / 100))} 72% 42%)`;
+    const scriptBodySizeLabel = `${(scriptBodyBytes / 1024).toFixed(1)} KB / 250 KB`;
     const loadData = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -299,10 +211,6 @@ export default function ScriptEditPage() {
             setDescription(s.description);
             setIsActive(s.is_active);
             setScriptBody(s.script_body);
-            // Load saved payload by script name
-            const savedPayload = localStorage.getItem(`run_payload_${s.name}`);
-            if (savedPayload)
-                setRunPayload(savedPayload);
         }
         catch (err: unknown) {
             setError(err instanceof Error ? err.message : t('scripts.toastFailedLoadScript'));
@@ -504,10 +412,18 @@ export default function ScriptEditPage() {
             {/* Script body editor */}
             <div id="section-save-script" className="flex flex-1 min-w-0 flex-col gap-2 scroll-mt-[60px]">
               <div className="flex items-center justify-between shrink-0">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  {t('scripts.scriptBody')}
-                  <span className="ml-2 font-normal normal-case text-muted-foreground/60">(Lua)</span>
-                </p>
+                <div id="script-body-label-and-size" className="flex items-center gap-3 min-w-0">
+                  <p id="script-body-label" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                    {t('scripts.scriptBody')}
+                    <span id="script-body-language" className="ml-2 font-normal normal-case text-muted-foreground/60">(Lua)</span>
+                  </p>
+                  <div id="script-body-size-usage" className="flex items-center gap-2 min-w-0">
+                    <div id="script-body-size-progress" className="h-1.5 w-32 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={t('scripts.scriptBodySizeUsage')} aria-valuemin={0} aria-valuemax={SCRIPT_BODY_MAX_BYTES} aria-valuenow={scriptBodyBytes}>
+                      <div id="script-body-size-progress-fill" className="h-full rounded-full transition-[width,background-color] duration-150" style={{ width: `${scriptBodyUsagePercent}%`, backgroundColor: scriptBodyFillColor }}/>
+                    </div>
+                    <span id="script-body-size-value" className="text-[11px] tabular-nums text-muted-foreground whitespace-nowrap">{scriptBodySizeLabel}</span>
+                  </div>
+                </div>
                 <div className="flex items-center gap-1">
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -649,83 +565,7 @@ export default function ScriptEditPage() {
             </div>
           </div>
 
-          {/* ── Bottom: Run Script ────────────────────────────────────────── */}
-          <Separator />
-          <div id="section-run-payload" className="px-6 py-3 flex flex-col gap-2 scroll-mt-[60px]" style={{ height: "90vh" }}>
-            <div className="flex items-center justify-center gap-2 shrink-0">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => {
-                try {
-                    const trimmed = runPayload.replace(/^\uFEFF/, "").trim();
-                    const parsed = JSON.parse(trimmed);
-                    const beautified = JSON.stringify(parsed, null, 2);
-                    setRunPayload(beautified);
-                    setPayloadKey(k => k + 1);
-                }
-                catch (e) {
-                    toast({ variant: "destructive", title: "Invalid JSON", description: e instanceof Error ? e.message : "Cannot beautify invalid JSON" });
-                }
-            }}>
-                    <Braces className="h-3.5 w-3.5"/>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Beautify JSON</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={savePayloadToStorage}>
-                    <Save className="h-3.5 w-3.5"/>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{t('scripts.savePayload')}</TooltipContent>
-              </Tooltip>
-              <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedPayloadFlag ? "opacity-100" : "opacity-0"}`}/>
-              <Button size="sm" className="h-7 gap-1.5" onClick={handleRunScript} disabled={runningScript}>
-                {runningScript ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Play className="h-3.5 w-3.5"/>}
-                {t('scripts.runButton')}
-              </Button>
-            </div>
-            <div className="flex flex-1 min-h-0 gap-3">
-              {/* JSON Payload editor */}
-              <div className="flex flex-col flex-1 min-w-0 gap-1">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                    <Play className="h-3.5 w-3.5"/>
-                    {t('scripts.runScript')}
-                  </p>
-                  <span className="font-normal normal-case text-muted-foreground/60 text-[10px]">
-                    POST /api/v1/games/{gameId}/scripts/{script?.name ?? scriptId}/run
-                  </span>
-                </div>
-                <div className="flex-1 min-h-0">
-                  <CodeMirror key={payloadKey} value={runPayload} onChange={handlePayloadChange} theme={vscodeDark} extensions={[json(), lintGutter(), linter(jsonLinter, { delay: 400 }), payloadKeymapExt]} basicSetup={{
-                lineNumbers: true,
-                foldGutter: false,
-                bracketMatching: true,
-                closeBrackets: true,
-                autocompletion: false,
-                tabSize: 2,
-            }} style={{ height: "100%", fontSize: "12px" }} className="h-full overflow-hidden rounded-lg border border-zinc-700 [&_.cm-editor]:h-full [&_.cm-editor]:outline-none [&_.cm-scroller]:overflow-auto"/>
-                </div>
-              </div>
-              {/* Result */}
-              <div className="flex flex-col flex-1 min-w-0 gap-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('scripts.runResult')}</p>
-                  {runDuration != null && (<span className="text-[10px] text-emerald-500 font-mono tabular-nums">{runDuration}ms</span>)}
-                </div>
-                <div className="flex-1 min-h-0 rounded-lg border border-zinc-700 bg-[#1e1e1e] overflow-auto">
-                  {runningScript ? (<div className="flex items-center justify-center h-full gap-2 text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin"/>
-                      <span className="text-xs">{t('scripts.running')}</span>
-                    </div>) : runResult ? (<pre className="p-3 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-all">{runResult}</pre>) : (<div className="flex items-center justify-center h-full text-muted-foreground/40">
-                      <span className="text-xs">{t('scripts.runResultPlaceholder')}</span>
-                    </div>)}
-                </div>
-              </div>
-            </div>
-          </div>
+          <RunScriptPanel gameId={gameId} scriptId={scriptId} scriptName={script?.name} />
         </div>)}
       {/* ── Footer note ──────────────────────────────────────────────── */}
       <div className="px-6 py-4 text-center text-xs text-muted-foreground/50">

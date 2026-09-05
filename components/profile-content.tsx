@@ -15,7 +15,7 @@ import { CopyButton } from "@/components/CopyButton";
 // Using a static list avoids relying on the browser's Intl.supportedValuesOf(),
 // which may return deprecated names (e.g. Pacific/Truk) that are rejected by
 // the server's Alpine Linux tzdata package.
-const ALL_TIMEZONES: string[] = [
+export const ALL_TIMEZONES: string[] = [
     "Africa/Abidjan", "Africa/Accra", "Africa/Addis_Ababa", "Africa/Algiers", "Africa/Asmara",
     "Africa/Bamako", "Africa/Bangui", "Africa/Banjul", "Africa/Bissau", "Africa/Blantyre",
     "Africa/Brazzaville", "Africa/Bujumbura", "Africa/Cairo", "Africa/Casablanca", "Africa/Ceuta",
@@ -116,16 +116,17 @@ const ALL_TIMEZONES: string[] = [
     "UTC",
 ];
 // ---------------------------------------------------------------------------
-function InfoRow({ icon, label, children }: {
+function InfoRow({ id, icon, label, children }: {
+    id: string;
     icon: React.ReactNode;
     label: string;
     children: React.ReactNode;
 }) {
-    return (<div className="flex flex-col gap-1">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+    return (<div id={id} className="profile-info-row flex flex-col gap-1">
+      <div id={`${id}-label`} className="profile-info-row-label flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {icon} {label}
       </div>
-      <div className="text-sm font-medium">{children}</div>
+      <div id={`${id}-value`} className="profile-info-row-value text-sm font-medium">{children}</div>
     </div>);
 }
 // ---------------------------------------------------------------------------
@@ -189,58 +190,58 @@ export function ProfileContent() {
         catch { }
         setTzSaving(false);
     }
-    return (<div className="space-y-6">
+    return (<div id="profile-content" className="profile-content space-y-6">
 
       {/* ── Page title ── */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Profile</h1>
+      <div id="profile-title-section" className="profile-title-section">
+        <h1 id="profile-title" className="profile-title text-2xl font-bold tracking-tight sm:text-3xl">Profile</h1>
       </div>
 
       {/* ── Header card ── */}
-      <div className="relative rounded-2xl border border-border/60 bg-card overflow-hidden group/name">
-        <div className="absolute inset-0 bg-gradient-to-b from-muted/30 to-transparent pointer-events-none"/>
-        <div className="relative p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:p-6 sm:gap-5">
+      <div id="profile-header-card" className="profile-header-card relative rounded-2xl border border-border/60 bg-card overflow-hidden group/name">
+        <div id="profile-header-background" className="profile-header-background absolute inset-0 bg-gradient-to-b from-muted/30 to-transparent pointer-events-none"/>
+        <div id="profile-header-content" className="profile-header-content relative p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:p-6 sm:gap-5">
           {/* Avatar */}
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary text-2xl font-extrabold select-none ring-2 ring-primary/20 sm:h-20 sm:w-20 sm:text-3xl">
+          <div id="profile-avatar" className="profile-avatar flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary text-2xl font-extrabold select-none ring-2 ring-primary/20 sm:h-20 sm:w-20 sm:text-3xl">
             {initials}
           </div>
 
           {/* Name / email */}
-          <div className="flex-1 min-w-0 w-full">
-            <div className="flex items-center gap-2 flex-wrap">
-              {nameEditing ? (<div className="flex items-center gap-2 flex-wrap w-full">
-                  <Input ref={nameInputRef} value={nameValue} onChange={e => setNameValue(e.target.value)} onKeyDown={e => {
+          <div id="profile-identity" className="profile-identity flex-1 min-w-0 w-full">
+            <div id="profile-name-row" className="profile-name-row flex items-center gap-2 flex-wrap">
+              {nameEditing ? (<div id="profile-name-editor" className="profile-name-editor flex items-center gap-2 flex-wrap w-full">
+                  <Input id="profile-name-input" ref={nameInputRef} value={nameValue} onChange={e => setNameValue(e.target.value)} onKeyDown={e => {
                 if (e.key === "Enter")
                     saveName();
                 if (e.key === "Escape")
                     setNameEditing(false);
-            }} className="h-9 flex-1 min-w-0 text-lg font-extrabold sm:w-60 sm:flex-none" disabled={nameSaving}/>
-                  <Button size="sm" disabled={nameSaving} onClick={saveName}>{nameSaving ? "Saving…" : "Save"}</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setNameEditing(false)}>Cancel</Button>
+            }} className="profile-name-input h-9 flex-1 min-w-0 text-lg font-extrabold sm:w-60 sm:flex-none" disabled={nameSaving}/>
+                  <Button id="profile-name-save-button" size="sm" className="profile-name-save-button" disabled={nameSaving} onClick={saveName}>{nameSaving ? "Saving…" : "Save"}</Button>
+                  <Button id="profile-name-cancel-button" size="sm" variant="ghost" className="profile-name-cancel-button" onClick={() => setNameEditing(false)}>Cancel</Button>
                 </div>) : (<>
-                  <h2 className="text-xl font-extrabold tracking-tight truncate sm:text-2xl">
+                  <h2 id="profile-display-name" className="profile-display-name text-xl font-extrabold tracking-tight truncate sm:text-2xl">
                     {user.display_name || user.username}
                   </h2>
-                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover/name:opacity-100" onClick={startNameEdit}>
+                  <Button id="profile-name-edit-button" size="icon" variant="ghost" className="profile-name-edit-button h-6 w-6 shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover/name:opacity-100" onClick={startNameEdit}>
                     <Pencil className="h-3.5 w-3.5"/>
                   </Button>
                 </>)}
-              {!nameEditing && user.display_name && user.display_name !== user.username && (<span className="text-sm text-muted-foreground font-normal">@{user.username}</span>)}
-              {user.is_active ? (<span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-400">Active</span>) : (<span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Inactive</span>)}
+              {!nameEditing && user.display_name && user.display_name !== user.username && (<span id="profile-username" className="profile-username text-sm text-muted-foreground font-normal">@{user.username}</span>)}
+              {user.is_active ? (<span id="profile-status" className="profile-status profile-status-active inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-400">Active</span>) : (<span id="profile-status" className="profile-status profile-status-inactive inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Inactive</span>)}
             </div>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 max-w-full">
-                <Mail className="h-3.5 w-3.5 shrink-0"/> <span className="truncate">{user.email}</span>
+            <div id="profile-email-row" className="profile-email-row flex items-center gap-2 mt-1 flex-wrap">
+              <span id="profile-email" className="profile-email flex items-center gap-1 text-sm text-muted-foreground min-w-0 max-w-full">
+                <Mail className="h-3.5 w-3.5 shrink-0"/> <span id="profile-email-value" className="profile-email-value truncate">{user.email}</span>
               </span>
-              {user.is_verified ? (<span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-500">
+              {user.is_verified ? (<span id="profile-verification-status" className="profile-verification-status profile-verification-status-verified inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-500">
                   <ShieldCheck className="h-3 w-3"/> {t('profilePage.verified')}
                 </span>) : (<>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] font-semibold text-yellow-500">
+                  <span id="profile-verification-status" className="profile-verification-status profile-verification-status-unverified inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] font-semibold text-yellow-500">
                     <ShieldOff className="h-3 w-3"/> {t('profilePage.notVerified')}
                   </span>
-                  {resendSent ? (<span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-500">
+                  {resendSent ? (<span id="profile-verification-sent-status" className="profile-verification-sent-status inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-500">
                       <MailCheck className="h-3 w-3"/> Verification email sent
-                    </span>) : (<Button variant="ghost" size="sm" className="h-5 px-2 text-[10px] text-yellow-500 hover:text-yellow-400" disabled={resendingEmail} onClick={handleResendVerification}>
+                    </span>) : (<Button id="profile-resend-verification-button" variant="ghost" size="sm" className="profile-resend-verification-button h-5 px-2 text-[10px] text-yellow-500 hover:text-yellow-400" disabled={resendingEmail} onClick={handleResendVerification}>
                       <RefreshCw className={`h-3 w-3 mr-1 ${resendingEmail ? "animate-spin" : ""}`}/>
                       {resendingEmail ? "Sending…" : "Resend verification"}
                     </Button>)}
@@ -251,44 +252,44 @@ export function ProfileContent() {
       </div>
 
       {/* ── Account info ── */}
-      <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-4 sm:p-5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Account Information</p>
+      <div id="profile-account-information" className="profile-account-information rounded-2xl border border-border/60 bg-card p-4 space-y-4 sm:p-5">
+        <p id="profile-account-information-title" className="profile-account-information-title text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Account Information</p>
 
-        <InfoRow icon={<UserIcon className="h-3.5 w-3.5"/>} label={t('profilePage.userId')}>
-          <div className="flex items-center gap-2">
-            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-all">{user.id}</code>
-            <CopyButton text={user.id}/>
+        <InfoRow id="profile-user-id" icon={<UserIcon className="h-3.5 w-3.5"/>} label={t('profilePage.userId')}>
+          <div id="profile-user-id-actions" className="profile-user-id-actions flex items-center gap-2">
+            <code id="profile-user-id-value" className="profile-user-id-value rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-all">{user.id}</code>
+            <CopyButton id="profile-user-id-copy-button" className="profile-user-id-copy-button" text={user.id}/>
           </div>
         </InfoRow>
 
-        <InfoRow icon={<Mail className="h-3.5 w-3.5"/>} label="Email">
-          <span>{user.email}</span>
+        <InfoRow id="profile-account-email" icon={<Mail className="h-3.5 w-3.5"/>} label="Email">
+          <span id="profile-account-email-value" className="profile-account-email-value">{user.email}</span>
         </InfoRow>
 
-        <InfoRow icon={<Calendar className="h-3.5 w-3.5"/>} label={t('profilePage.memberSince')}>
-          <span>{formatDate(user.created_at * 1000)}</span>
+        <InfoRow id="profile-member-since" icon={<Calendar className="h-3.5 w-3.5"/>} label={t('profilePage.memberSince')}>
+          <span id="profile-member-since-value" className="profile-member-since-value">{formatDate(user.created_at * 1000)}</span>
         </InfoRow>
 
         {/* Timezone */}
-        <div className="flex flex-col gap-1 group/tz">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div id="profile-timezone" className="profile-timezone flex flex-col gap-1 group/tz">
+          <div id="profile-timezone-label" className="profile-timezone-label flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             <Globe className="h-3.5 w-3.5"/> {t('profilePage.timezone')}
           </div>
-          {tzEditing ? (<div className="flex items-center gap-2 flex-wrap">
+          {tzEditing ? (<div id="profile-timezone-editor" className="profile-timezone-editor flex items-center gap-2 flex-wrap">
               <Popover open={tzOpen} onOpenChange={setTzOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" className="w-full justify-between font-normal text-sm h-8 sm:w-56">
-                    <span className="truncate">{tzValue}</span>
+                  <Button id="profile-timezone-select" variant="outline" role="combobox" className="profile-timezone-select w-full justify-between font-normal text-sm h-8 sm:w-56">
+                    <span id="profile-timezone-select-value" className="profile-timezone-select-value truncate">{tzValue}</span>
                     <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50"/>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search timezone..." className="h-8"/>
-                    <CommandList className="max-h-60">
-                      <CommandEmpty>No timezone found.</CommandEmpty>
-                      <CommandGroup>
-                        {ALL_TIMEZONES.map(tz => (<CommandItem key={tz} value={tz} onSelect={val => { setTzValue(val); setTzOpen(false); }}>
+                <PopoverContent id="profile-timezone-popover" className="profile-timezone-popover w-64 p-0" align="start">
+                  <Command id="profile-timezone-command" className="profile-timezone-command">
+                    <CommandInput id="profile-timezone-search-input" placeholder="Search timezone..." className="profile-timezone-search-input h-8"/>
+                    <CommandList id="profile-timezone-options" className="profile-timezone-options max-h-60">
+                      <CommandEmpty id="profile-timezone-empty" className="profile-timezone-empty">No timezone found.</CommandEmpty>
+                      <CommandGroup id="profile-timezone-options-group" className="profile-timezone-options-group">
+                        {ALL_TIMEZONES.map(tz => (<CommandItem id={`profile-timezone-option-${tz.toLowerCase().replaceAll("/", "-").replaceAll("_", "-")}`} className="profile-timezone-option" key={tz} value={tz} onSelect={val => { setTzValue(val); setTzOpen(false); }}>
                             <Check className={`mr-2 h-3.5 w-3.5 ${tzValue === tz ? "opacity-100" : "opacity-0"}`}/>
                             {tz}
                           </CommandItem>))}
@@ -297,12 +298,12 @@ export function ProfileContent() {
                   </Command>
                 </PopoverContent>
               </Popover>
-              <Button size="sm" disabled={tzSaving} onClick={saveTz}>{tzSaving ? "Saving…" : t('profilePage.timezoneSave')}</Button>
-              <Button size="sm" variant="ghost" onClick={() => { setTzValue(currentTz); setTzEditing(false); }}>{t('profilePage.timezoneCancel')}</Button>
-            </div>) : (<div className="flex items-center gap-2 text-sm font-medium">
-              <span>{currentTz}</span>
-              {!user.timezone && <span className="text-[10px] text-muted-foreground">(local)</span>}
-              <Button size="icon" variant="ghost" className="h-6 w-6 opacity-100 transition-opacity sm:opacity-0 sm:group-hover/tz:opacity-100" onClick={() => { setTzValue(currentTz); setTzEditing(true); }}>
+              <Button id="profile-timezone-save-button" size="sm" className="profile-timezone-save-button" disabled={tzSaving} onClick={saveTz}>{tzSaving ? "Saving…" : t('profilePage.timezoneSave')}</Button>
+              <Button id="profile-timezone-cancel-button" size="sm" variant="ghost" className="profile-timezone-cancel-button" onClick={() => { setTzValue(currentTz); setTzEditing(false); }}>{t('profilePage.timezoneCancel')}</Button>
+            </div>) : (<div id="profile-timezone-display" className="profile-timezone-display flex items-center gap-2 text-sm font-medium">
+              <span id="profile-timezone-value" className="profile-timezone-value">{currentTz}</span>
+              {!user.timezone && <span id="profile-timezone-local-indicator" className="profile-timezone-local-indicator text-[10px] text-muted-foreground">(local)</span>}
+              <Button id="profile-timezone-edit-button" size="icon" variant="ghost" className="profile-timezone-edit-button h-6 w-6 opacity-100 transition-opacity sm:opacity-0 sm:group-hover/tz:opacity-100" onClick={() => { setTzValue(currentTz); setTzEditing(true); }}>
                 <Pencil className="h-3.5 w-3.5"/>
               </Button>
             </div>)}
@@ -310,26 +311,26 @@ export function ProfileContent() {
       </div>
 
       {/* ── User Profiles ── */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('profilePage.yourProfiles')}</p>
-          <div className="flex-1 h-px bg-border"/>
+      <div id="profile-user-profiles-section" className="profile-user-profiles-section">
+        <div id="profile-user-profiles-header" className="profile-user-profiles-header flex items-center gap-3 mb-4">
+          <p id="profile-user-profiles-title" className="profile-user-profiles-title text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('profilePage.yourProfiles')}</p>
+          <div id="profile-user-profiles-divider" className="profile-user-profiles-divider flex-1 h-px bg-border"/>
         </div>
         <UserProfiles />
       </div>
     </div>);
 }
 function ProfileSkeleton() {
-    return (<div className="space-y-6">
-      <div className="rounded-2xl border bg-card p-6">
-        <div className="flex items-center gap-5">
-          <Skeleton className="h-20 w-20 rounded-2xl"/>
-          <div className="space-y-2">
-            <Skeleton className="h-7 w-48"/>
-            <Skeleton className="h-4 w-64"/>
+    return (<div id="profile-skeleton" className="profile-skeleton space-y-6">
+      <div id="profile-skeleton-header" className="profile-skeleton-header rounded-2xl border bg-card p-6">
+        <div id="profile-skeleton-header-content" className="profile-skeleton-header-content flex items-center gap-5">
+          <Skeleton id="profile-skeleton-avatar" className="profile-skeleton-avatar h-20 w-20 rounded-2xl"/>
+          <div id="profile-skeleton-identity" className="profile-skeleton-identity space-y-2">
+            <Skeleton id="profile-skeleton-name" className="profile-skeleton-name h-7 w-48"/>
+            <Skeleton id="profile-skeleton-email" className="profile-skeleton-email h-4 w-64"/>
           </div>
         </div>
       </div>
-      <Skeleton className="h-56 rounded-2xl"/>
+      <Skeleton id="profile-skeleton-account-information" className="profile-skeleton-account-information h-56 rounded-2xl"/>
     </div>);
 }

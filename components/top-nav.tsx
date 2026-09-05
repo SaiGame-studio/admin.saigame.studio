@@ -11,7 +11,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { CoinBalance } from "@/components/coin-balance";
 import { GemBalance } from "@/components/gem-balance";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { TipsBanner } from "@/components/TipsBanner";
 import { useServerConfig } from "@/hooks/use-server-config";
 export function TopNav() {
     const { logout, user, isAuthenticated } = useAuth();
@@ -19,7 +18,7 @@ export function TopNav() {
     const isAdminZone = pathname?.startsWith("/admin");
     const { config } = useServerConfig();
     const registrationEnabled = config === null || config.features.registration_enabled;
-    return (<header className="sticky top-0 z-50 flex h-14 items-center gap-2 border-b bg-background px-3 sm:gap-3 sm:px-4 lg:h-[60px] lg:gap-4 lg:px-6">
+    return (<header id="app-header" className="sticky top-0 z-50 flex h-14 items-center gap-2 bg-background px-3 sm:gap-3 sm:px-4 lg:h-[60px] lg:gap-4 lg:px-6">
       <Sheet>
         <SheetTrigger asChild>
           <Button variant="outline" size="icon" className="shrink-0 lg:hidden">
@@ -38,7 +37,6 @@ export function TopNav() {
           Sai's Admin
         </Link>
       </div>
-      <TipsBanner />
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         {isAdminZone && (<div className="flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-1 text-white text-[10px] font-semibold select-none sm:px-3 sm:text-xs">
             <ShieldAlert className="h-3 w-3 shrink-0"/>

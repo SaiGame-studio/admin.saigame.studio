@@ -232,10 +232,9 @@ interface CreateSheetProps {
     open: boolean;
     onClose: () => void;
     onCreated: (board: LeaderboardBoard) => void;
-    studioId: string;
     gameId: string;
 }
-function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheetProps) {
+function CreateSheet({ open, onClose, onCreated, gameId }: CreateSheetProps) {
     const { toast } = useToast();
     const { t } = useTranslation();
     const [saving, setSaving] = useState(false);
@@ -408,7 +407,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                 score_source_type: srcType,
                 score_source_ref_id: srcRef,
             };
-            const board = await createBoard(studioId, gameId, payload);
+            const board = await createBoard(gameId, payload);
             toast({ title: t('leaderboard.boardCreated'), description: `"${board.name}" ${t('leaderboard.boardCreatedDesc')}` });
             onCreated(board);
             onClose();
@@ -668,10 +667,9 @@ interface EditSheetProps {
     board: LeaderboardBoard | null;
     onClose: () => void;
     onUpdated: (board: LeaderboardBoard) => void;
-    studioId: string;
     gameId: string;
 }
-function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetProps) {
+function EditSheet({ board, onClose, onUpdated, gameId }: EditSheetProps) {
     const { toast } = useToast();
     const { t } = useTranslation();
     const [saving, setSaving] = useState(false);
@@ -701,7 +699,7 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
         setSaving(true);
         try {
             const payload: UpdateBoardPayload = { ...form };
-            const updated = await updateBoard(studioId, gameId, board.id, payload);
+            const updated = await updateBoard(gameId, board.id, payload);
             toast({ title: t('leaderboard.boardUpdated'), description: `"${updated.name}" ${t('leaderboard.boardUpdatedDesc')}` });
             onUpdated(updated);
             onClose();
@@ -755,10 +753,9 @@ interface StartSeasonDialogProps {
     board: LeaderboardBoard | null;
     onClose: () => void;
     onStarted: (board: LeaderboardBoard) => void;
-    studioId: string;
     gameId: string;
 }
-function StartSeasonDialog({ board, onClose, onStarted, studioId, gameId }: StartSeasonDialogProps) {
+function StartSeasonDialog({ board, onClose, onStarted, gameId }: StartSeasonDialogProps) {
     const { toast } = useToast();
     const { t } = useTranslation();
     const [seasonName, setSeasonName] = useState("");
@@ -776,7 +773,7 @@ function StartSeasonDialog({ board, onClose, onStarted, studioId, gameId }: Star
         }
         setSaving(true);
         try {
-            await startSeason(studioId, gameId, board.id, seasonName.trim());
+            await startSeason(gameId, board.id, seasonName.trim());
             toast({ title: t('leaderboard.seasonStarted'), description: `"${seasonName}" ${t('leaderboard.seasonStartedDesc')} "${board.name}".` });
             // Refresh board to get new season_id
             onStarted({ ...board });
@@ -819,10 +816,9 @@ interface EndSeasonDialogProps {
     board: LeaderboardBoard | null;
     onClose: () => void;
     onEnded: (board: LeaderboardBoard) => void;
-    studioId: string;
     gameId: string;
 }
-function EndSeasonDialog({ board, onClose, onEnded, studioId, gameId }: EndSeasonDialogProps) {
+function EndSeasonDialog({ board, onClose, onEnded, gameId }: EndSeasonDialogProps) {
     const { toast } = useToast();
     const { t } = useTranslation();
     const [saving, setSaving] = useState(false);
@@ -831,7 +827,7 @@ function EndSeasonDialog({ board, onClose, onEnded, studioId, gameId }: EndSeaso
     const handleEnd = async () => {
         setSaving(true);
         try {
-            const result = await endSeason(studioId, gameId, board.id);
+            const result = await endSeason(gameId, board.id);
             toast({
                 title: t('leaderboard.seasonEnded'),
                 description: `${t('leaderboard.seasonEndedDesc')} ${result.TopN?.length ?? 0}. ${t('leaderboard.seasonEndedNewSeason')}`,
@@ -870,11 +866,10 @@ function EndSeasonDialog({ board, onClose, onEnded, studioId, gameId }: EndSeaso
 // ─── Leaderboard Entries Sheet ────────────────────────────────────────────────
 interface LeaderboardEntriesSheetProps {
     board: LeaderboardBoard | null;
-    studioId: string;
     gameId: string;
     onClose: () => void;
 }
-function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: LeaderboardEntriesSheetProps) {
+function LeaderboardEntriesSheet({ board, gameId, onClose }: LeaderboardEntriesSheetProps) {
     const { t } = useTranslation();
     const [data, setData] = useState<CurrentSeasonRaw | null>(null);
     const [rawData, setRawData] = useState<SeasonRawEvents | null>(null);
@@ -913,7 +908,7 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
             else if (!tab)
                 setLoading(false);
         }
-    }, [board, studioId, gameId]);
+    }, [board, gameId]);
     const loadCurrentSeasonRawData = useCallback(async (tab: "raw" | null = null) => {
         if (!board || !board.season_id)
             return;
@@ -1222,12 +1217,11 @@ interface ArchiveSheetProps {
         board: LeaderboardBoard;
         season: LeaderboardSeason;
     } | null;
-    studioId: string;
     gameId: string;
     onClose: () => void;
 }
 const ARCHIVE_PAGE_SIZE = 100;
-function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) {
+function ArchiveSheet({ target, gameId, onClose }: ArchiveSheetProps) {
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<"rank" | "raw">("rank");
     const [rankData, setRankData] = useState<CurrentSeasonRaw | null>(null);
@@ -1267,7 +1261,7 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
             else
                 setLoading(false);
         }
-    }, [target, studioId, gameId]);
+    }, [target, gameId]);
     const loadArchiveRawData = useCallback(async (nextOffset: number, tab: "raw" | null = null) => {
         if (!target)
             return;
@@ -1289,7 +1283,7 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
             else
                 setRawLoading(false);
         }
-    }, [target, studioId, gameId]);
+    }, [target, gameId]);
     useEffect(() => {
         if (!target)
             return;
@@ -2165,14 +2159,14 @@ function LeaderboardPageInner() {
     }, [gameId, toast]);
     // Load boards
     const loadBoards = useCallback(async (showRefresh = false) => {
-        if (!game?.studio_id)
+        if (!game)
             return;
         if (showRefresh)
             setRefreshing(true);
         else
             setLoading(true);
         try {
-            const data = await listBoards(game.studio_id, gameId);
+            const data = await listBoards(gameId);
             setBoards(data);
         }
         catch (e) {
@@ -2184,22 +2178,22 @@ function LeaderboardPageInner() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [game?.studio_id, gameId, toast]);
+    }, [game, gameId, toast]);
     useEffect(() => {
-        if (game?.studio_id)
+        if (game)
             loadBoards();
-    }, [game?.studio_id, loadBoards]);
+    }, [game, loadBoards]);
     // Restore expanded board's season history after boards load
     useEffect(() => {
-        if (!expandedBoardId || !game?.studio_id || seasonsMap[expandedBoardId])
+        if (!expandedBoardId || !game || seasonsMap[expandedBoardId])
             return;
         setSeasonsLoadingIds((s) => new Set(s).add(expandedBoardId));
-        getBoardHistory(game.studio_id, gameId, expandedBoardId)
+        getBoardHistory(gameId, expandedBoardId)
             .then((seasons) => setSeasonsMap((m) => ({ ...m, [expandedBoardId]: seasons })))
             .catch(() => setSeasonsMap((m) => ({ ...m, [expandedBoardId]: [] })))
             .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(expandedBoardId); return n; }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [game?.studio_id, boards]);
+    }, [game, boards]);
     const handleBoardCreated = (board: LeaderboardBoard) => {
         setBoards((prev) => [board, ...prev]);
         getGame(gameId).then(setGame).catch(() => { });
@@ -2208,11 +2202,11 @@ function LeaderboardPageInner() {
         setBoards((prev) => prev.map((b) => b.id === board.id ? board : b));
     };
     const handleDeleteBoard = async () => {
-        if (!deleteBoardItem || !studioId)
+        if (!deleteBoardItem)
             return;
         setDeleting(true);
         try {
-            await deleteBoard(studioId, gameId, deleteBoardItem.id);
+            await deleteBoard(gameId, deleteBoardItem.id);
             setBoards((prev) => prev.filter((b) => b.id !== deleteBoardItem.id));
             if (expandedBoardId === deleteBoardItem.id)
                 setExpandedBoardId(null);
@@ -2232,19 +2226,15 @@ function LeaderboardPageInner() {
     const handleSeasonChange = (board: LeaderboardBoard) => {
         // Reload boards and refresh season history for this board
         loadBoards(true);
-        if (game?.studio_id) {
-            setSeasonsLoadingIds((s) => new Set(s).add(board.id));
-            getBoardHistory(game.studio_id, gameId, board.id)
-                .then((seasons) => setSeasonsMap((m) => ({ ...m, [board.id]: seasons })))
-                .catch(() => setSeasonsMap((m) => ({ ...m, [board.id]: [] })))
-                .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(board.id); return n; }));
-        }
+        setSeasonsLoadingIds((s) => new Set(s).add(board.id));
+        getBoardHistory(gameId, board.id)
+            .then((seasons) => setSeasonsMap((m) => ({ ...m, [board.id]: seasons })))
+            .catch(() => setSeasonsMap((m) => ({ ...m, [board.id]: [] })))
+            .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(board.id); return n; }));
     };
     const handleDeleteSeason = async (boardId: string, seasonId: string) => {
-        if (!studioId)
-            return;
         try {
-            await deleteSeason(studioId, gameId, boardId, seasonId);
+            await deleteSeason(gameId, boardId, seasonId);
             setSeasonsMap((m) => ({ ...m, [boardId]: (m[boardId] ?? []).filter((s) => s.id !== seasonId) }));
             loadBoards(true);
             toast({ title: t('leaderboard.seasonDeleted'), description: t('leaderboard.seasonDeletedDesc') });
@@ -2256,10 +2246,8 @@ function LeaderboardPageInner() {
         }
     };
     const handleCreateSeason = async (board: LeaderboardBoard, name: string, startAt: string | null) => {
-        if (!studioId)
-            return;
         try {
-            await startSeason(studioId, gameId, board.id, name, startAt);
+            await startSeason(gameId, board.id, name, startAt);
             toast({ title: t('leaderboard.seasonCreated'), description: `"${name}" ${t('leaderboard.seasonCreatedDesc')}` });
             handleSeasonChange(board);
         }
@@ -2271,8 +2259,6 @@ function LeaderboardPageInner() {
         }
     };
     const handleUpdateBoardStatus = async (board: LeaderboardBoard, is_active: boolean) => {
-        if (!studioId)
-            return;
         try {
             const payload: UpdateBoardPayload = {
                 name: board.name,
@@ -2284,7 +2270,7 @@ function LeaderboardPageInner() {
                 score_source_type: board.score_source_type,
                 score_source_ref_id: board.score_source_ref_id,
             };
-            await updateBoard(studioId, gameId, board.id, payload);
+            await updateBoard(gameId, board.id, payload);
             toast({ title: t('leaderboard.statusUpdated'), description: is_active ? t('leaderboard.statusUpdatedActive') : t('leaderboard.statusUpdatedInactive') });
             loadBoards(true);
         }
@@ -2298,30 +2284,25 @@ function LeaderboardPageInner() {
         const boardId = board.id;
         setExpandedBoardId((prev) => prev === boardId ? null : boardId);
         // Fetch history on first expand
-        if (expandedBoardId !== boardId && !seasonsMap[boardId] && game?.studio_id) {
+        if (expandedBoardId !== boardId && !seasonsMap[boardId]) {
             setSeasonsLoadingIds((s) => new Set(s).add(boardId));
-            getBoardHistory(game.studio_id, gameId, board.id)
+            getBoardHistory(gameId, board.id)
                 .then((seasons) => setSeasonsMap((m) => ({ ...m, [boardId]: seasons })))
                 .catch(() => setSeasonsMap((m) => ({ ...m, [boardId]: [] })))
                 .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(boardId); return n; }));
         }
-    }, [expandedBoardId, seasonsMap, game?.studio_id, gameId]);
+    }, [expandedBoardId, seasonsMap, gameId]);
     const handleRefreshBoardSeasons = useCallback((boardId: string) => {
-        if (!game?.studio_id)
-            return;
         setSeasonsLoadingIds((s) => new Set(s).add(boardId));
-        getBoardHistory(game.studio_id, gameId, boardId)
+        getBoardHistory(gameId, boardId)
             .then((seasons) => setSeasonsMap((m) => ({ ...m, [boardId]: seasons })))
             .catch(() => setSeasonsMap((m) => ({ ...m, [boardId]: [] })))
             .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(boardId); return n; }));
-    }, [game?.studio_id, gameId]);
-    const studioId = game?.studio_id ?? "";
+    }, [gameId]);
     const rawTab = searchParams.get("tab") ?? "boards";
     const activeTab: LBTabValue = VALID_LB_TABS.has(rawTab) ? (rawTab as LBTabValue) : "boards";
     const handleTabChange = (value: string) => {
-        const p = new URLSearchParams(searchParams.toString());
-        p.set("tab", value);
-        router.push(`?${p.toString()}`, { scroll: false });
+        router.push(value === "boards" ? window.location.pathname : `?tab=${encodeURIComponent(value)}`, { scroll: false });
     };
     return (<div className="container mx-auto py-6">
       {/* Breadcrumb */}
@@ -2415,7 +2396,7 @@ function LeaderboardPageInner() {
                             <Link href={`/games/${gameId}/plugins`} className="underline">{t('leaderboard.upgradePlugin')}</Link> {t('leaderboard.toAddMore')}
                           </TooltipContent>
                         </Tooltip>
-                      </TooltipProvider>) : (<Button size="sm" onClick={() => setCreateOpen(true)} disabled={!studioId}>
+                      </TooltipProvider>) : (<Button size="sm" onClick={() => setCreateOpen(true)}>
                         <Plus className="h-4 w-4 mr-1"/>
                         {t('leaderboard.createBoardBtn')}
                       </Button>);
@@ -2464,7 +2445,7 @@ function LeaderboardPageInner() {
                       <Link href={`/games/${gameId}/plugins`} className="underline hover:text-destructive/80">{t('leaderboard.upgradePluginLink')}</Link>{" "}
                       {t('leaderboard.toCreateMore')}
                     </p>
-                  </>) : (<Button size="sm" onClick={() => setCreateOpen(true)} disabled={!studioId}>
+                  </>) : (<Button size="sm" onClick={() => setCreateOpen(true)}>
                     <Plus className="h-4 w-4 mr-1"/>
                     {t('leaderboard.createBoardBtn')}
                   </Button>);
@@ -2497,11 +2478,11 @@ function LeaderboardPageInner() {
       </Tabs>
 
       {/* Dialogs / Sheets */}
-      <CreateSheet open={createOpen} onClose={() => setCreateOpen(false)} onCreated={handleBoardCreated} studioId={studioId} gameId={gameId}/>
-      <EditSheet board={editBoard} onClose={() => setEditBoard(null)} onUpdated={handleBoardUpdated} studioId={studioId} gameId={gameId}/>
-      <LeaderboardEntriesSheet board={entriesBoard} studioId={studioId} gameId={gameId} onClose={() => setEntriesBoard(null)}/>
-      <ArchiveSheet target={archiveTarget} studioId={studioId} gameId={gameId} onClose={() => setArchiveTarget(null)}/>
-      <EndSeasonDialog board={endSeasonBoard} onClose={() => setEndSeasonBoard(null)} onEnded={handleSeasonChange} studioId={studioId} gameId={gameId}/>
+      <CreateSheet open={createOpen} onClose={() => setCreateOpen(false)} onCreated={handleBoardCreated} gameId={gameId}/>
+      <EditSheet board={editBoard} onClose={() => setEditBoard(null)} onUpdated={handleBoardUpdated} gameId={gameId}/>
+      <LeaderboardEntriesSheet board={entriesBoard} gameId={gameId} onClose={() => setEntriesBoard(null)}/>
+      <ArchiveSheet target={archiveTarget} gameId={gameId} onClose={() => setArchiveTarget(null)}/>
+      <EndSeasonDialog board={endSeasonBoard} onClose={() => setEndSeasonBoard(null)} onEnded={handleSeasonChange} gameId={gameId}/>
       <AlertDialog open={!!deleteBoardItem} onOpenChange={(o) => {
             if (!o)
                 setDeleteBoardItem(null);

@@ -44,8 +44,8 @@ export function SettingsTab({ game, onGameUpdate }: Props) {
         game?.settings?.quest_mailbox_body,
     ]);
     if (!game) {
-        return (<div className="flex items-center justify-center py-12 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin mr-2"/>
+        return (<div id="quest-settings-loading" className="quest-settings-loading flex items-center justify-center py-12 text-muted-foreground">
+        <Loader2 id="quest-settings-loading-icon" className="quest-settings-loading-icon h-5 w-5 animate-spin mr-2"/>
         {t('common.loading')}
       </div>);
     }
@@ -115,104 +115,104 @@ export function SettingsTab({ game, onGameUpdate }: Props) {
             setSavingText(false);
         }
     };
-    return (<div className="space-y-6 max-w-3xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5"/>
+    return (<div id="quest-settings" className="quest-settings space-y-6 max-w-3xl">
+      <Card id="quest-settings-delivery-card" className="quest-settings-delivery-card">
+        <CardHeader id="quest-settings-delivery-header" className="quest-settings-delivery-header">
+          <CardTitle id="quest-settings-delivery-title" className="quest-settings-delivery-title flex items-center gap-2">
+            <Mail id="quest-settings-delivery-title-icon" className="quest-settings-delivery-title-icon h-5 w-5"/>
             {t('quest.settings.rewardDeliveryTitle')}
           </CardTitle>
-          <CardDescription>
+          <CardDescription id="quest-settings-delivery-description" className="quest-settings-delivery-description">
             {t('quest.settings.rewardDeliveryDesc')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <RadioGroup value={delivery} onValueChange={handleDeliveryChange} className="gap-3" disabled={savingMode}>
-            <Label htmlFor="delivery-mailbox" className="flex items-start gap-3 rounded-md border p-4 cursor-pointer hover:bg-muted/50">
-              <RadioGroupItem id="delivery-mailbox" value="mailbox" className="mt-0.5"/>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 font-medium">
-                  <Mail className="h-4 w-4"/>
+        <CardContent id="quest-settings-delivery-content" className="quest-settings-delivery-content space-y-4">
+          <RadioGroup id="quest-settings-delivery-options" value={delivery} onValueChange={handleDeliveryChange} className="quest-settings-delivery-options gap-3" disabled={savingMode}>
+            <Label id="quest-settings-delivery-mailbox-label" htmlFor="delivery-mailbox" className="quest-settings-delivery-option flex items-start gap-3 rounded-md border p-4 cursor-pointer hover:bg-muted/50">
+              <RadioGroupItem id="delivery-mailbox" value="mailbox" className="quest-settings-delivery-option-input mt-0.5"/>
+              <div id="quest-settings-delivery-mailbox-content" className="quest-settings-delivery-option-content flex-1">
+                <div id="quest-settings-delivery-mailbox-name" className="quest-settings-delivery-option-name flex items-center gap-2 font-medium">
+                  <Mail id="quest-settings-delivery-mailbox-icon" className="quest-settings-delivery-option-icon h-4 w-4"/>
                   {t('quest.settings.modeMailboxLabel')}
-                  <span className="text-xs font-normal text-muted-foreground">
+                  <span id="quest-settings-delivery-mailbox-recommended" className="quest-settings-delivery-option-recommended text-xs font-normal text-muted-foreground">
                     ({t('quest.settings.recommended')})
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p id="quest-settings-delivery-mailbox-description" className="quest-settings-delivery-option-description text-sm text-muted-foreground mt-1">
                   {t('quest.settings.modeMailboxDesc')}
                 </p>
               </div>
             </Label>
 
-            <Label htmlFor="delivery-direct" className="flex items-start gap-3 rounded-md border p-4 cursor-pointer hover:bg-muted/50">
-              <RadioGroupItem id="delivery-direct" value="direct" className="mt-0.5"/>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 font-medium">
-                  <Zap className="h-4 w-4"/>
+            <Label id="quest-settings-delivery-direct-label" htmlFor="delivery-direct" className="quest-settings-delivery-option flex items-start gap-3 rounded-md border p-4 cursor-pointer hover:bg-muted/50">
+              <RadioGroupItem id="delivery-direct" value="direct" className="quest-settings-delivery-option-input mt-0.5"/>
+              <div id="quest-settings-delivery-direct-content" className="quest-settings-delivery-option-content flex-1">
+                <div id="quest-settings-delivery-direct-name" className="quest-settings-delivery-option-name flex items-center gap-2 font-medium">
+                  <Zap id="quest-settings-delivery-direct-icon" className="quest-settings-delivery-option-icon h-4 w-4"/>
                   {t('quest.settings.modeDirectLabel')}
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p id="quest-settings-delivery-direct-description" className="quest-settings-delivery-option-description text-sm text-muted-foreground mt-1">
                   {t('quest.settings.modeDirectDesc')}
                 </p>
               </div>
             </Label>
           </RadioGroup>
 
-          {savingMode && (<div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin"/>
+          {savingMode && (<div id="quest-settings-delivery-saving" className="quest-settings-delivery-saving flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 id="quest-settings-delivery-saving-icon" className="quest-settings-delivery-saving-icon h-3.5 w-3.5 animate-spin"/>
               {t('quest.settings.saving')}
             </div>)}
         </CardContent>
       </Card>
 
-      {delivery === "mailbox" && (<Card>
-          <CardHeader>
-            <CardTitle>{t('quest.settings.mailboxContentTitle')}</CardTitle>
-            <CardDescription>
+      {delivery === "mailbox" && (<Card id="quest-settings-mailbox-card" className="quest-settings-mailbox-card">
+          <CardHeader id="quest-settings-mailbox-header" className="quest-settings-mailbox-header">
+            <CardTitle id="quest-settings-mailbox-title" className="quest-settings-mailbox-title">{t('quest.settings.mailboxContentTitle')}</CardTitle>
+            <CardDescription id="quest-settings-mailbox-description" className="quest-settings-mailbox-description">
               {t('quest.settings.mailboxContentDesc')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="mailbox-title">
+          <CardContent id="quest-settings-mailbox-content" className="quest-settings-mailbox-content space-y-4">
+            <div id="quest-settings-mailbox-title-field" className="quest-settings-mailbox-field space-y-2">
+              <Label id="quest-settings-mailbox-title-label" htmlFor="mailbox-title" className="quest-settings-mailbox-label">
                 {t('quest.settings.mailboxTitle')}
               </Label>
-              <Input id="mailbox-title" value={title} onChange={(e) => setTitle(e.target.value)}/>
-              <p className="text-xs text-muted-foreground">
+              <Input id="mailbox-title" className="quest-settings-mailbox-input" value={title} onChange={(e) => setTitle(e.target.value)}/>
+              <p id="quest-settings-mailbox-title-default" className="quest-settings-mailbox-default text-xs text-muted-foreground">
                 {t('quest.delivery.defaultFromSystem')}
                 {": "}
-                <span className="italic">{DEFAULT_TITLE_PLACEHOLDER}</span>
+                <span id="quest-settings-mailbox-title-placeholder" className="quest-settings-mailbox-placeholder italic">{DEFAULT_TITLE_PLACEHOLDER}</span>
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="mailbox-body">
+            <div id="quest-settings-mailbox-body-field" className="quest-settings-mailbox-field space-y-2">
+              <Label id="quest-settings-mailbox-body-label" htmlFor="mailbox-body" className="quest-settings-mailbox-label">
                 {t('quest.settings.mailboxBody')}
               </Label>
-              <Textarea id="mailbox-body" value={body} onChange={(e) => setBody(e.target.value)} rows={3}/>
-              <p className="text-xs text-muted-foreground">
+              <Textarea id="mailbox-body" className="quest-settings-mailbox-input" value={body} onChange={(e) => setBody(e.target.value)} rows={3}/>
+              <p id="quest-settings-mailbox-body-default" className="quest-settings-mailbox-default text-xs text-muted-foreground">
                 {t('quest.delivery.defaultFromSystem')}
                 {": "}
-                <span className="italic">{DEFAULT_BODY_PLACEHOLDER}</span>
+                <span id="quest-settings-mailbox-body-placeholder" className="quest-settings-mailbox-placeholder italic">{DEFAULT_BODY_PLACEHOLDER}</span>
               </p>
             </div>
 
-            <div className="flex items-center justify-end gap-3">
-              {textDirty && (<span className="text-xs text-muted-foreground">
+            <div id="quest-settings-mailbox-actions" className="quest-settings-mailbox-actions flex items-center justify-end gap-3">
+              {textDirty && (<span id="quest-settings-mailbox-unsaved" className="quest-settings-mailbox-unsaved text-xs text-muted-foreground">
                   {t('quest.settings.unsavedChanges')}
                 </span>)}
-              <Button onClick={handleSaveText} disabled={!textDirty || savingText}>
-                {savingText ? (<Loader2 className="h-4 w-4 mr-2 animate-spin"/>) : (<Save className="h-4 w-4 mr-2"/>)}
+              <Button id="quest-settings-mailbox-save" className="quest-settings-mailbox-save" onClick={handleSaveText} disabled={!textDirty || savingText}>
+                {savingText ? (<Loader2 id="quest-settings-mailbox-save-loading" className="quest-settings-mailbox-save-icon h-4 w-4 mr-2 animate-spin"/>) : (<Save id="quest-settings-mailbox-save-icon" className="quest-settings-mailbox-save-icon h-4 w-4 mr-2"/>)}
                 {t('common.save')}
               </Button>
             </div>
           </CardContent>
         </Card>)}
 
-      <Card className="bg-muted/30 border-dashed">
-        <CardContent className="py-4 flex gap-3 text-sm">
-          <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5"/>
-          <p className="text-muted-foreground">
+      <Card id="quest-settings-override-hint" className="quest-settings-override-hint bg-muted/30 border-dashed">
+        <CardContent id="quest-settings-override-hint-content" className="quest-settings-override-hint-content py-4 flex gap-3 text-sm">
+          <Info id="quest-settings-override-hint-icon" className="quest-settings-override-hint-icon h-5 w-5 text-muted-foreground shrink-0 mt-0.5"/>
+          <p id="quest-settings-override-hint-text" className="quest-settings-override-hint-text text-muted-foreground">
             {t('quest.settings.overrideHint')}
           </p>
         </CardContent>
