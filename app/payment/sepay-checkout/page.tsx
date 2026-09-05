@@ -54,9 +54,9 @@ interface InitiateResponse {
     transaction: Transaction;
     intent: TransactionIntent;
 }
-type PaymentStatus = "pending" | "awaiting_payment" | "completed" | "failed" | "expired" | "credit_failed";
+type PaymentStatus = "pending" | "awaiting_payment" | "processing" | "completed" | "failed" | "expired" | "credit_failed";
 function isWaiting(s: PaymentStatus) {
-    return s === "pending" || s === "awaiting_payment";
+    return s === "pending" || s === "awaiting_payment" || s === "processing";
 }
 // ---------------------------------------------------------------------------
 // Helpers

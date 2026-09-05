@@ -379,12 +379,12 @@ function PaymentPageContent() {
         if (methods.length === 0)
             return;
         const savedId = localStorage.getItem(STORAGE_KEY_METHOD);
-        if (savedId) {
-            const found = methods.find((m) => m.id === savedId);
-            if (found)
-                setSelectedMethod(found);
-        }
-    }, [methods]);
+        const savedMethod = savedId ? methods.find((m) => m.id === savedId) : null;
+        const currentMethod = selectedMethod ? methods.find((m) => m.id === selectedMethod.id) : null;
+        const nextMethod = savedMethod ?? currentMethod ?? methods[0];
+        setSelectedMethod(nextMethod);
+        localStorage.setItem(STORAGE_KEY_METHOD, nextMethod.id);
+    }, [methods, selectedMethod]);
     function handleSelectPackage(pkg: CoinPackage) {
         setSelectedPackage(pkg);
         localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id);
@@ -637,14 +637,8 @@ function PaymentPageContent() {
                     {methods.map((method) => {
                 const isSelected = selectedMethod?.id === method.id;
                 return (<Card key={method.id} className={`cursor-pointer transition-all hover:border-primary/60 ${isSelected ? "border-primary ring-2 ring-primary/30" : ""}`} onClick={() => {
-                        if (isSelected) {
-                            setSelectedMethod(null);
-                            localStorage.removeItem(STORAGE_KEY_METHOD);
-                        }
-                        else {
-                            setSelectedMethod(method);
-                            localStorage.setItem(STORAGE_KEY_METHOD, method.id);
-                        }
+                        setSelectedMethod(method);
+                        localStorage.setItem(STORAGE_KEY_METHOD, method.id);
                     }}>
                           <CardContent className="flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
                             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm text-foreground">
@@ -841,7 +835,7 @@ function PaymentPageContent() {
                                 +{(tx.currency_amount ?? 0).toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">{tx.currency_type === "sgem" ? "💎" : "🪙"}</span>
                               </p>
                               <p className="text-xs text-muted-foreground tabular-nums">
-                                {tx.amount.toLocaleString()} {tx.currency}
+                                {formatPrice(tx.amount, tx.currency)}
                               </p>
                               <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="mt-1 text-[10px] h-4 capitalize sm:hidden">
                                 {tx.status.replace(/_/g, " ")}
@@ -875,7 +869,7 @@ function PaymentPageContent() {
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailAmount')}</p>
-                                  <p className="font-semibold">{tx.amount.toLocaleString()} {tx.currency}</p>
+                                  <p className="font-semibold">{formatPrice(tx.amount, tx.currency)}</p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{tx.currency_type === "sgem" ? "sGem" : "sCoin"}</p>
