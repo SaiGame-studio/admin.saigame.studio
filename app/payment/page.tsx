@@ -450,6 +450,13 @@ function PaymentPageContent() {
             const txId = root?.transaction?.id;
             if (!txId)
                 throw new Error("No transaction returned");
+            if (selectedMethod.provider_key === "tebex") {
+                const checkoutUrl = root?.intent?.checkout_url ?? root?.intent?.CheckoutURL;
+                if (!checkoutUrl)
+                    throw new Error("Tebex checkout URL was not returned");
+                window.location.assign(checkoutUrl);
+                return;
+            }
             // Store intent data for the checkout page
             sessionStorage.setItem(`sepay:${txId}`, JSON.stringify(res));
             router.push(`/payment/sepay-checkout?tx_id=${txId}`);
