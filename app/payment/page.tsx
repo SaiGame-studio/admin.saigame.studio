@@ -379,12 +379,12 @@ function PaymentPageContent() {
         if (methods.length === 0)
             return;
         const savedId = localStorage.getItem(STORAGE_KEY_METHOD);
-        if (savedId) {
-            const found = methods.find((m) => m.id === savedId);
-            if (found)
-                setSelectedMethod(found);
-        }
-    }, [methods]);
+        const savedMethod = savedId ? methods.find((m) => m.id === savedId) : null;
+        const currentMethod = selectedMethod ? methods.find((m) => m.id === selectedMethod.id) : null;
+        const nextMethod = savedMethod ?? currentMethod ?? methods[0];
+        setSelectedMethod(nextMethod);
+        localStorage.setItem(STORAGE_KEY_METHOD, nextMethod.id);
+    }, [methods, selectedMethod]);
     function handleSelectPackage(pkg: CoinPackage) {
         setSelectedPackage(pkg);
         localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id);
@@ -637,14 +637,8 @@ function PaymentPageContent() {
                     {methods.map((method) => {
                 const isSelected = selectedMethod?.id === method.id;
                 return (<Card key={method.id} className={`cursor-pointer transition-all hover:border-primary/60 ${isSelected ? "border-primary ring-2 ring-primary/30" : ""}`} onClick={() => {
-                        if (isSelected) {
-                            setSelectedMethod(null);
-                            localStorage.removeItem(STORAGE_KEY_METHOD);
-                        }
-                        else {
-                            setSelectedMethod(method);
-                            localStorage.setItem(STORAGE_KEY_METHOD, method.id);
-                        }
+                        setSelectedMethod(method);
+                        localStorage.setItem(STORAGE_KEY_METHOD, method.id);
                     }}>
                           <CardContent className="flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
                             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm text-foreground">
