@@ -791,16 +791,19 @@ function EntityInlineEditForm({ entity, gameId, onSaved, rarities, availableType
             <dd>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">{t('entity.abilityLimitHint')}</p>
-                {abilities.map((ability, idx) => (<div key={idx} className="border rounded">
+                {abilities.map((ability, idx) => (<div key={idx} id={`entity-ability-item-${idx}`} className="border rounded">
                     {/* ability header */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 cursor-pointer hover:bg-muted/50 group/ab" onClick={() => toggleAbility(idx)}>
+                    <div id={`entity-ability-header-${idx}`} className="flex items-center gap-1.5 px-2 py-1 cursor-pointer hover:bg-muted/50 group/ab" onClick={() => toggleAbility(idx)}>
                       {expandedAbilityIdx === idx
-                ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground"/>
-                : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground"/>}
-                      <span className="text-xs font-mono flex-1 truncate text-muted-foreground">
+                ? <ChevronDown id={`entity-ability-expand-icon-down-${idx}`} className="w-3.5 h-3.5 shrink-0 text-muted-foreground"/>
+                : <ChevronRight id={`entity-ability-expand-icon-right-${idx}`} className="w-3.5 h-3.5 shrink-0 text-muted-foreground"/>}
+                      <span id={`entity-ability-index-${idx}`} className="text-xs font-mono font-semibold text-primary/80 shrink-0">
+                        #{idx + 1}
+                      </span>
+                      <span id={`entity-ability-title-${idx}`} className="text-xs font-mono flex-1 truncate text-muted-foreground">
                         {String((ability as any).id ?? (ability as any).name ?? `ability[${idx}]`)}
                       </span>
-                      <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/ab:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteAbility(idx); }} disabled={saving}><X className="w-3 h-3"/></Button>
+                      <Button id={`entity-ability-delete-${idx}`} size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/ab:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteAbility(idx); }} disabled={saving}><X className="w-3 h-3"/></Button>
                     </div>
                     {/* ability fields (expanded) */}
                     {expandedAbilityIdx === idx && (<div className="px-2 pb-2 border-t space-y-0.5 pt-1">
