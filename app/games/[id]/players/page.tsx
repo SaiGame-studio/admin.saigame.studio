@@ -376,39 +376,20 @@ export default function GameUserProfilesPage({ params }: {
                   </div>
                 </div>
 
-                <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between items-center gap-3 flex-wrap">
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="truncate">{t('gameUsers.joined')}: {formatTimestamp(item.user_created_at)}</span>
-                    <span className="truncate">{t('gameUsers.updated')}: {formatTimestamp(item.updated_at)}</span>
+                <div id={`game-players-card-footer-${item.id}`} className="game-players-card-footer text-xs text-muted-foreground pt-2 border-t flex justify-between items-center gap-3 flex-wrap">
+                  <div id={`game-players-card-dates-${item.id}`} className="game-players-card-dates flex flex-col gap-0.5 min-w-0">
+                    <span id={`game-players-card-joined-${item.id}`} className="game-players-card-joined truncate">{t('gameUsers.joined')}: {formatTimestamp(item.user_created_at)}</span>
+                    <span id={`game-players-card-updated-${item.id}`} className="game-players-card-updated truncate">{t('gameUsers.updated')}: {formatTimestamp(item.updated_at)}</span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button asChild variant="outline" size="icon" title={t('gameUsers.sendMail')}>
-                      <Link href={`/games/${gameId}/mailbox?userId=${item.id}`}>
-                        <Mail className="h-4 w-4"/>
+                  <div id={`game-players-card-actions-${item.id}`} className="game-players-card-actions flex items-center gap-2 shrink-0">
+                    <Button id={`game-players-card-mailbox-button-${item.id}`} asChild variant="outline" size="icon" title={t('gameUsers.sendMail')}>
+                      <Link id={`game-players-card-mailbox-link-${item.id}`} href={`/games/${gameId}/mailbox?userId=${item.id}`}>
+                        <Mail id={`game-players-card-mailbox-icon-${item.id}`} className="h-4 w-4"/>
                       </Link>
                     </Button>
-                    <Button asChild variant="outline" size="icon" title={t('common.viewDetails')}>
-                      <Link href={`/games/${gameId}/players/${item.id}`}>
-                        <Eye className="h-4 w-4"/>
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between items-center gap-3 flex-wrap">
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="truncate">{t('gameUsers.joined')}: {formatTimestamp(item.user_created_at)}</span>
-                    <span className="truncate">{t('gameUsers.updated')}: {formatTimestamp(item.updated_at)}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button asChild variant="outline" size="icon" title={t('gameUsers.sendMail')}>
-                      <Link href={`/games/${gameId}/mailbox?userId=${item.id}`}>
-                        <Mail className="h-4 w-4"/>
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" size="icon" title={t('common.viewDetails')}>
-                      <Link href={`/games/${gameId}/players/${item.id}`}>
-                        <Eye className="h-4 w-4"/>
+                    <Button id={`game-players-card-view-details-button-${item.id}`} asChild variant="outline" size="icon" title={t('common.viewDetails')}>
+                      <Link id={`game-players-card-view-details-link-${item.id}`} href={`/games/${gameId}/players/${item.id}`}>
+                        <Eye id={`game-players-card-view-details-icon-${item.id}`} className="h-4 w-4"/>
                       </Link>
                     </Button>
                   </div>
