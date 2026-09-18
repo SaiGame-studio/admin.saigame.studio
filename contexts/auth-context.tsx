@@ -184,13 +184,14 @@ export function AuthProvider({ children }: {
     useEffect(() => {
         // Redirect logic
         if (!isLoading) {
-            const authPages = ["/login", "/register", "/forgot-password", "/reset-password", "/google-login-success"];
+            const guestOnlyPages = ["/login", "/register", "/forgot-password", "/reset-password"];
+            const publicPages = ["/google-login-success"];
             const publicPrefixes = ["/tutorials"];
-            const isPublicPage = authPages.includes(pathname) || publicPrefixes.some(p => pathname.startsWith(p));
+            const isPublicPage = guestOnlyPages.includes(pathname) || publicPages.includes(pathname) || publicPrefixes.some(p => pathname.startsWith(p));
             if (!isAuthenticated && !isPublicPage) {
                 router.replace(getLoginUrl(getCurrentRelativeUrl()));
             }
-            else if (isAuthenticated && authPages.includes(pathname)) {
+            else if (isAuthenticated && guestOnlyPages.includes(pathname)) {
                 router.replace(getReturnToFromLocation());
             }
         }
