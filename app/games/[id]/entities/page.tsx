@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, Fragment } from "react
 import { toSlugUnderscore } from "@/lib/utils";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Plus, RefreshCw, Trash2, Pencil, Save, Loader2, Search, X, Skull, ArrowLeft, Bot, ChevronRight, ChevronDown, Wand2, Hammer, ExternalLink, } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Pencil, Save, Loader2, Search, X, Skull, ArrowLeft, Bot, ChevronRight, ChevronDown, Wand2, Hammer, ExternalLink, Copy, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -142,12 +142,13 @@ function JsonReadonly({ value }: {
       {JSON.stringify(value, null, 2)}
     </pre>);
 }
-function EntityInlineEditForm({ entity, gameId, onSaved, rarities, availableTypes, }: {
+function EntityInlineEditForm({ entity, gameId, onSaved, rarities, availableTypes, onClone, }: {
     entity: EntityDefinition;
     gameId: string;
     onSaved: (updated: EntityDefinition) => void;
     rarities: string[];
     availableTypes: EntityType[];
+    onClone?: () => void;
 }) {
     const { toast } = useToast();
     const { t } = useTranslation();
@@ -561,14 +562,28 @@ function EntityInlineEditForm({ entity, gameId, onSaved, rarities, availableType
     </>);
     return (<div className="space-y-4" onClick={(e) => e.stopPropagation()}>
       {/* meta strip */}
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-mono text-muted-foreground border-b pb-3">
-        <span className="flex items-center gap-1">
-          <span className="font-sans font-medium text-foreground">ID</span>
-          {entity.id}
-          <CopyButton text={entity.id}/>
-        </span>
-        <span><span className="font-sans font-medium text-foreground">{t('entity.fieldCreated')} </span>{new Date(entity.created_at).toLocaleString()}</span>
-        <span><span className="font-sans font-medium text-foreground">{t('entity.fieldUpdated')} </span>{new Date(entity.updated_at).toLocaleString()}</span>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-xs font-mono text-muted-foreground border-b pb-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+          <span className="flex items-center gap-1">
+            <span className="font-sans font-medium text-foreground">ID</span>
+            {entity.id}
+            <CopyButton text={entity.id}/>
+          </span>
+          <span><span className="font-sans font-medium text-foreground">{t('entity.fieldCreated')} </span>{new Date(entity.created_at).toLocaleString()}</span>
+          <span><span className="font-sans font-medium text-foreground">{t('entity.fieldUpdated')} </span>{new Date(entity.updated_at).toLocaleString()}</span>
+        </div>
+        {onClone && (
+          <Button
+            id={`entity-detail-${entity.id}-clone-btn`}
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1 font-sans"
+            onClick={onClone}
+          >
+            <Copy id={`entity-detail-${entity.id}-clone-icon`} className="h-3.5 w-3.5" />
+            {t('common.clone')}
+          </Button>
+        )}
       </div>
 
       <div className="flex gap-8 items-start">
@@ -1115,6 +1130,27 @@ export default function EntitiesPage() {
             return false;
         }
     }
+    const handleCloneEntity = useCallback((entity: EntityDefinition) => {
+        const sourceKey = entity.entity_key?.trim() || toSlugUnderscore(entity.name) || "entity";
+        let cloneKey = `${sourceKey}_copy`;
+        let cloneIndex = 2;
+        const existingKeys = new Set(entities.map((e) => e.entity_key?.trim()).filter(Boolean));
+        while (existingKeys.has(cloneKey)) {
+            cloneKey = `${sourceKey}_copy_${cloneIndex}`;
+            cloneIndex += 1;
+        }
+        const clonedForm: FormState = {
+            entity_key: cloneKey,
+            entity_type: entity.entity_type,
+            name: entity.name,
+            description: entity.description ?? "",
+            rarity: entity.rarity ?? "",
+            stats: entity.stats ? JSON.stringify(entity.stats, null, 2) : "",
+            abilities: entity.abilities ? JSON.stringify(entity.abilities, null, 2) : "",
+            metadata: entity.metadata ? JSON.stringify(entity.metadata, null, 2) : "",
+        };
+        openCreateWithForm(clonedForm);
+    }, [entities, searchParams]);
     function openCreate() {
         openCreateWithForm();
     }
@@ -1404,18 +1440,59 @@ export default function EntitiesPage() {
                                 <Switch id={`entity-row-${entity.id}-active-switch`} checked={entity.is_active} disabled={togglingEntityId === entity.id} onCheckedChange={() => void toggleEntityActive(entity)} onClick={(event) => event.stopPropagation()}/>
                               </TableCell>
                               <TableCell className="text-right">
-                                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(entity); }} className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Trash2 className="h-4 w-4"/>
-                                </Button>
+                                <div id={`entity-row-${entity.id}-actions`} className="flex justify-end gap-1 items-center">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        id={`entity-row-${entity.id}-clone-btn`}
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCloneEntity(entity);
+                                        }}
+                                        className="h-8 w-8 p-0"
+                                        aria-label={t('common.clone')}
+                                        title={t('common.clone')}
+                                      >
+                                        <Copy id={`entity-row-${entity.id}-clone-icon`} className="h-4 w-4"/>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent id={`entity-row-${entity.id}-clone-tooltip`} side="top">
+                                      {t('common.clone')}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        id={`entity-row-${entity.id}-delete-btn`}
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeleteTarget(entity);
+                                        }}
+                                        className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        aria-label={t('common.delete')}
+                                        title={t('common.delete')}
+                                      >
+                                        <Trash2 id={`entity-row-${entity.id}-delete-icon`} className="h-4 w-4"/>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent id={`entity-row-${entity.id}-delete-tooltip`} side="top">
+                                      {t('common.delete')}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
                               </TableCell>
                             </TableRow>
                             {isExpanded && (<TableRow className="hover:bg-transparent border-b">
-                                <TableCell colSpan={7} className="p-0">
+                                <TableCell colSpan={convPanelOpen && convActiveId ? 8 : 7} className="p-0">
                                   <div className="p-4 bg-muted/10">
                                     {detail && detail !== "loading" && detail !== "error" ? (<EntityInlineEditForm entity={detail as EntityDefinition} gameId={gameId} rarities={rarities} availableTypes={availableTypes} onSaved={(upd) => {
                             setEntities((prev) => prev.map((e) => e.id === upd.id ? upd : e));
                             setDetailCache((prev) => ({ ...prev, [upd.id]: upd }));
-                        }}/>) : (<div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
+                        }} onClone={() => handleCloneEntity(detail as EntityDefinition)}/>) : (<div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
                                         {detail === "loading" ? (<>
                                             <Loader2 className="h-4 w-4 animate-spin"/>
                                             <span>{t('entity.loadingDetail')}</span>
