@@ -1216,7 +1216,7 @@ export default function EntitiesPage() {
                 metadata: tryParseJson(form.metadata),
             };
             const created = await createEntityDefinition(gameId, body);
-            setEntities((prev) => [...prev, created]);
+            setEntities((prev) => [created, ...prev]);
             if (createEntityConvContext?.convId && createEntityConvContext.turnId && createEntityConvContext.responseIdx != null && createEntityConvContext.entityDefinitionIdx != null) {
                 const entityKey = `${createEntityConvContext.turnId}:${createEntityConvContext.responseIdx}:${createEntityConvContext.entityDefinitionIdx}`;
                 const convId = createEntityConvContext.convId;
@@ -1262,7 +1262,6 @@ export default function EntitiesPage() {
                 })
                     .catch(() => { });
             }
-            toast({ title: t('common.added'), description: t('entity.entityCreated').replace('{name}', created.name) });
             setSheetOpen(false);
             // Refresh game data to update usage count
             getGame(gameId).then(setGame).catch(() => { });
