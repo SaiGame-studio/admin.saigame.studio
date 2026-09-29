@@ -166,18 +166,21 @@ export function BuySGemTab() {
             const idempotencyKey = typeof crypto?.randomUUID === "function"
                 ? crypto.randomUUID()
                 : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-            const price = getLocalizedSgemPrice(selectedPackage, locale, selectedMethod);
-            const res = await api.post("/api/v1/payments/initiate", {
-                package_key: selectedPackage.package_key,
-                provider_key: selectedMethod.provider_key,
+            const res = await api.post(`/api/v1/payments/sgem-packages/${selectedPackage.id}/purchase`, {
+                method_config_id: selectedMethod.id,
                 idempotency_key: idempotencyKey,
-                currency: price.currency,
-                amount: price.amount / 100,
             });
             const root = res?.data ?? res;
             const txId = root?.transaction?.id;
             if (!txId)
                 throw new Error("No transaction returned");
+            if (selectedMethod.provider_key === "tebex") {
+                const checkoutUrl = root?.intent?.checkout_url ?? root?.intent?.CheckoutURL;
+                if (!checkoutUrl)
+                    throw new Error("Tebex checkout URL was not returned");
+                window.location.assign(checkoutUrl);
+                return;
+            }
             sessionStorage.setItem(`sepay:${txId}`, JSON.stringify(res));
             router.push(`/payment/sepay-checkout?tx_id=${txId}`);
         }
