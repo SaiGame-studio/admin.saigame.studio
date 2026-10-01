@@ -4451,7 +4451,20 @@
     "guideExample": "Ví dụ (Restore lên QA vào DB mới):",
     "guideChangeSyntax": "Trỏ backend sang database hiện có mà không đổi tên database:",
     "guideChangeExample": "Ví dụ (Sử dụng database QA đã restore):",
-    "guideNote": "Restore yêu cầu database đích trống và không xóa bảng hiện có. Khi chuyển database, lệnh hiển thị thống kê database hiện tại/mới, hỏi xác nhận, cập nhật DB_NAME và POSTGRES_DB mà không đổi tên database, sau đó tự động reload backend. Nếu restart trên server thất bại, cấu hình cũ sẽ được khôi phục."
+    "guideNote": "Restore yêu cầu database đích trống và không xóa bảng hiện có. Khi chuyển database, lệnh hiển thị thống kê database hiện tại/mới, hỏi xác nhận, cập nhật DB_NAME mà không đổi tên database, rồi tự động tải lại backend. Nếu khởi động lại từ xa thất bại, cấu hình sẽ được hoàn tác.",
+    "guideRestorePrereqTitle": "Trước khi chạy restore",
+    "guideRestorePrereqFile": "Đặt file backup trong DB_BACKUP_DIR ở local (mặc định ./backups/db/) hoặc tải lên trước bằng make upload-db.",
+    "guideRestorePrereqEnv": "Thêm các biến sau vào .env.<env> (DB_APP_PASSWORD chỉ bắt buộc khi database đích chưa tồn tại; chỉ gồm chữ và số):",
+    "guideRestorePrereqAdmin": "DB_ADMIN_USER / DB_ADMIN_PASSWORD là tùy chọn: restore dùng chúng làm superuser, và quay về DB_USER / DB_PASSWORD khi không đặt. Hãy đặt chúng khi DB_USER là ss_app, vì role này không tạo được database hay role.",
+    "guideRestoreSafety": "An toàn production: ENV=pro và tên database chứa \"prod\" cần PG_RESTORE_ALLOW_PROD=true. RESTORE_CONFIRM=yes bỏ qua bước hỏi xác nhận.",
+    "guideRestoreWhatTitle": "Restore làm gì",
+    "guideRestoreWhatNew": "Database mới (chưa tồn tại): tạo role ứng dụng nếu chưa có (role đã có không bao giờ bị sửa), tạo database thuộc role đó, restore file, rồi chuyển quyền sở hữu bảng, sequence, view, kiểu và hàm trong schema public cho role này.",
+    "guideRestoreWhatExisting": "Database đã tồn tại: chỉ restore khi database trống, giống như trước. Chủ sở hữu, đối tượng và role của nó không bao giờ bị thay đổi.",
+    "guideRestoreAfterTitle": "Sau restore: chuyển backend sang database mới",
+    "guideRestoreAfterStep1": "Trong .env.<env> đặt DB_NAME là database mới, DB_USER là DB_APP_USER và DB_PASSWORD là giá trị của DB_APP_PASSWORD. make change-db chỉ cập nhật DB_NAME, nên bạn tự đặt DB_USER và DB_PASSWORD.",
+    "guideRestoreAfterStep2": "Deploy .env.<env> đã cập nhật và khởi động lại backend (ví dụ make deploy-code).",
+    "guideRestoreAfterStep3": "Chạy make deploy-migrate. Khi chủ database không phải ss_user, migration chạy bằng role chủ database, nên bảng mới vẫn thuộc role đó. Migration có CREATE EXTENSION cần superuser và phải áp dụng riêng.",
+    "guideRestoreRollback": "Rollback: database trước đó và chủ sở hữu của nó không bị đụng tới. Đặt lại DB_NAME, DB_USER và DB_PASSWORD về giá trị cũ rồi deploy lại."
   },
   "supportChat": {
     "title": "Hỗ trợ",
