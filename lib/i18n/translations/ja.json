@@ -4393,7 +4393,7 @@
     "guideRestoreWhatNew": "新しいデータベース（未作成）：アプリケーション用ロールがなければ作成し（既存のロールは変更されません）、そのロールを所有者としてデータベースを作成し、ファイルを復元した後、publicスキーマのテーブル、シーケンス、ビュー、型、関数の所有権をそのロールに移します。",
     "guideRestoreWhatExisting": "既存のデータベース：空の場合のみ、従来どおり復元します。所有者、オブジェクト、ロールは一切変更されません。",
     "guideRestoreAfterTitle": "restore後：バックエンドを新しいデータベースへ切り替える",
-    "guideRestoreAfterStep1": ".env.<env> で DB_NAME を新しいデータベース、DB_USER を DB_APP_USER、DB_PASSWORD を DB_APP_PASSWORD の値に設定します。make change-db は DB_NAME のみ更新するため、DB_USER と DB_PASSWORD は手動で設定してください。",
+    "guideRestoreAfterStep1": ".env.<env> で DB_NAME を新しいデータベース、DB_USER を DB_APP_USER、DB_PASSWORD を DB_APP_PASSWORD の値に設定します。make change-db は現在と新しいデータベースの所有者ロールを表示し、DB_USER と異なる場合は警告しますが、更新するのは DB_NAME のみのため、DB_USER と DB_PASSWORD は手動で設定してください。",
     "guideRestoreAfterStep2": "更新した .env.<env> をデプロイしてバックエンドを再起動します（例：make deploy-code）。",
     "guideRestoreAfterStep3": "make deploy-migrate を実行します。データベースの所有者が ss_user でない場合、マイグレーションは所有者ロールで実行されるため、新しいテーブルもそのロールが所有します。CREATE EXTENSION を含むマイグレーションはスーパーユーザーが必要なため、別途適用してください。",
     "guideRestoreRollback": "ロールバック：以前のデータベースとその所有者は変更されていません。DB_NAME、DB_USER、DB_PASSWORD を元の値に戻して再デプロイします。"

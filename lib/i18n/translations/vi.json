@@ -4461,7 +4461,7 @@
     "guideRestoreWhatNew": "Database mới (chưa tồn tại): tạo role ứng dụng nếu chưa có (role đã có không bao giờ bị sửa), tạo database thuộc role đó, restore file, rồi chuyển quyền sở hữu bảng, sequence, view, kiểu và hàm trong schema public cho role này.",
     "guideRestoreWhatExisting": "Database đã tồn tại: chỉ restore khi database trống, giống như trước. Chủ sở hữu, đối tượng và role của nó không bao giờ bị thay đổi.",
     "guideRestoreAfterTitle": "Sau restore: chuyển backend sang database mới",
-    "guideRestoreAfterStep1": "Trong .env.<env> đặt DB_NAME là database mới, DB_USER là DB_APP_USER và DB_PASSWORD là giá trị của DB_APP_PASSWORD. make change-db chỉ cập nhật DB_NAME, nên bạn tự đặt DB_USER và DB_PASSWORD.",
+    "guideRestoreAfterStep1": "Trong .env.<env> đặt DB_NAME là database mới, DB_USER là DB_APP_USER và DB_PASSWORD là giá trị của DB_APP_PASSWORD. make change-db hiển thị role chủ sở hữu của database hiện tại và database mới, và cảnh báo khi khác DB_USER, nhưng chỉ cập nhật DB_NAME, nên bạn tự đặt DB_USER và DB_PASSWORD.",
     "guideRestoreAfterStep2": "Deploy .env.<env> đã cập nhật và khởi động lại backend (ví dụ make deploy-code).",
     "guideRestoreAfterStep3": "Chạy make deploy-migrate. Khi chủ database không phải ss_user, migration chạy bằng role chủ database, nên bảng mới vẫn thuộc role đó. Migration có CREATE EXTENSION cần superuser và phải áp dụng riêng.",
     "guideRestoreRollback": "Rollback: database trước đó và chủ sở hữu của nó không bị đụng tới. Đặt lại DB_NAME, DB_USER và DB_PASSWORD về giá trị cũ rồi deploy lại."

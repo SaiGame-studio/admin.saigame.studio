@@ -47,7 +47,7 @@ export function DBBackupOperationsGuide({ id }: DBBackupOperationsGuideProps) {
   ];
 
   const afterSteps = [
-    { key: "env", text: t("dbBackups.guideRestoreAfterStep1") || "In .env.<env> set DB_NAME to the new database, DB_USER to DB_APP_USER and DB_PASSWORD to the value of DB_APP_PASSWORD. make change-db only updates DB_NAME, so set DB_USER and DB_PASSWORD yourself." },
+    { key: "env", text: t("dbBackups.guideRestoreAfterStep1") || "In .env.<env> set DB_NAME to the new database, DB_USER to DB_APP_USER and DB_PASSWORD to the value of DB_APP_PASSWORD. make change-db shows the owner role of the current and new database and warns when it differs from DB_USER, but it only updates DB_NAME, so set DB_USER and DB_PASSWORD yourself." },
     { key: "deploy", text: t("dbBackups.guideRestoreAfterStep2") || "Deploy the updated .env.<env> and restart the backend (for example make deploy-code)." },
     { key: "migrate", text: t("dbBackups.guideRestoreAfterStep3") || "Run make deploy-migrate. When the database owner is not ss_user, migrations run as the owner role, so new tables stay owned by it. A migration that runs CREATE EXTENSION needs a superuser and must be applied separately." },
     { key: "rollback", text: t("dbBackups.guideRestoreRollback") || "Rollback: the previous database and its owner are untouched. Set DB_NAME, DB_USER and DB_PASSWORD back to the old values and redeploy." },
