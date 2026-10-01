@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useState } from "react";
-import { BadgeCheck, Loader2, Pencil, Search, XCircle } from "lucide-react";
+import { BadgeCheck, Loader2, Pencil, Search, UserX, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CopyButton } from "@/components/CopyButton";
 import { toast } from "@/hooks/use-toast";
-import { DuplicateUser, DuplicateUserGroup, getDuplicateUsersAdmin, updateUserActiveStatus, updateUserEmailAdmin } from "@/lib/admin-api";
+import { DuplicateUser, DuplicateUserGroup, disableDuplicateUserAdmin, getDuplicateUsersAdmin, updateUserActiveStatus, updateUserEmailAdmin } from "@/lib/admin-api";
 import { formatISODate, formatTimestamp } from "@/lib/utils/date-utils";
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
@@ -28,6 +28,8 @@ export function AdminDuplicateUsersPanel() {
     const [newEmail, setNewEmail] = useState("");
     const [saving, setSaving] = useState(false);
     const [statusTarget, setStatusTarget] = useState<{ user: DuplicateUser; newStatus: boolean } | null>(null);
+    const [disableTarget, setDisableTarget] = useState<DuplicateUser | null>(null);
+    const [disablingId, setDisablingId] = useState<string | null>(null);
     const [togglingId, setTogglingId] = useState<string | null>(null);
 
     const load = useCallback(async (after?: string) => {
@@ -71,6 +73,28 @@ export function AdminDuplicateUsersPanel() {
         }
         finally {
             setSaving(false);
+        }
+    };
+
+    const handleConfirmDisable = async () => {
+        if (!disableTarget)
+            return;
+        const user = disableTarget;
+        setDisableTarget(null);
+        setDisablingId(user.id);
+        try {
+            const result = await disableDuplicateUserAdmin(user.id);
+            toast({ title: "Duplicate disabled", description: `${user.username} is now ${result.username} (${result.email}).` });
+            // The account now has a unique email, so it leaves its group.
+            setGroups((prev) => prev
+                .map((g) => ({ ...g, users: g.users.filter((u) => u.id !== user.id) }))
+                .filter((g) => g.users.length > 1));
+        }
+        catch {
+            // The api client already surfaces the error toast.
+        }
+        finally {
+            setDisablingId(null);
         }
     };
 
@@ -154,10 +178,14 @@ export function AdminDuplicateUsersPanel() {
                         <TableCell id={`duplicate-user-active-${user.id}`}>
                           <Switch id={`duplicate-user-active-switch-${user.id}`} checked={user.is_active} disabled={togglingId === user.id} onCheckedChange={(checked) => setStatusTarget({ user, newStatus: checked })}/>
                         </TableCell>
-                        <TableCell id={`duplicate-user-actions-${user.id}`}>
+                        <TableCell id={`duplicate-user-actions-${user.id}`} className="flex items-center gap-2">
                           <Button id={`duplicate-user-edit-btn-${user.id}`} variant="outline" size="sm" onClick={() => openEdit(user)} className="flex items-center gap-1.5">
                             <Pencil className="h-3.5 w-3.5"/>
                             Edit email
+                          </Button>
+                          <Button id={`duplicate-user-disable-btn-${user.id}`} variant="outline" size="sm" onClick={() => setDisableTarget(user)} disabled={disablingId === user.id || (user.is_active && activeCount <= 1)} title={user.is_active && activeCount <= 1 ? "Keep at least one active account for this email" : undefined} className="flex items-center gap-1.5 text-destructive">
+                            {disablingId === user.id ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <UserX className="h-3.5 w-3.5"/>}
+                            Disable duplicate
                           </Button>
                         </TableCell>
                       </TableRow>))}
@@ -191,6 +219,21 @@ export function AdminDuplicateUsersPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!disableTarget} onOpenChange={(open) => { if (!open) setDisableTarget(null); }}>
+        <AlertDialogContent id="duplicate-users-disable-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disable duplicate account</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{disableTarget?.username}</strong> ({disableTarget?.email}) will be disabled and get a placeholder email and username so it no longer collides with any account. The original email and username are kept in its custom data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel id="duplicate-users-disable-cancel-btn">Cancel</AlertDialogCancel>
+            <AlertDialogAction id="duplicate-users-disable-confirm-btn" onClick={handleConfirmDisable}>Disable duplicate</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!statusTarget} onOpenChange={(open) => { if (!open) setStatusTarget(null); }}>
         <AlertDialogContent id="duplicate-users-status-dialog">

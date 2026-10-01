@@ -165,6 +165,17 @@ export async function updateUserEmailAdmin(userId: string, email: string): Promi
     return await api.patch(`/api/v1/admin/users/${userId}/email`, { email });
 }
 /**
+ * Disable a duplicate user and give it a unique placeholder email and username (super admin only)
+ */
+export async function disableDuplicateUserAdmin(userId: string): Promise<{
+    id: string;
+    email: string;
+    username: string;
+    is_active: boolean;
+}> {
+    return await api.post(`/api/v1/admin/users/${userId}/disable-duplicate`, {});
+}
+/**
  * Update game active status (super admin only)
  */
 export async function updateGameActiveStatus(gameId: string, is_active: boolean): Promise<void> {
