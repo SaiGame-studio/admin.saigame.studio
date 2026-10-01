@@ -124,6 +124,46 @@ export async function getAllGamesAdmin(params?: {
 export async function updateUserActiveStatus(userId: string, is_active: boolean): Promise<void> {
     await api.patch(`/api/v1/admin/users/${userId}/active-status`, { is_active });
 }
+export interface DuplicateUser {
+    id: string;
+    email: string;
+    username: string;
+    display_name: string;
+    is_active: boolean;
+    is_verified: boolean;
+    last_login_at?: string;
+    created_at: number;
+}
+export interface DuplicateUserGroup {
+    normalized_email: string;
+    users: DuplicateUser[];
+}
+export interface DuplicateUsersResult {
+    groups: DuplicateUserGroup[];
+    has_more: boolean;
+    next_after: string;
+}
+/**
+ * Get groups of users sharing the same email ignoring case (super admin only)
+ */
+export async function getDuplicateUsersAdmin(params?: {
+    after?: string;
+    limit?: number;
+}): Promise<DuplicateUsersResult> {
+    const searchParams = new URLSearchParams({ limit: String(params?.limit ?? 20) });
+    if (params?.after)
+        searchParams.set("after", params.after);
+    return await api.get(`/api/v1/admin/users/duplicates?${searchParams.toString()}`);
+}
+/**
+ * Change a user's email (super admin only)
+ */
+export async function updateUserEmailAdmin(userId: string, email: string): Promise<{
+    id: string;
+    email: string;
+}> {
+    return await api.patch(`/api/v1/admin/users/${userId}/email`, { email });
+}
 /**
  * Update game active status (super admin only)
  */

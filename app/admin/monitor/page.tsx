@@ -31,6 +31,7 @@ import { LLMTokenQuotaDialog } from "@/components/LLMTokenQuotaDialog";
 import { TokenStatsTab } from "@/components/TokenStatsTab";
 import { AdminSystemPromptsList } from "./AdminSystemPromptsList";
 import { AdminDBBackupsTab } from "./AdminDBBackupsTab";
+import { AdminDuplicateUsersPanel } from "./AdminDuplicateUsersPanel";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig, } from "@/components/ui/chart";
 // ---------------------------------------------------------------------------
@@ -1156,6 +1157,8 @@ function UsersTab() {
           Refresh
         </Button>
       </div>
+
+      <AdminDuplicateUsersPanel/>
 
       {/* Search Filters */}
       <form onSubmit={handleSearch}>
