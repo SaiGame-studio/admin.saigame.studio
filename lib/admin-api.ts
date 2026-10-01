@@ -156,15 +156,6 @@ export async function getDuplicateUsersAdmin(params?: {
     return await api.get(`/api/v1/admin/users/duplicates?${searchParams.toString()}`);
 }
 /**
- * Change a user's email (super admin only)
- */
-export async function updateUserEmailAdmin(userId: string, email: string): Promise<{
-    id: string;
-    email: string;
-}> {
-    return await api.patch(`/api/v1/admin/users/${userId}/email`, { email });
-}
-/**
  * Disable a duplicate user and give it a unique placeholder email and username (super admin only)
  */
 export async function disableDuplicateUserAdmin(userId: string): Promise<{
