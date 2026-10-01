@@ -3,6 +3,7 @@
 - Never infer or introduce new product concepts, requirements, terminology, data models, or behavior. Do not describe an unverified concept as if it already exists; state what is verified and ask the user when a decision is required.
 
 - Keep `.tsx` files ≤700 lines and other files ≤1000 lines; split before exceeding the limit. Keep UI, logic, hooks, API, and types in focused modules.
+- If any file you read, modify, or create exceeds 700 lines, warn the user and propose a concrete split (target modules and what moves where) before or alongside the change. Do not silently grow it or refactor it unasked.
 - Every JSX/HTML element needs a feature-scoped, kebab-case `id`; list item IDs include the record identifier.
 - Refresh buttons are icon-only. Tooltips use `side="top"`.
 - Every tabbed page must persist its selected, named tab in the `tab` URL query parameter. Read and validate that parameter on load, and update it when the tab changes so refresh, direct links, and browser navigation preserve the active tab.
