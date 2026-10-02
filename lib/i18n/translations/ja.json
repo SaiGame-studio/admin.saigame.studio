@@ -4383,7 +4383,20 @@
     "guideExample": "例（新しいDBを使用してQAに復元）：",
     "guideChangeSyntax": "データベース名を変更せず、バックエンドを既存のデータベースへ切り替える：",
     "guideChangeExample": "例（復元済みQAデータベースを使用）：",
-    "guideNote": "復元先は空のデータベースである必要があり、既存テーブルは削除されません。データベース切り替えでは現在と新しいデータベースの統計を表示して確認を求め、データベース名を変更せずにDB_NAMEとPOSTGRES_DBを更新した後、バックエンドを自動的に再読み込みします。サーバーの再起動に失敗した場合は以前の設定へ戻します。"
+    "guideNote": "復元先は空のデータベースである必要があり、既存テーブルは削除されません。データベース切り替えでは現在と新しいデータベースの統計を表示し、確認を求め、データベース名を変更せずに DB_NAME を更新し、バックエンドを自動的に再読み込みします。リモート再起動に失敗した場合は設定がロールバックされます。",
+    "guideRestorePrereqTitle": "restore実行前の準備",
+    "guideRestorePrereqFile": "バックアップファイルをローカルのDB_BACKUP_DIR（デフォルト ./backups/db/）に置くか、先に make upload-db でアップロードします。",
+    "guideRestorePrereqEnv": ".env.<env> に次の変数を追加します（DB_APP_PASSWORDは対象データベースが未作成の場合のみ必須で、英数字のみ）：",
+    "guideRestorePrereqAdmin": "DB_ADMIN_USER / DB_ADMIN_PASSWORD は任意です。restoreはこれらをスーパーユーザーとして使用し、未設定の場合は DB_USER / DB_PASSWORD にフォールバックします。DB_USER が ss_app の場合は、このロールがデータベースやロールを作成できないため、設定してください。",
+    "guideRestoreSafety": "本番の安全対策：ENV=pro および名前に \"prod\" を含むデータベースには PG_RESTORE_ALLOW_PROD=true が必要です。RESTORE_CONFIRM=yes を付けると確認プロンプトを省略します。",
+    "guideRestoreWhatTitle": "restoreの動作",
+    "guideRestoreWhatNew": "新しいデータベース（未作成）：アプリケーション用ロールがなければ作成し（既存のロールは変更されません）、そのロールを所有者としてデータベースを作成し、ファイルを復元した後、publicスキーマのテーブル、シーケンス、ビュー、型、関数の所有権をそのロールに移します。",
+    "guideRestoreWhatExisting": "既存のデータベース：空の場合のみ、従来どおり復元します。所有者、オブジェクト、ロールは一切変更されません。",
+    "guideRestoreAfterTitle": "restore後：バックエンドを新しいデータベースへ切り替える",
+    "guideRestoreAfterStep1": ".env.<env> で DB_NAME を新しいデータベース、DB_USER を DB_APP_USER、DB_PASSWORD を DB_APP_PASSWORD の値に設定します。make change-db は現在と新しいデータベースの所有者ロールを表示し、DB_USER と異なる場合は警告しますが、更新するのは DB_NAME のみのため、DB_USER と DB_PASSWORD は手動で設定してください。",
+    "guideRestoreAfterStep2": "更新した .env.<env> をデプロイしてバックエンドを再起動します（例：make deploy-code）。",
+    "guideRestoreAfterStep3": "make deploy-migrate を実行します。データベースの所有者が ss_user でない場合、マイグレーションは所有者ロールで実行されるため、新しいテーブルもそのロールが所有します。CREATE EXTENSION を含むマイグレーションはスーパーユーザーが必要なため、別途適用してください。",
+    "guideRestoreRollback": "ロールバック：以前のデータベースとその所有者は変更されていません。DB_NAME、DB_USER、DB_PASSWORD を元の値に戻して再デプロイします。"
   },
   "supportChat": {
     "title": "サポート",

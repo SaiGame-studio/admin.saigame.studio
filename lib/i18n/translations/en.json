@@ -4426,7 +4426,20 @@
     "guideExample": "Example (Restore to QA with new DB):",
     "guideChangeSyntax": "Point the backend to an existing database without renaming it:",
     "guideChangeExample": "Example (Use a restored QA database):",
-    "guideNote": "Restore requires an empty target database and never drops existing tables. Database switching shows current/new statistics, asks for confirmation, updates DB_NAME and POSTGRES_DB without renaming a database, then reloads the backend automatically. Remote restart failures roll back the configuration."
+    "guideNote": "Restore requires an empty target database and never drops existing tables. Database switching shows current/new statistics, asks for confirmation, updates DB_NAME without renaming a database, then reloads the backend automatically. Remote restart failures roll back the configuration.",
+    "guideRestorePrereqTitle": "Before you run restore",
+    "guideRestorePrereqFile": "Put the backup file in the local DB_BACKUP_DIR (default ./backups/db/) or upload it first with make upload-db.",
+    "guideRestorePrereqEnv": "Add these variables to .env.<env> (DB_APP_PASSWORD is required only when the target database does not exist yet; letters and digits only):",
+    "guideRestorePrereqAdmin": "DB_ADMIN_USER / DB_ADMIN_PASSWORD are optional: restore uses them as the superuser, and falls back to DB_USER / DB_PASSWORD when unset. Set them once DB_USER is ss_app, because that role cannot create databases or roles.",
+    "guideRestoreSafety": "Production safety: ENV=pro and database names containing \"prod\" need PG_RESTORE_ALLOW_PROD=true. RESTORE_CONFIRM=yes skips the confirmation prompt.",
+    "guideRestoreWhatTitle": "What restore does",
+    "guideRestoreWhatNew": "New database (does not exist yet): creates the application role if missing (an existing role is never modified), creates the database owned by that role, restores the file, then gives that role ownership of the tables, sequences, views, types and functions in the public schema.",
+    "guideRestoreWhatExisting": "Existing database: restored only when it is empty, exactly as before. Its owner, objects and roles are never changed.",
+    "guideRestoreAfterTitle": "After restore: switch the backend to the new database",
+    "guideRestoreAfterStep1": "In .env.<env> set DB_NAME to the new database, DB_USER to DB_APP_USER and DB_PASSWORD to the value of DB_APP_PASSWORD. make change-db shows the owner role of the current and new database and warns when it differs from DB_USER, but it only updates DB_NAME, so set DB_USER and DB_PASSWORD yourself.",
+    "guideRestoreAfterStep2": "Deploy the updated .env.<env> and restart the backend (for example make deploy-code).",
+    "guideRestoreAfterStep3": "Run make deploy-migrate. When the database owner is not ss_user, migrations run as the owner role, so new tables stay owned by it. A migration that runs CREATE EXTENSION needs a superuser and must be applied separately.",
+    "guideRestoreRollback": "Rollback: the previous database and its owner are untouched. Set DB_NAME, DB_USER and DB_PASSWORD back to the old values and redeploy."
   },
   "supportChat": {
     "title": "Support",
