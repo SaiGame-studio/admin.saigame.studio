@@ -666,6 +666,10 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
     const [presetDetails, setPresetDetails] = useState<Record<string, PlayerPresetDetail>>({});
     const [presetDetailsLoading, setPresetDetailsLoading] = useState<Set<string>>(new Set());
     const [presetDetailsError, setPresetDetailsError] = useState<Record<string, string>>({});
+    // `preset_q` URL param: preset instance id to auto-expand/highlight (linked from item private_properties.preset_ids)
+    const [presetFocusId] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("preset_q") ?? "" : "");
+    const presetFocusHandledRef = useRef(false);
+    const presetsForItemsLoadedRef = useRef(false);
     // inventory_item_id → { name, definitionId }
     const [presetSlotItemNames, setPresetSlotItemNames] = useState<Record<string, {
         name: string;
@@ -1402,6 +1406,29 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
         if (activeTab === "presets")
             loadPresets();
     }, [activeTab, loadPresets]);
+    // Items tab: resolve preset instance/definition names for private_properties.preset_ids
+    useEffect(() => {
+        if (activeTab !== "items" || presetsForItemsLoadedRef.current || !detail?.user_id || presets.length > 0)
+            return;
+        const hasPresetRefs = playerItems.some(it => Array.isArray((it.private_properties as Record<string, unknown> | undefined)?.preset_ids));
+        if (!hasPresetRefs)
+            return;
+        presetsForItemsLoadedRef.current = true;
+        getPlayerPresets(gameId, detail.user_id)
+            .then(res => setPresets(prev => prev.length > 0 ? prev : (res.containers ?? [])))
+            .catch(() => { });
+    }, [activeTab, playerItems, presets.length, detail?.user_id, gameId]);
+    // Presets tab: auto-expand + scroll to the preset given by `preset_q`
+    useEffect(() => {
+        if (activeTab !== "presets" || !presetFocusId || presetFocusHandledRef.current)
+            return;
+        if (!presets.some(p => p.id === presetFocusId))
+            return;
+        presetFocusHandledRef.current = true;
+        if (!expandedPresetIds.has(presetFocusId))
+            togglePresetRow(presetFocusId);
+        setTimeout(() => document.getElementById(`player-preset-row-${presetFocusId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+    }, [activeTab, presetFocusId, presets, expandedPresetIds, togglePresetRow]);
     useEffect(() => {
         if (activeTab === "generators")
             loadGenerators();
@@ -1902,6 +1929,30 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                                               <ExternalLink className="h-3 w-3 shrink-0"/>
                                             </a>
                                             <CopyButton text={v}/>
+                                          </div>);
+                                }
+                                if (k === "preset_ids" && Array.isArray(v)) {
+                                    return (<div key={k} id={`player-item-preset-ids-${item.id}`} className="flex items-start gap-2 text-xs font-mono">
+                                            <span className="text-muted-foreground shrink-0">{k}:</span>
+                                            <div className="flex flex-col gap-1">
+                                              {v.filter((pid): pid is string => typeof pid === "string").map(pid => {
+                                        const preset = presets.find(p => p.id === pid);
+                                        const defId = preset?.definition_id ?? preset?.definition?.id;
+                                        const defName = preset?.definition?.name;
+                                        const instName = preset?.name || defName;
+                                        return (<div key={pid} id={`player-item-preset-${item.id}-${pid}`} className="flex flex-wrap items-center gap-2">
+                                                  <a href={`/games/${gameId}/players/${progressId}?tab=presets&preset_q=${pid}`} className="inline-flex items-center gap-1 text-primary hover:underline" title="Go to player preset instance" onClick={(e) => e.stopPropagation()}>
+                                                    <span className="font-semibold not-italic">{instName || "Preset"}</span>
+                                                    <ExternalLink className="h-3 w-3 shrink-0"/>
+                                                  </a>
+                                                  {defId ? (<a href={`/games/${gameId}/items?tab=preset&id=${defId}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary hover:underline" title="Go to preset definition" onClick={(e) => e.stopPropagation()}>
+                                                      <span>def:</span>
+                                                      <span className="font-semibold">{defName || "Definition"}</span>
+                                                      <ExternalLink className="h-3 w-3 shrink-0"/>
+                                                    </a>) : null}
+                                                </div>);
+                                    })}
+                                            </div>
                                           </div>);
                                 }
                                 return (<div key={k} className="flex items-start gap-2 text-xs font-mono">
@@ -3286,7 +3337,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
                     {presets.map((p) => {
                 const pExpanded = expandedPresetIds.has(p.id);
                 return (<Fragment key={p.id}>
-                          <TableRow id={`player-preset-row-${p.id}`} className={`cursor-pointer hover:bg-muted/40 ${pExpanded ? "bg-muted/30" : ""}`} onClick={() => togglePresetRow(p.id)}>
+                          <TableRow id={`player-preset-row-${p.id}`} className={`cursor-pointer hover:bg-muted/40 ${pExpanded ? "bg-muted/30" : ""} ${p.id === presetFocusId ? "ring-1 ring-inset ring-primary" : ""}`} onClick={() => togglePresetRow(p.id)}>
                             <TableCell id={`player-preset-name-cell-${p.id}`} className="text-sm font-medium">
                               <span id={`player-preset-name-span-${p.id}`} className="flex items-center gap-1">
                                 {pExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground"/> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground"/>}
