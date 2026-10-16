@@ -250,3 +250,63 @@ export async function toggleCategoryPublish(id: string, isPublic: boolean): Prom
 export async function getCCUOverview(): Promise<CCUOverviewResult> {
     return api.get("/api/v1/admin/ccu/overview");
 }
+
+export interface CmsContentVersionSummary {
+    version_number: number;
+    title: string;
+    changed_by_id: string;
+    created_at: string;
+}
+
+export interface CmsContentVersionsResult {
+    data: CmsContentVersionSummary[];
+    pagination: {
+        page: number;
+        per_page: number;
+        total: number;
+        total_pages: number;
+    };
+}
+
+export interface CmsContentVersion {
+    id: string;
+    content_id: string;
+    version_number: number;
+    language: string;
+    title: string;
+    slug: string;
+    description: string;
+    category_id: string | null;
+    body: string;
+    seo_title: string;
+    seo_description: string;
+    seo_keywords: string[] | null;
+    metadata: Record<string, unknown> | null;
+    changed_by_id: string;
+    created_at: string;
+}
+
+export interface CmsContentRollbackResult {
+    id: string;
+    version_number: number;
+    title: string;
+    status: string;
+    updated_at: string;
+    published_at: string | null;
+    message: string;
+}
+
+/** Lists saved versions of a content item, newest first (super admin). */
+export async function listCmsContentVersions(id: string): Promise<CmsContentVersionsResult> {
+    return api.get(`/api/v1/admin/contents/${encodeURIComponent(id)}/versions?per_page=50&sort_order=desc`);
+}
+
+/** Returns the full snapshot of one saved version (super admin). */
+export async function getCmsContentVersion(id: string, versionNumber: number): Promise<CmsContentVersion> {
+    return api.get(`/api/v1/admin/contents/${encodeURIComponent(id)}/versions/${versionNumber}`);
+}
+
+/** Restores a saved version; the server stores the result as a new version (super admin). */
+export async function rollbackCmsContent(id: string, versionNumber: number): Promise<CmsContentRollbackResult> {
+    return api.post(`/api/v1/admin/contents/${encodeURIComponent(id)}/rollback/${versionNumber}`, {});
+}
