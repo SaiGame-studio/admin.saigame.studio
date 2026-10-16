@@ -3,17 +3,6 @@ import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
-/** Pre-process markdown: convert ![alt](url =WxH) to <img> tags */
-function preprocessImgSize(md: string): string {
-    return md.replace(/!\[([^\]]*)\]\((\S+?)\s+=(\d+)?[x×](\d+)?\)/g, (_match, alt, url, w, h) => {
-        const attrs = [`src="${url}"`, `alt="${alt}"`];
-        if (w)
-            attrs.push(`width="${w}"`);
-        if (h)
-            attrs.push(`height="${h}"`);
-        return `<img ${attrs.join(" ")} />`;
-    });
-}
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +26,8 @@ import { EditorView } from "@codemirror/view";
 import { vscodeDark, vscodeLight } from "@uiw/codemirror-theme-vscode";
 import { useTheme } from "next-themes";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { preprocessImgSize } from "./preprocess-img-size";
+import { ContentVersionHistory } from "./ContentVersionHistory";
 const SUPPORTED_LANGS = ["en", "vi", "ja"];
 function statusBadgeVariant(status: string) {
     switch (status) {
@@ -361,7 +352,7 @@ function CmsDetailInner() {
               </TabsList>
             </Tabs>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">v{content.version_number}</span>
+              <ContentVersionHistory content={content} dirty={dirty} onRestored={async () => { const fresh = await getCmsContent(id); setContent(fresh); populateForm(fresh); }}/>
               <div className="flex items-center gap-1.5">
                 <span className={`text-xs font-medium ${content.status === "published" ? "text-green-600" : "text-muted-foreground"}`}>
                   {publishing ? "..." : content.status === "published" ? "Published" : "Draft"}
