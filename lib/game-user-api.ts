@@ -8,7 +8,6 @@ export interface GameProgress {
     level: number;
     experience: number;
     gold: number;
-    game_data: Record<string, any>;
     created_at: number;
     updated_at: number;
     version: number;
