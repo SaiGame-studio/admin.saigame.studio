@@ -283,6 +283,7 @@ export default function GameDetailsPage({ params }: {
                     </Button>
                     <div id="game-detail-title-section" className="game-detail-title-section group min-w-0 flex-1">
                         <div id="game-detail-title-row" className="game-detail-title-row flex items-center gap-2 flex-wrap">
+                            <Gamepad2 id="game-detail-title-icon" className="game-detail-title-icon h-6 w-6 shrink-0 sm:h-7 sm:w-7"/>
                             <GameNameEditable game={game} gameId={game.id} onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}/>
                             <Badge id="game-detail-status-badge" variant={game.is_active ? "default" : "destructive"} className={`game-detail-status-badge ${game.is_active ? "bg-green-600 hover:bg-green-600" : ""}`}>
                                 {game.is_active ? "Active" : "Inactive"}
