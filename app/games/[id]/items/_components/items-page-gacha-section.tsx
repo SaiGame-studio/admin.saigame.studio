@@ -454,7 +454,7 @@ export function ItemsPageGachaSection({
                             gameId={gameId}
                             gachaAllItems={gachaAllItems}
                             entries={pack.item_pool}
-                            heading={t("items.primaryGroup")}
+                            heading={`${t("items.dropLabel")} 1`}
                             sectionDomId={`${packDomId}-primary-group`}
                           />
                         </div>
@@ -468,7 +468,7 @@ export function ItemsPageGachaSection({
                                 gameId={gameId}
                                 gachaAllItems={gachaAllItems}
                                 entries={group.item_pool}
-                                heading={group.key}
+                                heading={`${t("items.dropLabel")} ${groupIndex + 2}`}
                                 sectionDomId={`${packDomId}-secondary-group-${groupIndex}-${group.key}`}
                               />
                             ))}
