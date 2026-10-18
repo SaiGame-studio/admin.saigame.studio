@@ -28,6 +28,7 @@ import { useTheme } from "next-themes";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { preprocessImgSize } from "./preprocess-img-size";
 import { ContentVersionHistory } from "./ContentVersionHistory";
+import { PublicContentLink } from "./PublicContentLink";
 const SUPPORTED_LANGS = ["en", "vi", "ja"];
 function statusBadgeVariant(status: string) {
     switch (status) {
@@ -352,6 +353,7 @@ function CmsDetailInner() {
               </TabsList>
             </Tabs>
             <div className="flex items-center gap-2">
+              <PublicContentLink content={content} dirty={dirty} onConfirmLeave={(message, onConfirm) => setNavConfirm({ message, onConfirm })}/>
               <ContentVersionHistory content={content} dirty={dirty} onRestored={async () => { const fresh = await getCmsContent(id); setContent(fresh); populateForm(fresh); }}/>
               <div className="flex items-center gap-1.5">
                 <span className={`text-xs font-medium ${content.status === "published" ? "text-green-600" : "text-muted-foreground"}`}>

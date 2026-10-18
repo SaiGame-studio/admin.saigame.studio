@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, ArrowLeft, ExternalLink } from "lucide-react";
+import { AlertCircle, ArrowLeft, ExternalLink, Handshake } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
@@ -178,8 +178,10 @@ export default function TeamDetailsPage({ params }: {
                 <ArrowLeft className="h-4 w-4"/>
               </Button>
               <div>
-                <TeamNameEditable team={team} teamId={team.id} onNameUpdate={newName => setTeam(prev => prev ? { ...prev, name: newName } : prev)}/>
-                <TeamDescriptionEditable team={team} teamId={team.id} onDescriptionUpdate={newDescription => setTeam(prev => prev ? { ...prev, description: newDescription } : prev)}/>
+                <div id="team-detail-title-row" className="team-detail-title-row flex items-center gap-2">
+                  <Handshake id="team-detail-title-icon" className="team-detail-title-icon h-7 w-7 shrink-0"/>
+                  <TeamNameEditable team={team} teamId={team.id} onNameUpdate={newName => setTeam(prev => prev ? { ...prev, name: newName } : prev)}/>
+                </div>
               </div>
             </div>
             <DeleteTeamDialog team={team}/>
@@ -205,6 +207,10 @@ export default function TeamDetailsPage({ params }: {
                     {studio?.name || team.studio_id}
                     <ExternalLink className="w-4 h-4"/>
                   </Link>
+                </div>
+                <div id="team-detail-description-field" className="team-detail-description-field">
+                  <p id="team-detail-description-label" className="team-detail-description-label text-sm font-medium">{t('team.descriptionLabel')}</p>
+                  <TeamDescriptionEditable team={team} teamId={team.id} onDescriptionUpdate={newDescription => setTeam(prev => prev ? { ...prev, description: newDescription } : prev)}/>
                 </div>
               </CardContent>
             </Card>

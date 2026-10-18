@@ -91,7 +91,7 @@ export function TeamDescriptionEditable({ team, teamId, onDescriptionUpdate }: T
     };
     return (<div className="group flex items-center gap-2 mt-1">
       {editing ? (<>
-          <Input value={description} onChange={e => setDescription(e.target.value)} placeholder={t('team.addDescPlaceholder')} className="w-96 h-8 px-2 text-sm" disabled={loading}/>
+          <Input value={description} onChange={e => setDescription(e.target.value)} placeholder={t('team.addDescPlaceholder')} className="w-full max-w-96 h-8 px-2 text-sm" disabled={loading}/>
           <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
             <Save className="w-4 h-4"/>
           </Button>
