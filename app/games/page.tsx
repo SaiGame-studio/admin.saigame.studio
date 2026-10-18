@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/CopyButton";
 import { Gamepad2, ArrowRight, RefreshCw, ExternalLink, ChevronDown, X } from "lucide-react";
 import Link from "next/link";
@@ -132,10 +133,18 @@ export default function GamesPage() {
           <Button asChild variant="default" className="flex-1 sm:flex-none">
             <Link href="/games/new">{t('games.createGame')}</Link>
           </Button>
-          <Button onClick={refreshGames} variant="outline" disabled={loading} className="flex-1 sm:flex-none">
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}/>
-            {t('games.refresh')}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button id="games-refresh-btn" onClick={refreshGames} variant="outline" size="icon" disabled={loading} aria-label={t('games.refresh')}>
+                  <RefreshCw id="games-refresh-icon" className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}/>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p id="games-refresh-tooltip-text">{t('games.refresh')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
