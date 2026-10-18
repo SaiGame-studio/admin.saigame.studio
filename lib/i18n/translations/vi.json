@@ -4519,5 +4519,8 @@
     "restoredTitle": "Đã khôi phục",
     "restoredDesc": "Đã khôi phục phiên bản {version} thành phiên bản {newVersion}.",
     "restoreFailed": "Khôi phục thất bại"
+  },
+  "playerGameData": {
+    "size": "Dung lượng"
   }
 }

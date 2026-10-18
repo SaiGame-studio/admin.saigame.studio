@@ -4451,5 +4451,8 @@
     "restoredTitle": "バージョンを復元しました",
     "restoredDesc": "バージョン {version} をバージョン {newVersion} として復元しました。",
     "restoreFailed": "復元に失敗しました"
+  },
+  "playerGameData": {
+    "size": "サイズ"
   }
 }

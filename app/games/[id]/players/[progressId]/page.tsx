@@ -18,6 +18,7 @@ import { banProgress, getGameProgressDetail, getGameProgressList, getProgressIte
 import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack, getContainerDefinition } from "@/lib/inventory-api";
 import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, getPlayerDailyQuestTimeframe, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { GameDataCard } from "./GameDataCard";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { CopyButton } from "@/components/CopyButton";
 import { EquipmentsTab } from "@/components/EquipmentsTab";
@@ -1677,16 +1678,7 @@ export default function GameUserProgressDetailPage({ params: paramsProp, }: {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Game Data</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <pre className="max-h-80 overflow-auto rounded-md bg-muted p-3 text-xs">
-                  {JSON.stringify(detail.game_data ?? {}, null, 2)}
-                </pre>
-              </CardContent>
-            </Card>
+            <GameDataCard gameData={detail.game_data} maxBytes={detail.game_data_max_bytes} sizeLabel={t("playerGameData.size")}/>
           </div>
           </div>)}
         </TabsContent>

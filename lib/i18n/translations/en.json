@@ -4494,5 +4494,8 @@
     "restoredTitle": "Version restored",
     "restoredDesc": "Version {version} was restored as version {newVersion}.",
     "restoreFailed": "Restore failed"
+  },
+  "playerGameData": {
+    "size": "Size"
   }
 }

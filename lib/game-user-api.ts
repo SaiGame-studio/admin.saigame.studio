@@ -30,6 +30,7 @@ export interface GameProgressDetail {
     experience: number;
     gold: number;
     game_data?: Record<string, any>;
+    game_data_max_bytes?: number;
     created_at: number;
     updated_at: number;
     version: number;
