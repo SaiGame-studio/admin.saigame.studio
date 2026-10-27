@@ -45,6 +45,26 @@ interface AuthContextType {
     refreshUser: () => Promise<void>;
 }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+/**
+ * Best-effort server logout so the shared SSO cookie is cleared for every *.saigame.studio site.
+ */
+async function revokeSharedSession() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    const token = getValidToken();
+    if (!apiUrl || !token) {
+        return;
+    }
+    try {
+        await fetch(`${apiUrl}/api/v1/auth/logout`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            credentials: "include",
+        });
+    }
+    catch (error) {
+        console.warn("Server logout failed", error);
+    }
+}
 export function AuthProvider({ children }: {
     children: ReactNode;
 }) {
@@ -97,7 +117,8 @@ export function AuthProvider({ children }: {
     };
     // Function to check authentication status
     const checkAuth = async () => {
-        const token = getValidToken();
+        // No local token: try the shared SSO cookie (e.g. signed in on play.saigame.studio).
+        const token = getValidToken() ?? await refreshAccessToken();
         const authenticated = !!token;
         setIsAuthenticated(authenticated);
         if (authenticated) {
@@ -202,6 +223,7 @@ export function AuthProvider({ children }: {
         router.push(getReturnToFromLocation());
     };
     const logout = () => {
+        void revokeSharedSession();
         clearToken();
         safeRemoveItem('user_capabilities');
         safeRemoveItem('user_timezone');

@@ -31,12 +31,12 @@ Continue building your app on:
 
 ## Running Locally with Custom Domain
 
-To run the application under the domain `local-admin.saigame.studio`:
+To run the application under the domain `local-server.saigame.studio`:
 
 1. **Update your hosts file**:
    - On Windows: Edit `C:\Windows\System32\drivers\etc\hosts` as administrator
    - On macOS/Linux: Edit `/etc/hosts` with sudo
-   - Add this line: `127.0.0.1 local-admin.saigame.studio`
+   - Add this line: `127.0.0.1 local-server.saigame.studio`
 
 2. **Start the development server**:
    ```bash
@@ -50,10 +50,10 @@ To run the application under the domain `local-admin.saigame.studio`:
 3. **Create a .env.local file**:
    - Create a file named `.env.local` in the root directory with the following content:
    ```
-   NEXT_PUBLIC_API_URL=http://local-admin.saigame.studio:3000
+   NEXT_PUBLIC_API_URL=http://local-server.saigame.studio:3000
    ```
 
 4. **Access the application**:
-   - Open your browser and navigate to `http://local-admin.saigame.studio:3000`
+   - Open your browser and navigate to `http://local-server.saigame.studio:3000`
 
 Note: If you encounter certificate warnings in your browser, you can safely proceed as this is expected for local development with custom domains.
