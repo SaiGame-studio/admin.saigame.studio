@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, } from "@/components/ui/command";
 import { Store, Plus, ArrowLeft, AlertCircle, Calendar, ShoppingBag, PackageSearch, Loader2, Eye, RefreshCw, Hammer, Wand2, ChevronsUpDown, Check, } from "lucide-react";
+import { SGEM_CURRENCY_LABEL, SGEM_CURRENCY_VALUE, isSGemCurrency, matchesSGemSearch, toAddItemCurrencyPayload, } from "@/lib/shop-currency";
 import Link from "next/link";
 import { getGame } from "@/lib/game-api";
 import { listItemDefinitions } from "@/lib/inventory-api";
@@ -200,7 +201,7 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
             if (new Date(form.ends_at) <= new Date(form.starts_at!))
                 return "End date must be after start date.";
         }
-        if (form.currency_item_def_id &&
+        if (form.currency_item_def_id && !isSGemCurrency(form.currency_item_def_id) &&
             !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(form.currency_item_def_id))
             return "Currency Item Def ID must be a valid UUID.";
         return null;
@@ -226,8 +227,7 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
                 payload.starts_at = new Date(form.starts_at).toISOString();
             if (form.ends_at)
                 payload.ends_at = new Date(form.ends_at).toISOString();
-            if (form.currency_item_def_id?.trim())
-                payload.currency_item_def_id = form.currency_item_def_id.trim();
+            Object.assign(payload, toAddItemCurrencyPayload(form.currency_item_def_id ?? ""));
             await createShopV1(gameId, payload);
             setCreateOpen(false);
             setForm(defaultForm);
@@ -613,7 +613,7 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
                   <Button variant="outline" role="combobox" aria-expanded={currencyOpen} className="w-full justify-between font-normal" disabled={itemDefsLoading}>
                     {itemDefsLoading ? (<span className="flex items-center gap-2 text-muted-foreground">
                         <Loader2 className="h-3 w-3 animate-spin"/> Loading…
-                      </span>) : form.currency_item_def_id ? (<span className="flex items-center gap-2">
+                      </span>) : isSGemCurrency(form.currency_item_def_id ?? "") ? (<span id="create-shop-currency-sgem-selected" className="flex items-center gap-2"><span id="create-shop-currency-sgem-selected-icon" className="text-blue-400" aria-hidden="true">💎</span> {SGEM_CURRENCY_LABEL}</span>) : form.currency_item_def_id ? (<span className="flex items-center gap-2">
                         <span>
                           {itemDefs.find((d) => d.id === form.currency_item_def_id)?.name ?? (<span className="font-mono text-xs">{form.currency_item_def_id}</span>)}
                         </span>
@@ -630,6 +630,10 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
                     <CommandList>
                       <CommandEmpty>{t('shop.noItemFound')}</CommandEmpty>
                       <CommandGroup>
+                        {matchesSGemSearch(currencySearch) && (<CommandItem id="create-shop-currency-option-sgem" value={SGEM_CURRENCY_VALUE} onSelect={() => { setField("currency_item_def_id", SGEM_CURRENCY_VALUE); setCurrencyOpen(false); setCurrencySearch(""); }}>
+                            <Check className={`mr-2 h-4 w-4 shrink-0 ${isSGemCurrency(form.currency_item_def_id ?? "") ? "opacity-100" : "opacity-0"}`}/>
+                            <span id="create-shop-currency-option-sgem-icon" className="text-blue-400 mr-2 shrink-0" aria-hidden="true">💎</span><span className="flex-1">{SGEM_CURRENCY_LABEL}</span>
+                          </CommandItem>)}
                         {itemDefs
             .filter((d) => (showAllItemTypes || d.category === "currency") &&
             (d.name.toLowerCase().includes(currencySearch.toLowerCase()) ||
