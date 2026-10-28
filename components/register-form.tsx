@@ -54,6 +54,7 @@ export function RegisterForm() {
             const response = await fetch(`${apiUrl}/api/v1/auth/google`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Accept: "application/json" },
+                credentials: "include",
                 body: JSON.stringify({ id_token: credentialResponse.credential }),
             });
             const data = await response.json();

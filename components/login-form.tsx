@@ -84,6 +84,7 @@ export function LoginForm() {
                     "Content-Type": "application/json",
                     Accept: "application/json",
                 },
+                credentials: "include",
                 body: JSON.stringify({ username: usernameOrEmail, password }),
             });
             const data = await response.json();
@@ -123,6 +124,7 @@ export function LoginForm() {
                     "Content-Type": "application/json",
                     Accept: "application/json",
                 },
+                credentials: "include",
                 body: JSON.stringify({ id_token: credentialResponse.credential }),
             });
             const data = await response.json();

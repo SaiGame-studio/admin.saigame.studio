@@ -190,11 +190,9 @@ export function getRefreshToken(): string | null {
  */
 export async function refreshAccessToken(): Promise<string | null> {
     try {
+        // Without a stored refresh token, fall back to the shared SSO cookie
+        // (set by the API on .saigame.studio, shared with play.saigame.studio).
         const refreshToken = getRefreshToken();
-        if (!refreshToken) {
-            console.log('No refresh token available');
-            return null;
-        }
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
         if (!apiUrl) {
             console.error('API URL is not configured');
@@ -207,7 +205,8 @@ export async function refreshAccessToken(): Promise<string | null> {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ refresh_token: refreshToken }),
+            credentials: 'include',
+            body: refreshToken ? JSON.stringify({ refresh_token: refreshToken }) : undefined,
         });
         if (!response.ok) {
             console.log('Refresh token failed or expired');
@@ -218,7 +217,7 @@ export async function refreshAccessToken(): Promise<string | null> {
         if (data.access_token) {
             console.log('Successfully refreshed access token');
             // Save the new tokens
-            saveToken(data.access_token, data.refresh_token || refreshToken);
+            saveToken(data.access_token, data.refresh_token || refreshToken || undefined);
             return data.access_token;
         }
         return null;

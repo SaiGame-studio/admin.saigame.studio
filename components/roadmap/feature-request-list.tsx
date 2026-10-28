@@ -281,6 +281,7 @@ function FeatureRequestCard({ request, isExpanded, isSuperAdmin, onToggle, onUpv
     </Card>);
 }
 import { Tabs, TabsContent, TabsList, TabsTrigger, } from "@/components/ui/tabs";
+import { SCoinIcon } from "@/components/SCoinIcon";
 export function FeatureRequestList() {
     const { locale } = useLanguage();
     const { t } = useTranslation(locale);
@@ -373,7 +374,7 @@ export function FeatureRequestList() {
                   <DialogTitle>{t('roadmap.featureRequests.submitTitle')}</DialogTitle>
                 <DialogDescription>
                   {t('roadmap.featureRequests.submitDescPart1')}
-                  <span className="font-bold text-foreground mx-1 text-yellow-500 underline decoration-yellow-500/30 underline-offset-4">🪙 {t('roadmap.featureRequests.submitDescPart2')}</span>
+                  <span className="font-bold text-foreground mx-1 text-yellow-500 underline decoration-yellow-500/30 underline-offset-4"><SCoinIcon id="roadmap-submit-cost-icon"/> {t('roadmap.featureRequests.submitDescPart2')}</span>
                   {t('roadmap.featureRequests.submitDescPart3')}
                 </DialogDescription>
                 </DialogHeader>
@@ -411,7 +412,7 @@ export function FeatureRequestList() {
             <AlertDialogTitle>{t('roadmap.featureRequests.confirmUpvoteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t('roadmap.featureRequests.confirmUpvoteDescPart1')}
-              <span className="font-bold text-foreground mx-1 text-yellow-500">🪙 {t('roadmap.featureRequests.confirmUpvoteDescPart2')}</span>
+              <span className="font-bold text-foreground mx-1 text-yellow-500"><SCoinIcon id="roadmap-upvote-cost-icon"/> {t('roadmap.featureRequests.confirmUpvoteDescPart2')}</span>
               {t('roadmap.featureRequests.confirmUpvoteDescPart3')}
             </AlertDialogDescription>
           </AlertDialogHeader>

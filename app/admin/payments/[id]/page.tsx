@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { formatISODate, toUserDatetime, fromUserDatetime } from "@/lib/utils/date-utils";
+import { SCoinIcon } from "@/components/SCoinIcon";
 const LIMIT = 20;
 function getStatus(gc: GiftCode) {
     const now = Date.now();
@@ -214,7 +215,7 @@ export default function GiftCodeDetailPage() {
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div>
                 <p className="text-xs text-muted-foreground">{t('adminGiftCodes.coinsValue')}</p>
-                <p className="font-semibold">🪙 {gc.coins_amount.toLocaleString()}</p>
+                <p className="font-semibold"><SCoinIcon id="admin-gift-code-detail-coins-icon"/> {gc.coins_amount.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{t('adminGiftCodes.usedMax')}</p>

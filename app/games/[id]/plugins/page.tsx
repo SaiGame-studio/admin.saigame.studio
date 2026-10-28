@@ -21,6 +21,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { getUserTimezone } from "@/lib/utils/date-utils";
 import { CopyButton } from "@/components/CopyButton";
 import { GameNavButtons } from "@/components/GameNavButtons";
+import { SCoinIcon } from "@/components/SCoinIcon";
 // ---------------------------------------------------------------------------
 // Limit explanations for the help panel
 // ---------------------------------------------------------------------------
@@ -611,7 +612,7 @@ export default function GamePluginsPage() {
                     ? "border-green-500/40 bg-green-500/10"
                     : "border-yellow-500/40 bg-yellow-500/10"}`}>
                           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('plugins.materia.monthly')}</span>
-                          {totalMonthlyCost === 0 ? (<span className="text-sm font-extrabold text-green-400">Free</span>) : (<span className="text-sm font-extrabold text-yellow-400">🪙 {totalMonthlyCost.toLocaleString()}</span>)}
+                          {totalMonthlyCost === 0 ? (<span className="text-sm font-extrabold text-green-400">Free</span>) : (<span className="text-sm font-extrabold text-yellow-400"><SCoinIcon id="plugins-total-monthly-cost-icon"/> {totalMonthlyCost.toLocaleString()}</span>)}
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-[220px] text-xs leading-relaxed">
@@ -766,7 +767,7 @@ export default function GamePluginsPage() {
 
                   {/* Cost */}
                   <div className="px-4 pt-3 pb-1 text-center">
-                    {cost === 0 ? (<span className="text-2xl font-extrabold text-green-400">Free</span>) : (<span className="text-2xl font-extrabold text-yellow-400 tabular-nums">🪙 {cost.toLocaleString()}</span>)}
+                    {cost === 0 ? (<span className="text-2xl font-extrabold text-green-400">Free</span>) : (<span className="text-2xl font-extrabold text-yellow-400 tabular-nums"><SCoinIcon id={`plugins-catalog-cost-icon-${plugin.id}`}/> {cost.toLocaleString()}</span>)}
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('plugins.materia.costSubtitle')}</p>
                   </div>
 
@@ -926,7 +927,7 @@ export default function GamePluginsPage() {
                           {plugin.plugin_type === "custom" && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">Admin Grant</span>)}
                           {isCancelled && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>)}
                           {!isCancelled && isExpired && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border">{t('plugins.materia.statusExpired')}</span>)}
-                          {subscription.coins_per_month > 0 && (<span className="text-[10px] text-yellow-400 font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>)}
+                          {subscription.coins_per_month > 0 && (<span className="text-[10px] text-yellow-400 font-semibold"><SCoinIcon id={`plugins-subscription-monthly-icon-${subscription.id}`}/> {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>)}
                         </div>
                         <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
                           <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3"/></span>
@@ -981,7 +982,7 @@ export default function GamePluginsPage() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>
-                            <span className="font-semibold">{subscription.coins_per_month > 0 ? `🪙 ${subscription.coins_per_month.toLocaleString()}` : "Free"}</span>
+                            <span className="font-semibold">{subscription.coins_per_month > 0 ? <><SCoinIcon id={`plugins-subscription-renew-cost-icon-${subscription.id}`}/> {subscription.coins_per_month.toLocaleString()}</> : "Free"}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Status</span>
@@ -1082,7 +1083,7 @@ export default function GamePluginsPage() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
-                            <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
+                            <span className="font-semibold">{plugin.cost_coins > 0 ? <><SCoinIcon id={`plugins-subscription-plugin-cost-icon-${subscription.id}`}/> {plugin.cost_coins.toLocaleString()}</> : "Free"}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Max stacks</span>
@@ -1139,7 +1140,7 @@ export default function GamePluginsPage() {
                           {plugin.plugin_type === "custom" && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">Admin Grant</span>)}
                           {isCancelled && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>)}
                           {isRevoked && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">{t('plugins.materia.statusRevoked')}</span>)}
-                          {subscription.coins_per_month > 0 && (<span className="text-[10px] text-muted-foreground font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>)}
+                          {subscription.coins_per_month > 0 && (<span className="text-[10px] text-muted-foreground font-semibold"><SCoinIcon id={`plugins-history-monthly-icon-${subscription.id}`}/> {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>)}
                         </div>
                         <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
                           <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3"/></span>
@@ -1175,7 +1176,7 @@ export default function GamePluginsPage() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>
-                            <span className="font-semibold">{subscription.coins_per_month > 0 ? `🪙 ${subscription.coins_per_month.toLocaleString()}` : "Free"}</span>
+                            <span className="font-semibold">{subscription.coins_per_month > 0 ? <><SCoinIcon id={`plugins-history-renew-cost-icon-${subscription.id}`}/> {subscription.coins_per_month.toLocaleString()}</> : "Free"}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Status</span>
@@ -1276,7 +1277,7 @@ export default function GamePluginsPage() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
-                            <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
+                            <span className="font-semibold">{plugin.cost_coins > 0 ? <><SCoinIcon id={`plugins-history-plugin-cost-icon-${subscription.id}`}/> {plugin.cost_coins.toLocaleString()}</> : "Free"}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Max stacks</span>
@@ -1348,7 +1349,7 @@ export default function GamePluginsPage() {
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>
-                  Costs <strong>🪙 {confirmPlugin ? getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString() : 0}</strong> {t('plugins.materia.socketConfirmCost')}
+                  Costs <strong><SCoinIcon id="plugins-socket-confirm-cost-icon"/> {confirmPlugin ? getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString() : 0}</strong> {t('plugins.materia.socketConfirmCost')}
                 </p>
                 {confirmPlugin && (<div className="rounded-xl border bg-muted/30 p-3 text-sm space-y-1.5">
                     {[
@@ -1369,7 +1370,7 @@ export default function GamePluginsPage() {
                   </div>)}
                 {confirmPlugin && walletBalance !== null && walletBalance < getSubscriptionCost(confirmPlugin, confirmStacks) && (<Alert variant="destructive">
                     <AlertDescription>
-                      You have 🪙 {walletBalance.toLocaleString()} — need 🪙 {getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString()}.{" "}
+                      You have <SCoinIcon id="plugins-socket-wallet-balance-icon"/> {walletBalance.toLocaleString()} — need <SCoinIcon id="plugins-socket-required-cost-icon"/> {getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString()}.{" "}
                       <Link href="/payment" className="underline">{t('plugins.materia.topUp')}</Link>.
                     </AlertDescription>
                   </Alert>)}

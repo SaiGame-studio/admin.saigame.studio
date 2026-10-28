@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from "@/co
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { SGemIcon } from "@/components/SGemIcon";
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -242,7 +243,7 @@ export function BuySGemTab() {
                     <div id={`sgem-package-price-row-${pkg.id}`} className="flex items-end justify-between gap-2">
                       <p id={`sgem-package-amount-${pkg.id}`} className="text-2xl font-bold tabular-nums">
                         {pkg.sgem_amount.toLocaleString()}
-                        <span className="text-sm font-normal text-muted-foreground ml-1">💎</span>
+                        <SGemIcon id={`sgem-package-amount-icon-${pkg.id}`} className="h-5 w-5 ml-1"/>
                       </p>
                       <p id={`sgem-package-price-${pkg.id}`} className="text-base font-semibold text-primary whitespace-nowrap pb-0.5">
                         {formatSgemPrice(price.amount, price.currency)}
@@ -334,7 +335,7 @@ export function BuySGemTab() {
                         {selectedPackage.name}
                       </p>
                       <p id="sgem-order-package-amount" className="text-xs text-muted-foreground">
-                        {selectedPackage.sgem_amount.toLocaleString()} 💎 sGem
+                        {selectedPackage.sgem_amount.toLocaleString()} <SGemIcon id="sgem-order-package-amount-icon" className="h-3.5 w-3.5"/> sGem
                       </p>
                     </div>
                     <p id="sgem-order-package-price" className="text-sm font-semibold text-primary shrink-0">

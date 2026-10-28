@@ -10,6 +10,8 @@ export type ShopType = 'permanent' | 'event';
 export type ShopCollectDestination = 'mailbox' | 'inventory';
 export type PurchaseLimitType = 'unlimited' | 'player' | 'global';
 export type RestockSchedule = 'none' | 'daily' | 'weekly' | 'monthly';
+/** item = inventory item currency (or legacy coin wallet); sgem = platform sGem wallet. */
+export type ShopCurrencyType = 'item' | 'sgem';
 export interface ShopDefinition {
     id: string;
     studio_id: string;
@@ -25,6 +27,7 @@ export interface ShopDefinition {
     mailbox_title?: string;
     mailbox_body?: string;
     currency_item_def_id?: string | null;
+    currency_type?: ShopCurrencyType;
     item_limit?: number | null;
     item_count?: number;
     created_at: string;
@@ -39,6 +42,8 @@ export interface ShopItem {
     description: string;
     price: number;
     currency_item_def_id?: string | null;
+    /** Per-item override; absent = inherit the shop. */
+    currency_type?: ShopCurrencyType | null;
     purchase_limit_type: PurchaseLimitType;
     purchase_limit: number;
     restock_schedule: RestockSchedule;
@@ -63,6 +68,7 @@ export interface CreateShopPayload {
     mailbox_title?: string;
     mailbox_body?: string;
     currency_item_def_id?: string;
+    currency_type?: ShopCurrencyType;
 }
 export interface UpdateShopPayload {
     name?: string;
@@ -75,6 +81,7 @@ export interface UpdateShopPayload {
     mailbox_title?: string;
     mailbox_body?: string;
     currency_item_def_id?: string | null;
+    currency_type?: ShopCurrencyType;
 }
 export interface AddShopItemPayload {
     item_def_id: string;
@@ -82,6 +89,7 @@ export interface AddShopItemPayload {
     description?: string;
     price: number;
     currency_item_def_id?: string;
+    currency_type?: ShopCurrencyType;
     purchase_limit_type: PurchaseLimitType;
     purchase_limit: number;
     restock_schedule: RestockSchedule;
@@ -96,6 +104,8 @@ export interface UpdateShopItemPayload {
     description?: string;
     price?: number;
     currency_item_def_id?: string;
+    /** "" clears the override (inherit the shop). */
+    currency_type?: ShopCurrencyType | '';
     purchase_limit_type?: PurchaseLimitType;
     purchase_limit?: number;
     restock_schedule?: RestockSchedule;

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Activity, BarChart3, Clock, MessageCircle, Database, FileText, LayoutDashboard, LogOut, Shield, ShieldCheck, Terminal, User, Users, Moon, Sun, Brush, Gamepad2, ChevronLeft, ChevronRight, Wallet, Gift, ReceiptText, Puzzle, Map, Bug, Download, BookOpen, PenSquare, } from "lucide-react";
+import { Activity, BarChart3, Clock, MessageCircle, Database, FileText, LayoutDashboard, LogOut, Shield, ShieldCheck, Terminal, User, Users, Moon, Sun, Brush, Gamepad2, ChevronLeft, ChevronRight, Wallet, Gift, ReceiptText, Puzzle, Map, Bug, Download, BookOpen, PenSquare, Rocket, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/auth-context";
@@ -159,6 +159,12 @@ export function SideNav({ mobile = false }: {
                   <Link href="/tutorials">
                     <BookOpen className="h-4 w-4 flex-shrink-0 animate-pulse"/>
                     <span className="whitespace-nowrap">{t('tutorials.title')} <span className="animate-pulse text-yellow-400 text-[10px]">&#9733;</span></span>
+                  </Link>
+                </Button>
+                <Button id="side-nav-why-sai-server-link" variant={isActive("/why-sai-server") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/why-sai-server">
+                    <Rocket className="h-4 w-4 flex-shrink-0"/>
+                    <span className="whitespace-nowrap">{t('common.whySaiServer')}</span>
                   </Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>

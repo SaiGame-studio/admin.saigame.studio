@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { activateReferralCode } from "@/lib/referral-api";
 import { fetchServerConfig } from "@/lib/server-config-api";
 import Link from "next/link";
+import { SCoinIcon } from "@/components/SCoinIcon";
 export default function StudiosPage() {
     const [studios, setStudios] = useState<Studio[]>([]);
     const [loading, setLoading] = useState(true);
@@ -94,7 +95,7 @@ export default function StudiosPage() {
           <AlertDialogTitle>{t('studio.confirmCreationTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
             {t('studio.confirmCreationDesc1')} <span className="font-semibold text-foreground">&ldquo;{newStudioName}&rdquo;</span> {t('studio.confirmCreationDesc2')}{" "}
-            <span className="font-semibold text-foreground">🪙 {STUDIO_COST} coins</span>.
+            <span className="font-semibold text-foreground"><SCoinIcon id="studio-create-confirm-cost-icon"/> {STUDIO_COST} coins</span>.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -139,7 +140,7 @@ export default function StudiosPage() {
               </Button>
             </div>
             {!atLimit && canCreate && isVerified && (<p className="text-xs text-muted-foreground">
-                {t('studio.createCostHintPt1')}<span className="text-green-500 font-medium">{t('studio.createCostHintFree')}</span>{t('studio.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {STUDIO_COST} coins</span>
+                {t('studio.createCostHintPt1')}<span className="text-green-500 font-medium">{t('studio.createCostHintFree')}</span>{t('studio.createCostHintPt2')}<span className="text-yellow-500 font-medium"><SCoinIcon id="studio-create-hint-cost-icon"/> {STUDIO_COST} coins</span>
               </p>)}
           </div>
         </div>

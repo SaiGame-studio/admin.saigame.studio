@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { getUserTimezone } from "@/lib/utils/date-utils";
+import { SGemIcon } from "@/components/SGemIcon";
+import { SCoinIcon } from "@/components/SCoinIcon";
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -261,7 +263,7 @@ function DirectTransferPageContent() {
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("directTransfer.totalScoin")}</p>
                   <p className="text-2xl font-bold">
                     {sgemPkg.sgem_amount.toLocaleString()}
-                    <span className="text-sm font-normal text-muted-foreground ml-1">💎</span>
+                    <SGemIcon id="direct-transfer-sgem-amount-icon" className="h-5 w-5 ml-1"/>
                   </p>
                 </div>
               </div>
@@ -285,7 +287,7 @@ function DirectTransferPageContent() {
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("directTransfer.totalScoin")}</p>
                   <p className="text-2xl font-bold">
                     {pkg.total_scoin.toLocaleString()}
-                    <span className="text-sm font-normal text-muted-foreground ml-1">🪙</span>
+                    <SCoinIcon id="direct-transfer-scoin-amount-icon" className="h-5 w-5 ml-1"/>
                   </p>
                   {pkg.bonus_scoin > 0 && (<p className="text-xs text-muted-foreground">
                       {pkg.base_scoin.toLocaleString()} + {pkg.bonus_scoin.toLocaleString()} bonus

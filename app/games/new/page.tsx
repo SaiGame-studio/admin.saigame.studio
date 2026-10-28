@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from "@/components/ui/alert-dialog";
+import { SCoinIcon } from "@/components/SCoinIcon";
 const GAME_COST = 5;
 function NewGameForm() {
     const router = useRouter();
@@ -142,7 +143,7 @@ function NewGameForm() {
           <AlertDialogDescription>
             Creating{" "}
             <span className="font-semibold text-foreground">&ldquo;{name}&rdquo;</span> will cost{" "}
-            <span className="font-semibold text-foreground">🪙 {GAME_COST} coins</span>. Do you want to proceed?
+            <span className="font-semibold text-foreground"><SCoinIcon id="new-game-confirm-cost-icon"/> {GAME_COST} coins</span>. Do you want to proceed?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -181,7 +182,7 @@ function NewGameForm() {
           {studioDetailLoading ? (<Skeleton className="h-1.5 w-full"/>) : selectedStudio?.limits?.max_games != null && (<Progress value={Math.min(((selectedStudio.usage?.games ?? 0) / selectedStudio.limits.max_games) * 100, 100)} className={`h-1.5 ${studioLimitReached ? "[&>div]:bg-destructive" : (selectedStudio.usage?.games ?? 0) / selectedStudio.limits.max_games >= 0.8 ? "[&>div]:bg-yellow-500" : ""}`}/>)}
           {/* Coin cost hint */}
           {!studioDetailLoading && (<p className="text-xs text-muted-foreground">
-              To exceed the limit, you need <span className="text-yellow-500 font-medium">🪙 {GAME_COST} coins</span>
+              To exceed the limit, you need <span className="text-yellow-500 font-medium"><SCoinIcon id="new-game-limit-cost-icon"/> {GAME_COST} coins</span>
             </p>)}
         </div>)}
       <Card className="max-w-2xl mx-auto">

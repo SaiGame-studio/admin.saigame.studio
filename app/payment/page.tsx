@@ -17,6 +17,8 @@ import { getUserTimezone } from "@/lib/utils/date-utils";
 import { CopyButton } from "@/components/CopyButton";
 import { BuySGemTab } from "@/components/BuySGemTab";
 import { BuyLLMTokenTab } from "@/components/BuyLLMTokenTab";
+import { SGemIcon } from "@/components/SGemIcon";
+import { SCoinIcon } from "@/components/SCoinIcon";
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -594,7 +596,7 @@ function PaymentPageContent() {
                             <div className="min-w-0">
                               <p className="text-2xl font-bold tabular-nums">
                                 {pkg.total_scoin.toLocaleString()}
-                                <span className="text-sm font-normal text-muted-foreground ml-1">🪙</span>
+                                <SCoinIcon id={`payment-scoin-package-amount-icon-${pkg.id}`} className="h-5 w-5 ml-1"/>
                               </p>
                               {pkg.bonus_scoin > 0 && (<p className="text-xs text-muted-foreground">
                                   {pkg.base_scoin.toLocaleString()} <span className="font-bold text-primary">+{pkg.bonus_scoin.toLocaleString()} {t('payment.bonusLabel')}</span>
@@ -820,7 +822,7 @@ function PaymentPageContent() {
                     }} id={tx.id}>
                           <CardContent className="flex items-center gap-2 p-3 sm:gap-4 sm:p-4">
                             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-base">
-                              {tx.currency_type === "sgem" ? "💎" : <Coins className="h-4 w-4"/>}
+                              {tx.currency_type === "sgem" ? <SGemIcon id={`payment-tx-sgem-icon-${tx.id}`} className="h-5 w-5"/> : <SCoinIcon id={`payment-tx-scoin-icon-${tx.id}`} className="h-5 w-5"/>}
                             </div>
 
                             <div className="flex-1 min-w-0">
@@ -839,7 +841,7 @@ function PaymentPageContent() {
 
                             <div className="text-right shrink-0">
                               <p className="font-semibold tabular-nums text-primary text-sm sm:text-base">
-                                +{(tx.currency_amount ?? 0).toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">{tx.currency_type === "sgem" ? "💎" : "🪙"}</span>
+                                +{(tx.currency_amount ?? 0).toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">{tx.currency_type === "sgem" ? <SGemIcon id={`payment-tx-amount-sgem-icon-${tx.id}`} className="h-4 w-4"/> : <SCoinIcon id={`payment-tx-amount-scoin-icon-${tx.id}`} className="h-4 w-4"/>}</span>
                               </p>
                               <p className="text-xs text-muted-foreground tabular-nums">
                                 {formatPrice(tx.amount, tx.currency)}
@@ -880,7 +882,7 @@ function PaymentPageContent() {
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{tx.currency_type === "sgem" ? "sGem" : "sCoin"}</p>
-                                  <p className="font-semibold text-primary">+{(tx.currency_amount ?? 0).toLocaleString()} {tx.currency_type === "sgem" ? "💎 sGem" : "🪙 sCoin"}</p>
+                                  <p className="font-semibold text-primary">+{(tx.currency_amount ?? 0).toLocaleString()} {tx.currency_type === "sgem" ? <><SGemIcon id={`payment-tx-detail-sgem-icon-${tx.id}`} className="h-4 w-4"/> sGem</> : <><SCoinIcon id={`payment-tx-detail-scoin-icon-${tx.id}`} className="h-4 w-4"/> sCoin</>}</p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailStatus')}</p>
@@ -1018,7 +1020,7 @@ function PaymentPageContent() {
                             <div id={`payment-use-sgem-amount-container-${tx.id}`} className="text-right shrink-0">
                               <p id={`payment-use-sgem-amount-${tx.id}`} className={`font-semibold tabular-nums text-sm sm:text-base ${isCredit ? "text-green-500" : "text-destructive"}`}>
                                 {isCredit ? "+" : ""}
-                                {tx.amount.toLocaleString()} 💎
+                                {tx.amount.toLocaleString()} <SGemIcon id={`payment-use-sgem-amount-icon-${tx.id}`} className="h-4 w-4"/>
                               </p>
                               <p id={`payment-use-sgem-balance-${tx.id}`} className="text-xs text-muted-foreground tabular-nums">
                                 → {tx.balance_after.toLocaleString()}
