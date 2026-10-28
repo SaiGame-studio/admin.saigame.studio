@@ -57,3 +57,4 @@ To run the application under the domain `local-server.saigame.studio`:
    - Open your browser and navigate to `http://local-server.saigame.studio:3000`
 
 Note: If you encounter certificate warnings in your browser, you can safely proceed as this is expected for local development with custom domains.
+v0.2.37
