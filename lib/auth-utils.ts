@@ -8,6 +8,11 @@ const TOKEN_KEY = 'token';
 const TOKEN_DATA_KEY = 'tokenData';
 const REFRESH_TOKEN_KEY = 'refreshToken';
 /**
+ * A token (access or refresh) with less than this much time left is treated as expired:
+ * it is never sent to the backend, and a new access token is requested instead.
+ */
+export const TOKEN_MIN_REMAINING_MS = 10 * 60 * 1000;
+/**
  * Decode JWT token to get expiration time
  * Note: This only decodes the payload, doesn't verify signature
  */
@@ -34,6 +39,26 @@ function getTokenExpiration(token: string): number | null {
         return null;
     // JWT exp is in seconds, convert to milliseconds
     return decoded.exp * 1000;
+}
+/**
+ * Get token issue time (JWT iat) in milliseconds
+ */
+function getTokenIssuedAt(token: string): number | null {
+    const decoded = decodeJWT(token);
+    if (!decoded || !decoded.iat)
+        return null;
+    return decoded.iat * 1000;
+}
+/**
+ * Moment after which a token must no longer be used.
+ * Normally TOKEN_MIN_REMAINING_MS before expiry. If the token's whole lifetime is that short
+ * or shorter, half of the lifetime is used instead so a freshly issued token is still usable.
+ */
+function getUsableUntil(token: string, expiresAt: number): number {
+    const issuedAt = getTokenIssuedAt(token);
+    const lifetime = issuedAt ? expiresAt - issuedAt : Infinity;
+    const margin = lifetime > TOKEN_MIN_REMAINING_MS ? TOKEN_MIN_REMAINING_MS : lifetime / 2;
+    return expiresAt - margin;
 }
 /**
  * Save token with expiration data and optional refresh token
@@ -75,9 +100,8 @@ export function getValidToken(): string | null {
         const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY);
         if (tokenDataStr) {
             const tokenData: TokenData = JSON.parse(tokenDataStr);
-            // Check if token is expired
-            if (Date.now() >= tokenData.expiresAt) {
-                console.log('Token has expired, refresh token preserved for renewal');
+            // Expired or about to expire: never send it, let the caller refresh instead
+            if (Date.now() >= getUsableUntil(tokenData.token, tokenData.expiresAt)) {
                 return null;
             }
             return tokenData.token;
@@ -87,8 +111,7 @@ export function getValidToken(): string | null {
         if (token) {
             // Try to check JWT expiration
             const expiresAt = getTokenExpiration(token);
-            if (expiresAt && Date.now() >= expiresAt) {
-                console.log('Legacy token has expired, refresh token preserved for renewal');
+            if (expiresAt && Date.now() >= getUsableUntil(token, expiresAt)) {
                 return null;
             }
             // If we can't determine expiration, migrate to new format
@@ -114,14 +137,14 @@ export function isTokenExpired(): boolean {
         const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY);
         if (tokenDataStr) {
             const tokenData: TokenData = JSON.parse(tokenDataStr);
-            return Date.now() >= tokenData.expiresAt;
+            return Date.now() >= getUsableUntil(tokenData.token, tokenData.expiresAt);
         }
         // Fallback to checking JWT directly
         const token = localStorage.getItem(TOKEN_KEY);
         if (token) {
             const expiresAt = getTokenExpiration(token);
             if (expiresAt) {
-                return Date.now() >= expiresAt;
+                return Date.now() >= getUsableUntil(token, expiresAt);
             }
         }
         return false;
@@ -132,21 +155,21 @@ export function isTokenExpired(): boolean {
     }
 }
 /**
- * Get time until token expires in milliseconds
+ * Get time (ms) until the token stops being usable, i.e. TOKEN_MIN_REMAINING_MS before its real expiry
  */
 export function getTimeUntilExpiration(): number | null {
     try {
         const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY);
         if (tokenDataStr) {
             const tokenData: TokenData = JSON.parse(tokenDataStr);
-            return Math.max(0, tokenData.expiresAt - Date.now());
+            return Math.max(0, getUsableUntil(tokenData.token, tokenData.expiresAt) - Date.now());
         }
         // Fallback to JWT check
         const token = localStorage.getItem(TOKEN_KEY);
         if (token) {
             const expiresAt = getTokenExpiration(token);
             if (expiresAt) {
-                return Math.max(0, expiresAt - Date.now());
+                return Math.max(0, getUsableUntil(token, expiresAt) - Date.now());
             }
         }
         return null;
@@ -165,30 +188,63 @@ export function clearToken(): void {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 /**
- * Get refresh token
+ * Forget the stored refresh token (both storage locations), keeping the access token data.
+ */
+function dropRefreshToken(): void {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY);
+    if (!tokenDataStr)
+        return;
+    const tokenData: TokenData = JSON.parse(tokenDataStr);
+    delete tokenData.refreshToken;
+    localStorage.setItem(TOKEN_DATA_KEY, JSON.stringify(tokenData));
+}
+/**
+ * Get refresh token, or null when it is missing, expired or has less than
+ * TOKEN_MIN_REMAINING_MS left (such a token is removed so it is never sent).
  */
 export function getRefreshToken(): string | null {
     try {
-        // First try to get from token data
+        // First try to get from token data, then fall back to direct storage
         const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY);
-        if (tokenDataStr) {
-            const tokenData: TokenData = JSON.parse(tokenDataStr);
-            if (tokenData.refreshToken) {
-                return tokenData.refreshToken;
-            }
+        const fromData = tokenDataStr ? (JSON.parse(tokenDataStr) as TokenData).refreshToken : undefined;
+        const refreshToken = fromData || localStorage.getItem(REFRESH_TOKEN_KEY);
+        if (!refreshToken)
+            return null;
+        const expiresAt = getTokenExpiration(refreshToken);
+        if (expiresAt && Date.now() >= expiresAt - TOKEN_MIN_REMAINING_MS) {
+            console.log('Refresh token expired or about to expire, discarding it');
+            dropRefreshToken();
+            return null;
         }
-        // Fallback to direct storage
-        return localStorage.getItem(REFRESH_TOKEN_KEY);
+        return refreshToken;
     }
     catch (error) {
         console.error('Error getting refresh token:', error);
         return null;
     }
 }
+let refreshInFlight: Promise<string | null> | null = null;
 /**
- * Refresh access token using refresh token
+ * Refresh access token using refresh token.
+ * Concurrent callers share one request, so a refresh token is never sent twice at once.
  */
-export async function refreshAccessToken(): Promise<string | null> {
+export function refreshAccessToken(): Promise<string | null> {
+    if (!refreshInFlight) {
+        refreshInFlight = requestNewAccessToken().finally(() => {
+            refreshInFlight = null;
+        });
+    }
+    return refreshInFlight;
+}
+/**
+ * Access token that is safe to send right now: the stored one if it still has more than
+ * TOKEN_MIN_REMAINING_MS left, otherwise a newly refreshed one. Null when the user must log in again.
+ */
+export async function getFreshAccessToken(): Promise<string | null> {
+    return getValidToken() ?? await refreshAccessToken();
+}
+async function requestNewAccessToken(): Promise<string | null> {
     try {
         // Without a stored refresh token, fall back to the shared SSO cookie
         // (set by the API on .saigame.studio, shared with play.saigame.studio).
@@ -233,10 +289,4 @@ export async function refreshAccessToken(): Promise<string | null> {
         clearToken();
         return null;
     }
-}
-/**
- * Get token for backward compatibility (use getValidToken instead)
- */
-export function getToken(): string | null {
-    return getValidToken();
 }

@@ -1,20 +1,12 @@
 import type { UserProfilesResponse, UserProfile } from "@/types/user-profile";
+import { authFetch } from "@/lib/api-client";
 /**
  * Fetches all user profiles (developer/player) for the current user
  * @returns Promise with array of UserProfile
  */
 export async function fetchPlayerProfiles(): Promise<UserProfile[]> {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) {
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    }
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication token not found. Please log in again.");
-    }
-    const response = await fetch(`${apiUrl}/api/v1/me/profiles`, {
+    const response = await authFetch(`/api/v1/me/profiles`, {
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
