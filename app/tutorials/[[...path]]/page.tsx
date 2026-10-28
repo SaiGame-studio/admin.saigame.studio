@@ -20,7 +20,7 @@ import { BookOpen, ChevronDown, ChevronRight, Clock, Download, ExternalLink, Eye
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { getToken } from "@/lib/auth-utils";
+import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { useTheme } from "next-themes";
@@ -76,9 +76,9 @@ function UpvoteButton({ contentId, count }: {
     const [loading, setLoading] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const { t } = useTranslation();
+    const { isAuthenticated } = useAuth();
     const handleClick = () => {
-        const token = getToken();
-        if (!token) {
+        if (!isAuthenticated) {
             window.open("/login", "_blank");
             return;
         }

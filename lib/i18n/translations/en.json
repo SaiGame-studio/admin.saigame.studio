@@ -4675,6 +4675,9 @@
         }
       }
     },
+    "closing": {
+      "message": "Join now. Become a trusted partner."
+    },
     "cta": {
       "title": "Let your team get back to making games.",
       "description": "Talk with the Sai Server team about what your game needs and claim the 6-month sponsorship.",

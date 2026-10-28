@@ -1,5 +1,4 @@
-import { api } from "@/lib/api-client";
-import { getValidToken } from "@/lib/auth-utils";
+import { api, authFetch } from "@/lib/api-client";
 
 export interface DBBackupItem {
     file_name: string;
@@ -55,17 +54,7 @@ export async function triggerDBBackup(): Promise<void> {
  * Helper to download a backup file using fetch to handle JWT Authorization
  */
 export async function downloadDBBackup(fileName: string): Promise<void> {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
-    if (!API_URL) {
-        throw new Error("API URL is not configured.");
-    }
-
-    const token = getValidToken();
-    const response = await fetch(`${API_URL}/api/v1/admin/db-backups/${encodeURIComponent(fileName)}/download`, {
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
-    });
+    const response = await authFetch(`/api/v1/admin/db-backups/${encodeURIComponent(fileName)}/download`);
 
     if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);

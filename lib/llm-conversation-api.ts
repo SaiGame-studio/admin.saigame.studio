@@ -1,5 +1,5 @@
 import { api } from '@/lib/api-client';
-import { getValidToken } from '@/lib/auth-utils';
+import { authFetch } from '@/lib/api-client';
 import type { Conversation, ListConversationsResponse, CreateConversationRequest, UpdateConversationRequest, SubmitRequestBody, SubmitRequestResponse, CreateRecordsResponse, CreateLoreRecordsResponse, RequestType, ConversationContentLink, } from '@/types/llm-conversation';
 import type { QuestDefinition } from '@/lib/quest-api';
 const base = (gameId: string) => `/api/v1/games/${gameId}/llm/conversations`;
@@ -384,16 +384,9 @@ function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedInt
     };
 }
 export async function streamDetectIntent(gameId: string, conversationId: string, userPrompt: string, history: DetectIntentHistoryEntry[], contextIds: ConversationContextIds, onChunk: (text: string) => void, onDone: (result: DetectedIntentResult, usage?: TokenUsageInfo) => void, onError: (message: string) => void): Promise<void> {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl)
-        throw new Error('API URL is not configured.');
-    const token = getValidToken();
-    if (!token)
-        throw new Error('Not authenticated.');
-    const res = await fetch(`${apiUrl}${base(gameId)}/${conversationId}/detect-intent`, {
+    const res = await authFetch(`${base(gameId)}/${conversationId}/detect-intent`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -646,12 +639,6 @@ export async function streamRequest(gameId: string, conversationId: string, requ
     request_type: string;
     response_text: string;
 }>, contextIds?: ConversationContextIds, entityType?: string, goals?: string[], generatedItems?: unknown[]): Promise<void> {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl)
-        throw new Error('API URL is not configured.');
-    const token = getValidToken();
-    if (!token)
-        throw new Error('Not authenticated.');
     const urlType = requestPathForType(requestType);
     const body: Record<string, unknown> = {
         user_prompt: userPrompt,
@@ -674,10 +661,9 @@ export async function streamRequest(gameId: string, conversationId: string, requ
     if (requestHistory && requestHistory.length > 0) {
         body.request_history = requestHistory;
     }
-    const res = await fetch(`${apiUrl}${base(gameId)}/${conversationId}/requests/${urlType}`, {
+    const res = await authFetch(`${base(gameId)}/${conversationId}/requests/${urlType}`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),

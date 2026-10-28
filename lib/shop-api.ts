@@ -1,5 +1,5 @@
 import { ApiResponse } from "@/types/game";
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { authFetch } from "@/lib/api-client";
 export interface Shop {
     id: string;
     name: string;
@@ -11,15 +11,8 @@ export interface Shop {
     currency_id: string;
 }
 export async function fetchGameShops(gameId: string): Promise<Shop[]> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/games/${gameId}/shops`, {
+    const res = await authFetch(`/api/games/${gameId}/shops`, {
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "application/json",
         },
     });
@@ -30,16 +23,10 @@ export async function fetchGameShops(gameId: string): Promise<Shop[]> {
 }
 export async function createShop(gameId: string, shopData: {
     name: string;
-}, token?: string) {
-    token = token || localStorage.getItem("token") || undefined;
-    if (!token)
-        throw new Error("Authentication required");
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/games/${gameId}/shops`, {
+}, _token?: string) {
+    const res = await authFetch(`/api/games/${gameId}/shops`, {
         method: "POST",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -53,15 +40,8 @@ export async function createShop(gameId: string, shopData: {
     return data.data;
 }
 export async function fetchShop(shopId: string) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/shops/${shopId}`, {
+    const res = await authFetch(`/api/shops/${shopId}`, {
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "application/json",
         },
     });
@@ -75,16 +55,9 @@ export async function updateShop(shopId: string, updateData: {
     currency_id?: string;
     code_name?: string;
 }) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/shops/${shopId}`, {
+    const res = await authFetch(`/api/shops/${shopId}`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -102,16 +75,9 @@ export async function updateShopItemPrice(shopId: string, itemProfileId: string,
     price_old?: number;
     currency_id?: string | null;
 }) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/shops/${shopId}/item-profiles/${itemProfileId}`, {
+    const res = await authFetch(`/api/shops/${shopId}/item-profiles/${itemProfileId}`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -129,16 +95,9 @@ export async function addItemToShop(shopId: string, itemProfileId: string, data:
     price_old?: number;
     currency_id?: string | null;
 }) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/shops/${shopId}/item-profiles/${itemProfileId}`, {
+    const res = await authFetch(`/api/shops/${shopId}/item-profiles/${itemProfileId}`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -152,16 +111,9 @@ export async function addItemToShop(shopId: string, itemProfileId: string, data:
     return responseData.data;
 }
 export async function removeItemFromShop(shopId: string, itemProfileId: string) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/shops/${shopId}/item-profiles/${itemProfileId}`, {
+    const res = await authFetch(`/api/shops/${shopId}/item-profiles/${itemProfileId}`, {
         method: "DELETE",
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "application/json",
         },
     });

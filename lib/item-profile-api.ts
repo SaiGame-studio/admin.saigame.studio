@@ -1,5 +1,5 @@
 import { ApiResponse } from "@/types/game";
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { authFetch } from "@/lib/api-client";
 export interface ItemProfile {
     id: string;
     name: string;
@@ -20,12 +20,6 @@ export interface ItemProfile {
     created_at: number;
 }
 export async function fetchGameItemProfiles(gameId: string, name?: string): Promise<ItemProfile[]> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
     // Build query parameters
     const params = new URLSearchParams({
         limit: '50',
@@ -34,9 +28,8 @@ export async function fetchGameItemProfiles(gameId: string, name?: string): Prom
     if (name && name.trim()) {
         params.set('name', name.trim());
     }
-    const res = await fetch(`${API_URL}/api/v1/games/${gameId}/items?${params.toString()}`, {
+    const res = await authFetch(`/api/v1/games/${gameId}/items?${params.toString()}`, {
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "application/json",
         },
     });
@@ -55,16 +48,9 @@ export async function createItemProfile(gameId: string, profileData: {
     stack_limit?: number;
     custom_data?: Record<string, any>;
 }) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/games/${gameId}/item-profiles`, {
+    const res = await authFetch(`/api/games/${gameId}/item-profiles`, {
         method: "POST",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -78,15 +64,8 @@ export async function createItemProfile(gameId: string, profileData: {
     return data.data;
 }
 export async function fetchItemProfile(profileId: string): Promise<ItemProfile> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/item-profiles/${profileId}`, {
+    const res = await authFetch(`/api/item-profiles/${profileId}`, {
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "application/json",
         },
     });
@@ -109,16 +88,9 @@ export async function updateItemProfile(profileId: string, updateData: {
     description?: string;
     custom_data?: Record<string, any>;
 }) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/item-profiles/${profileId}`, {
+    const res = await authFetch(`/api/item-profiles/${profileId}`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -132,16 +104,9 @@ export async function updateItemProfile(profileId: string, updateData: {
     return data.data;
 }
 export async function updateItemProfileCustomData(profileId: string, customData: Record<string, any>) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/item-profiles/${profileId}/custom-data`, {
+    const res = await authFetch(`/api/item-profiles/${profileId}/custom-data`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -155,16 +120,9 @@ export async function updateItemProfileCustomData(profileId: string, customData:
     return data.data;
 }
 export async function deleteItemProfile(profileId: string) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/item-profiles/${profileId}`, {
+    const res = await authFetch(`/api/item-profiles/${profileId}`, {
         method: "DELETE",
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "application/json",
         },
     });
@@ -175,16 +133,9 @@ export async function deleteItemProfile(profileId: string) {
     return true;
 }
 export async function updateItemProfileStatus(itemProfileId: string, status: string): Promise<ItemProfile> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/status`, {
+    const res = await authFetch(`/api/item-profiles/${itemProfileId}/status`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({ status }),
@@ -196,15 +147,8 @@ export async function updateItemProfileStatus(itemProfileId: string, status: str
 }
 // Inventory API functions
 export async function getInventoryItemProfiles(inventoryProfileId: string): Promise<ItemProfile[]> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/inventories/${inventoryProfileId}/item-profiles`, {
+    const res = await authFetch(`/api/inventories/${inventoryProfileId}/item-profiles`, {
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "application/json",
         },
     });
@@ -216,16 +160,9 @@ export async function getInventoryItemProfiles(inventoryProfileId: string): Prom
     return data.data || [];
 }
 export async function addItemToInventory(inventoryProfileId: string, itemProfileIds: string[]) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/inventories/${inventoryProfileId}/item-profiles`, {
+    const res = await authFetch(`/api/inventories/${inventoryProfileId}/item-profiles`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -242,16 +179,9 @@ export async function addItemToInventory(inventoryProfileId: string, itemProfile
     return data.data;
 }
 export async function removeItemFromInventory(inventoryProfileId: string, itemProfileIds: string[]) {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/inventories/${inventoryProfileId}/item-profiles`, {
+    const res = await authFetch(`/api/inventories/${inventoryProfileId}/item-profiles`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -269,12 +199,6 @@ export async function removeItemFromInventory(inventoryProfileId: string, itemPr
 }
 // Get all inventory profiles for a game
 export async function getGameInventoryProfiles(gameId: string): Promise<ItemProfile[]> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
     // Get all item profiles for the game and filter for inventory type
     const allItems = await fetchGameItemProfiles(gameId);
     return allItems.filter(item => item.type === 'inventory');
@@ -316,16 +240,9 @@ export interface UpdateLootboxRequest {
  * Fetch all items in a fixed loot box
  */
 export async function fetchFixedLootboxItems(lootboxProfileId: string): Promise<LootboxItemDetail[]> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/loot-box-fixed/${lootboxProfileId}/item-profiles`, {
+    const res = await authFetch(`/api/loot-box-fixed/${lootboxProfileId}/item-profiles`, {
         method: "GET",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
         },
     });
@@ -338,16 +255,9 @@ export async function fetchFixedLootboxItems(lootboxProfileId: string): Promise<
  * Update loot box items (add/remove)
  */
 export async function updateLootboxItems(lootboxProfileId: string, request: UpdateLootboxRequest): Promise<any> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/loot-box-fixed/${lootboxProfileId}/item-profiles`, {
+    const res = await authFetch(`/api/loot-box-fixed/${lootboxProfileId}/item-profiles`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
         },
         body: JSON.stringify(request),
@@ -409,16 +319,9 @@ export interface UpdatePropertyRequest {
  * Fetch all properties for an item profile
  */
 export async function getItemProfileProperties(itemProfileId: string): Promise<ItemProperty[]> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/properties`, {
+    const res = await authFetch(`/api/item-profiles/${itemProfileId}/properties`, {
         method: "GET",
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "application/json",
         },
     });
@@ -433,16 +336,9 @@ export async function getItemProfileProperties(itemProfileId: string): Promise<I
  * Create a new property for an item profile
  */
 export async function createItemProfileProperty(itemProfileId: string, propertyData: CreatePropertyRequest): Promise<ItemProperty> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/properties`, {
+    const res = await authFetch(`/api/item-profiles/${itemProfileId}/properties`, {
         method: "POST",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -459,16 +355,9 @@ export async function createItemProfileProperty(itemProfileId: string, propertyD
  * Update an existing property
  */
 export async function updateItemProfileProperty(itemProfileId: string, propertyId: string, propertyData: UpdatePropertyRequest): Promise<ItemProperty> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/properties/${propertyId}`, {
+    const res = await authFetch(`/api/item-profiles/${itemProfileId}/properties/${propertyId}`, {
         method: "PUT",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
         },
@@ -485,16 +374,9 @@ export async function updateItemProfileProperty(itemProfileId: string, propertyI
  * Delete a property
  */
 export async function deleteItemProfileProperty(itemProfileId: string, propertyId: string): Promise<boolean> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/properties/${propertyId}`, {
+    const res = await authFetch(`/api/item-profiles/${itemProfileId}/properties/${propertyId}`, {
         method: "DELETE",
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "application/json",
         },
     });
@@ -552,16 +434,9 @@ export interface UpdateRngLootboxRequest {
  * Fetch all items in an RNG loot box
  */
 export async function fetchRngLootboxItems(lootboxProfileId: string): Promise<RngLootboxItemDetail[]> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
-    const res = await fetch(`${API_URL}/api/loot-box-rng/${lootboxProfileId}/item-profiles`, {
+    const res = await authFetch(`/api/loot-box-rng/${lootboxProfileId}/item-profiles`, {
         method: "GET",
         headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
         },
     });
@@ -596,12 +471,6 @@ function validateRngLootboxItem(item: RngLootboxItem): void {
  * Update RNG loot box items (add/remove)
  */
 export async function updateRngLootboxItems(lootboxProfileId: string, request: UpdateRngLootboxRequest): Promise<any> {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        throw new Error("Authentication required");
-    }
-    if (!API_URL)
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
     // Validate request data
     for (const item of request.add) {
         validateRngLootboxItem(item);
@@ -617,14 +486,13 @@ export async function updateRngLootboxItems(lootboxProfileId: string, request: U
         remove: request.remove
     };
     // Debug logging
-    const requestUrl = `${API_URL}/api/loot-box-rng/${lootboxProfileId}/item-profiles`;
+    const requestUrl = `/api/loot-box-rng/${lootboxProfileId}/item-profiles`;
     const requestHeaders = {
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         "Accept": "application/json", // Explicit Accept header
         "User-Agent": "Mozilla/5.0 (compatible; Admin-Panel)" // Add User-Agent
     };
-    const res = await fetch(requestUrl, {
+    const res = await authFetch(requestUrl, {
         method: "PUT",
         headers: requestHeaders,
         body: JSON.stringify(apiRequest),

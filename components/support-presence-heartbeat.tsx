@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { getValidToken } from "@/lib/auth-utils";
+import { authFetch } from "@/lib/api-client";
 import { useAuth } from "@/contexts/auth-context";
 import { useCapabilities } from "@/hooks/use-capabilities";
 
@@ -22,10 +22,9 @@ export function SupportPresenceHeartbeat() {
 
   useEffect(() => {
     if (!API_URL || isLoading) return;
-    const send = () => {
-      const token = getValidToken();
+    const send = async () => {
       const visitorID = getPersistentVisitorID();
-      return void fetch(`${API_URL}/api/v1/support/presence/heartbeat`, { method: "POST", credentials: "include", headers: { "X-Support-Visitor-ID": visitorID, ...(is_super_admin ? { "X-Support-Hide-Presence": "1" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
+      return void authFetch("/api/v1/support/presence/heartbeat", { auth: "optional", method: "POST", credentials: "include", headers: { "X-Support-Visitor-ID": visitorID, ...(is_super_admin ? { "X-Support-Hide-Presence": "1" } : {}) } })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
         if (!data) return;

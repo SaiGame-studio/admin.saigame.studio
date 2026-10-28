@@ -117,8 +117,7 @@ function NewGameForm() {
         try {
             setSubmitting(true);
             setError(null);
-            const token = localStorage.getItem("token") || "";
-            const newGame = await createGame(studioId, { name, status: "development" }, token);
+            const newGame = await createGame(studioId, { name, status: "development" });
             // Refresh coin balance so the float text shows the deduction (if any)
             window.dispatchEvent(new Event("wallet:refresh"));
             if (newGame && newGame.id) {

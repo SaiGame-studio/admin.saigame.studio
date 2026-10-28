@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useRouter, usePathname } from "next/navigation";
 import { getValidToken, saveToken, clearToken, isTokenExpired, getTimeUntilExpiration, refreshAccessToken } from "@/lib/auth-utils";
 import { fetchUserProfile } from "@/lib/api";
+import { authFetch } from "@/lib/api-client";
 import { safeSetItem, safeRemoveItem } from "@/lib/storage-utils";
 import { toast } from "@/hooks/use-toast";
 import { getCurrentRelativeUrl, getLoginUrl, getReturnToFromLocation } from "@/lib/auth-redirect";
@@ -49,15 +50,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * Best-effort server logout so the shared SSO cookie is cleared for every *.saigame.studio site.
  */
 async function revokeSharedSession() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    const token = getValidToken();
-    if (!apiUrl || !token) {
+    if (!getValidToken()) {
         return;
     }
     try {
-        await fetch(`${apiUrl}/api/v1/auth/logout`, {
+        await authFetch("/api/v1/auth/logout", {
             method: "POST",
-            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            headers: { Accept: "application/json" },
             credentials: "include",
         });
     }
