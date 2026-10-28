@@ -4452,7 +4452,8 @@
     "close": "Close support chat",
     "send": "Send message",
     "open": "Open support chat",
-    "newMessages": "{count} new messages"
+    "newMessages": "{count} new messages",
+    "empty": "Send us a message and the Sai Server team will reply right here."
   },
   "supportAdmin": {
     "deleteButton": "Delete conversation",
@@ -4561,6 +4562,8 @@
       "eyebrow": "Features",
       "title": "One platform for the whole LiveOps lifecycle.",
       "description": "Everything is built on one concept: the Item Definition. Weapons, currencies, characters, chests and gacha keys are all items, so every system fits together from day one.",
+      "screenshotAlt": "Sai Server web admin showing a game's Item Catalogue and feature tabs",
+      "screenshotCaption": "Every feature lives in one web admin: items, gacha, shops, crafting, quests, leaderboards and more, all editable without rebuilding the game.",
       "groups": {
         "players": "01 — Players & data",
         "economy": "02 — Economy & items",
@@ -4620,6 +4623,9 @@
     "integration": {
       "eyebrow": "Integration",
       "title": "Three steps to connect your game.",
+      "screenshotAlt": "Unity Editor with the SaiServer component connected to Sai Server",
+      "screenshotZoom": "Click to enlarge",
+      "screenshotCaption": "SaiServer in the Unity Inspector: set the endpoint and game ID, press Play, and the Console shows the player logged in and data loaded.",
       "steps": {
         "studio": {
           "title": "Create a studio and game",
@@ -4639,6 +4645,8 @@
       "eyebrow": "Server-side Lua scripting",
       "title": "Your game's own logic, running on the server.",
       "description": "When your game needs something that isn't built in — a combat system, special rewards, a damage formula — your team writes Lua right in the web editor. Scripts work directly with the player's items, gacha, presets, equipment and battle sessions.",
+      "screenshotAlt": "Lua Script Manager in the Unity Editor with the list of loaded server scripts",
+      "screenshotCaption": "Lua Script Manager in Unity: create a script from a template, then upload each .lua file to Sai Server with one click.",
       "points": {
         "templates": "A template library, from Hello World to a complete battle.",
         "sandbox": "Runs in a sandbox limited to 500 ms per execution, keeping the server safe.",
@@ -4670,6 +4678,7 @@
     "cta": {
       "title": "Let your team get back to making games.",
       "description": "Talk with the Sai Server team about what your game needs and claim the 6-month sponsorship.",
+      "chat": "Chat to us now",
       "discord": "Talk to us on Discord",
       "createStudio": "Create your studio",
       "tutorials": "Learning Center"

@@ -4409,7 +4409,8 @@
     "close": "サポートチャットを閉じる",
     "send": "メッセージを送信",
     "open": "サポートチャットを開く",
-    "newMessages": "新しいメッセージ {count} 件"
+    "newMessages": "新しいメッセージ {count} 件",
+    "empty": "メッセージを送ってください。Sai Server チームがここで返信します。"
   },
   "supportAdmin": {
     "deleteButton": "会話を削除",
@@ -4518,6 +4519,8 @@
       "eyebrow": "機能",
       "title": "LiveOpsのライフサイクル全体を1つのプラットフォームで。",
       "description": "すべては「Item Definition」という1つの概念の上に成り立っています。武器、通貨、キャラクター、宝箱、ガチャの鍵もすべてアイテムなので、各システムが最初からかみ合います。",
+      "screenshotAlt": "ゲームのアイテムカタログと機能タブを表示した Sai Server の Web 管理画面",
+      "screenshotCaption": "すべての機能が 1 つの Web 管理画面に：アイテム、ガチャ、ショップ、クラフト、クエスト、リーダーボードなどを、ゲームを再ビルドせずに編集できます。",
       "groups": {
         "players": "01 — プレイヤーとデータ",
         "economy": "02 — 経済とアイテム",
@@ -4577,6 +4580,9 @@
     "integration": {
       "eyebrow": "導入",
       "title": "3ステップでゲームをサーバーに接続。",
+      "screenshotAlt": "Sai Server に接続された SaiServer コンポーネントを表示した Unity エディター",
+      "screenshotZoom": "クリックで拡大",
+      "screenshotCaption": "Unity の Inspector にある SaiServer：エンドポイントとゲーム ID を設定して Play を押すと、Console にログインとデータ読み込みの完了が表示されます。",
       "steps": {
         "studio": {
           "title": "スタジオとゲームを作成",
@@ -4596,6 +4602,8 @@
       "eyebrow": "サーバーサイドLuaスクリプト",
       "title": "ゲーム独自のロジックを、サーバーで。",
       "description": "戦闘システム、特別な報酬、ダメージ計算式など、標準機能にないものが必要なときは、Webエディターで直接Luaを書けます。スクリプトからプレイヤーのアイテム、ガチャ、プリセット、装備、バトルセッションを直接扱えます。",
+      "screenshotAlt": "Unity エディターの Lua Script Manager と読み込まれたサーバースクリプトの一覧",
+      "screenshotCaption": "Unity の Lua Script Manager：テンプレートからスクリプトを作成し、各 .lua ファイルをワンクリックで Sai Server にアップロードします。",
       "points": {
         "templates": "Hello Worldから完全なバトルまで、テンプレートライブラリを用意。",
         "sandbox": "1回あたり500msに制限されたサンドボックスで実行され、サーバーを安全に保ちます。",
@@ -4627,6 +4635,7 @@
     "cta": {
       "title": "チームをゲーム作りに戻しましょう。",
       "description": "ゲームに必要なことをSai Serverチームにご相談ください。6か月スポンサーについてもご案内します。",
+      "chat": "今すぐチャットで相談",
       "discord": "Discordで相談する",
       "createStudio": "スタジオを作成",
       "tutorials": "Learning Center"

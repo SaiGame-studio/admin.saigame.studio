@@ -1,12 +1,15 @@
 "use client";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { SectionHeading, toKebabCase } from "./section-heading";
+import { ZoomableImage } from "./zoomable-image";
 
 const FEATURE_GROUPS = [
     { key: "players", items: ["auth", "cloudSave", "mailbox"] },
     { key: "economy", items: ["inventory", "gacha", "shop", "crafting", "generator", "loadouts"] },
     { key: "retention", items: ["quests", "leaderboards", "analytics"] },
 ];
+// Web admin: a game's Item Catalogue with the feature tabs (Items, Gacha, Shops, Crafting, ...).
+const GAME_DETAIL_IMAGE = { src: "/why-sai-server/game-detail.jpg", width: 1529, height: 747 };
 
 export function FeaturesSection() {
     const { t } = useTranslation();
@@ -23,5 +26,6 @@ export function FeaturesSection() {
               </div>))}
           </div>
         </div>))}
+      <ZoomableImage id="why-sai-server-features-screenshot" className="mx-auto mt-12 max-w-5xl" sizes="(min-width: 1024px) 1024px, 100vw" {...GAME_DETAIL_IMAGE} alt={t("whySaiServer.features.screenshotAlt")} caption={t("whySaiServer.features.screenshotCaption")} zoomLabel={t("whySaiServer.integration.screenshotZoom")}/>
     </section>);
 }

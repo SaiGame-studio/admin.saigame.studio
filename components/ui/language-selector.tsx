@@ -62,8 +62,10 @@ const languages = [
 interface LanguageSelectorProps {
     compact?: boolean;
     fullWidth?: boolean;
+    /** Bigger flag, e.g. for the collapsed sidebar where only the flag is shown. */
+    largeFlag?: boolean;
 }
-export function LanguageSelector({ compact = false, fullWidth = false }: LanguageSelectorProps) {
+export function LanguageSelector({ compact = false, fullWidth = false, largeFlag = false }: LanguageSelectorProps) {
     const { locale, setLocale } = useLanguage();
     const currentLanguage = languages.find(lang => lang.code === locale);
     const handleLanguageChange = (value: string) => {
@@ -77,12 +79,12 @@ export function LanguageSelector({ compact = false, fullWidth = false }: Languag
         return "w-[180px]";
     };
     return (<Select value={locale} onValueChange={handleLanguageChange}>
-      <SelectTrigger className={getWidth()}>
+      <SelectTrigger className={`${getWidth()} ${largeFlag ? "h-10 justify-center gap-1 px-1" : ""}`}>
         <SelectValue placeholder="Select language">
           {currentLanguage && (<div className="flex items-center gap-3">
               <ReactCountryFlag countryCode={currentLanguage.countryCode} svg style={{
-                width: '1.25em',
-                height: '1.25em',
+                width: largeFlag ? '1.75em' : '1.25em',
+                height: largeFlag ? '1.75em' : '1.25em',
             }} title={currentLanguage.name}/>
               {!compact && (<div className="flex flex-col text-left">
                   <span className="text-sm font-medium">{currentLanguage.nativeName}</span>
