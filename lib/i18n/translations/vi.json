@@ -4700,6 +4700,9 @@
         }
       }
     },
+    "closing": {
+      "message": "Tham gia ngay. Trở thành đối tác tin cậy."
+    },
     "cta": {
       "title": "Để đội của bạn quay lại làm game.",
       "description": "Trao đổi với đội Sai Server về những gì game của bạn cần và nhận gói tài trợ 6 tháng.",
