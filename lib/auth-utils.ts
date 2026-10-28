@@ -1,3 +1,4 @@
+import { CLIENT_ID, CLIENT_ID_HEADER } from './client-id';
 // Token management utilities with expiration support
 interface TokenData {
     token: string;
@@ -260,6 +261,7 @@ async function requestNewAccessToken(): Promise<string | null> {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
+                [CLIENT_ID_HEADER]: CLIENT_ID,
             },
             credentials: 'include',
             body: refreshToken ? JSON.stringify({ refresh_token: refreshToken }) : undefined,
