@@ -73,6 +73,7 @@
     "roadmap": "Roadmap",
     "discordSupport": "Discord Support",
     "bugReport": "Bug Report",
+    "whySaiServer": "Why Sai Server",
     "saved": "Saved",
     "deleted": "Deleted",
     "added": "Added",
@@ -4500,5 +4501,178 @@
   },
   "playerGameData": {
     "size": "Size"
+  },
+  "whySaiServer": {
+    "hero": {
+      "eyebrow": "Backend-as-a-Service for Unity games",
+      "title": "Code Games, Not Infra.",
+      "subtitle": "Your team builds the game. Sai Server runs the backend.",
+      "description": "Accounts, cloud save, inventory, in-game economy, quests, leaderboards, analytics and server-side Lua logic — prebuilt, managed from one web admin, and plugged into Unity with a single prefab.",
+      "ctaOffer": "Get 6 months of sponsored infrastructure",
+      "ctaTutorials": "Open the Learning Center",
+      "tags": "Unity 6+ · Web admin · REST API · Server-side Lua scripting",
+      "servicesLabel": "Services — already wired"
+    },
+    "value": {
+      "eyebrow": "For studio leadership",
+      "title": "Backend isn't your studio's competitive edge. Gameplay is.",
+      "description": "Every week your team spends building login, wallets or inventory is a week not spent on the player experience. Sai Server carries that infrastructure for you.",
+      "items": {
+        "cost": {
+          "title": "Cut backend build costs",
+          "desc": "Auth, database, wallets and inventory are already built. Put your headcount budget into gameplay and content instead of infrastructure."
+        },
+        "speed": {
+          "title": "Ship sooner",
+          "desc": "Instead of spending months building auth or payment pipelines, your team calls existing functions and sees results right away in Play Mode. Our goal: move your project up to 5x faster."
+        },
+        "safety": {
+          "title": "A safe in-game economy",
+          "desc": "Every transaction is validated on the server. Idempotency keys stop double charges and double gacha opens when the network is unstable."
+        }
+      }
+    },
+    "offer": {
+      "eyebrow": "Sponsorship program",
+      "title": "6 months.\nZero infrastructure cost.",
+      "description": "Sai Server is built to bring your studio's backend development cost down to zero.",
+      "points": {
+        "sponsorship": "100% sponsorship of backend engineering and infrastructure for 6 months.",
+        "infra": "100% free infrastructure: all server resources and databases needed to build your game.",
+        "lua": "Built-in Lua scripting, so your team can implement backend game logic without building a backend from scratch."
+      },
+      "pricingTitle": "A clear cost model",
+      "pricing": {
+        "oneTime": {
+          "title": "Studios, teams, games: pay once",
+          "desc": "One-time payment in sCoin, with no monthly fee for how many you create. Your first studio is free."
+        },
+        "perGame": {
+          "title": "Advanced features: per game",
+          "desc": "Subscription tiers raise quotas and unlock features such as Leaderboards. Pay only for the games that need them."
+        },
+        "scale": {
+          "title": "Start now, upgrade as you grow",
+          "desc": "Prototype on the default plan, then expand players and content when you're ready to launch."
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Features",
+      "title": "One platform for the whole LiveOps lifecycle.",
+      "description": "Everything is built on one concept: the Item Definition. Weapons, currencies, characters, chests and gacha keys are all items, so every system fits together from day one.",
+      "groups": {
+        "players": "01 — Players & data",
+        "economy": "02 — Economy & items",
+        "retention": "03 — Retention & insight"
+      },
+      "items": {
+        "auth": {
+          "title": "Accounts & sign-in",
+          "desc": "Register, log in, refresh tokens and Google login. One account across every game."
+        },
+        "cloudSave": {
+          "title": "Cross-platform cloud save",
+          "desc": "Progress lives on the server, so players continue on Android, iOS, PC or console. Free-form JSON data with delta updates."
+        },
+        "mailbox": {
+          "title": "Mailbox",
+          "desc": "Send gifts, compensation and event rewards with item attachments. Players claim them, which stays safe even when their inventory is full."
+        },
+        "inventory": {
+          "title": "Grid inventory & containers",
+          "desc": "Main inventory, vaults and custom chests up to 1,000 cells. Move, split, merge and swap, with every action validated by the server."
+        },
+        "gacha": {
+          "title": "Gacha / Lootbox",
+          "desc": "Weighted pools, Min/Max quantities and key requirements. Every open is an atomic transaction."
+        },
+        "shop": {
+          "title": "Shop",
+          "desc": "Permanent or event shops, any item as currency, per-player or global purchase limits, and restocks."
+        },
+        "crafting": {
+          "title": "Crafting",
+          "desc": "Recipes with consumed or kept materials, main and bonus rates, and Min/Max outputs."
+        },
+        "generator": {
+          "title": "Item Generator",
+          "desc": "Resources produced over time for idle mechanics: gold mines, farms, factories."
+        },
+        "loadouts": {
+          "title": "Equipment, squads & decks",
+          "desc": "Equipment slots with item restrictions, presets for squads, parties and decks, and tags to group and filter items."
+        },
+        "quests": {
+          "title": "Quests",
+          "desc": "One-time and daily quests, branching quest chains on a story graph, and daily pools by weight or weekly schedule."
+        },
+        "leaderboards": {
+          "title": "Seasonal leaderboards",
+          "desc": "Sum, Max, Min or Latest scoring, automatic daily, weekly or monthly resets, and archived seasons."
+        },
+        "analytics": {
+          "title": "Analytics & journeys",
+          "desc": "Send events from your game and map them into player journeys to see funnels, drop-off points and economy flow."
+        }
+      }
+    },
+    "integration": {
+      "eyebrow": "Integration",
+      "title": "Three steps to connect your game.",
+      "steps": {
+        "studio": {
+          "title": "Create a studio and game",
+          "desc": "In the web admin, create a studio, a team and a game, then copy the Game ID. Invite teammates by User ID."
+        },
+        "unity": {
+          "title": "Drop the prefab into Unity",
+          "desc": "Import the Unity package and drag the SaiServer prefab into your scene. Auth, items, quests, battle and more are already wired inside."
+        },
+        "configure": {
+          "title": "Configure and test",
+          "desc": "Paste the Game ID and click Test Connection. Configure content in the admin and test right away in Play Mode with the built-in Inspector buttons."
+        }
+      }
+    },
+    "lua": {
+      "eyebrow": "Server-side Lua scripting",
+      "title": "Your game's own logic, running on the server.",
+      "description": "When your game needs something that isn't built in — a combat system, special rewards, a damage formula — your team writes Lua right in the web editor. Scripts work directly with the player's items, gacha, presets, equipment and battle sessions.",
+      "points": {
+        "templates": "A template library, from Hello World to a complete battle.",
+        "sandbox": "Runs in a sandbox limited to 500 ms per execution, keeping the server safe.",
+        "unity": "Called from Unity with one component; the script name is the trigger keyword."
+      }
+    },
+    "trust": {
+      "eyebrow": "Reliability",
+      "title": "Built for a serious in-game economy.",
+      "items": {
+        "server": {
+          "title": "The server decides",
+          "desc": "Full bags, occupied cells, missing materials, expired shops: the server rejects the request with a clear error. The client never edits data on its own."
+        },
+        "idempotency": {
+          "title": "No double transactions",
+          "desc": "Purchases, crafting and gacha opens use idempotency keys: resend the same request and the server returns the original result instead of running it again."
+        },
+        "odds": {
+          "title": "Transparent odds",
+          "desc": "Probability = weight / total weight, applied the same way to gacha, quest pools and enemy pools."
+        },
+        "liveops": {
+          "title": "Run it from the web admin",
+          "desc": "Your LiveOps team views player profiles, sends gifts, opens seasons and edits shops without rebuilding the game."
+        }
+      }
+    },
+    "cta": {
+      "title": "Let your team get back to making games.",
+      "description": "Talk with the Sai Server team about what your game needs and claim the 6-month sponsorship.",
+      "discord": "Talk to us on Discord",
+      "createStudio": "Create your studio",
+      "tutorials": "Learning Center"
+    }
   }
 }

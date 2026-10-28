@@ -11,7 +11,7 @@ export function ProtectedLayout({ children }: {
     const { isAuthenticated, isLoading } = useAuth();
     const pathname = usePathname();
     const isAuthPage = ["/login", "/register", "/forgot-password", "/reset-password", "/google-login-success"].includes(pathname);
-    const isPublicPage = pathname.startsWith("/tutorials");
+    const isPublicPage = pathname.startsWith("/tutorials") || pathname.startsWith("/why-sai-server");
     if (isLoading && !isPublicPage) {
         return (<div className="flex h-screen w-full items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"/>

@@ -73,6 +73,7 @@
     "roadmap": "Lộ trình",
     "discordSupport": "Hỗ trợ Discord",
     "bugReport": "Báo lỗi",
+    "whySaiServer": "Sai Server là gì?",
     "saved": "Đã lưu",
     "deleted": "Đã xóa",
     "added": "Đã thêm",
@@ -4525,5 +4526,178 @@
   },
   "playerGameData": {
     "size": "Dung lượng"
+  },
+  "whySaiServer": {
+    "hero": {
+      "eyebrow": "Backend-as-a-Service cho game Unity",
+      "title": "Code Games, Not Infra.",
+      "subtitle": "Đội của bạn làm game. Sai Server lo phần backend.",
+      "description": "Tài khoản, cloud save, inventory, kinh tế trong game, nhiệm vụ, bảng xếp hạng, analytics và logic phía server bằng Lua — dựng sẵn, quản lý trên một trang admin, gắn vào Unity bằng một prefab.",
+      "ctaOffer": "Nhận 6 tháng tài trợ hạ tầng",
+      "ctaTutorials": "Xem Learning Center",
+      "tags": "Unity 6+ · Web admin · REST API · Lua scripting phía server",
+      "servicesLabel": "Services — đã nối sẵn"
+    },
+    "value": {
+      "eyebrow": "Dành cho ban lãnh đạo studio",
+      "title": "Backend không phải lợi thế cạnh tranh của studio. Gameplay mới là.",
+      "description": "Mỗi tuần đội của bạn dựng hệ thống đăng nhập, ví hay inventory là một tuần không dành cho trải nghiệm người chơi. Sai Server gánh phần hạ tầng đó.",
+      "items": {
+        "cost": {
+          "title": "Cắt chi phí xây backend",
+          "desc": "Auth, database, ví và inventory đã được dựng sẵn. Ngân sách nhân sự dồn vào gameplay và nội dung thay vì hạ tầng."
+        },
+        "speed": {
+          "title": "Ra mắt nhanh hơn",
+          "desc": "Thay vì mất nhiều tháng dựng Auth hay pipeline thanh toán, đội gọi hàm có sẵn và thấy kết quả ngay trong Play Mode. Mục tiêu của chúng tôi: tăng tốc tiến độ gấp 5 lần."
+        },
+        "safety": {
+          "title": "Kinh tế game an toàn",
+          "desc": "Mọi giao dịch được kiểm tra ở server. Idempotency key chống trừ tiền hay mở gacha hai lần khi mạng chập chờn."
+        }
+      }
+    },
+    "offer": {
+      "eyebrow": "Chương trình tài trợ",
+      "title": "6 tháng.\n0 đồng chi phí hạ tầng.",
+      "description": "Sai Server được xây để đưa chi phí phát triển backend của studio về 0.",
+      "points": {
+        "sponsorship": "Tài trợ 100% kỹ thuật backend và hạ tầng trong 6 tháng.",
+        "infra": "Hạ tầng miễn phí 100%: toàn bộ server và database cần để xây game.",
+        "lua": "Lua scripting tích hợp sẵn để đội tự viết logic backend mà không phải dựng server từ đầu."
+      },
+      "pricingTitle": "Mô hình chi phí rõ ràng",
+      "pricing": {
+        "oneTime": {
+          "title": "Studio, Team, Game: trả một lần",
+          "desc": "Thanh toán một lần bằng sCoin, không phí hàng tháng theo số lượng. Studio đầu tiên miễn phí."
+        },
+        "perGame": {
+          "title": "Tính năng nâng cao: theo từng game",
+          "desc": "Gói subscription mở rộng quota và tính năng như Leaderboard. Chỉ trả cho game thực sự cần."
+        },
+        "scale": {
+          "title": "Bắt đầu ngay, nâng cấp khi game lớn",
+          "desc": "Prototype trên gói mặc định, mở rộng người chơi và nội dung khi sẵn sàng ra mắt."
+        }
+      }
+    },
+    "features": {
+      "eyebrow": "Tính năng",
+      "title": "Một nền tảng cho cả vòng đời LiveOps.",
+      "description": "Mọi thứ xoay quanh một khái niệm: Item Definition. Vũ khí, tiền tệ, nhân vật, rương, chìa khoá gacha đều là item — nên các hệ thống ăn khớp với nhau ngay từ đầu.",
+      "groups": {
+        "players": "01 — Người chơi & dữ liệu",
+        "economy": "02 — Kinh tế & vật phẩm",
+        "retention": "03 — Giữ chân & đo lường"
+      },
+      "items": {
+        "auth": {
+          "title": "Tài khoản & đăng nhập",
+          "desc": "Đăng ký, đăng nhập, refresh token và Google login. Một tài khoản dùng chung cho mọi game."
+        },
+        "cloudSave": {
+          "title": "Cloud save đa nền tảng",
+          "desc": "Tiến trình lưu trên server, chơi tiếp trên Android, iOS, PC hay console. Dữ liệu JSON tự do, cập nhật dạng delta."
+        },
+        "mailbox": {
+          "title": "Mailbox",
+          "desc": "Gửi quà, đền bù, phần thưởng sự kiện kèm item. Người chơi tự nhận, an toàn kể cả khi túi đồ đầy."
+        },
+        "inventory": {
+          "title": "Inventory dạng lưới",
+          "desc": "Túi đồ chính, kho, rương tuỳ chỉnh tới 1.000 ô. Di chuyển, tách, gộp, đổi chỗ — server kiểm tra từng thao tác."
+        },
+        "gacha": {
+          "title": "Gacha / Lootbox",
+          "desc": "Pool có trọng số, số lượng Min/Max, yêu cầu chìa khoá. Mỗi lần mở là một giao dịch nguyên tử."
+        },
+        "shop": {
+          "title": "Shop",
+          "desc": "Shop thường trực hoặc theo sự kiện, bất kỳ item nào làm tiền tệ, giới hạn mua theo người chơi hoặc toàn server, restock."
+        },
+        "crafting": {
+          "title": "Crafting",
+          "desc": "Công thức với nguyên liệu tiêu hao hoặc giữ lại, tỉ lệ chính và tỉ lệ bonus, sản lượng Min/Max."
+        },
+        "generator": {
+          "title": "Item Generator",
+          "desc": "Tài nguyên sinh ra theo thời gian cho cơ chế idle: mỏ vàng, nông trại, máy sản xuất."
+        },
+        "loadouts": {
+          "title": "Trang bị, đội hình, bộ bài",
+          "desc": "Equipment slot có giới hạn loại item; Preset cho squad, party, deck; Tag để nhóm và lọc item."
+        },
+        "quests": {
+          "title": "Nhiệm vụ",
+          "desc": "Nhiệm vụ một lần và hằng ngày, chuỗi nhiệm vụ dạng story graph có rẽ nhánh, pool nhiệm vụ ngày theo trọng số hoặc lịch tuần."
+        },
+        "leaderboards": {
+          "title": "Bảng xếp hạng theo mùa",
+          "desc": "Tính điểm Sum, Max, Min hoặc Latest; tự reset theo ngày, tuần, tháng; lưu trữ các mùa đã qua."
+        },
+        "analytics": {
+          "title": "Analytics & Journey",
+          "desc": "Gửi event từ game, ghép thành bản đồ hành trình người chơi để xem funnel, điểm bỏ cuộc và dòng chảy kinh tế."
+        }
+      }
+    },
+    "integration": {
+      "eyebrow": "Tích hợp",
+      "title": "Ba bước để game kết nối server.",
+      "steps": {
+        "studio": {
+          "title": "Tạo Studio và Game",
+          "desc": "Trên web admin, tạo Studio, Team và Game rồi lấy Game ID. Mời thành viên vào team bằng User ID."
+        },
+        "unity": {
+          "title": "Thả prefab vào Unity",
+          "desc": "Import Unity package, kéo prefab SaiServer vào scene. Auth, item, quest, battle… đã được nối sẵn bên trong."
+        },
+        "configure": {
+          "title": "Cấu hình và chạy thử",
+          "desc": "Dán Game ID, bấm Test Connection. Cấu hình nội dung trên admin, kiểm tra ngay trong Play Mode bằng các nút có sẵn trên Inspector."
+        }
+      }
+    },
+    "lua": {
+      "eyebrow": "Lua scripting phía server",
+      "title": "Logic riêng của game, chạy trên server.",
+      "description": "Khi game cần thứ không có sẵn — hệ thống chiến đấu, phần thưởng đặc biệt, công thức tính sát thương — đội viết script Lua ngay trên web editor. Script gọi trực tiếp item, gacha, preset, trang bị và battle session của người chơi.",
+      "points": {
+        "templates": "Thư viện template có sẵn, từ Hello World tới battle hoàn chỉnh.",
+        "sandbox": "Chạy trong sandbox giới hạn 500 ms mỗi lần, an toàn cho server.",
+        "unity": "Gọi từ Unity bằng một component, tên script là từ khoá kích hoạt."
+      }
+    },
+    "trust": {
+      "eyebrow": "Độ tin cậy",
+      "title": "Thiết kế cho nền kinh tế game nghiêm túc.",
+      "items": {
+        "server": {
+          "title": "Server quyết định",
+          "desc": "Túi đầy, ô đã có đồ, thiếu nguyên liệu, shop hết hạn — server từ chối và trả lỗi rõ ràng. Client không tự ý sửa dữ liệu."
+        },
+        "idempotency": {
+          "title": "Không giao dịch hai lần",
+          "desc": "Mua hàng, crafting và mở gacha dùng idempotency key: gửi lại cùng yêu cầu, server trả kết quả cũ thay vì thực hiện lại."
+        },
+        "odds": {
+          "title": "Tỉ lệ minh bạch",
+          "desc": "Xác suất = trọng số / tổng trọng số, áp dụng thống nhất cho gacha, pool nhiệm vụ và pool quái."
+        },
+        "liveops": {
+          "title": "Vận hành trên web admin",
+          "desc": "Đội LiveOps xem hồ sơ người chơi, gửi quà, mở mùa giải, chỉnh shop mà không cần build lại game."
+        }
+      }
+    },
+    "cta": {
+      "title": "Để đội của bạn quay lại làm game.",
+      "description": "Trao đổi với đội Sai Server về những gì game của bạn cần và nhận gói tài trợ 6 tháng.",
+      "discord": "Trao đổi trên Discord",
+      "createStudio": "Tạo Studio",
+      "tutorials": "Learning Center"
+    }
   }
 }
