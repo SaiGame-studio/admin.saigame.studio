@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Activity, BarChart3, Clock, MessageCircle, Database, FileText, LayoutDashboard, LogOut, Shield, ShieldCheck, Terminal, User, Users, Moon, Sun, Brush, Gamepad2, ChevronLeft, ChevronRight, Wallet, Gift, ReceiptText, Puzzle, Map, Bug, Download, BookOpen, PenSquare, Rocket, } from "lucide-react";
+import { Activity, BarChart3, Clock, MessageCircle, Database, FileText, LayoutDashboard, LogOut, Shield, ShieldCheck, Terminal, User, Users, Moon, Sun, Brush, Gamepad2, ChevronLeft, ChevronRight, Wallet, Gift, ReceiptText, Puzzle, Map, Bug, Download, BookOpen, PenSquare, Rocket, type LucideIcon, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/auth-context";
@@ -111,143 +111,93 @@ export function SideNav({ mobile = false }: {
             </Button>)}
         </div>
         <ScrollArea className="flex-1 px-3 py-2">
-          <div className="space-y-4">
-            {isAuthenticated && (<div className="space-y-1">
-                <Button variant={isActive("/") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/">
-                    <LayoutDashboard className="h-4 w-4 flex-shrink-0"/>
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.dashboard')}</span>}
-                  </Link>
-                </Button>
-                <Button variant={isActive("/studios") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/studios">
-                    <Brush className="h-4 w-4 flex-shrink-0"/>
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.studios')}</span>}
-                  </Link>
-                </Button>
-                <Button variant={isActive("/games") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/games">
-                    <Gamepad2 className="h-4 w-4 flex-shrink-0"/>
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
-                  </Link>
-                </Button>
-                <Button variant={isActive("/roadmap") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/roadmap">
-                    <Map className="h-4 w-4 flex-shrink-0"/>
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.roadmap')}</span>}
-                  </Link>
-                </Button>
+          <div id="side-nav-groups" className="side-nav-groups space-y-4">
+            {isAuthenticated && (<div id="side-nav-main" className="side-nav-main space-y-1">
+                <NavItem id="side-nav-dashboard-link" href="/" icon={LayoutDashboard} label={t('common.dashboard')} active={isActive("/")} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-studios-link" href="/studios" icon={Brush} label={t('common.studios')} active={isActive("/studios")} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-games-link" href="/games" icon={Gamepad2} label={t('common.games')} active={isActive("/games")} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-roadmap-link" href="/roadmap" icon={Map} label={t('common.roadmap')} active={isActive("/roadmap")} collapsed={isCollapsed}/>
               </div>)}
-            {!isCollapsed && isAuthenticated && (<div className="space-y-1">
-                <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.administration')}</h3>
-                <Button variant={isActive("/profile") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/profile">
-                    <User className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">{t('common.profile')}</span>
-                  </Link>
-                </Button>
-                <Button variant={isActive("/payment") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/payment">
-                    <Wallet className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">{t('common.payment')}</span>
-                  </Link>
-                </Button>
+            {isAuthenticated && (<div id="side-nav-account" className="side-nav-account space-y-1">
+                <NavGroupTitle id="side-nav-account-title" title={t('common.administration')} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-profile-link" href="/profile" icon={User} label={t('common.profile')} active={isActive("/profile")} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-payment-link" href="/payment" icon={Wallet} label={t('common.payment')} active={isActive("/payment")} collapsed={isCollapsed}/>
               </div>)}
-            {!isCollapsed && (<div className="space-y-1">
-                <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.support')}</h3>
-                <Button variant={isActive("/tutorials") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/tutorials">
-                    <BookOpen className="h-4 w-4 flex-shrink-0 animate-pulse"/>
-                    <span className="whitespace-nowrap">{t('tutorials.title')} <span className="animate-pulse text-yellow-400 text-[10px]">&#9733;</span></span>
-                  </Link>
-                </Button>
-                <Button id="side-nav-why-sai-server-link" variant={isActive("/why-sai-server") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/why-sai-server">
-                    <Rocket className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">{t('common.whySaiServer')}</span>
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <a href="https://github.com/SaiGame-studio/ss-unity/releases" target="_blank" rel="noopener noreferrer">
-                    <Download className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">Unity Package</span>
-                  </a>
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <a href="https://discord.gg/UU3YarmVde" target="_blank" rel="noopener noreferrer">
-                    <MessageCircle className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">{t('common.discordSupport')}</span>
-                  </a>
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <a href="https://discord.gg/UU3YarmVde" target="_blank" rel="noopener noreferrer">
-                    <Bug className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">{t('common.bugReport')}</span>
-                  </a>
-                </Button>
+            <div id="side-nav-support" className="side-nav-support space-y-1">
+              <NavGroupTitle id="side-nav-support-title" title={t('common.support')} collapsed={isCollapsed}/>
+              <NavItem id="side-nav-tutorials-link" href="/tutorials" icon={BookOpen} iconClassName="animate-pulse" label={t('tutorials.title')} active={isActive("/tutorials")} collapsed={isCollapsed} suffix={<span className="animate-pulse text-yellow-400 text-[10px]">&#9733;</span>}/>
+              <NavItem id="side-nav-why-sai-server-link" href="/why-sai-server" icon={Rocket} label={t('common.whySaiServer')} active={isActive("/why-sai-server")} collapsed={isCollapsed}/>
+              <NavItem id="side-nav-unity-package-link" href="https://github.com/SaiGame-studio/ss-unity/releases" external icon={Download} label="Unity Package" collapsed={isCollapsed}/>
+              <NavItem id="side-nav-discord-support-link" href="https://discord.gg/UU3YarmVde" external icon={MessageCircle} label={t('common.discordSupport')} collapsed={isCollapsed}/>
+              <NavItem id="side-nav-bug-report-link" href="https://discord.gg/UU3YarmVde" external icon={Bug} label={t('common.bugReport')} collapsed={isCollapsed}/>
+            </div>
+            {capabilities.is_super_admin && (<div id="side-nav-admin" className="side-nav-admin space-y-1">
+                <NavGroupTitle id="side-nav-admin-title" title={t('common.admin')} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-admin-monitor-link" href="/admin/monitor" icon={Activity} label="Monitor" active={isActive("/admin/monitor")} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-admin-support-link" href="/admin/support" icon={MessageCircle} label="Support chat" active={isActive("/admin/support")} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-admin-payments-link" href="/admin/payments" icon={ReceiptText} label={t('common.transactions')} active={isActive("/admin/payments")} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-admin-plugins-link" href="/admin/plugins" icon={Puzzle} label={t('common.allPlugins') || 'Plugins'} active={isActive("/admin/plugins")} collapsed={isCollapsed}/>
+                <NavItem id="side-nav-admin-cms-link" href="/admin/cms" icon={PenSquare} label="CMS" active={isActive("/admin/cms")} collapsed={isCollapsed}/>
               </div>)}
-            {!isCollapsed && capabilities.is_super_admin && (<div className="space-y-1">
-                <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.admin')}</h3>
-                <Button variant={isActive("/admin/monitor") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/admin/monitor">
-                    <Activity className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">Monitor</span>
-                  </Link>
-                </Button>
-                <Button variant={isActive("/admin/support") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/admin/support">
-                    <MessageCircle className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">Support chat</span>
-                  </Link>
-                </Button>
-                <Button variant={isActive("/admin/payments") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/admin/payments">
-                    <ReceiptText className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">{t('common.transactions')}</span>
-                  </Link>
-                </Button>
-                <Button variant={isActive("/admin/plugins") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/admin/plugins">
-                    <Puzzle className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">{t('common.allPlugins') || 'Plugins'}</span>
-                  </Link>
-                </Button>
-                <Button variant={isActive("/admin/cms") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/admin/cms">
-                    <PenSquare className="h-4 w-4 flex-shrink-0"/>
-                    <span className="whitespace-nowrap">CMS</span>
-                  </Link>
-                </Button>
-              </div>)}
-            {!isCollapsed && (<div className="space-y-1">
-                {/* Separator line */}
-                <div className="border-t border-border/50 my-2"></div>
-                {isCollapsed ? (<div className="px-2">
-                    <LanguageSelector compact fullWidth/>
-                  </div>) : (<div className="space-y-2">
-                    <div className="text-xs text-muted-foreground">
-                      {t('settings.interfaceLanguage')}
-                    </div>
-                    <LanguageSelector fullWidth/>
-                  </div>)}
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={toggleTheme}>
-                  {theme === "dark-green" ? (<>
-                      <Sun className="h-4 w-4 flex-shrink-0"/>
-                      {!isCollapsed && <span className="whitespace-nowrap">{t('settings.themes.lightWarm' as any)}</span>}
-                    </>) : (<>
-                      <Moon className="h-4 w-4 flex-shrink-0"/>
-                      {!isCollapsed && <span className="whitespace-nowrap">{t('settings.themes.darkGreen' as any)}</span>}
-                    </>)}
-                </Button>
-                {isAuthenticated && (<Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={logout}>
-                    <LogOut className="h-4 w-4 flex-shrink-0"/>
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.logout')}</span>}
-                  </Button>)}
-              </div>)}
+            <div id="side-nav-settings" className="side-nav-settings space-y-1">
+              <div className="border-t border-border/50 my-2"></div>
+              {isCollapsed ? (<div id="side-nav-language-compact" className="side-nav-language-compact flex justify-center">
+                  <LanguageSelector compact fullWidth largeFlag/>
+                </div>) : (<div id="side-nav-language" className="side-nav-language space-y-2">
+                  <div className="text-xs text-muted-foreground">
+                    {t('settings.interfaceLanguage')}
+                  </div>
+                  <LanguageSelector fullWidth/>
+                </div>)}
+              {(() => {
+                const themeLabel = theme === "dark-green" ? t('settings.themes.lightWarm' as any) : t('settings.themes.darkGreen' as any);
+                const ThemeIcon = theme === "dark-green" ? Sun : Moon;
+                return (<Button id="side-nav-theme-toggle" variant="outline" size="sm" className={`side-nav-theme-toggle w-full gap-2 px-2 ${isCollapsed ? "justify-center" : "justify-start"}`} onClick={toggleTheme} title={isCollapsed ? themeLabel : undefined} aria-label={themeLabel}>
+                    <ThemeIcon className="h-4 w-4 flex-shrink-0"/>
+                    {!isCollapsed && <span className="whitespace-nowrap">{themeLabel}</span>}
+                  </Button>);
+              })()}
+              {isAuthenticated && (<Button id="side-nav-logout" variant="outline" size="sm" className={`side-nav-logout w-full gap-2 px-2 ${isCollapsed ? "justify-center" : "justify-start"}`} onClick={logout} title={isCollapsed ? t('common.logout') : undefined} aria-label={t('common.logout')}>
+                  <LogOut className="h-4 w-4 flex-shrink-0"/>
+                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.logout')}</span>}
+                </Button>)}
+            </div>
           </div>
         </ScrollArea>
 
         {/* Resize handle */}
         {!mobile && !isCollapsed && (<div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize bg-transparent hover:bg-primary/10 active:bg-primary/20 transition-colors" onMouseDown={() => setIsResizing(true)} aria-hidden="true"/>)}
     </div>);
+}
+
+type NavItemProps = {
+    id: string;
+    href: string;
+    icon: LucideIcon;
+    label: string;
+    collapsed: boolean;
+    active?: boolean;
+    external?: boolean;
+    iconClassName?: string;
+    suffix?: ReactNode;
+};
+
+/** Sidebar link: icon + label when expanded, icon only (label as tooltip) when collapsed. */
+function NavItem({ id, href, icon: Icon, label, collapsed, active = false, external = false, iconClassName = "", suffix }: NavItemProps) {
+    const content = (<>
+        <Icon className={`h-4 w-4 flex-shrink-0 ${iconClassName}`}/>
+        {!collapsed && <span className="whitespace-nowrap">{label}{suffix && <> {suffix}</>}</span>}
+      </>);
+    return (<Button id={id} variant={active ? "secondary" : "ghost"} size="sm" className={`${id} w-full gap-2 px-2 ${collapsed ? "justify-center" : "justify-start"}`} title={collapsed ? label : undefined} aria-label={label} asChild>
+        {external
+            ? (<a href={href} target="_blank" rel="noopener noreferrer">{content}</a>)
+            : (<Link href={href}>{content}</Link>)}
+      </Button>);
+}
+
+/** Group heading; collapses to a thin divider so every item stays visible. */
+function NavGroupTitle({ id, title, collapsed }: { id: string; title: string; collapsed: boolean }) {
+    if (collapsed)
+        return <div id={id} className={`${id} mx-2 border-t border-border/50`} aria-hidden="true"/>;
+    return <h3 id={id} className={`${id} text-xs font-medium text-muted-foreground px-2`}>{title}</h3>;
 }

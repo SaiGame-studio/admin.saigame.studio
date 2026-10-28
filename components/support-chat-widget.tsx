@@ -7,9 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
 import { useCapabilities } from "@/hooks/use-capabilities";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { ApiError } from "@/lib/api-client";
 import { createUserSupportConversation, getGuestSupportConversation, markGuestSupportMessagesRead, replyToGuestSupportConversation, SupportMessage } from "@/lib/support-chat-api";
 
 type Invitation = { conversation_id: string; subject?: string };
+
+/** Dispatch this window event (e.g. from a "Chat to us now" button) to open the support chat. */
+export const SUPPORT_CHAT_OPEN_EVENT = "support-chat-open";
 
 export function SupportChatWidget() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -20,6 +24,7 @@ export function SupportChatWidget() {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [conversationLoaded, setConversationLoaded] = useState(false);
   const [sending, setSending] = useState(false);
   const [hasNewAgentMessage, setHasNewAgentMessage] = useState(false);
   const [highlightedMessageIDs, setHighlightedMessageIDs] = useState<string[]>([]);
@@ -35,6 +40,8 @@ export function SupportChatWidget() {
       setMessages(data.messages);
     } catch {
       setMessages([]);
+    } finally {
+      setConversationLoaded(true);
     }
   }, [isAuthenticated]);
 
@@ -50,20 +57,25 @@ export function SupportChatWidget() {
         window.sessionStorage.removeItem("support-chat-invitation");
       }
     }
+    const openChat = () => setOpen(true);
     window.addEventListener("support-chat-invitation", receive);
     window.addEventListener("support-chat-status", receiveStatus);
+    window.addEventListener(SUPPORT_CHAT_OPEN_EVENT, openChat);
     return () => {
       window.removeEventListener("support-chat-invitation", receive);
       window.removeEventListener("support-chat-status", receiveStatus);
+      window.removeEventListener(SUPPORT_CHAT_OPEN_EVENT, openChat);
     };
   }, []);
 
+  // Load while a conversation exists, or while the window is open so a user
+  // without a conversation sees an empty state instead of an endless "loading".
   useEffect(() => {
-    if (!invitation) return;
+    if (!invitation && !open) return;
     void loadConversation();
     const timer = window.setInterval(() => void loadConversation(), 5_000);
     return () => window.clearInterval(timer);
-  }, [invitation, loadConversation]);
+  }, [invitation, open, loadConversation]);
 
   useEffect(() => {
     const latestAgentMessage = [...messages].reverse().find((item) => item.sender_kind === "agent");
@@ -112,15 +124,26 @@ export function SupportChatWidget() {
     if (!body || sending) return;
     setSending(true);
     try {
-      const data = invitation || !isAuthenticated
-        ? await replyToGuestSupportConversation(body, isAuthenticated)
-        : await createUserSupportConversation(body);
+      let data;
+      if (invitation || !isAuthenticated) {
+        try {
+          data = await replyToGuestSupportConversation(body, isAuthenticated);
+        } catch (error) {
+          // The latest conversation was closed by an agent: a signed-in user starts a new one.
+          if (!isAuthenticated || !(error instanceof ApiError) || error.status !== 404) throw error;
+          data = await createUserSupportConversation(body);
+        }
+      } else {
+        data = await createUserSupportConversation(body);
+      }
       setMessage("");
       if (!invitation) setInvitation({ conversation_id: data.conversation.id, subject: data.conversation.subject });
       setMessages(data.messages);
       setAutoScroll(true);
       setPendingNewMessages(0);
       window.requestAnimationFrame(() => messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: "smooth" }));
+    } catch {
+      // apiRequest already shows an error toast; keep the typed message so the user can retry.
     } finally {
       setSending(false);
     }
@@ -136,7 +159,7 @@ export function SupportChatWidget() {
       </div>
       <div id="support-chat-messages" ref={messageListRef} onScroll={(event) => { const element = event.currentTarget; setAutoScroll(element.scrollHeight - element.scrollTop - element.clientHeight <= 24); }} className="h-64 space-y-2 overflow-y-auto p-4 text-sm">
         {messages.map((item) => <div id={`support-chat-message-row-${item.id}`} key={item.id} className={`${item.sender_kind === "agent" ? "flex items-start gap-2" : "text-right"} ${highlightedMessageIDs.includes(item.id) ? "animate-pulse rounded-md bg-primary/10 p-2" : ""}`}>{item.sender_kind === "agent" && <img id={`support-chat-agent-avatar-${item.id}`} src="/sai-avatar.png" alt="Support" className="h-5 w-5 shrink-0 rounded-full object-cover" />}<p id={`support-chat-message-${item.id}`} className={item.sender_kind === "agent" ? "text-left" : "text-right"}>{item.body}</p></div>)}
-        {messages.length === 0 && <p id="support-chat-no-messages" className="text-muted-foreground">{t("supportChat.loading")}</p>}
+        {messages.length === 0 && <p id="support-chat-no-messages" className="text-muted-foreground">{t(conversationLoaded ? "supportChat.empty" : "supportChat.loading")}</p>}
       </div>
       {pendingNewMessages > 0 && <Button id="support-chat-new-message-indicator" size="sm" className="absolute bottom-16 left-1/2 -translate-x-1/2 shadow-md" onClick={() => { setAutoScroll(true); setPendingNewMessages(0); messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: "smooth" }); }}>{t("supportChat.newMessages", { count: pendingNewMessages })}</Button>}
       <div id="support-chat-composer" className="flex gap-2 border-t p-3">

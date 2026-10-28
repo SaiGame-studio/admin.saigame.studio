@@ -4477,7 +4477,8 @@
     "close": "Đóng cửa sổ hỗ trợ",
     "send": "Gửi tin nhắn",
     "open": "Mở cửa sổ hỗ trợ",
-    "newMessages": "{count} tin nhắn mới"
+    "newMessages": "{count} tin nhắn mới",
+    "empty": "Hãy gửi tin nhắn, đội Sai Server sẽ trả lời bạn ngay tại đây."
   },
   "supportAdmin": {
     "deleteButton": "Xóa cuộc hội thoại",
@@ -4586,6 +4587,8 @@
       "eyebrow": "Tính năng",
       "title": "Một nền tảng cho cả vòng đời LiveOps.",
       "description": "Mọi thứ xoay quanh một khái niệm: Item Definition. Vũ khí, tiền tệ, nhân vật, rương, chìa khoá gacha đều là item — nên các hệ thống ăn khớp với nhau ngay từ đầu.",
+      "screenshotAlt": "Trang quản trị Sai Server hiển thị Item Catalogue và các tab tính năng của một game",
+      "screenshotCaption": "Mọi tính năng nằm chung một trang quản trị: item, gacha, shop, crafting, quest, leaderboard và nhiều hơn nữa, sửa được mà không cần build lại game.",
       "groups": {
         "players": "01 — Người chơi & dữ liệu",
         "economy": "02 — Kinh tế & vật phẩm",
@@ -4645,6 +4648,9 @@
     "integration": {
       "eyebrow": "Tích hợp",
       "title": "Ba bước để game kết nối server.",
+      "screenshotAlt": "Unity Editor với component SaiServer đã kết nối tới Sai Server",
+      "screenshotZoom": "Bấm để phóng to",
+      "screenshotCaption": "SaiServer trong Inspector của Unity: điền endpoint và game ID, bấm Play, Console hiện người chơi đã đăng nhập và dữ liệu đã tải xong.",
       "steps": {
         "studio": {
           "title": "Tạo Studio và Game",
@@ -4664,6 +4670,8 @@
       "eyebrow": "Lua scripting phía server",
       "title": "Logic riêng của game, chạy trên server.",
       "description": "Khi game cần thứ không có sẵn — hệ thống chiến đấu, phần thưởng đặc biệt, công thức tính sát thương — đội viết script Lua ngay trên web editor. Script gọi trực tiếp item, gacha, preset, trang bị và battle session của người chơi.",
+      "screenshotAlt": "Lua Script Manager trong Unity Editor với danh sách script server đã tải",
+      "screenshotCaption": "Lua Script Manager trong Unity: tạo script từ template, rồi bấm một nút để upload từng file .lua lên Sai Server.",
       "points": {
         "templates": "Thư viện template có sẵn, từ Hello World tới battle hoàn chỉnh.",
         "sandbox": "Chạy trong sandbox giới hạn 500 ms mỗi lần, an toàn cho server.",
@@ -4695,6 +4703,7 @@
     "cta": {
       "title": "Để đội của bạn quay lại làm game.",
       "description": "Trao đổi với đội Sai Server về những gì game của bạn cần và nhận gói tài trợ 6 tháng.",
+      "chat": "Chat với chúng tôi ngay",
       "discord": "Trao đổi trên Discord",
       "createStudio": "Tạo Studio",
       "tutorials": "Learning Center"
