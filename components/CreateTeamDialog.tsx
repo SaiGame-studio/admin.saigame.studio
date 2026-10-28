@@ -13,6 +13,7 @@ import { fetchStudio } from "@/lib/studio-api";
 import type { Team } from "@/types/team";
 import type { StudioLimits, StudioUsage } from "@/types/studio";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { SCoinIcon } from "@/components/SCoinIcon";
 const TEAM_COST = 10;
 interface CreateTeamDialogProps {
     studioId: string;
@@ -110,7 +111,7 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
             </SheetDescription>
             <div className="flex items-center justify-between pt-1">
               <p className="text-xs text-muted-foreground">
-                {t('team.createCostHintPt1')}<span className="text-green-500 font-medium">{t('team.createCostHintFree')}</span>{t('team.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {TEAM_COST} coins</span>
+                {t('team.createCostHintPt1')}<span className="text-green-500 font-medium">{t('team.createCostHintFree')}</span>{t('team.createCostHintPt2')}<span className="text-yellow-500 font-medium"><SCoinIcon id="team-create-hint-cost-icon"/> {TEAM_COST} coins</span>
               </p>
               {usageLoading ? (<Badge variant="outline" className="text-xs shrink-0 ml-2">
                   <Loader2 className="h-3 w-3 animate-spin mr-1"/>
@@ -153,7 +154,7 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Create Team</AlertDialogTitle>
             <AlertDialogDescription>
-              🪙 <strong>{TEAM_COST} coins</strong> will be charged from your wallet to create this team. Do you want to continue?
+              <SCoinIcon id="team-create-confirm-cost-icon"/> <strong>{TEAM_COST} coins</strong> will be charged from your wallet to create this team. Do you want to continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getUserTimezone } from "@/lib/utils/date-utils";
+import { SCoinIcon } from "@/components/SCoinIcon";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -171,7 +172,7 @@ function BuyCoinTab() {
                     </TableCell>
                     {/* sCoin */}
                     <TableCell className="text-sm">
-                      🪙 {tx.scoin_amount.toLocaleString()}
+                      <SCoinIcon id={`admin-transaction-scoin-icon-${tx.id}`}/> {tx.scoin_amount.toLocaleString()}
                     </TableCell>
                     {/* Status */}
                     <TableCell>
@@ -227,7 +228,7 @@ export default function AdminTransactionsPage() {
         <Tabs defaultValue="buy-coin">
           <TabsList>
             <TabsTrigger value="buy-coin" className="gap-2">
-              🪙 {t("adminTransactions.tabBuyCoin")}
+              <SCoinIcon id="admin-transactions-tab-buy-coin-icon"/> {t("adminTransactions.tabBuyCoin")}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="buy-coin" className="mt-4">

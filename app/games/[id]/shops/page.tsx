@@ -28,6 +28,7 @@ import { ShopCollectDestinationField } from "./_components/ShopCollectDestinatio
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { CopyButton } from "@/components/CopyButton";
+import { SGemIcon } from "@/components/SGemIcon";
 const SHOP_TYPE_BADGE: Record<ShopType, string> = {
     permanent: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
     event: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
@@ -613,7 +614,7 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
                   <Button variant="outline" role="combobox" aria-expanded={currencyOpen} className="w-full justify-between font-normal" disabled={itemDefsLoading}>
                     {itemDefsLoading ? (<span className="flex items-center gap-2 text-muted-foreground">
                         <Loader2 className="h-3 w-3 animate-spin"/> Loading…
-                      </span>) : isSGemCurrency(form.currency_item_def_id ?? "") ? (<span id="create-shop-currency-sgem-selected" className="flex items-center gap-2"><span id="create-shop-currency-sgem-selected-icon" className="text-blue-400" aria-hidden="true">💎</span> {SGEM_CURRENCY_LABEL}</span>) : form.currency_item_def_id ? (<span className="flex items-center gap-2">
+                      </span>) : isSGemCurrency(form.currency_item_def_id ?? "") ? (<span id="create-shop-currency-sgem-selected" className="flex items-center gap-2"><SGemIcon id="create-shop-currency-sgem-selected-icon" className="h-4 w-4"/> {SGEM_CURRENCY_LABEL}</span>) : form.currency_item_def_id ? (<span className="flex items-center gap-2">
                         <span>
                           {itemDefs.find((d) => d.id === form.currency_item_def_id)?.name ?? (<span className="font-mono text-xs">{form.currency_item_def_id}</span>)}
                         </span>
@@ -632,7 +633,7 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
                       <CommandGroup>
                         {matchesSGemSearch(currencySearch) && (<CommandItem id="create-shop-currency-option-sgem" value={SGEM_CURRENCY_VALUE} onSelect={() => { setField("currency_item_def_id", SGEM_CURRENCY_VALUE); setCurrencyOpen(false); setCurrencySearch(""); }}>
                             <Check className={`mr-2 h-4 w-4 shrink-0 ${isSGemCurrency(form.currency_item_def_id ?? "") ? "opacity-100" : "opacity-0"}`}/>
-                            <span id="create-shop-currency-option-sgem-icon" className="text-blue-400 mr-2 shrink-0" aria-hidden="true">💎</span><span className="flex-1">{SGEM_CURRENCY_LABEL}</span>
+                            <SGemIcon id="create-shop-currency-option-sgem-icon" className="h-4 w-4 mr-2"/><span className="flex-1">{SGEM_CURRENCY_LABEL}</span>
                           </CommandItem>)}
                         {itemDefs
             .filter((d) => (showAllItemTypes || d.category === "currency") &&

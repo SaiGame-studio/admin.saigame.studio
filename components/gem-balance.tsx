@@ -7,6 +7,7 @@ import { api } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { SGemIcon } from "@/components/SGemIcon";
 const STORAGE_KEY = "gem-balance-visible";
 interface SgemWallet {
     id: string;
@@ -101,13 +102,13 @@ export function GemBalance() {
                     color: delta > 0 ? "#22c55e" : "#ef4444",
                     textShadow: "0 0 3px #000, 0 0 3px #000, 0 0 3px #000, 0 0 6px #000",
                 }}>
-              {delta > 0 ? `💎 +${delta.toLocaleString()}` : `💎 ${delta.toLocaleString()}`}
+              <SGemIcon className="h-[1em] w-[1em] mr-1"/>{delta > 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
             </span>, document.body);
         })}
 
         {/* Gem icon + balance — click to toggle */}
         <button id="gem-balance-toggle-btn" onClick={toggleVisible} className="flex items-center gap-1 cursor-pointer select-none focus-visible:outline-none rounded px-1.5 py-0.5 transition-colors hover:bg-muted active:bg-muted/80" aria-label={visible ? "Hide gem balance" : "Show gem balance"}>
-          <span id="gem-balance-icon" className="text-blue-400" aria-hidden="true">💎</span>
+          <SGemIcon id="gem-balance-icon" className="h-4 w-4"/>
           <span id="gem-balance-value" className="min-w-[2rem] text-center font-medium tabular-nums">
             {loading ? (<span id="gem-balance-loading" className="inline-block h-3 w-8 animate-pulse rounded bg-muted"/>) : error ? (<span id="gem-balance-error" className="text-destructive">—</span>) : visible ? ((wallet?.balance ?? 0).toLocaleString()) : (<span id="gem-balance-hidden" className="tracking-widest text-muted-foreground">••••</span>)}
           </span>

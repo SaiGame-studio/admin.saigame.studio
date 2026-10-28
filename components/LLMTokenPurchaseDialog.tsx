@@ -14,6 +14,7 @@ import { useEscapeLayer } from "@/hooks/use-escape-manager";
 import { api } from "@/lib/api-client";
 import { getGame } from "@/lib/game-api";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { SGemIcon } from "@/components/SGemIcon";
 
 interface TokenPackage {
     id: string;
@@ -104,7 +105,7 @@ function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps)
             </div>
 
             <div id={`llm-purchase-card-cost-${pkg.package_key}`} className="flex items-center gap-1 text-sm text-muted-foreground">
-                <span id={`llm-purchase-card-cost-icon-${pkg.package_key}`} className="text-blue-400" aria-hidden="true">💎</span>
+                <SGemIcon id={`llm-purchase-card-cost-icon-${pkg.package_key}`} className="h-4 w-4"/>
                 <span id={`llm-purchase-card-cost-val-${pkg.package_key}`} className="font-medium text-foreground">
                     {pkg.sgem_cost.toLocaleString("en-US")}
                 </span>
@@ -429,7 +430,7 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                                     </span>
                                 </div>
                                 <div id={`llm-purchase-footer-pkg-cost-${gameId}`} className="flex items-center gap-1 text-base font-bold">
-                                    <span id={`llm-purchase-footer-pkg-cost-icon-${gameId}`} className="text-blue-400" aria-hidden="true">💎</span>
+                                    <SGemIcon id={`llm-purchase-footer-pkg-cost-icon-${gameId}`} className="h-4 w-4"/>
                                     <span id={`llm-purchase-footer-pkg-cost-val-${gameId}`}>{selectedPackage.sgem_cost.toLocaleString("en-US")}</span>
                                     <span id={`llm-purchase-footer-pkg-cost-unit-${gameId}`} className="text-xs font-normal text-muted-foreground">
                                         sGem
@@ -453,7 +454,7 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                                         ) : (
                                             <span className="inline-flex items-center gap-1.5">
                                                 <span>{t("llmTokenPurchase.confirmPay")}</span>
-                                                <span id={`llm-purchase-footer-confirm-icon-${gameId}`} className="text-blue-400" aria-hidden="true">💎</span>
+                                                <SGemIcon id={`llm-purchase-footer-confirm-icon-${gameId}`} className="h-4 w-4"/>
                                                 <span>{selectedPackage.sgem_cost.toLocaleString("en-US")}</span>
                                             </span>
                                         )}

@@ -12,6 +12,7 @@ import type { Game } from "@/types/game";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUserLocalHour } from "@/lib/utils/date-utils";
+import { SCoinIcon } from "@/components/SCoinIcon";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -248,7 +249,7 @@ export default function DashboardPage() {
         <StatChip icon={<Layers className="h-4 w-4"/>} label={t('common.studios')} value={loading ? <Skeleton className="h-7 w-10 inline-block"/> : studios.length} sub={`${activeStudios} ${t('home.active')}`} href="/studios" color="text-primary"/>
         <StatChip icon={<Gamepad2 className="h-4 w-4"/>} label={t('common.games')} value={loading ? <Skeleton className="h-7 w-10 inline-block"/> : totalGamesUsed} sub={totalGamesMax > 0 ? `of ${totalGamesMax} ${t('home.capacity')}` : t('home.acrossAllStudios')} href="/games" color="text-blue-500"/>
         <StatChip icon={<Users className="h-4 w-4"/>} label={t('home.members')} value={loading ? <Skeleton className="h-7 w-10 inline-block"/> : totalMembers} sub={t('home.acrossAllStudios')} color="text-green-500"/>
-        <StatChip icon={<span className="text-base leading-none">🪙</span>} label={t('home.coinBalance')} value={loading || wallet === null
+        <StatChip icon={<SCoinIcon id="home-coin-balance-icon" className="h-4 w-4"/>} label={t('home.coinBalance')} value={loading || wallet === null
             ? <Skeleton className="h-7 w-16 inline-block"/>
             : wallet.balance.toLocaleString()} sub={t('home.inYourWallet')} href="/payment" color="text-yellow-500"/>
       </div>

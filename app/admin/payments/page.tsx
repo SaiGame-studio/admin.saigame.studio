@@ -26,6 +26,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { formatISODate, fromUserDatetime, getUserTimezone, toUserDatetime } from "@/lib/utils/date-utils";
+import { SGemIcon } from "@/components/SGemIcon";
+import { SCoinIcon } from "@/components/SCoinIcon";
 const LIMIT = 20;
 // ---------------------------------------------------------------------------
 // Transaction helpers
@@ -102,8 +104,8 @@ function PackageInfoRow({ packageId, currencyType }: {
           <span className="font-medium">{pkg.name}</span>
           <span className="text-muted-foreground font-mono">{pkg.package_key}</span>
           {isSGem
-                ? <span>💎 {(sgemPkg as SGemPackage).sgem_amount.toLocaleString()}</span>
-                : <span>🪙 {(scoinPkg as SPackage).scoin_amount.toLocaleString()}{(scoinPkg as SPackage).bonus_scoin > 0 ? <span className="text-green-500 ml-1">+{(scoinPkg as SPackage).bonus_scoin.toLocaleString()} bonus</span> : null}</span>}
+                ? <span className="inline-flex items-center gap-1"><SGemIcon id="admin-payment-package-sgem-icon" className="h-3.5 w-3.5"/> {(sgemPkg as SGemPackage).sgem_amount.toLocaleString()}</span>
+                : <span className="inline-flex items-center gap-1"><SCoinIcon id="admin-payment-package-scoin-icon" className="h-3.5 w-3.5"/> {(scoinPkg as SPackage).scoin_amount.toLocaleString()}{(scoinPkg as SPackage).bonus_scoin > 0 ? <span className="text-green-500 ml-1">+{(scoinPkg as SPackage).bonus_scoin.toLocaleString()} bonus</span> : null}</span>}
           <span className="font-semibold">{formatTxAmount(pkg.price_amount, pkg.price_currency)}</span>
         </div>) : (<p className="font-mono text-xs text-muted-foreground break-all">{packageId}</p>)}
     </div>);
@@ -954,7 +956,7 @@ function PackagesTab() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <span className="font-semibold">🪙 {pkg.scoin_amount.toLocaleString()}</span>
+                        <span className="font-semibold"><SCoinIcon id={`admin-scoin-package-amount-icon-${pkg.id}`}/> {pkg.scoin_amount.toLocaleString()}</span>
                         {pkg.bonus_scoin > 0 && (<span className="ml-1.5 text-xs text-green-600 dark:text-green-400">+{pkg.bonus_scoin.toLocaleString()}</span>)}
                       </div>
                     </TableCell>
@@ -2166,7 +2168,7 @@ function TransactionsTab() {
                           {formatTxAmount(tx.amount, tx.currency)}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {tx.currency_type === "sgem" ? "💎" : "🪙"} {tx.currency_amount?.toLocaleString() ?? "—"}
+                          {tx.currency_type === "sgem" ? <SGemIcon id={`admin-payment-tx-sgem-icon-${tx.id}`} className="h-4 w-4"/> : <SCoinIcon id={`admin-payment-tx-scoin-icon-${tx.id}`} className="h-4 w-4"/>} {tx.currency_amount?.toLocaleString() ?? "—"}
                         </TableCell>
                         <TableCell><TxStatusBadge status={tx.status}/></TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
@@ -2210,7 +2212,7 @@ function TransactionsTab() {
                                   {tx.currency_type === "sgem" ? "sGem" : "sCoin"}
                                 </p>
                                 <p className="font-semibold">
-                                  {tx.currency_type === "sgem" ? "💎" : "🪙"} {tx.currency_amount?.toLocaleString() ?? "—"}
+                                  {tx.currency_type === "sgem" ? <SGemIcon id={`admin-payment-tx-sgem-icon-alt-${tx.id}`} className="h-4 w-4"/> : <SCoinIcon id={`admin-payment-tx-scoin-icon-alt-${tx.id}`} className="h-4 w-4"/>} {tx.currency_amount?.toLocaleString() ?? "—"}
                                 </p>
                               </div>
                               {tx.currency_credited_at && (<div className="space-y-0.5">
@@ -2357,7 +2359,7 @@ function GiftCodesTab() {
                           <CopyButton text={gc.code}/>
                         </span>
                       </TableCell>
-                      <TableCell>🪙 {gc.coins_amount.toLocaleString()} coins</TableCell>
+                      <TableCell><SCoinIcon id={`admin-gift-code-coins-icon-${gc.code}`}/> {gc.coins_amount.toLocaleString()} coins</TableCell>
                       <TableCell>{usesLabel(gc.max_uses, t('adminGiftCodes.unlimited'), t('adminGiftCodes.singleUse'))}</TableCell>
                       <TableCell>
                         {gc.used_count} / {gc.max_uses === -1 ? "∞" : gc.max_uses}
@@ -2516,7 +2518,7 @@ function CoinTopUpTab() {
             <Separator />
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{t('adminGiftCodes.resultAmount')}</span>
-              <span className="font-semibold">🪙 {result.amount} coins</span>
+              <span className="font-semibold"><SCoinIcon id="admin-gift-code-result-coins-icon"/> {result.amount} coins</span>
             </div>
             <Separator />
             <div className="flex items-center justify-between">

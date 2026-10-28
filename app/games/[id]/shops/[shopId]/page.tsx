@@ -34,6 +34,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { ITEMS_TABS } from "@/lib/items-tabs";
+import { SGemIcon } from "@/components/SGemIcon";
 // ─── Constants ────────────────────────────────────────────────────────────────
 const SHOP_TYPE_BADGE: Record<string, string> = {
     permanent: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
@@ -896,7 +897,7 @@ export default function ShopDetailPage() {
                           {itemDefsLoading ? (<span className="flex items-center gap-2 text-muted-foreground">
                               <Loader2 className="h-3 w-3 animate-spin"/> Loading…
                             </span>) : isSGemCurrency(tmpVal) ? (<span id="shop-currency-sgem-selected" className="flex items-center gap-2">
-                              <span id="shop-currency-sgem-selected-icon" className="text-blue-400" aria-hidden="true">💎</span> {SGEM_CURRENCY_LABEL}
+                              <SGemIcon id="shop-currency-sgem-selected-icon" className="h-4 w-4"/> {SGEM_CURRENCY_LABEL}
                             </span>) : tmpVal ? (<span className="flex items-center gap-2">
                               <span>{itemDefs.find((d) => d.id === tmpVal)?.name ?? <span className="font-mono text-xs">{tmpVal.slice(0, 8)}…</span>}</span>
                               {itemDefs.find((d) => d.id === tmpVal) && (<span className="text-xs text-muted-foreground font-mono">
@@ -918,7 +919,7 @@ export default function ShopDetailPage() {
                     setCurrencyCbSearch("");
                 }}>
                                   <Check className={`mr-2 h-4 w-4 shrink-0 ${isSGemCurrency(tmpVal) ? "opacity-100" : "opacity-0"}`}/>
-                                  <span id="shop-currency-option-sgem-icon" className="text-blue-400 mr-2 shrink-0" aria-hidden="true">💎</span>
+                                  <SGemIcon id="shop-currency-option-sgem-icon" className="h-4 w-4 mr-2"/>
                                   <span className="flex-1">{SGEM_CURRENCY_LABEL}</span>
                                 </CommandItem>)}
                               {itemDefs
@@ -957,7 +958,7 @@ export default function ShopDetailPage() {
                     </div>
                   </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
                     {shop.currency_type === "sgem" ? (<span id="shop-currency-sgem" className="flex items-center gap-1.5 text-foreground font-semibold">
-                        <span id="shop-currency-sgem-icon" className="text-blue-400" aria-hidden="true">💎</span> {SGEM_CURRENCY_LABEL}
+                        <SGemIcon id="shop-currency-sgem-icon" className="h-4 w-4"/> {SGEM_CURRENCY_LABEL}
                       </span>) : shop.currency_item_def_id ? (<span className="flex items-center gap-1.5">
                         {currencyItem ? (<Link href={`/games/${params.id}/items/${shop.currency_item_def_id}`} className="flex items-center gap-1.5 hover:underline text-foreground font-semibold" title="View item definition">
                             <span>{currencyItem.name}</span>
@@ -1448,7 +1449,7 @@ function SortableItemRow({ item, index, gameId, itemDefs, onEdit, onDelete, onTo
       <TableCell className="text-right font-semibold">
         {item.price.toLocaleString()}
         {item.currency_type === "sgem" && (<span id={`shop-item-currency-sgem-${item.id}`} className="flex items-center justify-end gap-1 text-xs text-muted-foreground font-normal mt-0.5">
-            <span id={`shop-item-currency-sgem-icon-${item.id}`} className="text-blue-400" aria-hidden="true">💎</span> {SGEM_CURRENCY_LABEL}
+            <SGemIcon id={`shop-item-currency-sgem-icon-${item.id}`} className="h-4 w-4"/> {SGEM_CURRENCY_LABEL}
           </span>)}
         {item.currency_type !== "sgem" && item.currency_item_def_id && (<Link href={`/games/${gameId}/items/${item.currency_item_def_id}`} className="flex items-center justify-end gap-1 text-xs text-muted-foreground hover:text-primary hover:underline font-normal font-mono mt-0.5" target="_blank">
             {itemDefs.find((d) => d.id === item.currency_item_def_id)?.name ?? item.currency_item_def_id.slice(0, 8) + "…"}
@@ -1605,7 +1606,7 @@ function ItemForm({ form, setField, itemDefs, itemDefsLoading, error, disableIte
           <Popover open={currOpen} onOpenChange={setCurrOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" role="combobox" aria-expanded={currOpen} className="flex-1 justify-between font-normal h-9 text-sm">
-                {isSGemCurrency(form.currency_item_def_id) ? (<span id="shop-item-form-currency-sgem-selected" className="flex items-center gap-2"><span id="shop-item-form-currency-sgem-selected-icon" className="text-blue-400" aria-hidden="true">💎</span> {SGEM_CURRENCY_LABEL}</span>) : selectedCurrDef ? (<span>{selectedCurrDef.name}</span>) : form.currency_item_def_id ? (<span className="font-mono text-xs text-muted-foreground">{form.currency_item_def_id.slice(0, 8)}…</span>) : (<span className="text-muted-foreground">None (use shop default)</span>)}
+                {isSGemCurrency(form.currency_item_def_id) ? (<span id="shop-item-form-currency-sgem-selected" className="flex items-center gap-2"><SGemIcon id="shop-item-form-currency-sgem-selected-icon" className="h-4 w-4"/> {SGEM_CURRENCY_LABEL}</span>) : selectedCurrDef ? (<span>{selectedCurrDef.name}</span>) : form.currency_item_def_id ? (<span className="font-mono text-xs text-muted-foreground">{form.currency_item_def_id.slice(0, 8)}…</span>) : (<span className="text-muted-foreground">None (use shop default)</span>)}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50"/>
               </Button>
             </PopoverTrigger>
@@ -1621,7 +1622,7 @@ function ItemForm({ form, setField, itemDefs, itemDefsLoading, error, disableIte
                     </CommandItem>
                     {matchesSGemSearch(currSearch) && (<CommandItem id="shop-item-form-currency-option-sgem" value={SGEM_CURRENCY_VALUE} onSelect={() => { setField("currency_item_def_id", SGEM_CURRENCY_VALUE); setCurrOpen(false); setCurrSearch(""); }}>
                         <Check className={`mr-2 h-4 w-4 shrink-0 ${isSGemCurrency(form.currency_item_def_id) ? "opacity-100" : "opacity-0"}`}/>
-                        <span id="shop-item-form-currency-option-sgem-icon" className="text-blue-400 mr-2 shrink-0" aria-hidden="true">💎</span>
+                        <SGemIcon id="shop-item-form-currency-option-sgem-icon" className="h-4 w-4 mr-2"/>
                         <span className="flex-1">{SGEM_CURRENCY_LABEL}</span>
                       </CommandItem>)}
                     {filteredCurrDefs.slice(0, 30).map((d) => (<CommandItem key={d.id} value={d.id} onSelect={() => { setField("currency_item_def_id", d.id); setCurrOpen(false); setCurrSearch(""); }}>
