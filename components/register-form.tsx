@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 // Import the necessary utilities and hooks
 import { useAuth } from "@/contexts/auth-context";
 import { safeSetItem } from "@/lib/storage-utils";
+import { CLIENT_ID, CLIENT_ID_HEADER } from "@/lib/client-id";
 // Add the REMEMBERED_EMAIL_KEY constant at the top of the file
 const REMEMBERED_EMAIL_KEY = "game_server_admin_remembered_email";
 // Update the RegisterForm function to use the auth context
@@ -53,7 +54,7 @@ export function RegisterForm() {
             }
             const response = await fetch(`${apiUrl}/api/v1/auth/google`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                headers: { "Content-Type": "application/json", Accept: "application/json", [CLIENT_ID_HEADER]: CLIENT_ID },
                 credentials: "include",
                 body: JSON.stringify({ id_token: credentialResponse.credential }),
             });

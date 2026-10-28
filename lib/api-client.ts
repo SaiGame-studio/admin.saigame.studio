@@ -1,5 +1,6 @@
 import { clearToken, getFreshAccessToken, refreshAccessToken } from './auth-utils';
 import { toast } from '@/hooks/use-toast';
+import { CLIENT_ID, CLIENT_ID_HEADER } from './client-id';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export class ApiError extends Error {
     public status: number;
@@ -58,6 +59,7 @@ export async function authFetch(endpoint: string, options: AuthFetchOptions = {}
     const url = /^https?:\/\//i.test(endpoint) ? endpoint : `${API_URL}${endpoint}`;
     const send = (token: string | null) => {
         const headers = new Headers(init.headers);
+        headers.set(CLIENT_ID_HEADER, CLIENT_ID);
         if (token)
             headers.set('Authorization', `Bearer ${token}`);
         else

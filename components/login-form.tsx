@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { LanguageSelector } from "@/components/ui/language-selector";
 import { useServerConfig } from "@/hooks/use-server-config";
+import { CLIENT_ID, CLIENT_ID_HEADER } from "@/lib/client-id";
 // Storage key for remembered email/username
 const REMEMBERED_LOGIN_KEY = "game_server_admin_remembered_login";
 export function LoginForm() {
@@ -83,6 +84,7 @@ export function LoginForm() {
                 headers: {
                     "Content-Type": "application/json",
                     Accept: "application/json",
+                    [CLIENT_ID_HEADER]: CLIENT_ID,
                 },
                 credentials: "include",
                 body: JSON.stringify({ username: usernameOrEmail, password }),
@@ -123,6 +125,7 @@ export function LoginForm() {
                 headers: {
                     "Content-Type": "application/json",
                     Accept: "application/json",
+                    [CLIENT_ID_HEADER]: CLIENT_ID,
                 },
                 credentials: "include",
                 body: JSON.stringify({ id_token: credentialResponse.credential }),
