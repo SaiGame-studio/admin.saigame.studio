@@ -1160,27 +1160,27 @@
           "note": "Admin holds the member:update permission. This page only lets the studio owner change roles, but the API still accepts role changes from Admins."
         },
         "developer": {
-          "summary": "Builds and maintains games: can create, view, update and delete games, and can view API keys.",
-          "assign1": "Engineers integrating the game client or SDK who need full control of game configuration.",
-          "assign2": "Members who create new games or remove obsolete ones.",
-          "assign3": "Someone who needs to read API keys to connect a build, without generating or revoking them.",
-          "avoid1": "The person must see studio details, teams or the member list: Developer does not include those read permissions. Also add them as Viewer in another team, or use Admin.",
-          "avoid2": "The person should not be able to delete games."
+          "summary": "Builds and maintains existing games: can update games and view everything that has a read permission (studio, games, teams, members, API keys). Cannot create or delete games.",
+          "assign1": "Engineers integrating the game client or SDK who configure existing games.",
+          "assign2": "Someone who needs to read API keys to connect a build, without generating or revoking them.",
+          "assign3": "Members who need to see studio details, teams and the member list while working on games.",
+          "avoid1": "The person needs to create or delete games: only Admin and Owner can do that.",
+          "avoid2": "The person should not see API keys: Developer includes apikey:read."
         },
         "game_manager": {
           "summary": "Operates existing games: can view and update game settings, but cannot create or delete games.",
           "assign1": "Live-ops, content or economy managers who tune games that already exist.",
           "assign2": "Producers who adjust game settings and do not need API keys.",
-          "avoid1": "The person needs to create or delete games: use Developer.",
-          "avoid2": "The person needs to see teams, members or studio details."
+          "avoid1": "The person needs to create or delete games: only Admin and Owner can do that.",
+          "avoid2": "The person needs to see teams, members or studio details: use Developer or Viewer."
         },
         "viewer": {
-          "summary": "Read-only: can view everything that has a read permission (studio, games, teams, members, API keys) but cannot change anything.",
+          "summary": "Read-only: can view the studio, games, teams and members, but not API keys, and cannot change anything.",
           "assign1": "Stakeholders, investors or partners who need visibility without edit rights.",
           "assign2": "QA, auditors, or new members during onboarding.",
           "avoid1": "The person must edit games or manage members.",
-          "avoid2": "The person should not see API keys: Viewer includes apikey:read.",
-          "note": "Because Viewer gets every read permission, it can see some screens (studio, teams, members) that Developer and Game Manager cannot."
+          "avoid2": "The person needs API keys to connect a build: use Developer.",
+          "note": "Viewer has the same read permissions as Developer except API keys."
         },
         "support": {
           "summary": "Customer support: can view games and the member list.",

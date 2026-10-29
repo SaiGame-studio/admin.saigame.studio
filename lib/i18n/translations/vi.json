@@ -1162,27 +1162,27 @@
           "note": "Admin có quyền member:update. Trang này chỉ cho chủ studio đổi vai trò, nhưng API vẫn chấp nhận việc đổi vai trò từ Admin."
         },
         "developer": {
-          "summary": "Xây dựng và bảo trì game: được tạo, xem, cập nhật, xóa game và xem API key.",
-          "assign1": "Kỹ sư tích hợp game client hoặc SDK, cần toàn quyền với cấu hình game.",
-          "assign2": "Thành viên tạo game mới hoặc gỡ bỏ game cũ.",
-          "assign3": "Người cần đọc API key để kết nối bản build, nhưng không được tạo hay thu hồi key.",
-          "avoid1": "Người đó cần xem thông tin studio, nhóm hoặc danh sách thành viên: Developer không có các quyền xem này. Hãy thêm họ làm Viewer ở một nhóm khác, hoặc dùng Admin.",
-          "avoid2": "Người đó không được phép xóa game."
+          "summary": "Xây dựng và bảo trì các game đã có: được cập nhật game và xem mọi thứ có quyền đọc (studio, game, nhóm, thành viên, API key). Không được tạo hay xóa game.",
+          "assign1": "Kỹ sư tích hợp game client hoặc SDK, cấu hình các game đã có.",
+          "assign2": "Người cần đọc API key để kết nối bản build, nhưng không được tạo hay thu hồi key.",
+          "assign3": "Thành viên cần xem thông tin studio, nhóm và danh sách thành viên trong lúc làm game.",
+          "avoid1": "Người đó cần tạo hoặc xóa game: chỉ Admin và Owner làm được.",
+          "avoid2": "Người đó không nên thấy API key: Developer có quyền apikey:read."
         },
         "game_manager": {
           "summary": "Vận hành các game đã có: được xem và cập nhật cài đặt game, nhưng không được tạo hay xóa game.",
           "assign1": "Người làm live-ops, nội dung hoặc kinh tế game, tinh chỉnh các game đang chạy.",
           "assign2": "Producer cần chỉnh cài đặt game mà không cần API key.",
-          "avoid1": "Người đó cần tạo hoặc xóa game: hãy dùng Developer.",
-          "avoid2": "Người đó cần xem nhóm, thành viên hoặc thông tin studio."
+          "avoid1": "Người đó cần tạo hoặc xóa game: chỉ Admin và Owner làm được.",
+          "avoid2": "Người đó cần xem nhóm, thành viên hoặc thông tin studio: hãy dùng Developer hoặc Viewer."
         },
         "viewer": {
-          "summary": "Chỉ xem: xem được mọi thứ có quyền đọc (studio, game, nhóm, thành viên, API key) nhưng không thay đổi được gì.",
+          "summary": "Chỉ xem: xem được studio, game, nhóm và thành viên, nhưng không xem được API key và không thay đổi được gì.",
           "assign1": "Các bên liên quan, nhà đầu tư hoặc đối tác cần theo dõi mà không cần quyền chỉnh sửa.",
           "assign2": "QA, kiểm toán, hoặc thành viên mới trong giai đoạn làm quen.",
           "avoid1": "Người đó cần chỉnh sửa game hoặc quản lý thành viên.",
-          "avoid2": "Người đó không nên thấy API key: Viewer có quyền apikey:read.",
-          "note": "Vì Viewer có mọi quyền đọc nên xem được một số màn hình (studio, nhóm, thành viên) mà Developer và Game Manager không xem được."
+          "avoid2": "Người đó cần API key để kết nối bản build: hãy dùng Developer.",
+          "note": "Viewer có cùng các quyền đọc như Developer, trừ API key."
         },
         "support": {
           "summary": "Hỗ trợ khách hàng: được xem game và danh sách thành viên.",
