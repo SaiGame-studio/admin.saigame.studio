@@ -116,7 +116,7 @@ export function AuthProvider({ children }: {
     };
     // Function to check authentication status
     const checkAuth = async () => {
-        // No local token: try the shared SSO cookie (e.g. signed in on play.saigame.studio).
+        // Expired access token: refresh it (no API call when no refresh token is stored).
         const token = getValidToken() ?? await refreshAccessToken();
         const authenticated = !!token;
         setIsAuthenticated(authenticated);
