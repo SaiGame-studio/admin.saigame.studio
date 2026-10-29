@@ -679,7 +679,7 @@ export default function ItemDefinitionDetailPage() {
         grid_height: item.grid_height.toString(),
         stats: Object.entries(item.base_stats ?? {}).map(([key, value]) => ({ key, value: String(value) })),
         metadata_entries: Object.entries(cloneMetadata)
-            .filter(([key]) => key !== 'generator_config' && key !== 'description')
+            .filter(([key]) => key !== 'generator_config' && key !== 'description' && key !== 'gacha_pack_ids')
             .map(([key, value]) => ({ key, value: typeof value === 'string' ? value : JSON.stringify(value) ?? '' })),
         client_writable: item.client_writable,
         allow_client_update_qty: item.allow_client_update_qty ?? false,
