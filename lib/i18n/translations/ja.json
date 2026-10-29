@@ -2611,7 +2611,7 @@
     "dropGroupsNote3": "各ドロップは必ず 1 つのアイテムを排出します。数量は Min〜Max の範囲でランダムです。",
     "dropGroupsNote4": "1 パックのドロップは最大 7 個なので、1 回の開封で同時に排出されるアイテムは最大 7 個です。",
     "secondaryGroups": "追加ドロップ",
-    "addGroup": "グループを追加",
+    "addDrop": "ドロップを追加",
     "groupKeyPlaceholder": "グループキー、例: gold",
     "selectItem": "アイテムを選択",
     "dropGroupsInvalid": "各追加ドロップには少なくとも 1 つの報酬アイテムが必要です（追加ドロップは最大 6 個）。",
