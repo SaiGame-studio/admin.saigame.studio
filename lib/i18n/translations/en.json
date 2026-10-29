@@ -1117,6 +1117,87 @@
     "updateRole": "Update Role",
     "updateRoleSuccess": "Member role updated successfully.",
     "selectRoleValidation": "Please select a role.",
+    "memberPermissions": "Permissions",
+    "permissionsGrantedCount": "{granted}/{total} granted",
+    "permissionsUnavailable": "Unavailable",
+    "permissionsReadOnlyHint": "Read-only. These permissions come from this member's role in this team. Studio-wide access combines the roles from every team the user belongs to.",
+    "inactiveMemberNoPermissions": "This member is inactive, so none of these permissions are currently applied.",
+    "permissionGranted": "Granted",
+    "permissionNotGranted": "Not granted",
+    "roleMatrixTitle": "Role permissions",
+    "roleMatrixDesc": "Read-only overview of every permission each role grants. Highlighted columns are roles held by members of this team.",
+    "permissionColumn": "Permission",
+    "roleMemberCount": "{count} in this team",
+    "roleTotalRow": "Total granted",
+    "roleChangeOwnerOnly": "Only the studio owner can change member roles.",
+    "loadRolePermissionsError": "Failed to load some role permissions.",
+    "selectedRolePermissions": "Permissions granted by this role",
+    "noPermissionsData": "No permission data available.",
+    "roleGuide": {
+      "open": "What does this role mean?",
+      "title": "Role guide",
+      "desc": "What each role is for and when to give it to a user.",
+      "systemRole": "System role",
+      "customRole": "Custom role",
+      "customRoleHint": "This role has no built-in guide. The description and permissions shown here come from the server.",
+      "assignWhen": "Give this role when",
+      "avoidWhen": "Choose another role when",
+      "permissionsTitle": "Permissions of this role",
+      "roles": {
+        "owner": {
+          "summary": "The person who created the studio. Has every permission, including deleting the studio, and is the only one who can change other members' roles.",
+          "assign1": "It is given automatically to the user who creates the studio.",
+          "assign2": "It cannot be picked from the role list when adding a member or changing a role.",
+          "avoid1": "You want to share management with someone you trust: give them Admin instead.",
+          "note": "Members with the Owner role cannot be removed from a team on this page."
+        },
+        "admin": {
+          "summary": "Runs the whole studio on the owner's behalf: studio settings, games, teams, members and API keys. The only thing it cannot do is delete the studio.",
+          "assign1": "A trusted co-founder, producer or lead who manages the studio day to day.",
+          "assign2": "Someone who has to invite, update or remove members and create or delete teams.",
+          "assign3": "Someone who has to generate or revoke API keys.",
+          "avoid1": "The person only works on games: Developer or Game Manager is enough.",
+          "note": "Admin holds the member:update permission. This page only lets the studio owner change roles, but the API still accepts role changes from Admins."
+        },
+        "developer": {
+          "summary": "Builds and maintains games: can create, view, update and delete games, and can view API keys.",
+          "assign1": "Engineers integrating the game client or SDK who need full control of game configuration.",
+          "assign2": "Members who create new games or remove obsolete ones.",
+          "assign3": "Someone who needs to read API keys to connect a build, without generating or revoking them.",
+          "avoid1": "The person must see studio details, teams or the member list: Developer does not include those read permissions. Also add them as Viewer in another team, or use Admin.",
+          "avoid2": "The person should not be able to delete games."
+        },
+        "game_manager": {
+          "summary": "Operates existing games: can view and update game settings, but cannot create or delete games.",
+          "assign1": "Live-ops, content or economy managers who tune games that already exist.",
+          "assign2": "Producers who adjust game settings and do not need API keys.",
+          "avoid1": "The person needs to create or delete games: use Developer.",
+          "avoid2": "The person needs to see teams, members or studio details."
+        },
+        "viewer": {
+          "summary": "Read-only: can view everything that has a read permission (studio, games, teams, members, API keys) but cannot change anything.",
+          "assign1": "Stakeholders, investors or partners who need visibility without edit rights.",
+          "assign2": "QA, auditors, or new members during onboarding.",
+          "avoid1": "The person must edit games or manage members.",
+          "avoid2": "The person should not see API keys: Viewer includes apikey:read.",
+          "note": "Because Viewer gets every read permission, it can see some screens (studio, teams, members) that Developer and Game Manager cannot."
+        },
+        "support": {
+          "summary": "Customer support: can view games and the member list.",
+          "assign1": "Support staff who look up games and members to answer player or partner questions.",
+          "avoid1": "The person needs to edit games or see studio and team settings."
+        }
+      }
+    },
+    "permissionResource": {
+      "studio": "Studio",
+      "game": "Games",
+      "team": "Teams",
+      "member": "Members",
+      "apikey": "API keys",
+      "player": "Players",
+      "system": "System"
+    },
     "removeMemberTitle": "Remove Member",
     "removeMemberConfirmPrefix": "Are you sure you want to remove",
     "removeMemberConfirmSuffix": "from the team? This action cannot be undone.",

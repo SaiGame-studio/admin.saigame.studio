@@ -5,7 +5,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { fetchRoles, updateMemberRole } from "@/lib/team-api";
-import type { Role } from "@/types/role";
+import type { Permission, Role, RoleWithPermissions } from "@/types/role";
+import { RolePermissionGroups } from "@/components/RolePermissionGroups";
+import { permissionNameSet } from "@/lib/role-permissions";
 import type { TeamMember } from "@/types/team";
 import { Pencil, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -14,8 +16,10 @@ interface EditMemberRoleDialogProps {
     teamId: string;
     member: TeamMember;
     onRoleUpdated?: () => void;
+    rolePermissions?: Record<string, RoleWithPermissions>;
+    allPermissions?: Permission[];
 }
-export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemberRoleDialogProps) {
+export function EditMemberRoleDialog({ teamId, member, onRoleUpdated, rolePermissions, allPermissions = [] }: EditMemberRoleDialogProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [roleId, setRoleId] = useState(member.role_id);
@@ -23,6 +27,7 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
     const [loading, setLoading] = useState(false);
     const [rolesLoading, setRolesLoading] = useState(false);
     const { toast } = useToast();
+    const selectedRole = rolePermissions?.[roleId];
     useEffect(() => {
         if (open) {
             loadRoles();
@@ -83,11 +88,11 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
     }
     return (<Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button id={`team-member-edit-role-${member.id}`} variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
           <Pencil className="h-3 w-3"/>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent id={`team-member-edit-role-dialog-${member.id}`} className="sm:max-w-[640px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{t('team.editRoleTitle')}</DialogTitle>
@@ -112,6 +117,17 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
                 </SelectContent>
               </Select>
             </div>
+            {selectedRole && allPermissions.length > 0 && (<div id={`team-member-edit-role-preview-${member.id}`} className="grid gap-2">
+                <Label id={`team-member-edit-role-preview-label-${member.id}`}>
+                  {t('team.selectedRolePermissions')}
+                  <span className="ml-2 text-xs font-normal text-muted-foreground tabular-nums">
+                    {t('team.permissionsGrantedCount', { granted: selectedRole.permissions.length, total: allPermissions.length })}
+                  </span>
+                </Label>
+                <div id={`team-member-edit-role-preview-scroll-${member.id}`} className="max-h-72 overflow-y-auto rounded-md border bg-muted/30 p-2">
+                  <RolePermissionGroups idPrefix={`team-member-edit-role-preview-${member.id}`} allPermissions={allPermissions} granted={permissionNameSet(selectedRole)}/>
+                </div>
+              </div>)}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
