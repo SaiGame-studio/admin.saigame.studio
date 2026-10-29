@@ -137,8 +137,9 @@ export function AdminEmailBlacklistDuplicatesPanel({ onRemoved }: AdminEmailBlac
       <AlertDialog open={!!removeTarget} onOpenChange={(open) => { if (!open) setRemoveTarget(null); }}>
         <AlertDialogContent id="email-blacklist-duplicates-remove-dialog">
           <AlertDialogHeader id="email-blacklist-duplicates-remove-dialog-header">
-            <AlertDialogTitle id="email-blacklist-duplicates-remove-dialog-title">Remove duplicate entry</AlertDialogTitle>
-            <AlertDialogDescription id="email-blacklist-duplicates-remove-dialog-description">
+            {/* Radix links the dialog to its title and description by their generated ids, so no custom id here. */}
+            <AlertDialogTitle>Remove duplicate entry</AlertDialogTitle>
+            <AlertDialogDescription>
               The <strong>{removeTarget?.status}</strong> entry of <strong>{removeTarget?.email}</strong> ({removeTarget?.id}) will be permanently deleted. At least one entry for this email always remains.
             </AlertDialogDescription>
           </AlertDialogHeader>
