@@ -128,6 +128,37 @@ export async function addEmailToBlacklist(email: string, reason?: string): Promi
 export async function updateEmailBlacklistStatus(id: string, status: string): Promise<void> {
     return api.put(`/api/v1/admin/email-blacklist/${encodeURIComponent(id)}`, { status });
 }
+export interface EmailBlacklistDuplicateGroup {
+    email: string;
+    /** Ordered from the most recently updated entry. */
+    entries: EmailBlacklistEntry[];
+}
+export interface EmailBlacklistDuplicatesResult {
+    groups: EmailBlacklistDuplicateGroup[];
+    has_more: boolean;
+    next_after: string;
+}
+/**
+ * Get groups of blacklist entries sharing the same email (super admin only)
+ */
+export async function getEmailBlacklistDuplicates(params?: {
+    after?: string;
+    limit?: number;
+}): Promise<EmailBlacklistDuplicatesResult> {
+    const query = new URLSearchParams({ limit: String(params?.limit ?? 20) });
+    if (params?.after)
+        query.set("after", params.after);
+    return api.get(`/api/v1/admin/email-blacklist/duplicates?${query.toString()}`);
+}
+/**
+ * Delete a duplicate blacklist entry; the server keeps at least one entry per email (super admin only)
+ */
+export async function removeEmailBlacklistDuplicate(id: string): Promise<{
+    id: string;
+    email: string;
+}> {
+    return api.delete(`/api/v1/admin/email-blacklist/${encodeURIComponent(id)}/duplicate`);
+}
 
 export async function listCmsContents(params?: {
     category_id?: string;
