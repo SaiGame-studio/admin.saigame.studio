@@ -6,6 +6,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { createGachaPack, deleteGachaPack, listGachaPacks, listItemDefinitions, setGachaPackEnabled, updateGachaPack } from "@/lib/inventory-api";
 import type { GachaDropGroup, GachaPack, GachaPoolEntry, ItemDefinition, KeyRequirement } from "@/types/inventory";
 import type { DropGroupFormRow, KeyReqRow, PoolRow } from "./items-page-state-types";
+import { clearGachaFieldErrors, emptyPoolFieldIds, gachaFieldIds, invalidDropGroupFieldIds, showGachaFieldErrors } from "./gacha-field-errors";
 
 type ToastFn = (options: { title?: string; description?: string; variant?: "default" | "destructive" }) => void;
 
@@ -140,6 +141,7 @@ export function useGachaPage({
   }, [gachaAllItems, gachaSheetOpen, resolveGachaRef, setGachaForm]);
 
   const gachaOpenEdit = useCallback((pack: GachaPack) => {
+    clearGachaFieldErrors();
     setEditingPack(pack);
     const meta = (pack.metadata ?? {}) as Record<string, unknown>;
     setGachaForm({
@@ -186,6 +188,7 @@ export function useGachaPage({
   }, [gachaLoading, gachaOpenEdit, gachaPacks, searchParams, suppressGachaAutoOpenRef]);
 
   const gachaCloseSheet = useCallback(() => {
+    clearGachaFieldErrors();
     suppressGachaAutoOpenRef.current = true;
     setGachaSheetOpen(false);
     setCreateGachaConvContext(undefined);
@@ -195,6 +198,7 @@ export function useGachaPage({
   }, [router, searchParams, setCreateGachaConvContext, setGachaSheetOpen, suppressGachaAutoOpenRef]);
 
   const gachaOpenCreate = useCallback(() => {
+    clearGachaFieldErrors();
     setEditingPack(null);
     setGachaForm(emptyGachaForm());
     setGachaSheetOpen(true);
@@ -206,12 +210,15 @@ export function useGachaPage({
   const handleGachaSave = useCallback(async (closeAfterSave = true) => {
     const name = gachaForm.name.trim();
     const codeName = gachaForm.code_name.trim();
+    clearGachaFieldErrors();
     if (!name) {
       toast({ variant: "destructive", title: t("items.nameRequired") });
+      showGachaFieldErrors([gachaFieldIds.name()]);
       return;
     }
     if (codeName && !/^[a-z][a-z0-9_]{0,63}$/.test(codeName)) {
       toast({ variant: "destructive", title: t("items.saveFailed"), description: "Code name must match ^[a-z][a-z0-9_]{0,63}$" });
+      showGachaFieldErrors([gachaFieldIds.codeName()]);
       return;
     }
 
@@ -226,19 +233,19 @@ export function useGachaPage({
 
     if (poolSource.length < 1) {
       toast({ variant: "destructive", title: t("items.saveFailed"), description: "Gacha pack must have at least one reward item." });
+      showGachaFieldErrors(emptyPoolFieldIds(gachaForm.pool));
       return;
     }
 
-    const unresolvedRefs = [
-      ...poolSource,
-      ...keyReqSource,
-      ...(gachaForm.dropGroups ?? []).flatMap((group) => group.pool.map((row) => ({
-        ...row,
-        item_definition_id: resolveGachaRef(row.item_definition_id.trim(), gachaAllItems),
-      }))),
-    ].filter((row) => row.item_definition_id.startsWith("__REF:"));
-    if (unresolvedRefs.length > 0) {
+    const isUnresolved = (rawId: string) => !!rawId.trim() && resolveGachaRef(rawId.trim(), gachaAllItems).startsWith("__REF:");
+    const unresolvedFieldIds = [
+      ...gachaForm.pool.map((row, index) => (isUnresolved(row.item_definition_id) ? gachaFieldIds.poolItem(row, index) : null)),
+      ...gachaForm.keyReqs.map((row, index) => (isUnresolved(row.item_definition_id) ? gachaFieldIds.keyReqItem(row, index) : null)),
+      ...(gachaForm.dropGroups ?? []).flatMap((group, groupIndex) => group.pool.map((row, rowIndex) => (isUnresolved(row.item_definition_id) ? gachaFieldIds.dropGroupItem(groupIndex, rowIndex) : null))),
+    ].filter((id): id is string => !!id);
+    if (unresolvedFieldIds.length > 0) {
       toast({ variant: "destructive", title: t("items.saveFailed"), description: "Some referenced item definitions are still unresolved. Please select them manually before saving." });
+      showGachaFieldErrors(unresolvedFieldIds);
       return;
     }
 
@@ -249,7 +256,7 @@ export function useGachaPage({
       quantity_max: Math.max(Number(row.quantity_min) || 1, Number(row.quantity_max) || 1),
     }));
     const drop_groups: GachaDropGroup[] = (gachaForm.dropGroups ?? []).map((group) => ({ key: group.key.trim(), item_pool: group.pool.filter((row) => row.item_definition_id.trim()).map((row) => ({ item_definition_id: resolveGachaRef(row.item_definition_id.trim(), gachaAllItems), weight: Math.max(1, Number(row.weight) || 1), quantity_min: Math.max(1, Number(row.quantity_min) || 1), quantity_max: Math.max(Number(row.quantity_min) || 1, Number(row.quantity_max) || 1) })) }));
-    if (drop_groups.length > 6 || drop_groups.some((group) => !group.key || group.item_pool.length === 0)) { toast({ variant: "destructive", title: t("items.saveFailed"), description: t("items.dropGroupsInvalid") }); return; }
+    if (drop_groups.length > 6 || drop_groups.some((group) => !group.key || group.item_pool.length === 0)) { toast({ variant: "destructive", title: t("items.saveFailed"), description: t("items.dropGroupsInvalid") }); showGachaFieldErrors(invalidDropGroupFieldIds(gachaForm.dropGroups ?? [])); return; }
 
     const key_requirements: KeyRequirement[] = keyReqSource.map((row) => ({
       item_definition_id: row.item_definition_id,
