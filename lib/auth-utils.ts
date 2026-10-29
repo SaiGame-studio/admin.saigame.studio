@@ -65,8 +65,6 @@ function getUsableUntil(token: string, expiresAt: number): number {
  * Save token with expiration data and optional refresh token
  */
 export function saveToken(token: string, refreshToken?: string): void {
-    // A new session exists: allow the shared SSO cookie to be tried again later if needed.
-    ssoCookieRefreshFailed = false;
     // Save the raw token for backward compatibility
     localStorage.setItem(TOKEN_KEY, token);
     // Save refresh token if provided
@@ -229,13 +227,6 @@ export function getRefreshToken(): string | null {
 }
 let refreshInFlight: Promise<string | null> | null = null;
 /**
- * Set when a refresh without a stored refresh token (shared SSO cookie only) was rejected.
- * Such a guest has no session, so the cookie is not tried again until the next page load
- * or a new login (saveToken) — otherwise every polling call (e.g. the support heartbeat
- * every 5s) would send a POST /auth/refresh that always fails with REFRESH_TOKEN_MISSING.
- */
-let ssoCookieRefreshFailed = false;
-/**
  * Refresh access token using refresh token.
  * Concurrent callers share one request, so a refresh token is never sent twice at once.
  */
@@ -256,10 +247,9 @@ export async function getFreshAccessToken(): Promise<string | null> {
 }
 async function requestNewAccessToken(): Promise<string | null> {
     try {
-        // Without a stored refresh token, fall back to the shared SSO cookie
-        // (set by the API on .saigame.studio, shared with play.saigame.studio).
+        // No stored refresh token: nothing to refresh, so never call the API.
         const refreshToken = getRefreshToken();
-        if (!refreshToken && ssoCookieRefreshFailed)
+        if (!refreshToken)
             return null;
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
         if (!apiUrl) {
@@ -275,11 +265,10 @@ async function requestNewAccessToken(): Promise<string | null> {
                 [CLIENT_ID_HEADER]: CLIENT_ID,
             },
             credentials: 'include',
-            body: refreshToken ? JSON.stringify({ refresh_token: refreshToken }) : undefined,
+            body: JSON.stringify({ refresh_token: refreshToken }),
         });
         if (!response.ok) {
             console.log('Refresh token failed or expired');
-            ssoCookieRefreshFailed = true;
             clearToken();
             return null;
         }
@@ -287,7 +276,7 @@ async function requestNewAccessToken(): Promise<string | null> {
         if (data.access_token) {
             console.log('Successfully refreshed access token');
             // Save the new tokens
-            saveToken(data.access_token, data.refresh_token || refreshToken || undefined);
+            saveToken(data.access_token, data.refresh_token || refreshToken);
             return data.access_token;
         }
         return null;
@@ -300,7 +289,6 @@ async function requestNewAccessToken(): Promise<string | null> {
             return null;
         }
         console.error('Error refreshing access token:', error);
-        ssoCookieRefreshFailed = true;
         clearToken();
         return null;
     }
