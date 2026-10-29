@@ -32,6 +32,7 @@ import { TokenStatsTab } from "@/components/TokenStatsTab";
 import { AdminSystemPromptsList } from "./AdminSystemPromptsList";
 import { AdminDBBackupsTab } from "./AdminDBBackupsTab";
 import { AdminDuplicateUsersPanel } from "./AdminDuplicateUsersPanel";
+import { AdminEmailBlacklistDuplicatesPanel } from "./AdminEmailBlacklistDuplicatesPanel";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig, } from "@/components/ui/chart";
 // ---------------------------------------------------------------------------
@@ -955,6 +956,8 @@ function MailBlockTab() {
           </Button>
         </div>
       </div>
+
+      <AdminEmailBlacklistDuplicatesPanel onRemoved={() => load(page, statusFilter, searchDebounced)}/>
 
       {error && (<Card className="border-destructive/50">
           <CardContent className="pt-4 text-destructive text-sm">{error}</CardContent>
