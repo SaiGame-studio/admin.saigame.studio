@@ -1,5 +1,5 @@
 import type { Team, TeamMember } from "@/types/team";
-import type { Role } from "@/types/role";
+import type { Role, RoleWithPermissions } from "@/types/role";
 import type { Game } from "@/types/game";
 import { api } from "@/lib/api-client";
 /**
@@ -39,6 +39,12 @@ export async function fetchTeamMembers(teamId: string): Promise<TeamMember[]> {
 export async function fetchRoles(): Promise<Role[]> {
     const data = await api.get("/api/v1/roles");
     return Array.isArray(data) ? data : [];
+}
+/**
+ * Fetches a role together with the permissions it grants
+ */
+export async function fetchRoleWithPermissions(roleId: string): Promise<RoleWithPermissions> {
+    return await api.get(`/api/v1/roles/${roleId}`);
 }
 /**
  * Adds a member to a team

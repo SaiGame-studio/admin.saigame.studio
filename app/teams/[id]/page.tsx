@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchTeamDetails, fetchTeamMembers, fetchTeamGames } from "@/lib/team-api";
 import { fetchStudio } from "@/lib/studio-api";
@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, ArrowLeft, ExternalLink, Handshake } from "lucide-react";
+import { AlertCircle, ArrowLeft, ExternalLink, Handshake, Lock } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
@@ -25,6 +26,12 @@ import TeamNameEditable, { TeamDescriptionEditable } from "@/components/TeamName
 import { CopyButton } from "@/components/CopyButton";
 import { DeleteTeamDialog } from "@/components/DeleteTeamDialog";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { useAuth } from "@/contexts/auth-context";
+import { useTeamRolePermissions } from "@/hooks/use-team-role-permissions";
+import { MemberPermissionsPanel } from "@/components/MemberPermissionsPanel";
+import { TeamRolePermissionsMatrix } from "@/components/TeamRolePermissionsMatrix";
+import { RoleHelpButton } from "@/components/RoleHelpButton";
+import { RoleGuideSheet } from "@/components/RoleGuideSheet";
 export default function TeamDetailsPage({ params }: {
     params: Promise<{
         id: string;
@@ -44,6 +51,12 @@ export default function TeamDetailsPage({ params }: {
     const [membersError, setMembersError] = useState<string | null>(null);
     const [gamesError, setGamesError] = useState<string | null>(null);
     const hasFetched = useRef(false);
+    const { user } = useAuth();
+    // Only the studio owner may change member roles; everyone else sees permissions read-only.
+    const isStudioOwner = !!user?.id && !!studio?.owner_user_id && user.id === studio.owner_user_id;
+    const memberRoleIds = useMemo(() => members.map(member => member.role_id), [members]);
+    const rolePermissions = useTeamRolePermissions(memberRoleIds, !membersLoading);
+    const [guideRoleId, setGuideRoleId] = useState<string | null>(null);
     useEffect(() => {
         if (hasFetched.current)
             return;
@@ -309,9 +322,21 @@ export default function TeamDetailsPage({ params }: {
                       <div className="grid grid-cols-2 gap-4 mt-4">
                         <div>
                           <p className="text-sm font-medium">{t('team.role')}</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm text-muted-foreground">{member.role_name}</p>
-                            <EditMemberRoleDialog teamId={team.id} member={member} onRoleUpdated={handleMemberAdded}/>
+                          <div id={`team-member-role-${member.id}`} className="flex items-center gap-2">
+                            <Badge id={`team-member-role-badge-${member.id}`} variant="outline">
+                              {rolePermissions.roleMap[member.role_id]?.display_name || member.role_name}
+                            </Badge>
+                            <RoleHelpButton id={`team-member-role-help-${member.id}`} roleId={member.role_id} onOpen={setGuideRoleId}/>
+                            {isStudioOwner ? (<EditMemberRoleDialog teamId={team.id} member={member} onRoleUpdated={handleMemberAdded} rolePermissions={rolePermissions.roleMap} allPermissions={rolePermissions.allPermissions}/>) : (<TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span id={`team-member-role-locked-${member.id}`} tabIndex={0} className="inline-flex text-muted-foreground" aria-label={t('team.roleChangeOwnerOnly')}>
+                                      <Lock className="h-3 w-3"/>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">{t('team.roleChangeOwnerOnly')}</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>)}
                           </div>
                         </div>
                         <div>
@@ -328,6 +353,7 @@ export default function TeamDetailsPage({ params }: {
                             <p className="text-sm font-medium">{t('team.joinedAt')}</p>
                             <p className="text-sm text-muted-foreground">{formatTimestamp(member.joined_at)}</p>
                           </div>)}
+                        <MemberPermissionsPanel member={member} role={rolePermissions.roleMap[member.role_id]} allPermissions={rolePermissions.allPermissions} loading={rolePermissions.loading}/>
                       </div>
                     </div>))}
                 </div>) : (<div className="text-center py-6">
@@ -335,6 +361,10 @@ export default function TeamDetailsPage({ params }: {
                 </div>)}
             </CardContent>
           </Card>
+
+          {/* Role permission matrix (read-only) */}
+          <TeamRolePermissionsMatrix roles={rolePermissions.roles} allPermissions={rolePermissions.allPermissions} members={members} loading={rolePermissions.loading} error={rolePermissions.error} onRoleHelp={setGuideRoleId}/>
+          <RoleGuideSheet roleId={guideRoleId} roles={rolePermissions.roles} allPermissions={rolePermissions.allPermissions} members={members} onRoleChange={setGuideRoleId}/>
         </>) : (<Alert>
           <AlertCircle className="h-4 w-4"/>
           <AlertTitle>{t('team.notFound')}</AlertTitle>

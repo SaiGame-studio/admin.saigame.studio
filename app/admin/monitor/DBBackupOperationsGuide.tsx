@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { Terminal } from "lucide-react";
+import { CopyButton } from "@/components/CopyButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
@@ -9,14 +9,24 @@ interface DBBackupOperationsGuideProps {
   id: string;
 }
 
-const COMMAND_CLASS = "bg-muted p-2.5 rounded break-all font-mono border text-[10px] select-all";
 const LABEL_CLASS = "font-semibold text-muted-foreground";
 
-function GuideCommand({ id, children }: { id: string; children: ReactNode }) {
+function GuideCommand({ id, command }: { id: string; command: string }) {
+  const { t } = useTranslation();
   return (
-    <pre id={id} className={`${COMMAND_CLASS} whitespace-pre-wrap`}>
-      {children}
-    </pre>
+    <div id={`${id}-wrap`} className="group relative rounded-md border bg-muted">
+      <pre id={id} className="overflow-x-auto whitespace-pre-wrap break-all py-3 pl-4 pr-12 font-mono text-sm leading-relaxed text-foreground select-all">
+        {command}
+      </pre>
+      <CopyButton
+        id={`${id}-copy`}
+        iconId={`${id}-copy-icon`}
+        text={command}
+        label={t("dbBackups.copyCommand") || "Copy command"}
+        size="h-4 w-4"
+        className="absolute right-2 top-2 ml-0 rounded-md border bg-background p-1.5 shadow-sm"
+      />
+    </div>
   );
 }
 
@@ -64,23 +74,23 @@ export function DBBackupOperationsGuide({ id }: DBBackupOperationsGuideProps) {
           {t("dbBackups.guideDesc") || "Run these commands from the backend repository to list, upload, restore, or switch databases for an environment."}
         </CardDescription>
       </CardHeader>
-      <CardContent id="db-backups-guide-content" className="space-y-4 text-xs">
+      <CardContent id="db-backups-guide-content" className="space-y-5 text-sm">
         <div id="db-backups-guide-list-section" className="space-y-1.5 border-b pb-3">
           <p id="db-backups-guide-list-label" className={LABEL_CLASS}>
             {t("dbBackups.guideListSyntax") || "List all databases and mark the current database:"}
           </p>
-          <GuideCommand id="db-backups-guide-list-command">ENV=&lt;env&gt; make db-list</GuideCommand>
+          <GuideCommand id="db-backups-guide-list-command" command="ENV=<env> make db-list" />
         </div>
 
         <div id="db-backups-guide-upload-section" className="space-y-1.5 border-b pb-3">
           <p id="db-backups-guide-upload-label" className={LABEL_CLASS}>
             {t("dbBackups.guideUploadSyntax") || "Upload a backup file (searches local ./backups/db/ by default):"}
           </p>
-          <GuideCommand id="db-backups-guide-upload-command">ENV=&lt;env&gt; make upload-db &lt;file-name-or-path&gt;</GuideCommand>
+          <GuideCommand id="db-backups-guide-upload-command" command="ENV=<env> make upload-db <file-name-or-path>" />
           <p id="db-backups-guide-upload-example-label" className={LABEL_CLASS}>
-            {t("dbBackups.guideUploadExample") || "Example (Upload to QA):"}
+            {t("dbBackups.guideUploadExample") || "Example (Upload to local):"}
           </p>
-          <GuideCommand id="db-backups-guide-upload-example-command">ENV=qa make upload-db backup-file.dump</GuideCommand>
+          <GuideCommand id="db-backups-guide-upload-example-command" command="ENV=local make upload-db backup-file.dump" />
         </div>
 
         <div id="db-backups-guide-restore-section" className="space-y-3 border-b pb-3">
@@ -88,11 +98,11 @@ export function DBBackupOperationsGuide({ id }: DBBackupOperationsGuideProps) {
             <p id="db-backups-guide-restore-label" className={LABEL_CLASS}>
               {t("dbBackups.guideSyntax") || "Restore a file from local DB_BACKUP_DIR into a database:"}
             </p>
-            <GuideCommand id="db-backups-guide-restore-command">ENV=&lt;env&gt; make restore &lt;file-name&gt; &lt;new-db-name&gt;</GuideCommand>
+            <GuideCommand id="db-backups-guide-restore-command" command="ENV=<env> make restore <file-name> <new-db-name>" />
             <p id="db-backups-guide-restore-example-label" className={LABEL_CLASS}>
-              {t("dbBackups.guideExample") || "Example (Restore to QA with new DB):"}
+              {t("dbBackups.guideExample") || "Example (Restore to local with new DB):"}
             </p>
-            <GuideCommand id="db-backups-guide-restore-example-command">ENV=qa make restore backup-file.dump ss_game_new_db</GuideCommand>
+            <GuideCommand id="db-backups-guide-restore-example-command" command="ENV=local make restore backup-file.dump ss_game_new_db" />
           </div>
 
           <div id="db-backups-guide-restore-prereq-block" className="space-y-1.5">
@@ -102,9 +112,7 @@ export function DBBackupOperationsGuide({ id }: DBBackupOperationsGuideProps) {
             <p id="db-backups-guide-restore-prereq-env-label" className="leading-relaxed">
               {t("dbBackups.guideRestorePrereqEnv") || "Add these variables to .env.<env> (DB_APP_PASSWORD is required only when the target database does not exist yet; letters and digits only):"}
             </p>
-            <GuideCommand id="db-backups-guide-restore-env-example">
-              {"DB_APP_USER=ss_app\nDB_APP_PASSWORD=<letters-and-digits>\nDB_ADMIN_USER=ss_user\nDB_ADMIN_PASSWORD=<superuser password>"}
-            </GuideCommand>
+            <GuideCommand id="db-backups-guide-restore-env-example" command={"DB_APP_USER=ss_app\nDB_APP_PASSWORD=<letters-and-digits>\nDB_ADMIN_USER=ss_user\nDB_ADMIN_PASSWORD=<superuser password>"} />
             <GuideBullets id="db-backups-guide-restore-prereq-list" items={prerequisites} />
           </div>
 
@@ -119,9 +127,7 @@ export function DBBackupOperationsGuide({ id }: DBBackupOperationsGuideProps) {
             <p id="db-backups-guide-restore-after-title" className={LABEL_CLASS}>
               {t("dbBackups.guideRestoreAfterTitle") || "After restore: switch the backend to the new database"}
             </p>
-            <GuideCommand id="db-backups-guide-restore-after-example">
-              {"ENV=<env> make restore <file-name> <new-db-name>\n# .env.<env>: DB_NAME=<new-db-name>  DB_USER=ss_app  DB_PASSWORD=<DB_APP_PASSWORD>\nENV=<env> make deploy-code\nENV=<env> make deploy-migrate"}
-            </GuideCommand>
+            <GuideCommand id="db-backups-guide-restore-after-example" command={"ENV=<env> make restore <file-name> <new-db-name>\n# .env.<env>: DB_NAME=<new-db-name>  DB_USER=ss_app  DB_PASSWORD=<DB_APP_PASSWORD>\nENV=<env> make deploy-code\nENV=<env> make deploy-migrate"} />
             <GuideBullets id="db-backups-guide-restore-after-list" items={afterSteps} />
           </div>
         </div>
@@ -130,14 +136,14 @@ export function DBBackupOperationsGuide({ id }: DBBackupOperationsGuideProps) {
           <p id="db-backups-guide-change-label" className={LABEL_CLASS}>
             {t("dbBackups.guideChangeSyntax") || "Point the backend to an existing database without renaming it:"}
           </p>
-          <GuideCommand id="db-backups-guide-change-command">ENV=&lt;env&gt; make change-db &lt;new-db&gt;</GuideCommand>
+          <GuideCommand id="db-backups-guide-change-command" command="ENV=<env> make change-db <new-db>" />
           <p id="db-backups-guide-change-example-label" className={LABEL_CLASS}>
-            {t("dbBackups.guideChangeExample") || "Example (Use a restored QA database):"}
+            {t("dbBackups.guideChangeExample") || "Example (Use a restored local database):"}
           </p>
-          <GuideCommand id="db-backups-guide-change-example-command">ENV=qa make change-db ss_game_restore</GuideCommand>
+          <GuideCommand id="db-backups-guide-change-example-command" command="ENV=local make change-db ss_game_restore" />
         </div>
 
-        <div id="db-backups-guide-note" className="text-[10px] text-amber-500 dark:text-amber-400 font-medium border-l-2 border-amber-500 pl-2 leading-relaxed">
+        <div id="db-backups-guide-note" className="text-xs text-amber-500 dark:text-amber-400 font-medium border-l-2 border-amber-500 pl-2 leading-relaxed">
           {t("dbBackups.guideNote") || "Restore requires an empty target database and never drops existing tables. Database switching shows current/new statistics, asks for confirmation, updates DB_NAME without renaming a database, then reloads the backend automatically. Remote restart failures roll back the configuration."}
         </div>
       </CardContent>
