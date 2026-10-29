@@ -2650,7 +2650,7 @@
     "dropGroupsNote3": "Each Drop always gives exactly 1 item; its quantity is rolled between Min and Max.",
     "dropGroupsNote4": "A pack has at most 7 Drops, so one open gives at most 7 items at once.",
     "secondaryGroups": "Additional drops",
-    "addGroup": "Add group",
+    "addDrop": "Add drop",
     "groupKeyPlaceholder": "Group key, e.g. gold",
     "selectItem": "Select item",
     "dropGroupsInvalid": "Each additional Drop needs at least one reward item (maximum 6 additional Drops).",

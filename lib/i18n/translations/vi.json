@@ -2616,7 +2616,7 @@
     "dropGroupsNote3": "Mỗi Drop luôn rớt ra đúng 1 item; số lượng ngẫu nhiên trong khoảng Min–Max.",
     "dropGroupsNote4": "Mỗi pack có tối đa 7 Drop, nên mỗi lần mở rớt ra tối đa 7 item cùng lúc.",
     "secondaryGroups": "Drop bổ sung",
-    "addGroup": "Thêm nhóm",
+    "addDrop": "Thêm drop",
     "groupKeyPlaceholder": "Khóa nhóm, ví dụ: gold",
     "selectItem": "Chọn vật phẩm",
     "dropGroupsInvalid": "Mỗi Drop bổ sung cần ít nhất một vật phẩm phần thưởng (tối đa 6 Drop bổ sung).",
