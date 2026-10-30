@@ -10,6 +10,7 @@ export interface GamePublicInfo {
     release_at: string | null;
     release_date_text: string | null;
     content: string | null;
+    image_url: string | null;
     created_at: string | null;
     updated_at: string | null;
 }
@@ -20,6 +21,7 @@ export interface UpsertGamePublicInfoInput {
     release_at?: string;
     release_date_text?: string;
     content: string;
+    image_url?: string;
 }
 
 export async function getGamePublicInfo(gameId: string): Promise<GamePublicInfo> {
