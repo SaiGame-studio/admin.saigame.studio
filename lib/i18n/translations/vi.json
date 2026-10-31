@@ -368,6 +368,9 @@
     "clearFilter": "Xóa bộ lọc"
   },
   "game": {
+    "tabGameInfo": "Thông tin game",
+    "tabPublicInfo": "Thông tin công khai",
+    "tabTeam": "Team",
     "desktopRecommendedTitle": "Nên dùng máy tính",
     "desktopRecommendedDesc": "Để có trải nghiệm tốt nhất khi quản lý game, hãy sử dụng máy tính hoặc màn hình rộng. Một số bảng dữ liệu và trình chỉnh sửa được thiết kế cho màn hình lớn.",
     "shops": "Cửa hàng",

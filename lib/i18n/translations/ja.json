@@ -368,6 +368,9 @@
     "clearFilter": "フィルタークリア"
   },
   "game": {
+    "tabGameInfo": "ゲーム情報",
+    "tabPublicInfo": "公開情報",
+    "tabTeam": "チーム",
     "desktopRecommendedTitle": "デスクトップ推奨",
     "desktopRecommendedDesc": "ゲームを管理する最適な体験のために、デスクトップまたはワイドスクリーンでの表示をお勧めします。一部のテーブルや編集機能は広い画面向けに設計されています。",
     "shops": "ショップ",

@@ -368,6 +368,9 @@
     "clearFilter": "Clear Filter"
   },
   "game": {
+    "tabGameInfo": "Game Info",
+    "tabPublicInfo": "Public Info",
+    "tabTeam": "Team",
     "desktopRecommendedTitle": "Desktop recommended",
     "desktopRecommendedDesc": "For the best experience managing your game, please use a desktop or widescreen view. Some tables and editors are designed for wider screens.",
     "shops": "Shops",
