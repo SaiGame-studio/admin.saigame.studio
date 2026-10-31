@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { fetchStudio, fetchStudioGames, fetchStudioTeams, fetchStudioMembers, removeStudioMember, type StudioMember } from "@/lib/studio-api";
+import { sortGamesByName } from "@/lib/utils/sort-games";
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils";
 import type { Studio } from "@/types/studio";
 import type { Game } from "@/types/game";
@@ -89,7 +90,7 @@ export default function StudioDetailsPage({ params }: {
             setGamesLoading(true);
             setGamesError(null);
             const data = await fetchStudioGames(id);
-            setGames(data);
+            setGames(sortGamesByName(data));
         }
         catch (err) {
             setGamesError(err instanceof Error ? err.message : "Failed to load studio games");

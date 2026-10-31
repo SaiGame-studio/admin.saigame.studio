@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { getStudioGames } from "@/lib/game-api";
 import type { Game } from "@/types/game";
+import { sortGamesByName } from "@/lib/utils/sort-games";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,7 @@ export default function StudioGamesPage({ params }: {
             try {
                 setLoading(true);
                 const gamesData = await getStudioGames(studioId);
-                setGames(gamesData);
+                setGames(sortGamesByName(gamesData));
                 setError(null);
             }
             catch (err) {
