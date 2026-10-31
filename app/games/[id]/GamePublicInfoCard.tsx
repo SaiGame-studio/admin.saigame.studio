@@ -12,12 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { GameImageCropDialog, gameImageMinSourceSize, gameImageOutputSize } from "./GameImageCropDialog";
 
 const maxContentBytes = 1_000_000;
 const maxImageUrlLength = 2048;
-// Sai Play renders game images on 3:4 portrait cards.
-const recommendedImageSize = { width: 900, height: 1200 };
-const minImageSize = { width: 600, height: 800 };
+// Sai Play renders game images on 3:4 portrait cards; uploads are cropped to this size.
+const recommendedImageSize = gameImageOutputSize;
+const minImageSize = gameImageMinSourceSize;
 const imageRatioTolerance = 0.02;
 
 function isValidImageUrl(value: string): boolean {
@@ -96,6 +97,8 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
     const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
     const [uploading, setUploading] = useState(false);
+    // The chosen file waiting in the crop dialog; only the cropped result is uploaded.
+    const [cropFile, setCropFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -154,7 +157,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
         return true;
     };
 
-    const uploadImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const chooseImage = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         event.target.value = "";
         if (!file) {
@@ -164,6 +167,11 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
             toast({ title: t("common.error"), description: t("gamePublicInfo.uploadUnsupported"), variant: "destructive" });
             return;
         }
+        setCropFile(file);
+    };
+
+    const uploadCroppedImage = async (file: File) => {
+        setCropFile(null);
         if (file.size > maxGameImageBytes) {
             toast({ title: t("common.error"), description: t("gamePublicInfo.uploadTooLarge", { max: Math.floor(maxGameImageBytes / (1024 * 1024)) }), variant: "destructive" });
             return;
@@ -296,7 +304,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                                         type="file"
                                         accept={acceptedGameImageTypes.join(",")}
                                         className="hidden"
-                                        onChange={uploadImage}
+                                        onChange={chooseImage}
                                     />
                                     <Button id="game-public-info-image-upload-button" type="button" variant="outline" className="shrink-0" onClick={() => fileInputRef.current?.click()} disabled={saving || uploading}>
                                         {uploading ? <Loader2 id="game-public-info-image-upload-icon" className="mr-2 h-4 w-4 animate-spin"/> : <Upload id="game-public-info-image-upload-icon" className="mr-2 h-4 w-4"/>}
@@ -347,6 +355,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                     </>
                 )}
             </CardContent>
+            <GameImageCropDialog file={cropFile} onCancel={() => setCropFile(null)} onConfirm={uploadCroppedImage}/>
         </Card>
     );
 }
