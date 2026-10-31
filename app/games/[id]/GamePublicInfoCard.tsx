@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Loader2, Megaphone, Upload } from "lucide-react";
-import { acceptedGameImageTypes, createGameImageUpload, getGamePublicInfo, maxGameImageBytes, upsertGamePublicInfo, uploadToPresignedUrl, type GamePublicInfo, type GameReleaseStatus, type UpsertGamePublicInfoInput } from "@/lib/game-public-info-api";
+import { useEffect, useState, type ChangeEvent } from "react";
+import { Loader2, Megaphone } from "lucide-react";
+import { acceptedGameImageTypes, createGameImageUpload, deleteGamePublicInfoImage, getGamePublicInfo, mainCurrencyPayload, mainCurrencyValue, MAIN_CURRENCY_SGEM, maxGameImageBytes, upsertGamePublicInfo, uploadToPresignedUrl, type GamePublicInfo, type GameReleaseStatus, type UpsertGamePublicInfoInput } from "@/lib/game-public-info-api";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { useToast } from "@/hooks/use-toast";
@@ -11,24 +11,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { GameImageCropDialog, gameImageMinSourceSize, gameImageOutputSize } from "./GameImageCropDialog";
+import { GameBannerField } from "./GameBannerField";
+import { GameImageCropDialog } from "./GameImageCropDialog";
+import { GameMainCurrencyField } from "./GameMainCurrencyField";
+import { saiPlayGameUrl } from "@/lib/sai-play";
 
 const maxContentBytes = 1_000_000;
-const maxImageUrlLength = 2048;
-// Sai Play renders game images on 3:4 portrait cards; uploads are cropped to this size.
-const recommendedImageSize = gameImageOutputSize;
-const minImageSize = gameImageMinSourceSize;
-const imageRatioTolerance = 0.02;
-
-function isValidImageUrl(value: string): boolean {
-    try {
-        const url = new URL(value);
-        return (url.protocol === "http:" || url.protocol === "https:") && url.host.length > 0;
-    } catch {
-        return false;
-    }
-}
 
 type FormState = {
     gameName: string;
@@ -37,8 +27,11 @@ type FormState = {
     releaseDateText: string;
     content: string;
     imageUrl: string;
-    /** Uploaded media asset not saved yet; cleared when the URL is edited by hand or after a save. */
+    /** Uploaded media asset not saved yet; cleared after a save or when the image is deleted. */
     imageAssetId: string | null;
+    isPublic: boolean;
+    /** MAIN_CURRENCY_SGEM (default) or a currency item definition id. */
+    mainCurrency: string;
 };
 
 function formToInput(form: FormState): UpsertGamePublicInfoInput {
@@ -51,6 +44,8 @@ function formToInput(form: FormState): UpsertGamePublicInfoInput {
         content: form.content,
         image_url: imageUrl || undefined,
         image_asset_id: form.imageAssetId ?? undefined,
+        is_public: form.isPublic,
+        ...mainCurrencyPayload(form.mainCurrency),
     };
 }
 
@@ -66,6 +61,22 @@ function savedInfoWithImage(saved: GamePublicInfo, imageAssetId: string): Upsert
         release_date_text: saved.release_date_text ?? undefined,
         content: saved.content ?? "",
         image_asset_id: imageAssetId,
+    };
+}
+
+/** The saved record with only `patch` changed, so a setting saves right away without other unsaved edits. */
+function savedInfoWith(saved: GamePublicInfo, patch: Partial<UpsertGamePublicInfoInput>): UpsertGamePublicInfoInput | null {
+    if (!saved.id || !saved.release_status) {
+        return null;
+    }
+    return {
+        game_name: saved.game_name,
+        release_status: saved.release_status,
+        release_at: saved.release_at ?? undefined,
+        release_date_text: saved.release_date_text ?? undefined,
+        content: saved.content ?? "",
+        image_url: saved.image_url ?? undefined,
+        ...patch,
     };
 }
 
@@ -92,16 +103,16 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
         content: "",
         imageUrl: "",
         imageAssetId: null,
+        isPublic: false,
+        mainCurrency: MAIN_CURRENCY_SGEM,
     });
     const [saved, setSaved] = useState<GamePublicInfo | null>(null);
-    const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
-    const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
     const [uploading, setUploading] = useState(false);
     // The chosen file waiting in the crop dialog; only the cropped result is uploaded.
     const [cropFile, setCropFile] = useState<File | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [savingVisibility, setSavingVisibility] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -118,6 +129,8 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                         content: info.content ?? "",
                         imageUrl: info.image_url ?? "",
                         imageAssetId: null,
+                        isPublic: info.is_public ?? false,
+                        mainCurrency: mainCurrencyValue(info.main_currency),
                     });
                 }
             } catch (error) {
@@ -138,11 +151,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     const contentBytes = new TextEncoder().encode(form.content).length;
     const requiresReleaseAt = form.releaseStatus === "released";
     const allowsReleaseDateText = form.releaseStatus === "coming_soon";
-    const imageUrl = form.imageUrl.trim();
-    const imageUrlValid = imageUrl.length === 0 || isValidImageUrl(imageUrl);
-    const imageTooSmall = imageSize !== null && (imageSize.width < minImageSize.width || imageSize.height < minImageSize.height);
-    const imageWrongRatio = imageSize !== null && Math.abs(imageSize.width / imageSize.height - 3 / 4) > imageRatioTolerance;
-    const canSave = form.gameName.trim().length > 0 && (!requiresReleaseAt || form.releaseAt.length > 0) && contentBytes <= maxContentBytes && imageUrlValid;
+    const canSave = form.gameName.trim().length > 0 && (!requiresReleaseAt || form.releaseAt.length > 0) && contentBytes <= maxContentBytes;
 
     // Saves the uploaded image right away: onto the saved record when there is one, otherwise with the
     // form when it is complete. Returns false when it must wait for a manual Save.
@@ -182,8 +191,6 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
             const upload = await createGameImageUpload(gameId, file);
             await uploadToPresignedUrl(upload, file);
             uploaded = true;
-            setImagePreviewFailed(false);
-            setImageSize(null);
             setForm((current) => ({ ...current, imageUrl: upload.public_url, imageAssetId: upload.asset_id }));
             const savedNow = await saveUploadedImage(upload.asset_id);
             toast({ title: t("common.success"), description: t(savedNow ? "gamePublicInfo.uploadSaved" : "gamePublicInfo.uploadSuccess") });
@@ -206,6 +213,73 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
         }
     };
 
+    // Saves the visibility right away: onto the saved record when there is one, otherwise with the
+    // form when it is complete; else it waits for a manual Save.
+    const changeVisibility = async (isPublic: boolean) => {
+        const previous = form.isPublic;
+        setForm((current) => ({ ...current, isPublic }));
+        const input = (saved && savedInfoWith(saved, { is_public: isPublic })) ?? (canSave ? formToInput({ ...form, isPublic }) : null);
+        if (!input) {
+            toast({ title: t("gamePublicInfo.isPublic"), description: t("gamePublicInfo.isPublicSaveFirst") });
+            return;
+        }
+        setSavingVisibility(true);
+        try {
+            const info = await upsertGamePublicInfo(gameId, input, { suppressToast: true });
+            setSaved(info);
+            setForm((current) => ({ ...current, isPublic: info.is_public }));
+            toast({ title: t("common.saved"), description: t(info.is_public ? "gamePublicInfo.isPublicOnSaved" : "gamePublicInfo.isPublicOffSaved") });
+        } catch (error) {
+            console.error("Failed to save game visibility:", error);
+            setForm((current) => ({ ...current, isPublic: previous }));
+            toast({ title: t("common.error"), description: t("gamePublicInfo.saveError"), variant: "destructive" });
+        } finally {
+            setSavingVisibility(false);
+        }
+    };
+
+    // Deletes the banner on the server (CDN first, then the database); the upload button shows again
+    // only once the server confirms. A banner not saved yet is just removed from the form.
+    const deleteImage = async () => {
+        if (!saved?.id || !saved.image_url) {
+            setForm((current) => ({ ...current, imageUrl: "", imageAssetId: null }));
+            return;
+        }
+        try {
+            const info = await deleteGamePublicInfoImage(gameId);
+            setSaved(info);
+            setForm((current) => ({ ...current, imageUrl: "", imageAssetId: null }));
+            toast({ title: t("common.success"), description: t("gamePublicInfo.imageDeleted") });
+        } catch (error) {
+            console.error("Failed to delete game image:", error);
+            toast({ title: t("common.error"), description: t("gamePublicInfo.imageDeleteFailed"), variant: "destructive" });
+        }
+    };
+
+    // Saves the main currency right away, the same way as the visibility toggle.
+    const changeMainCurrency = async (mainCurrency: string) => {
+        const previous = form.mainCurrency;
+        setForm((current) => ({ ...current, mainCurrency }));
+        const payload = mainCurrencyPayload(mainCurrency);
+        const input = (saved && savedInfoWith(saved, payload)) ?? (canSave ? formToInput({ ...form, mainCurrency }) : null);
+        if (!input) {
+            toast({ title: t("gamePublicInfo.mainCurrency"), description: t("gamePublicInfo.isPublicSaveFirst") });
+            return;
+        }
+        setSavingVisibility(true);
+        try {
+            const info = await upsertGamePublicInfo(gameId, input, { suppressToast: true });
+            setSaved(info);
+            toast({ title: t("common.saved"), description: t("gamePublicInfo.mainCurrencySaved") });
+        } catch (error) {
+            console.error("Failed to save the main currency:", error);
+            setForm((current) => ({ ...current, mainCurrency: previous }));
+            toast({ title: t("common.error"), description: t("gamePublicInfo.saveError"), variant: "destructive" });
+        } finally {
+            setSavingVisibility(false);
+        }
+    };
+
     const save = async () => {
         if (!canSave) {
             return;
@@ -225,17 +299,19 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     };
 
     return (
-        <Card id="game-public-info-card" className="game-public-info-card lg:col-span-3">
-            <CardHeader id="game-public-info-header" className="game-public-info-header">
+        <Card id="game-public-info-card" className="game-public-info-card border-0 bg-transparent shadow-none">
+            <CardHeader id="game-public-info-header" className="game-public-info-header px-0 pt-0">
                 <CardTitle id="game-public-info-title" className="game-public-info-title flex items-center gap-2 text-base">
                     <Megaphone id="game-public-info-title-icon" className="h-4 w-4"/>
                     {t("gamePublicInfo.title")}
                 </CardTitle>
                 <CardDescription id="game-public-info-description" className="game-public-info-description">
-                    {t("gamePublicInfo.description")}
+                    {t("gamePublicInfo.description")}{" "}
+                    <a id="game-public-info-sai-play-link" href={saiPlayGameUrl(gameId)} className="game-public-info-sai-play-link font-medium text-blue-400 hover:underline">Sai Play</a>
+                    {t("gamePublicInfo.descriptionPost")}
                 </CardDescription>
             </CardHeader>
-            <CardContent id="game-public-info-content" className="game-public-info-content space-y-4">
+            <CardContent id="game-public-info-content" className="game-public-info-content space-y-4 px-0 pb-0">
                 {loading ? (
                     <div id="game-public-info-loading" className="game-public-info-loading flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 id="game-public-info-loading-icon" className="h-4 w-4 animate-spin"/>
@@ -243,101 +319,61 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                     </div>
                 ) : (
                     <>
-                        <div id="game-public-info-fields" className="game-public-info-fields grid gap-4 md:grid-cols-10">
-                            <div id="game-public-info-name-field" className="game-public-info-field space-y-2 md:col-span-4">
-                                <Label id="game-public-info-name-label" htmlFor="game-public-info-name-input">{t("gamePublicInfo.gameName")}</Label>
-                                <Input id="game-public-info-name-input" value={form.gameName} maxLength={255} onChange={(event) => setForm((current) => ({ ...current, gameName: event.target.value }))} disabled={saving}/>
+                        <div id="game-public-info-top" className="game-public-info-top grid gap-4 lg:grid-cols-4">
+                            <div id="game-public-info-top-fields" className="game-public-info-top-fields space-y-4 lg:col-span-3">
+                                <div id="game-public-info-sai-play-settings" className="game-public-info-sai-play-settings grid gap-4 sm:grid-cols-3 sm:items-stretch">
+                                    <div id="game-public-info-visibility" className="game-public-info-visibility flex items-start justify-between gap-4 rounded-md border p-3 sm:col-span-2">
+                                        <div id="game-public-info-visibility-text" className="game-public-info-visibility-text space-y-1">
+                                            <Label id="game-public-info-visibility-label" htmlFor="game-public-info-visibility-switch">{t("gamePublicInfo.isPublic")}</Label>
+                                            <p id="game-public-info-visibility-hint" className="game-public-info-visibility-hint text-xs text-muted-foreground">
+                                                {t(form.isPublic ? "gamePublicInfo.isPublicOnHint" : "gamePublicInfo.isPublicOffHint")}
+                                            </p>
+                                            <p id="game-public-info-visibility-member-note" className="game-public-info-visibility-member-note text-xs text-muted-foreground">
+                                                {t("gamePublicInfo.isPublicMemberNote")}
+                                            </p>
+                                        </div>
+                                        <Switch id="game-public-info-visibility-switch" checked={form.isPublic} onCheckedChange={(checked) => void changeVisibility(checked)} disabled={saving || savingVisibility || uploading}/>
+                                    </div>
+                                    <GameMainCurrencyField gameId={gameId} value={form.mainCurrency} disabled={saving || savingVisibility || uploading} onChange={(value) => void changeMainCurrency(value)}/>
+                                </div>
+                                <div id="game-public-info-fields" className="game-public-info-fields grid gap-4 sm:grid-cols-3">
+                                    <div id="game-public-info-name-field" className="game-public-info-field space-y-2">
+                                        <Label id="game-public-info-name-label" htmlFor="game-public-info-name-input">{t("gamePublicInfo.gameName")}</Label>
+                                        <Input id="game-public-info-name-input" value={form.gameName} maxLength={255} onChange={(event) => setForm((current) => ({ ...current, gameName: event.target.value }))} disabled={saving}/>
+                                    </div>
+                                    <div id="game-public-info-release-status-field" className="game-public-info-field space-y-2">
+                                        <Label id="game-public-info-release-status-label" htmlFor="game-public-info-release-status">{t("gamePublicInfo.releaseStatus")}</Label>
+                                        <Select value={form.releaseStatus} onValueChange={(value: GameReleaseStatus) => setForm((current) => ({
+                                            ...current,
+                                            releaseStatus: value,
+                                            releaseAt: value === "released" ? current.releaseAt : "",
+                                            releaseDateText: value === "coming_soon" ? current.releaseDateText : "",
+                                        }))} disabled={saving}>
+                                            <SelectTrigger id="game-public-info-release-status">
+                                                <SelectValue id="game-public-info-release-status-value"/>
+                                            </SelectTrigger>
+                                            <SelectContent id="game-public-info-release-status-options">
+                                                <SelectItem id="game-public-info-release-status-released" value="released">{t("gamePublicInfo.released")}</SelectItem>
+                                                <SelectItem id="game-public-info-release-status-coming-soon" value="coming_soon">{t("gamePublicInfo.comingSoon")}</SelectItem>
+                                                <SelectItem id="game-public-info-release-status-to-be-announced" value="to_be_announced">{t("gamePublicInfo.toBeAnnounced")}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    {requiresReleaseAt && (
+                                        <div id="game-public-info-release-at-field" className="game-public-info-field space-y-2">
+                                            <Label id="game-public-info-release-at-label" htmlFor="game-public-info-release-at-input">{t("gamePublicInfo.releaseAt")}</Label>
+                                            <Input id="game-public-info-release-at-input" type="datetime-local" value={form.releaseAt} onChange={(event) => setForm((current) => ({ ...current, releaseAt: event.target.value }))} disabled={saving}/>
+                                        </div>
+                                    )}
+                                    {allowsReleaseDateText && (
+                                        <div id="game-public-info-release-date-text-field" className="game-public-info-field space-y-2">
+                                            <Label id="game-public-info-release-date-text-label" htmlFor="game-public-info-release-date-text-input">{t("gamePublicInfo.releaseWindow")}</Label>
+                                            <Input id="game-public-info-release-date-text-input" value={form.releaseDateText} maxLength={100} placeholder={t("gamePublicInfo.releaseWindowPlaceholder")} onChange={(event) => setForm((current) => ({ ...current, releaseDateText: event.target.value }))} disabled={saving}/>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <div id="game-public-info-release-status-field" className="game-public-info-field space-y-2 md:col-span-3">
-                                <Label id="game-public-info-release-status-label" htmlFor="game-public-info-release-status">{t("gamePublicInfo.releaseStatus")}</Label>
-                                <Select value={form.releaseStatus} onValueChange={(value: GameReleaseStatus) => setForm((current) => ({
-                                    ...current,
-                                    releaseStatus: value,
-                                    releaseAt: value === "released" ? current.releaseAt : "",
-                                    releaseDateText: value === "coming_soon" ? current.releaseDateText : "",
-                                }))} disabled={saving}>
-                                    <SelectTrigger id="game-public-info-release-status">
-                                        <SelectValue id="game-public-info-release-status-value"/>
-                                    </SelectTrigger>
-                                    <SelectContent id="game-public-info-release-status-options">
-                                        <SelectItem id="game-public-info-release-status-released" value="released">{t("gamePublicInfo.released")}</SelectItem>
-                                        <SelectItem id="game-public-info-release-status-coming-soon" value="coming_soon">{t("gamePublicInfo.comingSoon")}</SelectItem>
-                                        <SelectItem id="game-public-info-release-status-to-be-announced" value="to_be_announced">{t("gamePublicInfo.toBeAnnounced")}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            {requiresReleaseAt && (
-                                <div id="game-public-info-release-at-field" className="game-public-info-field space-y-2 md:col-span-3">
-                                    <Label id="game-public-info-release-at-label" htmlFor="game-public-info-release-at-input">{t("gamePublicInfo.releaseAt")}</Label>
-                                    <Input id="game-public-info-release-at-input" type="datetime-local" value={form.releaseAt} onChange={(event) => setForm((current) => ({ ...current, releaseAt: event.target.value }))} disabled={saving}/>
-                                </div>
-                            )}
-                            {allowsReleaseDateText && (
-                                <div id="game-public-info-release-date-text-field" className="game-public-info-field space-y-2 md:col-span-3">
-                                    <Label id="game-public-info-release-date-text-label" htmlFor="game-public-info-release-date-text-input">{t("gamePublicInfo.releaseWindow")}</Label>
-                                    <Input id="game-public-info-release-date-text-input" value={form.releaseDateText} maxLength={100} placeholder={t("gamePublicInfo.releaseWindowPlaceholder")} onChange={(event) => setForm((current) => ({ ...current, releaseDateText: event.target.value }))} disabled={saving}/>
-                                </div>
-                            )}
-                        </div>
-                        <div id="game-public-info-image-field" className="game-public-info-field grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
-                            <div id="game-public-info-image-url-field" className="game-public-info-image-url-field space-y-2">
-                                <Label id="game-public-info-image-url-label" htmlFor="game-public-info-image-url-input">{t("gamePublicInfo.imageUrl")}</Label>
-                                <div id="game-public-info-image-url-row" className="game-public-info-image-url-row flex gap-2">
-                                    <Input
-                                        id="game-public-info-image-url-input"
-                                        type="url"
-                                        inputMode="url"
-                                        value={form.imageUrl}
-                                        maxLength={maxImageUrlLength}
-                                        placeholder={t("gamePublicInfo.imageUrlPlaceholder")}
-                                        aria-invalid={!imageUrlValid}
-                                        onChange={(event) => {
-                                            setImagePreviewFailed(false);
-                                            setImageSize(null);
-                                            setForm((current) => ({ ...current, imageUrl: event.target.value, imageAssetId: null }));
-                                        }}
-                                        disabled={saving || uploading}
-                                    />
-                                    <input
-                                        id="game-public-info-image-file-input"
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept={acceptedGameImageTypes.join(",")}
-                                        className="hidden"
-                                        onChange={chooseImage}
-                                    />
-                                    <Button id="game-public-info-image-upload-button" type="button" variant="outline" className="shrink-0" onClick={() => fileInputRef.current?.click()} disabled={saving || uploading}>
-                                        {uploading ? <Loader2 id="game-public-info-image-upload-icon" className="mr-2 h-4 w-4 animate-spin"/> : <Upload id="game-public-info-image-upload-icon" className="mr-2 h-4 w-4"/>}
-                                        {uploading ? t("gamePublicInfo.uploading") : t("gamePublicInfo.uploadImage")}
-                                    </Button>
-                                </div>
-                                <p id="game-public-info-image-url-hint" className={`game-public-info-image-url-hint text-xs ${imageUrlValid ? "text-muted-foreground" : "text-destructive"}`}>
-                                    {imageUrlValid ? t("gamePublicInfo.imageUrlHint") : t("gamePublicInfo.imageUrlInvalid")}
-                                </p>
-                                <p id="game-public-info-image-spec" className="game-public-info-image-spec text-xs text-muted-foreground">
-                                    {t("gamePublicInfo.imageSpec", { width: recommendedImageSize.width, height: recommendedImageSize.height, minWidth: minImageSize.width, minHeight: minImageSize.height })}
-                                </p>
-                                {imageUrl && imageUrlValid && imageSize && !imagePreviewFailed && (
-                                    <p id="game-public-info-image-actual-size" className={`game-public-info-image-actual-size text-xs ${imageTooSmall || imageWrongRatio ? "text-destructive" : "text-muted-foreground"}`}>
-                                        {t("gamePublicInfo.imageActualSize", { width: imageSize.width, height: imageSize.height })}
-                                        {imageTooSmall && ` ${t("gamePublicInfo.imageTooSmall", { minWidth: minImageSize.width, minHeight: minImageSize.height })}`}
-                                        {imageWrongRatio && ` ${t("gamePublicInfo.imageWrongRatio")}`}
-                                    </p>
-                                )}
-                            </div>
-                            {imageUrl && imageUrlValid && !imagePreviewFailed && (
-                                <div id="game-public-info-image-preview" className="game-public-info-image-preview aspect-[3/4] w-28 overflow-hidden rounded-md border bg-muted">
-                                    {/* eslint-disable-next-line @next/next/no-img-element -- external URL entered by the studio */}
-                                    <img
-                                        id="game-public-info-image-preview-img"
-                                        src={imageUrl}
-                                        alt={t("gamePublicInfo.imagePreviewAlt")}
-                                        className="h-full w-full object-cover"
-                                        onError={() => setImagePreviewFailed(true)}
-                                        onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
-                                    />
-                                </div>
-                            )}
+                            <GameBannerField imageUrl={form.imageUrl} busy={uploading} disabled={saving || savingVisibility} onFileChosen={chooseImage} onDelete={deleteImage}/>
                         </div>
                         <div id="game-public-info-content-field" className="game-public-info-field space-y-2">
                             <Label id="game-public-info-content-label" htmlFor="game-public-info-content-input">{t("gamePublicInfo.content")}</Label>
