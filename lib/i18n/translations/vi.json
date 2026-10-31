@@ -443,6 +443,10 @@
     "upgradeThisGame": "Nâng cấp game này"
   },
   "gamePublicInfo": {
+    "isPublic": "Công khai trên Sai Play",
+    "isPublicOnHint": "Người chơi có thể xem game này trên Sai Play.",
+    "isPublicOffHint": "Đang ẩn: người chơi không thể xem game này trên Sai Play, dù đã có gamer progress với game hay chưa.",
+    "isPublicMemberNote": "Thành viên studio vẫn xem được game trên Sai Play.",
     "title": "Thông tin công khai của game",
     "description": "Nội dung quảng bá công khai, không cần đăng nhập để xem.",
     "gameName": "Tên game công khai",

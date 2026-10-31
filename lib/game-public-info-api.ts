@@ -11,6 +11,8 @@ export interface GamePublicInfo {
     release_date_text: string | null;
     content: string | null;
     image_url: string | null;
+    /** Default false: hidden from players on Sai Play; studio members still see it. */
+    is_public: boolean;
     created_at: string | null;
     updated_at: string | null;
 }
@@ -24,11 +26,13 @@ export interface UpsertGamePublicInfoInput {
     image_url?: string;
     /** game_media_assets id from createGameImageUpload; the server saves that asset's URL as image_url. */
     image_asset_id?: string;
+    /** Omit to keep the saved value. */
+    is_public?: boolean;
 }
 
 export async function getGamePublicInfo(gameId: string): Promise<GamePublicInfo> {
+    // Signed in, so a game that is not public still loads for studio members.
     return api.get(`/api/v1/public/games/${gameId}/info`, {
-        requireAuth: false,
         suppressToast: true,
     });
 }

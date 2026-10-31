@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { GameImageCropDialog, gameImageMinSourceSize, gameImageOutputSize } from "./GameImageCropDialog";
 
@@ -39,6 +40,7 @@ type FormState = {
     imageUrl: string;
     /** Uploaded media asset not saved yet; cleared when the URL is edited by hand or after a save. */
     imageAssetId: string | null;
+    isPublic: boolean;
 };
 
 function formToInput(form: FormState): UpsertGamePublicInfoInput {
@@ -51,6 +53,7 @@ function formToInput(form: FormState): UpsertGamePublicInfoInput {
         content: form.content,
         image_url: imageUrl || undefined,
         image_asset_id: form.imageAssetId ?? undefined,
+        is_public: form.isPublic,
     };
 }
 
@@ -92,6 +95,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
         content: "",
         imageUrl: "",
         imageAssetId: null,
+        isPublic: false,
     });
     const [saved, setSaved] = useState<GamePublicInfo | null>(null);
     const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
@@ -118,6 +122,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                         content: info.content ?? "",
                         imageUrl: info.image_url ?? "",
                         imageAssetId: null,
+                        isPublic: info.is_public ?? false,
                     });
                 }
             } catch (error) {
@@ -243,6 +248,18 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                     </div>
                 ) : (
                     <>
+                        <div id="game-public-info-visibility" className="game-public-info-visibility flex items-start justify-between gap-4 rounded-md border p-3">
+                            <div id="game-public-info-visibility-text" className="game-public-info-visibility-text space-y-1">
+                                <Label id="game-public-info-visibility-label" htmlFor="game-public-info-visibility-switch">{t("gamePublicInfo.isPublic")}</Label>
+                                <p id="game-public-info-visibility-hint" className="game-public-info-visibility-hint text-xs text-muted-foreground">
+                                    {t(form.isPublic ? "gamePublicInfo.isPublicOnHint" : "gamePublicInfo.isPublicOffHint")}
+                                </p>
+                                <p id="game-public-info-visibility-member-note" className="game-public-info-visibility-member-note text-xs text-muted-foreground">
+                                    {t("gamePublicInfo.isPublicMemberNote")}
+                                </p>
+                            </div>
+                            <Switch id="game-public-info-visibility-switch" checked={form.isPublic} onCheckedChange={(checked) => setForm((current) => ({ ...current, isPublic: checked }))} disabled={saving}/>
+                        </div>
                         <div id="game-public-info-fields" className="game-public-info-fields grid gap-4 md:grid-cols-10">
                             <div id="game-public-info-name-field" className="game-public-info-field space-y-2 md:col-span-4">
                                 <Label id="game-public-info-name-label" htmlFor="game-public-info-name-input">{t("gamePublicInfo.gameName")}</Label>

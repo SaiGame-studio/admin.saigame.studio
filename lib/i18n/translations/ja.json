@@ -443,6 +443,10 @@
     "upgradeThisGame": "このゲームをアップグレード"
   },
   "gamePublicInfo": {
+    "isPublic": "Sai Play で公開",
+    "isPublicOnHint": "プレイヤーは Sai Play でこのゲームを閲覧できます。",
+    "isPublicOffHint": "非公開：ゲーマープログレスの有無にかかわらず、プレイヤーは Sai Play でこのゲームを閲覧できません。",
+    "isPublicMemberNote": "スタジオメンバーは引き続き Sai Play でゲームを閲覧できます。",
     "title": "ゲーム公開情報",
     "description": "ログインせずに閲覧できる公開プロモーションコンテンツです。",
     "gameName": "公開ゲーム名",

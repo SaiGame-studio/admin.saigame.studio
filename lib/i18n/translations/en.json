@@ -443,6 +443,10 @@
     "upgradeThisGame": "Upgrade This Game"
   },
   "gamePublicInfo": {
+    "isPublic": "Public on Sai Play",
+    "isPublicOnHint": "Players can view this game on Sai Play.",
+    "isPublicOffHint": "Hidden: players cannot view this game on Sai Play, whether or not they have gamer progress in it.",
+    "isPublicMemberNote": "Studio members can still view the game on Sai Play.",
     "title": "Game Public Info",
     "description": "Public promotional content available without sign-in.",
     "gameName": "Public game name",
