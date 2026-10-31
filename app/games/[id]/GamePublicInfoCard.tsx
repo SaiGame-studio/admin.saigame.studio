@@ -72,6 +72,22 @@ function savedInfoWithImage(saved: GamePublicInfo, imageAssetId: string): Upsert
     };
 }
 
+/** The saved record with only its Sai Play visibility changed, so the toggle saves without other unsaved edits. */
+function savedInfoWithVisibility(saved: GamePublicInfo, isPublic: boolean): UpsertGamePublicInfoInput | null {
+    if (!saved.id || !saved.release_status) {
+        return null;
+    }
+    return {
+        game_name: saved.game_name,
+        release_status: saved.release_status,
+        release_at: saved.release_at ?? undefined,
+        release_date_text: saved.release_date_text ?? undefined,
+        content: saved.content ?? "",
+        image_url: saved.image_url ?? undefined,
+        is_public: isPublic,
+    };
+}
+
 function toDateTimeLocal(value?: string | null): string {
     if (!value) {
         return "";
@@ -106,6 +122,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [savingVisibility, setSavingVisibility] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -211,6 +228,31 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
         }
     };
 
+    // Saves the visibility right away: onto the saved record when there is one, otherwise with the
+    // form when it is complete; else it waits for a manual Save.
+    const changeVisibility = async (isPublic: boolean) => {
+        const previous = form.isPublic;
+        setForm((current) => ({ ...current, isPublic }));
+        const input = (saved && savedInfoWithVisibility(saved, isPublic)) ?? (canSave ? formToInput({ ...form, isPublic }) : null);
+        if (!input) {
+            toast({ title: t("gamePublicInfo.isPublic"), description: t("gamePublicInfo.isPublicSaveFirst") });
+            return;
+        }
+        setSavingVisibility(true);
+        try {
+            const info = await upsertGamePublicInfo(gameId, input, { suppressToast: true });
+            setSaved(info);
+            setForm((current) => ({ ...current, isPublic: info.is_public }));
+            toast({ title: t("common.saved"), description: t(info.is_public ? "gamePublicInfo.isPublicOnSaved" : "gamePublicInfo.isPublicOffSaved") });
+        } catch (error) {
+            console.error("Failed to save game visibility:", error);
+            setForm((current) => ({ ...current, isPublic: previous }));
+            toast({ title: t("common.error"), description: t("gamePublicInfo.saveError"), variant: "destructive" });
+        } finally {
+            setSavingVisibility(false);
+        }
+    };
+
     const save = async () => {
         if (!canSave) {
             return;
@@ -258,7 +300,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                                     {t("gamePublicInfo.isPublicMemberNote")}
                                 </p>
                             </div>
-                            <Switch id="game-public-info-visibility-switch" checked={form.isPublic} onCheckedChange={(checked) => setForm((current) => ({ ...current, isPublic: checked }))} disabled={saving}/>
+                            <Switch id="game-public-info-visibility-switch" checked={form.isPublic} onCheckedChange={(checked) => void changeVisibility(checked)} disabled={saving || savingVisibility || uploading}/>
                         </div>
                         <div id="game-public-info-fields" className="game-public-info-fields grid gap-4 md:grid-cols-10">
                             <div id="game-public-info-name-field" className="game-public-info-field space-y-2 md:col-span-4">
