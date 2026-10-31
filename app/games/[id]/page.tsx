@@ -20,7 +20,6 @@ import { Progress } from "@/components/ui/progress";
 import { GameNameEditable, GameStatusEditable, GameDescriptionEditable } from "@/components/StudioNameEditable";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { useTranslation } from '@/lib/i18n/use-translation';
-import { DeleteGameDialog } from "@/components/DeleteGameDialog";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays";
 import { TracingSettingsGroup } from "@/components/TracingSettingsGroup";
@@ -30,12 +29,14 @@ import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin }
 import { EquipmentPanel } from "@/components/EquipmentPanel";
 import { GamePublicInfoCard } from "./GamePublicInfoCard";
 import { GameTeamsCard } from "./GameTeamsCard";
+import { GameDangerZone } from "./GameDangerZone";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const fmt = (n: number) => n.toLocaleString();
 const GAME_DETAIL_TABS = [
     { key: "info", labelKey: "game.tabGameInfo" },
     { key: "public", labelKey: "game.tabPublicInfo" },
     { key: "team", labelKey: "game.tabTeam" },
+    { key: "delete", labelKey: "game.tabDeleteGame" },
 ] as const;
 type GameDetailTab = (typeof GAME_DETAIL_TABS)[number]["key"];
 
@@ -309,14 +310,13 @@ export default function GameDetailsPage({ params }: {
                 </div>
                 <div id="game-detail-header-actions" className="game-detail-header-actions flex flex-col gap-2 items-start md:items-end">
                     <GameNavButtons gameId={game.id} active="detail"/>
-                    <DeleteGameDialog game={game}/>
                 </div>
             </div>
 
             <Tabs id="game-detail-tabs" className="game-detail-tabs" value={tab} onValueChange={selectTab}>
                 <TabsList id="game-detail-tab-list" className="game-detail-tab-list mb-4">
                     {GAME_DETAIL_TABS.map(({ key, labelKey }) => (
-                        <TabsTrigger id={`game-detail-tab-${key}`} key={key} value={key}>{t(labelKey)}</TabsTrigger>
+                        <TabsTrigger id={`game-detail-tab-${key}`} key={key} value={key} className={key === "delete" ? "text-destructive data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground" : undefined}>{t(labelKey)}</TabsTrigger>
                     ))}
                 </TabsList>
                 <TabsContent id="game-detail-tab-panel-info" value="info" className="game-detail-tab-panel">
@@ -687,6 +687,9 @@ export default function GameDetailsPage({ params }: {
                 </TabsContent>
                 <TabsContent id="game-detail-tab-panel-team" value="team" className="game-detail-tab-panel">
                     <GameTeamsCard game={game} teams={teams} teamsLoading={teamsLoading} onTeamsChanged={handleTeamRemoved}/>
+                </TabsContent>
+                <TabsContent id="game-detail-tab-panel-delete" value="delete" className="game-detail-tab-panel">
+                    <GameDangerZone game={game}/>
                 </TabsContent>
             </Tabs>
         </div>);

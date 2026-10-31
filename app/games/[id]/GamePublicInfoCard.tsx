@@ -298,8 +298,8 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     };
 
     return (
-        <Card id="game-public-info-card" className="game-public-info-card lg:col-span-3">
-            <CardHeader id="game-public-info-header" className="game-public-info-header">
+        <Card id="game-public-info-card" className="game-public-info-card border-0 bg-transparent shadow-none">
+            <CardHeader id="game-public-info-header" className="game-public-info-header px-0 pt-0">
                 <CardTitle id="game-public-info-title" className="game-public-info-title flex items-center gap-2 text-base">
                     <Megaphone id="game-public-info-title-icon" className="h-4 w-4"/>
                     {t("gamePublicInfo.title")}
@@ -308,7 +308,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                     {t("gamePublicInfo.description")}
                 </CardDescription>
             </CardHeader>
-            <CardContent id="game-public-info-content" className="game-public-info-content space-y-4">
+            <CardContent id="game-public-info-content" className="game-public-info-content space-y-4 px-0 pb-0">
                 {loading ? (
                     <div id="game-public-info-loading" className="game-public-info-loading flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 id="game-public-info-loading-icon" className="h-4 w-4 animate-spin"/>
