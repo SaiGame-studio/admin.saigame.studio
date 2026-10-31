@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { GameBannerField } from "./GameBannerField";
 import { GameImageCropDialog } from "./GameImageCropDialog";
 import { GameMainCurrencyField } from "./GameMainCurrencyField";
+import { saiPlayGameUrl } from "@/lib/sai-play";
 
 const maxContentBytes = 1_000_000;
 
@@ -305,7 +306,9 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                     {t("gamePublicInfo.title")}
                 </CardTitle>
                 <CardDescription id="game-public-info-description" className="game-public-info-description">
-                    {t("gamePublicInfo.description")}
+                    {t("gamePublicInfo.description")}{" "}
+                    <a id="game-public-info-sai-play-link" href={saiPlayGameUrl(gameId)} className="game-public-info-sai-play-link font-medium text-blue-400 hover:underline">Sai Play</a>
+                    {t("gamePublicInfo.descriptionPost")}
                 </CardDescription>
             </CardHeader>
             <CardContent id="game-public-info-content" className="game-public-info-content space-y-4 px-0 pb-0">
