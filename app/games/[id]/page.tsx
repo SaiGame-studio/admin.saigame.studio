@@ -10,8 +10,6 @@ import type { Team } from "@/types/team";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, BookOpen, Dices, ScrollText, RefreshCw, Tag, X, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -21,22 +19,20 @@ import { GameNameEditable, GameStatusEditable, GameDescriptionEditable } from "@
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { useTranslation } from '@/lib/i18n/use-translation';
 import { GameNavButtons } from "@/components/GameNavButtons";
-import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays";
-import { TracingSettingsGroup } from "@/components/TracingSettingsGroup";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin } from "@/lib/plugin-api";
 import { EquipmentPanel } from "@/components/EquipmentPanel";
 import { GamePublicInfoCard } from "./GamePublicInfoCard";
 import { GameTeamsCard } from "./GameTeamsCard";
-import { GameDangerZone } from "./GameDangerZone";
+import { GameSettingsTab } from "./GameSettingsTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const fmt = (n: number) => n.toLocaleString();
 const GAME_DETAIL_TABS = [
     { key: "info", labelKey: "game.tabGameInfo" },
     { key: "public", labelKey: "game.tabPublicInfo" },
     { key: "team", labelKey: "game.tabTeam" },
-    { key: "delete", labelKey: "game.tabDeleteGame" },
+    { key: "settings", labelKey: "game.tabSettings" },
 ] as const;
 type GameDetailTab = (typeof GAME_DETAIL_TABS)[number]["key"];
 
@@ -316,12 +312,12 @@ export default function GameDetailsPage({ params }: {
             <Tabs id="game-detail-tabs" className="game-detail-tabs" value={tab} onValueChange={selectTab}>
                 <TabsList id="game-detail-tab-list" className="game-detail-tab-list mb-4">
                     {GAME_DETAIL_TABS.map(({ key, labelKey }) => (
-                        <TabsTrigger id={`game-detail-tab-${key}`} key={key} value={key} className={key === "delete" ? "text-destructive data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground" : undefined}>{t(labelKey)}</TabsTrigger>
+                        <TabsTrigger id={`game-detail-tab-${key}`} key={key} value={key}>{t(labelKey)}</TabsTrigger>
                     ))}
                 </TabsList>
                 <TabsContent id="game-detail-tab-panel-info" value="info" className="game-detail-tab-panel">
                     <div id="game-detail-content" className="game-detail-content grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <Card id="game-detail-information-card" className="game-detail-information-card lg:col-span-2 group">
+                        <Card id="game-detail-information-card" className="game-detail-information-card lg:col-span-3 group">
                             <CardHeader id="game-detail-information-header" className="game-detail-information-header">
                                 <CardTitle id="game-detail-information-title" className="game-detail-information-title flex items-center">
                                     <Gamepad2 className="mr-2 h-5 w-5"/>
@@ -431,68 +427,6 @@ export default function GameDetailsPage({ params }: {
                                         </div>
                                     </div>
 
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Settings Card — right column */}
-                        <Card id="game-detail-settings-card" className="game-detail-settings-card lg:col-span-1">
-                            <CardHeader id="game-detail-settings-header" className="game-detail-settings-header">
-                                <CardTitle id="game-detail-settings-title" className="game-detail-settings-title flex items-center text-base">
-                                    {t('common.settings')}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent id="game-detail-settings-content" className="game-detail-settings-content">
-                                {/* Daily Quest Max Advance Days */}
-                                <div id="game-detail-daily-quest-settings" className="game-detail-setting-row flex flex-col gap-2 py-2 border-b border-border">
-                                    <div id="game-detail-daily-quest-setting-control" className="game-detail-setting-control flex items-center justify-between gap-3 flex-wrap">
-                                        <Label id="game-detail-daily-quest-setting-label" htmlFor="daily-quest-days" className="game-detail-setting-label text-sm font-medium">
-                                            {t('game.dailyQuestAdvanceDays')}
-                                        </Label>
-                                        <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame}/>
-                                    </div>
-                                    <p id="game-detail-daily-quest-setting-description" className="game-detail-setting-description text-xs text-muted-foreground">
-                                        {t('game.dailyQuestAdvanceDaysDesc')}
-                                    </p>
-                                </div>
-
-                                {/* Toggle 1: Allow new players */}
-                                <div id="game-detail-allow-new-players-settings" className="game-detail-setting-row flex flex-col gap-2 py-2 border-b border-border">
-                                    <div id="game-detail-allow-new-players-setting-control" className="game-detail-setting-control flex items-center justify-between gap-3 flex-wrap">
-                                        <Label id="game-detail-allow-new-players-setting-label" htmlFor="game-detail-allow-new-players-switch" className="game-detail-setting-label text-sm font-medium cursor-pointer">
-                                            {t('gameUsers.allowNewPlayers')}
-                                        </Label>
-                                        <Switch id="game-detail-allow-new-players-switch" className="game-detail-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} onCheckedChange={async (checked) => {
-                    try {
-                        const updated = await updateGame(game.id, {
-                            settings: {
-                                ...game.settings,
-                                allow_new_players: checked
-                            }
-                        });
-                        setGame(updated);
-                        toast({
-                            title: t('game.settingsUpdated'),
-                            description: t('gameUsers.allowNewPlayers')
-                        });
-                    }
-                    catch (err) {
-                        toast({
-                            title: t('common.error'),
-                            description: t('game.failedUpdateSettings'),
-                            variant: "destructive"
-                        });
-                    }
-                }}/>
-                                    </div>
-                                    <p id="game-detail-allow-new-players-setting-description" className="game-detail-setting-description text-xs text-muted-foreground">
-                                        {t('gameUsers.allowNewPlayersDescription')}
-                                    </p>
-                                </div>
-
-                                {/* Toggle 2 & 3: Allow tracing player event + Leaderboard tracing */}
-                                <div id="game-detail-tracing-settings" className="game-detail-tracing-settings mt-5">
-                                    <TracingSettingsGroup gameId={game.id} game={game}/>
                                 </div>
                             </CardContent>
                         </Card>
@@ -688,8 +622,8 @@ export default function GameDetailsPage({ params }: {
                 <TabsContent id="game-detail-tab-panel-team" value="team" className="game-detail-tab-panel">
                     <GameTeamsCard game={game} teams={teams} teamsLoading={teamsLoading} onTeamsChanged={handleTeamRemoved}/>
                 </TabsContent>
-                <TabsContent id="game-detail-tab-panel-delete" value="delete" className="game-detail-tab-panel">
-                    <GameDangerZone game={game}/>
+                <TabsContent id="game-detail-tab-panel-settings" value="settings" className="game-detail-tab-panel">
+                    <GameSettingsTab game={game} onUpdate={setGame}/>
                 </TabsContent>
             </Tabs>
         </div>);

@@ -13,14 +13,12 @@ interface Props {
     game?: Game | null;
     /** Single-line compact display (no description). */
     compact?: boolean;
-    /** Hide the description text (used when rendered inside TracingSettingsGroup). */
-    hideDescription?: boolean;
 }
 /**
  * Read-only banner for the "Leaderboard tracing" game setting.
  * Automatically enabled when a Rare+ plugin or admin grant is active.
  */
-export function LeaderboardTracingSetting({ gameId, game: gameProp, compact, hideDescription }: Props) {
+export function LeaderboardTracingSetting({ gameId, game: gameProp, compact }: Props) {
     const { t } = useTranslation();
     const [game, setGame] = useState<Game | null>(gameProp ?? null);
     const [loading, setLoading] = useState(!gameProp);
@@ -64,10 +62,10 @@ export function LeaderboardTracingSetting({ gameId, game: gameProp, compact, hid
         </Label>
         <Switch id={`leaderboard-tracing-${gameId}`} checked={game?.settings?.leaderboard_tracing ?? false} disabled/>
       </div>
-      {!hideDescription && (<p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
           {t('game.tracingDescPre')}
           <Link href={`/games/${gameId}/plugins`} className="font-medium text-blue-400 hover:underline">Rare</Link>
           {t('game.tracingDescPost')}
-        </p>)}
+        </p>
     </div>);
 }

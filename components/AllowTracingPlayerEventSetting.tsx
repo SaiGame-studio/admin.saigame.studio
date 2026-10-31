@@ -13,15 +13,13 @@ interface Props {
     game?: Game | null;
     /** Single-line compact display (no description). */
     compact?: boolean;
-    /** Hide the description text (used when rendered inside TracingSettingsGroup). */
-    hideDescription?: boolean;
 }
 /**
  * Read-only banner for the "Allow tracing player event" game setting.
  * Self-fetches game data when no `game` prop is provided, so it stays
  * in sync regardless of which page renders it.
  */
-export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact, hideDescription }: Props) {
+export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact }: Props) {
     const { t } = useTranslation();
     const [game, setGame] = useState<Game | null>(gameProp ?? null);
     const [loading, setLoading] = useState(!gameProp);
@@ -65,10 +63,10 @@ export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact
         </Label>
         <Switch id={`allow-tracing-${gameId}`} checked={game?.settings?.allow_tracing_player_event ?? false} disabled/>
       </div>
-      {!hideDescription && (<p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
           {t('game.tracingDescPre')}
           <Link href={`/games/${gameId}/plugins`} className="font-medium text-blue-400 hover:underline">Rare</Link>
           {t('game.tracingDescPost')}
-        </p>)}
+        </p>
     </div>);
 }
