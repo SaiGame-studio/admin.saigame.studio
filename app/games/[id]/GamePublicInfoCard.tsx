@@ -121,6 +121,11 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [savingVisibility, setSavingVisibility] = useState(false);
+    // When (client clock) the saved banner may be deleted; from the server's remaining seconds, so clock skew does not matter.
+    const [imageUnlockAt, setImageUnlockAt] = useState(0);
+    useEffect(() => {
+        setImageUnlockAt(Date.now() + (saved?.image_locked_seconds ?? 0) * 1000);
+    }, [saved]);
 
     useEffect(() => {
         let active = true;
@@ -214,7 +219,9 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                 ? t("gamePublicInfo.uploadNotConfigured")
                 : code === "GAME_IMAGE_SIZE_INVALID"
                     ? t("gamePublicInfo.uploadTooLarge", { max: Math.floor(maxGameImageBytes / (1024 * 1024)) })
-                    : t("gamePublicInfo.uploadFailed");
+                    : code === "GAME_IMAGE_LOCKED"
+                        ? t("gamePublicInfo.imageLocked")
+                        : t("gamePublicInfo.uploadFailed");
             toast({ title: t("common.error"), description, variant: "destructive" });
         } finally {
             setUploading(false);
@@ -260,7 +267,8 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
             toast({ title: t("common.success"), description: t("gamePublicInfo.imageDeleted") });
         } catch (error) {
             console.error("Failed to delete game image:", error);
-            toast({ title: t("common.error"), description: t("gamePublicInfo.imageDeleteFailed"), variant: "destructive" });
+            const locked = error instanceof ApiError && error.data?.message_code === "GAME_IMAGE_LOCKED";
+            toast({ title: t("common.error"), description: t(locked ? "gamePublicInfo.imageLocked" : "gamePublicInfo.imageDeleteFailed"), variant: "destructive" });
         }
     };
 
@@ -438,7 +446,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                                     )}
                                 </div>
                             </div>
-                            <GameBannerField imageUrl={form.imageUrl} busy={uploading} disabled={saving || savingVisibility} onFileChosen={chooseImage} onDelete={deleteImage}/>
+                            <GameBannerField imageUrl={form.imageUrl} unlockAt={imageUnlockAt} busy={uploading} disabled={saving || savingVisibility} onFileChosen={chooseImage} onDelete={deleteImage}/>
                         </div>
                         <div id="game-public-info-content-field" className="game-public-info-field space-y-2">
                             <Label id="game-public-info-content-label" htmlFor="game-public-info-content-input">{t("gamePublicInfo.content")}</Label>

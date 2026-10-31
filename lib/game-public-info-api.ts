@@ -15,6 +15,8 @@ export interface GamePublicInfo {
     is_public: boolean;
     /** The game's main currency, shown in the Shops tab on Sai Play; sGem by default. */
     main_currency: GameMainCurrency | null;
+    /** Seconds left (at response time) before the banner can be deleted or replaced; 0 when it already can. */
+    image_locked_seconds?: number;
     created_at: string | null;
     updated_at: string | null;
 }
