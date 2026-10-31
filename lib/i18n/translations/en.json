@@ -226,6 +226,11 @@
     "mailboxBody": "Mail body",
     "mailboxTitleDefault": "Shop Purchase",
     "mailboxBodyDefault": "Your purchased item is ready to claim.",
+    "showInSaiPlay": "Show in Sai Play",
+    "showInSaiPlayHint": "Players can browse and buy this shop's items in the Shops tab of the game page in Sai Play.",
+    "showInSaiPlayOn": "Shown",
+    "showInSaiPlayOff": "Hidden",
+    "openInSaiPlay": "Open in Sai Play",
     "activeImmediately": "Active immediately",
     "itemSingular": "item",
     "itemPlural": "items"

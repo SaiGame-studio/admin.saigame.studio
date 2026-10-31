@@ -226,6 +226,11 @@
     "mailboxBody": "メール本文",
     "mailboxTitleDefault": "ショップ購入",
     "mailboxBodyDefault": "購入したアイテムを受け取れます。",
+    "showInSaiPlay": "Sai Play に表示",
+    "showInSaiPlayHint": "プレイヤーは Sai Play のゲームページの「Shops」タブで、このショップのアイテムを閲覧・購入できます。",
+    "showInSaiPlayOn": "表示中",
+    "showInSaiPlayOff": "非表示",
+    "openInSaiPlay": "Sai Play で開く",
     "activeImmediately": "すぐに有効化",
     "itemSingular": "アイテム",
     "itemPlural": "アイテム"

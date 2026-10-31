@@ -226,6 +226,11 @@
     "mailboxBody": "Nội dung thư",
     "mailboxTitleDefault": "Mua hàng từ shop",
     "mailboxBodyDefault": "Vật phẩm bạn đã mua đã sẵn sàng để nhận.",
+    "showInSaiPlay": "Hiển thị trong Sai Play",
+    "showInSaiPlayHint": "Người chơi có thể xem và mua vật phẩm của shop này trong tab Shops ở trang game trên Sai Play.",
+    "showInSaiPlayOn": "Đang hiển thị",
+    "showInSaiPlayOff": "Đang ẩn",
+    "openInSaiPlay": "Mở trong Sai Play",
     "activeImmediately": "Kích hoạt ngay",
     "itemSingular": "vật phẩm",
     "itemPlural": "vật phẩm"

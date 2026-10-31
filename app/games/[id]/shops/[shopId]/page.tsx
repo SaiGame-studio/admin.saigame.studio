@@ -35,6 +35,7 @@ import { useTranslation } from "@/lib/i18n/useTranslation";
 import { GameNavButtons } from "@/components/GameNavButtons";
 import { ITEMS_TABS } from "@/lib/items-tabs";
 import { SGemIcon } from "@/components/SGemIcon";
+import { ShopSaiPlayField } from "../_components/ShopSaiPlayField";
 // ─── Constants ────────────────────────────────────────────────────────────────
 const SHOP_TYPE_BADGE: Record<string, string> = {
     permanent: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
@@ -849,6 +850,8 @@ export default function ShopDetailPage() {
                     </div>
                   </>)}
               </div>
+
+              <ShopSaiPlayField gameId={params.id} shopId={shop.id} checked={shop.show_in_sai_play ?? false} disabled={saving} onCheckedChange={(checked) => saveField({ show_in_sai_play: checked })} labels={{ title: t('shop.showInSaiPlay'), hint: t('shop.showInSaiPlayHint'), on: t('shop.showInSaiPlayOn'), off: t('shop.showInSaiPlayOff'), open: t('shop.openInSaiPlay') }}/>
 
             </div>
 

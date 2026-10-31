@@ -28,6 +28,8 @@ export interface ShopDefinition {
     mailbox_body?: string;
     currency_item_def_id?: string | null;
     currency_type?: ShopCurrencyType;
+    /** Lists the shop in the Shops tab of the game page in Sai Play. */
+    show_in_sai_play?: boolean;
     item_limit?: number | null;
     item_count?: number;
     created_at: string;
@@ -82,6 +84,7 @@ export interface UpdateShopPayload {
     mailbox_body?: string;
     currency_item_def_id?: string | null;
     currency_type?: ShopCurrencyType;
+    show_in_sai_play?: boolean;
 }
 export interface AddShopItemPayload {
     item_def_id: string;
