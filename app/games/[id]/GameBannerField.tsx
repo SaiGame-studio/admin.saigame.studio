@@ -1,20 +1,25 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
-import { ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { CircleHelp, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { acceptedGameImageTypes } from "@/lib/game-public-info-api";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { gameImageMinSourceSize, gameImageOutputSize } from "./GameImageCropDialog";
 
 // Sai Play renders game images on 3:4 portrait cards; uploads are cropped to this size.
 const imageRatioTolerance = 0.02;
+// Mirrors the server lock (domain.GameImageLockDuration): a saved banner can be deleted this long after upload.
+const bannerLockSeconds = 60;
 
 type Props = {
     /** Current banner URL; empty when the game has no banner. */
     imageUrl: string;
+    /** Client time (ms) from which the saved banner may be deleted; Delete stays disabled until then. */
+    unlockAt: number;
     busy: boolean;
     disabled: boolean;
     /** A file was chosen; the card opens the crop dialog and uploads the cropped image. */
@@ -24,13 +29,32 @@ type Props = {
 };
 
 /** Game banner: an "Upload Game Banner" button when there is none, otherwise the image and Delete. */
-export function GameBannerField({ imageUrl, busy, disabled, onFileChosen, onDelete }: Props) {
+export function GameBannerField({ imageUrl, unlockAt, busy, disabled, onFileChosen, onDelete }: Props) {
     const { t } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [size, setSize] = useState<{ url: string; width: number; height: number } | null>(null);
     const [failedUrl, setFailedUrl] = useState<string | null>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [now, setNow] = useState(() => Date.now());
+
+    // Ticks once a second until the banner unlocks.
+    useEffect(() => {
+        if (unlockAt <= Date.now()) {
+            return;
+        }
+        setNow(Date.now());
+        const timer = window.setInterval(() => {
+            const current = Date.now();
+            setNow(current);
+            if (current >= unlockAt) {
+                window.clearInterval(timer);
+            }
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [unlockAt]);
+    const lockedSeconds = imageUrl ? Math.min(bannerLockSeconds, Math.max(0, Math.ceil((unlockAt - now) / 1000))) : 0;
+    const locked = lockedSeconds > 0;
 
     const confirmDelete = async () => {
         setDeleting(true);
@@ -103,10 +127,26 @@ export function GameBannerField({ imageUrl, busy, disabled, onFileChosen, onDele
             </div>
             <div id="game-public-info-banner-footer" className="game-public-info-banner-footer flex h-9 items-center justify-center">
                 {imageUrl && (
-                    <Button id="game-public-info-banner-delete" type="button" variant="outline" size="sm" className="game-public-info-banner-delete text-destructive" onClick={() => setConfirmOpen(true)} disabled={disabled || busy}>
-                        {busy ? <Loader2 id="game-public-info-banner-delete-icon" className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 id="game-public-info-banner-delete-icon" className="mr-2 h-4 w-4"/>}
-                        {t("common.delete")}
-                    </Button>
+                    <div id="game-public-info-banner-delete-row" className="game-public-info-banner-delete-row flex items-center gap-1">
+                        <Button id="game-public-info-banner-delete" type="button" variant="outline" size="sm" className="game-public-info-banner-delete text-destructive" onClick={() => setConfirmOpen(true)} disabled={disabled || busy || locked}>
+                            {busy ? <Loader2 id="game-public-info-banner-delete-icon" className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 id="game-public-info-banner-delete-icon" className="mr-2 h-4 w-4"/>}
+                            {locked ? t("gamePublicInfo.deleteBannerCountdown", { seconds: lockedSeconds }) : t("common.delete")}
+                        </Button>
+                        {locked && (
+                            <TooltipProvider delayDuration={0}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button id="game-public-info-banner-delete-help" type="button" aria-label={t("gamePublicInfo.deleteBannerLockedHint", { seconds: bannerLockSeconds })} className="game-public-info-banner-delete-help inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground">
+                                            <CircleHelp id="game-public-info-banner-delete-help-icon" className="h-3.5 w-3.5"/>
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent id="game-public-info-banner-delete-hint" side="top" className="game-public-info-banner-delete-hint max-w-xs text-xs">
+                                        {t("gamePublicInfo.deleteBannerLockedHint", { seconds: bannerLockSeconds })}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
+                    </div>
                 )}
             </div>
             <AlertDialog open={confirmOpen} onOpenChange={(open) => !deleting && setConfirmOpen(open)}>
