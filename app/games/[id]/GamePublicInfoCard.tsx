@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent } from "react";
-import { Loader2, Megaphone } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { acceptedGameImageTypes, createGameImageUpload, deleteGamePublicInfoImage, getGamePublicInfo, mainCurrencyPayload, mainCurrencyValue, MAIN_CURRENCY_SGEM, maxGameImageBytes, upsertGamePublicInfo, uploadToPresignedUrl, type GamePublicInfo, type GameReleaseStatus, type UpsertGamePublicInfoInput } from "@/lib/game-public-info-api";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,9 +16,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { GameBannerField } from "./GameBannerField";
 import { GameImageCropDialog } from "./GameImageCropDialog";
 import { GameMainCurrencyField } from "./GameMainCurrencyField";
+import { InlineEditField } from "./InlineEditField";
 import { saiPlayGameUrl } from "@/lib/sai-play";
 
 const maxContentBytes = 1_000_000;
+
+const RELEASE_STATUSES: GameReleaseStatus[] = ["released", "coming_soon", "to_be_announced"];
+const RELEASE_STATUS_LABEL_KEYS: Record<GameReleaseStatus, string> = {
+    released: "gamePublicInfo.released",
+    coming_soon: "gamePublicInfo.comingSoon",
+    to_be_announced: "gamePublicInfo.toBeAnnounced",
+};
 
 type FormState = {
     gameName: string;
@@ -280,6 +288,41 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
         }
     };
 
+    // Inline edits (name, release status, release date / window): saved right away onto the saved
+    // record; before the first Save they only update the form.
+    const [draft, setDraft] = useState<Pick<FormState, "gameName" | "releaseStatus" | "releaseAt" | "releaseDateText">>(form);
+    const startEdit = () => setDraft({ gameName: form.gameName, releaseStatus: form.releaseStatus, releaseAt: form.releaseAt, releaseDateText: form.releaseDateText });
+    const releaseStatusLabel = (status: GameReleaseStatus) => t(RELEASE_STATUS_LABEL_KEYS[status]);
+
+    const saveFields = async (patch: Partial<FormState>): Promise<boolean> => {
+        const next = { ...form, ...patch };
+        if (!next.gameName.trim()) {
+            toast({ title: t("common.error"), description: t("gamePublicInfo.gameNameRequired"), variant: "destructive" });
+            return false;
+        }
+        if (next.releaseStatus === "released" && !next.releaseAt) {
+            toast({ title: t("common.error"), description: t("gamePublicInfo.releaseAtRequired"), variant: "destructive" });
+            return false;
+        }
+        const { game_name, release_status, release_at, release_date_text } = formToInput(next);
+        const input = saved && savedInfoWith(saved, { game_name, release_status, release_at, release_date_text });
+        if (!input) {
+            setForm(next);
+            return true;
+        }
+        try {
+            const info = await upsertGamePublicInfo(gameId, input, { suppressToast: true });
+            setSaved(info);
+            setForm(next);
+            toast({ title: t("common.saved"), description: t("gamePublicInfo.saveSuccess") });
+            return true;
+        } catch (error) {
+            console.error("Failed to save game public info:", error);
+            toast({ title: t("common.error"), description: t("gamePublicInfo.saveError"), variant: "destructive" });
+            return false;
+        }
+    };
+
     const save = async () => {
         if (!canSave) {
             return;
@@ -301,10 +344,6 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     return (
         <Card id="game-public-info-card" className="game-public-info-card border-0 bg-transparent shadow-none">
             <CardHeader id="game-public-info-header" className="game-public-info-header px-0 pt-0">
-                <CardTitle id="game-public-info-title" className="game-public-info-title flex items-center gap-2 text-base">
-                    <Megaphone id="game-public-info-title-icon" className="h-4 w-4"/>
-                    {t("gamePublicInfo.title")}
-                </CardTitle>
                 <CardDescription id="game-public-info-description" className="game-public-info-description">
                     {t("gamePublicInfo.description")}{" "}
                     <a id="game-public-info-sai-play-link" href={saiPlayGameUrl(gameId)} className="game-public-info-sai-play-link font-medium text-blue-400 hover:underline">Sai Play</a>
@@ -337,39 +376,65 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                                     <GameMainCurrencyField gameId={gameId} value={form.mainCurrency} disabled={saving || savingVisibility || uploading} onChange={(value) => void changeMainCurrency(value)}/>
                                 </div>
                                 <div id="game-public-info-fields" className="game-public-info-fields grid gap-4 sm:grid-cols-3">
-                                    <div id="game-public-info-name-field" className="game-public-info-field space-y-2">
-                                        <Label id="game-public-info-name-label" htmlFor="game-public-info-name-input">{t("gamePublicInfo.gameName")}</Label>
-                                        <Input id="game-public-info-name-input" value={form.gameName} maxLength={255} onChange={(event) => setForm((current) => ({ ...current, gameName: event.target.value }))} disabled={saving}/>
-                                    </div>
-                                    <div id="game-public-info-release-status-field" className="game-public-info-field space-y-2">
-                                        <Label id="game-public-info-release-status-label" htmlFor="game-public-info-release-status">{t("gamePublicInfo.releaseStatus")}</Label>
-                                        <Select value={form.releaseStatus} onValueChange={(value: GameReleaseStatus) => setForm((current) => ({
-                                            ...current,
-                                            releaseStatus: value,
-                                            releaseAt: value === "released" ? current.releaseAt : "",
-                                            releaseDateText: value === "coming_soon" ? current.releaseDateText : "",
-                                        }))} disabled={saving}>
-                                            <SelectTrigger id="game-public-info-release-status">
-                                                <SelectValue id="game-public-info-release-status-value"/>
-                                            </SelectTrigger>
-                                            <SelectContent id="game-public-info-release-status-options">
-                                                <SelectItem id="game-public-info-release-status-released" value="released">{t("gamePublicInfo.released")}</SelectItem>
-                                                <SelectItem id="game-public-info-release-status-coming-soon" value="coming_soon">{t("gamePublicInfo.comingSoon")}</SelectItem>
-                                                <SelectItem id="game-public-info-release-status-to-be-announced" value="to_be_announced">{t("gamePublicInfo.toBeAnnounced")}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                    <InlineEditField
+                                        id="game-public-info-name"
+                                        label={t("gamePublicInfo.gameName")}
+                                        display={form.gameName}
+                                        disabled={saving}
+                                        onEdit={startEdit}
+                                        editor={<Input id="game-public-info-name-input" value={draft.gameName} maxLength={255} autoFocus onChange={(event) => setDraft((current) => ({ ...current, gameName: event.target.value }))}/>}
+                                        onSave={() => saveFields({ gameName: draft.gameName })}
+                                    />
+                                    <InlineEditField
+                                        id="game-public-info-release-status"
+                                        label={t("gamePublicInfo.releaseStatus")}
+                                        display={releaseStatusLabel(form.releaseStatus)}
+                                        disabled={saving}
+                                        onEdit={startEdit}
+                                        editor={(
+                                            <>
+                                                <Select value={draft.releaseStatus} onValueChange={(value: GameReleaseStatus) => setDraft((current) => ({ ...current, releaseStatus: value }))}>
+                                                    <SelectTrigger id="game-public-info-release-status">
+                                                        <SelectValue id="game-public-info-release-status-value"/>
+                                                    </SelectTrigger>
+                                                    <SelectContent id="game-public-info-release-status-options">
+                                                        {RELEASE_STATUSES.map((status) => (
+                                                            <SelectItem id={`game-public-info-release-status-${status}`} key={status} value={status}>{releaseStatusLabel(status)}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                {draft.releaseStatus === "released" && (
+                                                    <Input id="game-public-info-release-status-release-at-input" type="datetime-local" value={draft.releaseAt} onChange={(event) => setDraft((current) => ({ ...current, releaseAt: event.target.value }))}/>
+                                                )}
+                                            </>
+                                        )}
+                                        onSave={() => saveFields({
+                                            releaseStatus: draft.releaseStatus,
+                                            releaseAt: draft.releaseStatus === "released" ? draft.releaseAt : "",
+                                            releaseDateText: draft.releaseStatus === "coming_soon" ? form.releaseDateText : "",
+                                        })}
+                                    />
                                     {requiresReleaseAt && (
-                                        <div id="game-public-info-release-at-field" className="game-public-info-field space-y-2">
-                                            <Label id="game-public-info-release-at-label" htmlFor="game-public-info-release-at-input">{t("gamePublicInfo.releaseAt")}</Label>
-                                            <Input id="game-public-info-release-at-input" type="datetime-local" value={form.releaseAt} onChange={(event) => setForm((current) => ({ ...current, releaseAt: event.target.value }))} disabled={saving}/>
-                                        </div>
+                                        <InlineEditField
+                                            id="game-public-info-release-at"
+                                            label={t("gamePublicInfo.releaseAt")}
+                                            display={form.releaseAt ? new Date(form.releaseAt).toLocaleString() : "—"}
+                                            disabled={saving}
+                                            onEdit={startEdit}
+                                            editor={<Input id="game-public-info-release-at-input" type="datetime-local" value={draft.releaseAt} autoFocus onChange={(event) => setDraft((current) => ({ ...current, releaseAt: event.target.value }))}/>}
+                                            onSave={() => saveFields({ releaseAt: draft.releaseAt })}
+                                        />
                                     )}
                                     {allowsReleaseDateText && (
-                                        <div id="game-public-info-release-date-text-field" className="game-public-info-field space-y-2">
-                                            <Label id="game-public-info-release-date-text-label" htmlFor="game-public-info-release-date-text-input">{t("gamePublicInfo.releaseWindow")}</Label>
-                                            <Input id="game-public-info-release-date-text-input" value={form.releaseDateText} maxLength={100} placeholder={t("gamePublicInfo.releaseWindowPlaceholder")} onChange={(event) => setForm((current) => ({ ...current, releaseDateText: event.target.value }))} disabled={saving}/>
-                                        </div>
+                                        <InlineEditField
+                                            id="game-public-info-release-date-text"
+                                            label={t("gamePublicInfo.releaseWindow")}
+                                            display={form.releaseDateText || <span id="game-public-info-release-date-text-empty" className="text-muted-foreground">—</span>}
+                                            disabled={saving}
+                                            onEdit={startEdit}
+                                            editor={<Input id="game-public-info-release-date-text-input" value={draft.releaseDateText} maxLength={100} autoFocus placeholder={t("gamePublicInfo.releaseWindowPlaceholder")} onChange={(event) => setDraft((current) => ({ ...current, releaseDateText: event.target.value }))}/>}
+                                            onSave={() => saveFields({ releaseDateText: draft.releaseDateText })}
+                                        />
                                     )}
                                 </div>
                             </div>

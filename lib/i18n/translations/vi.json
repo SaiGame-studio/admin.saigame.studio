@@ -456,6 +456,8 @@
     "upgradeThisGame": "Nâng cấp game này"
   },
   "gamePublicInfo": {
+    "gameNameRequired": "Hãy nhập tên game công khai.",
+    "releaseAtRequired": "Hãy chọn ngày phát hành cho game đã phát hành.",
     "gameBanner": "Banner game",
     "uploadGameBanner": "Tải lên banner game",
     "imageDeleted": "Đã xoá banner game.",

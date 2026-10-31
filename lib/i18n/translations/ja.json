@@ -456,6 +456,8 @@
     "upgradeThisGame": "このゲームをアップグレード"
   },
   "gamePublicInfo": {
+    "gameNameRequired": "公開ゲーム名を入力してください。",
+    "releaseAtRequired": "リリース済みのゲームにはリリース日を選択してください。",
     "gameBanner": "ゲームバナー",
     "uploadGameBanner": "ゲームバナーをアップロード",
     "imageDeleted": "ゲームバナーを削除しました。",

@@ -456,6 +456,8 @@
     "upgradeThisGame": "Upgrade This Game"
   },
   "gamePublicInfo": {
+    "gameNameRequired": "Enter the public game name.",
+    "releaseAtRequired": "Choose the release date for a released game.",
     "gameBanner": "Game banner",
     "uploadGameBanner": "Upload Game Banner",
     "imageDeleted": "Game banner deleted.",
