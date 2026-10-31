@@ -13,6 +13,8 @@ export interface GamePublicInfo {
     image_url: string | null;
     /** Default false: hidden from players on Sai Play; studio members still see it. */
     is_public: boolean;
+    /** The game's main currency, shown in the Shops tab on Sai Play; sGem by default. */
+    main_currency: GameMainCurrency | null;
     created_at: string | null;
     updated_at: string | null;
 }
@@ -28,6 +30,28 @@ export interface UpsertGamePublicInfoInput {
     image_asset_id?: string;
     /** Omit to keep the saved value. */
     is_public?: boolean;
+    /** Omit to keep the saved value (a new record uses sgem). */
+    main_currency_type?: "sgem" | "item";
+    /** Required when main_currency_type is "item": a currency item definition of the game. */
+    main_currency_item_def_id?: string;
+}
+
+export interface GameMainCurrency {
+    type: "sgem" | "item";
+    item_def_id: string | null;
+    item_code: string | null;
+    name: string;
+}
+
+/** Main currency picker value for sGem (the default); any other value is a currency item definition id. */
+export const MAIN_CURRENCY_SGEM = "sgem";
+
+export function mainCurrencyValue(currency: GameMainCurrency | null | undefined): string {
+    return currency?.type === "item" && currency.item_def_id ? currency.item_def_id : MAIN_CURRENCY_SGEM;
+}
+
+export function mainCurrencyPayload(value: string): Pick<UpsertGamePublicInfoInput, "main_currency_type" | "main_currency_item_def_id"> {
+    return value === MAIN_CURRENCY_SGEM ? { main_currency_type: "sgem" } : { main_currency_type: "item", main_currency_item_def_id: value };
 }
 
 export async function getGamePublicInfo(gameId: string): Promise<GamePublicInfo> {
@@ -39,6 +63,14 @@ export async function getGamePublicInfo(gameId: string): Promise<GamePublicInfo>
 
 export async function upsertGamePublicInfo(gameId: string, input: UpsertGamePublicInfoInput, options?: { suppressToast?: boolean }): Promise<GamePublicInfo> {
     return api.put(`/api/v1/games/${gameId}/public-info`, input, options);
+}
+
+/**
+ * DELETE /api/v1/games/{game_id}/public-info/image — the server deletes the image from the CDN first,
+ * then from the database, and returns the updated public info.
+ */
+export async function deleteGamePublicInfoImage(gameId: string): Promise<GamePublicInfo> {
+    return api.delete(`/api/v1/games/${gameId}/public-info/image`, { suppressToast: true });
 }
 
 /** A presigned upload URL for one game image (POST /api/v1/games/{game_id}/public-info/image-upload). */
