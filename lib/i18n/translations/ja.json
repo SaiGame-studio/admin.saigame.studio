@@ -456,6 +456,8 @@
     "uploadImage": "画像をアップロード",
     "uploading": "アップロード中…",
     "uploadSuccess": "画像をアップロードしました。保存をクリックして反映してください。",
+    "uploadSaved": "画像をアップロードして保存しました。",
+    "uploadSaveFailed": "画像はアップロードしましたが保存できませんでした。保存をクリックして再試行してください。",
     "uploadTooLarge": "画像が {max} MB を超えています。",
     "uploadUnsupported": "JPG・PNG・WebP 形式の画像を使用してください。",
     "uploadNotConfigured": "サーバーで画像アップロードがまだ設定されていません。",

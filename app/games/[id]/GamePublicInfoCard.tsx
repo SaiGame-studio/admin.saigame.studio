@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Loader2, Megaphone, Upload } from "lucide-react";
-import { acceptedGameImageTypes, createGameImageUpload, getGamePublicInfo, upsertGamePublicInfo, uploadToPresignedPost, type GameReleaseStatus } from "@/lib/game-public-info-api";
+import { acceptedGameImageTypes, createGameImageUpload, getGamePublicInfo, maxGameImageBytes, upsertGamePublicInfo, uploadToPresignedUrl, type GamePublicInfo, type GameReleaseStatus, type UpsertGamePublicInfoInput } from "@/lib/game-public-info-api";
 import { ApiError } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { useToast } from "@/hooks/use-toast";
@@ -36,9 +36,39 @@ type FormState = {
     releaseDateText: string;
     content: string;
     imageUrl: string;
+    /** Uploaded media asset not saved yet; cleared when the URL is edited by hand or after a save. */
+    imageAssetId: string | null;
 };
 
-function toDateTimeLocal(value?: string): string {
+function formToInput(form: FormState): UpsertGamePublicInfoInput {
+    const imageUrl = form.imageUrl.trim();
+    return {
+        game_name: form.gameName.trim(),
+        release_status: form.releaseStatus,
+        release_at: form.releaseStatus === "released" ? new Date(form.releaseAt).toISOString() : undefined,
+        release_date_text: form.releaseStatus === "coming_soon" ? form.releaseDateText.trim() || undefined : undefined,
+        content: form.content,
+        image_url: imageUrl || undefined,
+        image_asset_id: form.imageAssetId ?? undefined,
+    };
+}
+
+/** The saved record with only its image replaced, so an image upload saves without committing other unsaved edits. */
+function savedInfoWithImage(saved: GamePublicInfo, imageAssetId: string): UpsertGamePublicInfoInput | null {
+    if (!saved.id || !saved.release_status) {
+        return null;
+    }
+    return {
+        game_name: saved.game_name,
+        release_status: saved.release_status,
+        release_at: saved.release_at ?? undefined,
+        release_date_text: saved.release_date_text ?? undefined,
+        content: saved.content ?? "",
+        image_asset_id: imageAssetId,
+    };
+}
+
+function toDateTimeLocal(value?: string | null): string {
     if (!value) {
         return "";
     }
@@ -60,7 +90,9 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
         releaseDateText: "",
         content: "",
         imageUrl: "",
+        imageAssetId: null,
     });
+    const [saved, setSaved] = useState<GamePublicInfo | null>(null);
     const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
     const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -74,6 +106,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
             try {
                 const info = await getGamePublicInfo(gameId);
                 if (active) {
+                    setSaved(info);
                     setForm({
                         gameName: info.game_name,
                         releaseStatus: info.release_status ?? "coming_soon",
@@ -81,6 +114,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                         releaseDateText: info.release_date_text ?? "",
                         content: info.content ?? "",
                         imageUrl: info.image_url ?? "",
+                        imageAssetId: null,
                     });
                 }
             } catch (error) {
@@ -107,6 +141,19 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     const imageWrongRatio = imageSize !== null && Math.abs(imageSize.width / imageSize.height - 3 / 4) > imageRatioTolerance;
     const canSave = form.gameName.trim().length > 0 && (!requiresReleaseAt || form.releaseAt.length > 0) && contentBytes <= maxContentBytes && imageUrlValid;
 
+    // Saves the uploaded image right away: onto the saved record when there is one, otherwise with the
+    // form when it is complete. Returns false when it must wait for a manual Save.
+    const saveUploadedImage = async (imageAssetId: string): Promise<boolean> => {
+        const input = (saved && savedInfoWithImage(saved, imageAssetId)) ?? (canSave ? formToInput({ ...form, imageAssetId }) : null);
+        if (!input) {
+            return false;
+        }
+        const info = await upsertGamePublicInfo(gameId, input, { suppressToast: true });
+        setSaved(info);
+        setForm((current) => ({ ...current, imageUrl: info.image_url ?? current.imageUrl, imageAssetId: null }));
+        return true;
+    };
+
     const uploadImage = async (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         event.target.value = "";
@@ -117,22 +164,35 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
             toast({ title: t("common.error"), description: t("gamePublicInfo.uploadUnsupported"), variant: "destructive" });
             return;
         }
+        if (file.size > maxGameImageBytes) {
+            toast({ title: t("common.error"), description: t("gamePublicInfo.uploadTooLarge", { max: Math.floor(maxGameImageBytes / (1024 * 1024)) }), variant: "destructive" });
+            return;
+        }
         setUploading(true);
+        let uploaded = false;
         try {
-            const upload = await createGameImageUpload(gameId, file.type);
-            if (file.size > upload.max_bytes) {
-                toast({ title: t("common.error"), description: t("gamePublicInfo.uploadTooLarge", { max: Math.floor(upload.max_bytes / (1024 * 1024)) }), variant: "destructive" });
-                return;
-            }
-            await uploadToPresignedPost(upload, file);
+            const upload = await createGameImageUpload(gameId, file);
+            await uploadToPresignedUrl(upload, file);
+            uploaded = true;
             setImagePreviewFailed(false);
             setImageSize(null);
-            setForm((current) => ({ ...current, imageUrl: upload.public_url }));
-            toast({ title: t("common.success"), description: t("gamePublicInfo.uploadSuccess") });
+            setForm((current) => ({ ...current, imageUrl: upload.public_url, imageAssetId: upload.asset_id }));
+            const savedNow = await saveUploadedImage(upload.asset_id);
+            toast({ title: t("common.success"), description: t(savedNow ? "gamePublicInfo.uploadSaved" : "gamePublicInfo.uploadSuccess") });
         } catch (error) {
+            if (uploaded) {
+                console.error("Failed to save uploaded game image:", error);
+                toast({ title: t("common.error"), description: t("gamePublicInfo.uploadSaveFailed"), variant: "destructive" });
+                return;
+            }
             console.error("Failed to upload game image:", error);
-            const notConfigured = error instanceof ApiError && error.data?.message_code === "MEDIA_STORAGE_NOT_CONFIGURED";
-            toast({ title: t("common.error"), description: t(notConfigured ? "gamePublicInfo.uploadNotConfigured" : "gamePublicInfo.uploadFailed"), variant: "destructive" });
+            const code = error instanceof ApiError ? error.data?.message_code : undefined;
+            const description = code === "MEDIA_STORAGE_NOT_CONFIGURED"
+                ? t("gamePublicInfo.uploadNotConfigured")
+                : code === "GAME_IMAGE_SIZE_INVALID"
+                    ? t("gamePublicInfo.uploadTooLarge", { max: Math.floor(maxGameImageBytes / (1024 * 1024)) })
+                    : t("gamePublicInfo.uploadFailed");
+            toast({ title: t("common.error"), description, variant: "destructive" });
         } finally {
             setUploading(false);
         }
@@ -144,15 +204,9 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
         }
         setSaving(true);
         try {
-            const releaseAt = requiresReleaseAt ? new Date(form.releaseAt).toISOString() : undefined;
-            await upsertGamePublicInfo(gameId, {
-                game_name: form.gameName.trim(),
-                release_status: form.releaseStatus,
-                release_at: releaseAt,
-                release_date_text: allowsReleaseDateText ? form.releaseDateText.trim() || undefined : undefined,
-                content: form.content,
-                image_url: imageUrl || undefined,
-            });
+            const info = await upsertGamePublicInfo(gameId, formToInput(form));
+            setSaved(info);
+            setForm((current) => ({ ...current, imageAssetId: null }));
             toast({ title: t("common.saved"), description: t("gamePublicInfo.saveSuccess") });
         } catch (error) {
             console.error("Failed to save game public info:", error);
@@ -232,7 +286,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                                         onChange={(event) => {
                                             setImagePreviewFailed(false);
                                             setImageSize(null);
-                                            setForm((current) => ({ ...current, imageUrl: event.target.value }));
+                                            setForm((current) => ({ ...current, imageUrl: event.target.value, imageAssetId: null }));
                                         }}
                                         disabled={saving || uploading}
                                     />

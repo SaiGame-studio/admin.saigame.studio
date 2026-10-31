@@ -22,6 +22,8 @@ export interface UpsertGamePublicInfoInput {
     release_date_text?: string;
     content: string;
     image_url?: string;
+    /** game_media_assets id from createGameImageUpload; the server saves that asset's URL as image_url. */
+    image_asset_id?: string;
 }
 
 export async function getGamePublicInfo(gameId: string): Promise<GamePublicInfo> {
@@ -31,33 +33,32 @@ export async function getGamePublicInfo(gameId: string): Promise<GamePublicInfo>
     });
 }
 
-export async function upsertGamePublicInfo(gameId: string, input: UpsertGamePublicInfoInput): Promise<GamePublicInfo> {
-    return api.put(`/api/v1/games/${gameId}/public-info`, input);
+export async function upsertGamePublicInfo(gameId: string, input: UpsertGamePublicInfoInput, options?: { suppressToast?: boolean }): Promise<GamePublicInfo> {
+    return api.put(`/api/v1/games/${gameId}/public-info`, input, options);
 }
 
-/** A presigned S3 POST form for one game image (POST /api/v1/games/{game_id}/public-info/image-upload). */
+/** A presigned upload URL for one game image (POST /api/v1/games/{game_id}/public-info/image-upload). */
 export interface GameImageUpload {
+    asset_id: string;
     upload_url: string;
-    fields: Record<string, string>;
+    method: string;
+    headers: Record<string, string>;
     public_url: string;
     max_bytes: number;
     expires_at: string;
 }
 
 export const acceptedGameImageTypes = ["image/jpeg", "image/png", "image/webp"] as const;
+/** Mirrors the server default (MEDIA_UPLOAD_MAX_BYTES); the server has the final say. */
+export const maxGameImageBytes = 5 * 1024 * 1024;
 
-export async function createGameImageUpload(gameId: string, contentType: string): Promise<GameImageUpload> {
-    return api.post(`/api/v1/games/${gameId}/public-info/image-upload`, { content_type: contentType }, { suppressToast: true });
+export async function createGameImageUpload(gameId: string, file: File): Promise<GameImageUpload> {
+    return api.post(`/api/v1/games/${gameId}/public-info/image-upload`, { content_type: file.type, size: file.size }, { suppressToast: true });
 }
 
-/** Uploads the file straight to S3 with the signed form; no credentials are sent from the browser. */
-export async function uploadToPresignedPost(upload: GameImageUpload, file: File): Promise<void> {
-    const form = new FormData();
-    for (const [name, value] of Object.entries(upload.fields)) {
-        form.append(name, value);
-    }
-    form.append("file", file);
-    const response = await fetch(upload.upload_url, { method: "POST", body: form });
+/** Uploads the file straight to the bucket (S3 / R2) with the signed URL; no credentials are sent from the browser. */
+export async function uploadToPresignedUrl(upload: GameImageUpload, file: File): Promise<void> {
+    const response = await fetch(upload.upload_url, { method: upload.method, headers: upload.headers, body: file });
     if (!response.ok) {
         throw new Error(`Image upload failed with status ${response.status}`);
     }

@@ -456,6 +456,8 @@
     "uploadImage": "Tải ảnh lên",
     "uploading": "Đang tải lên…",
     "uploadSuccess": "Đã tải ảnh lên. Bấm Lưu để áp dụng.",
+    "uploadSaved": "Đã tải ảnh lên và lưu.",
+    "uploadSaveFailed": "Đã tải ảnh lên nhưng chưa lưu được. Bấm Lưu để thử lại.",
     "uploadTooLarge": "Ảnh lớn hơn {max} MB.",
     "uploadUnsupported": "Hãy dùng ảnh JPG, PNG hoặc WebP.",
     "uploadNotConfigured": "Máy chủ chưa được cấu hình để tải ảnh lên.",

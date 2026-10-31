@@ -456,6 +456,8 @@
     "uploadImage": "Upload image",
     "uploading": "Uploading…",
     "uploadSuccess": "Image uploaded. Click Save to apply it.",
+    "uploadSaved": "Image uploaded and saved.",
+    "uploadSaveFailed": "Image uploaded but not saved. Click Save to try again.",
     "uploadTooLarge": "The image is larger than {max} MB.",
     "uploadUnsupported": "Use a JPG, PNG or WebP image.",
     "uploadNotConfigured": "Image upload is not set up on the server yet.",
