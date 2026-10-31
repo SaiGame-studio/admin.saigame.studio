@@ -317,14 +317,14 @@ export default function GameDetailsPage({ params }: {
                 </TabsList>
                 <TabsContent id="game-detail-tab-panel-info" value="info" className="game-detail-tab-panel">
                     <div id="game-detail-content" className="game-detail-content grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <Card id="game-detail-information-card" className="game-detail-information-card lg:col-span-3 group">
-                            <CardHeader id="game-detail-information-header" className="game-detail-information-header">
+                        <Card id="game-detail-information-card" className="game-detail-information-card lg:col-span-3 group border-0 bg-transparent shadow-none">
+                            <CardHeader id="game-detail-information-header" className="game-detail-information-header px-0 pt-0">
                                 <CardTitle id="game-detail-information-title" className="game-detail-information-title flex items-center">
                                     <Gamepad2 className="mr-2 h-5 w-5"/>
                                     {t('game.privateInfo')}
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent id="game-detail-information-content" className="game-detail-information-content">
+                            <CardContent id="game-detail-information-content" className="game-detail-information-content px-0 pb-0">
                                 <div id="game-detail-information-grid" className="game-detail-information-grid grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div id="game-detail-information-primary" className="game-detail-information-column space-y-4">
                                         <div id="game-detail-id-field" className="game-detail-field">
@@ -432,14 +432,15 @@ export default function GameDetailsPage({ params }: {
                         </Card>
 
                         {/* Limits & Usage Section */}
-                        {(game.limits || game.usage) && (<Card id="game-detail-limits-card" className="game-detail-limits-card lg:col-span-3">
-                                <CardHeader id="game-detail-limits-header" className="game-detail-limits-header">
+                        {(game.limits || game.usage) && (<hr id="game-detail-info-divider" className="game-detail-info-divider border-border lg:col-span-3"/>)}
+                        {(game.limits || game.usage) && (<Card id="game-detail-limits-card" className="game-detail-limits-card lg:col-span-3 border-0 bg-transparent shadow-none">
+                                <CardHeader id="game-detail-limits-header" className="game-detail-limits-header px-0 pt-0">
                                     <CardTitle id="game-detail-limits-title" className="game-detail-limits-title flex items-center">
                                         <BarChart2 className="mr-2 h-5 w-5"/>
                                         {t('game.limitsAndUsage')}
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent id="game-detail-limits-content" className="game-detail-limits-content">
+                                <CardContent id="game-detail-limits-content" className="game-detail-limits-content px-0 pb-0">
                                     <div id="game-detail-limits-grid" className="game-detail-limits-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {/* Column 1: First set of limits */}
                                         <div id="game-detail-limits-primary-column" className="game-detail-limits-column space-y-6">
