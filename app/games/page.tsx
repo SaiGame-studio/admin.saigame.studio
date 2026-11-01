@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { getAllGames } from "@/lib/game-api";
 import { fetchStudioWithCache } from "@/lib/studio-api";
 import type { Game } from "@/types/game";
+import { sortGamesByName } from "@/lib/utils/sort-games";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,10 +39,10 @@ export default function GamesPage() {
         { value: "development", label: t('games.statusDevelopment') },
         { value: "archived", label: t('games.statusArchived') }
     ];
-    // Filter games based on status
-    const filteredGames = statusFilter.length === 0
+    // Filter games based on status, then sort alphabetically by name on the client
+    const filteredGames = sortGamesByName(statusFilter.length === 0
         ? games
-        : games.filter(game => statusFilter.includes(game.status.toLowerCase()));
+        : games.filter(game => statusFilter.includes(game.status.toLowerCase())));
     // Toggle status filter
     const toggleStatusFilter = (status: string) => {
         setStatusFilter(prev => prev.includes(status)
