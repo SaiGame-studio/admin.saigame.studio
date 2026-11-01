@@ -4943,6 +4943,7 @@
     "loginHelp": "Nhập mã Google Authenticator hoặc chọn mã khôi phục nếu không còn điện thoại. Yêu cầu đăng nhập hết hạn sau 5 phút.",
     "invalidCode": "Mã không hợp lệ",
     "rateLimited": "Quá nhiều lần thử. Vui lòng chờ 5 phút.",
+    "retryIn": "Thử lại sau {time}",
     "stateChanged": "Thiết lập đã hết hạn hoặc thay đổi. Vui lòng thiết lập lại.",
     "failed": "Không thể xác thực Authenticator. Vui lòng thử lại.",
     "recoveryCode": "Mã khôi phục",

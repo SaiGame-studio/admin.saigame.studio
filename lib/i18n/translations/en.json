@@ -4918,6 +4918,7 @@
     "loginHelp": "Enter your Google Authenticator code, or select recovery code if your phone is unavailable. This sign-in request expires after 5 minutes.",
     "invalidCode": "Code invalid",
     "rateLimited": "Too many attempts. Wait 5 minutes before trying again.",
+    "retryIn": "Try again in {time}",
     "stateChanged": "The setup has expired or changed. Start setup again.",
     "failed": "Unable to complete Authenticator verification. Please try again.",
     "recoveryCode": "Recovery code",
