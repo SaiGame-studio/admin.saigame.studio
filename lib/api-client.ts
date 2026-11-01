@@ -64,7 +64,7 @@ export async function authFetch(endpoint: string, options: AuthFetchOptions = {}
             headers.set('Authorization', `Bearer ${token}`);
         else
             headers.delete('Authorization');
-        return fetch(url, { ...init, headers });
+        return fetch(url, { ...init, credentials: 'include', headers });
     };
     if (auth === 'none') {
         return send(null);

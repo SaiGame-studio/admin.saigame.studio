@@ -1,9 +1,8 @@
 import { CLIENT_ID, CLIENT_ID_HEADER } from './client-id';
-import { hasNewerLocalSession, isSharedSessionCurrent } from './shared-session';
+import { isSharedSessionCurrent, isSharedSessionSignedOut } from './shared-session';
 // Token management utilities with expiration support
 interface TokenData {
     token: string;
-    refreshToken?: string;
     expiresAt: number; // timestamp in milliseconds
 }
 const TOKEN_KEY = 'token';
@@ -63,21 +62,19 @@ function getUsableUntil(token: string, expiresAt: number): number {
     return expiresAt - margin;
 }
 /**
- * Save token with expiration data and optional refresh token
+ * Save an access token with expiration data.
  */
-export function saveToken(token: string, refreshToken?: string): void {
+export function saveToken(token: string): void {
+    sessionVersion++;
     // Save the raw token for backward compatibility
     localStorage.setItem(TOKEN_KEY, token);
-    // Save refresh token if provided
-    if (refreshToken) {
-        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    }
+    // Remove refresh tokens left by older versions; SSO uses the HttpOnly cookie.
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     // Try to extract expiration from JWT
     const expiresAt = getTokenExpiration(token);
     if (expiresAt) {
         const tokenData: TokenData = {
             token,
-            refreshToken,
             expiresAt
         };
         localStorage.setItem(TOKEN_DATA_KEY, JSON.stringify(tokenData));
@@ -87,7 +84,6 @@ export function saveToken(token: string, refreshToken?: string): void {
         const defaultExpiration = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
         const tokenData: TokenData = {
             token,
-            refreshToken,
             expiresAt: defaultExpiration
         };
         localStorage.setItem(TOKEN_DATA_KEY, JSON.stringify(tokenData));
@@ -189,58 +185,22 @@ export function getTimeUntilExpiration(): number | null {
  * Clear all token data
  */
 export function clearToken(): void {
-    if (hasNewerLocalSession()) return;
+    sessionVersion++;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_DATA_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
-/**
- * Forget the stored refresh token (both storage locations), keeping the access token data.
- */
-function dropRefreshToken(): void {
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY);
-    if (!tokenDataStr)
-        return;
-    const tokenData: TokenData = JSON.parse(tokenDataStr);
-    delete tokenData.refreshToken;
-    localStorage.setItem(TOKEN_DATA_KEY, JSON.stringify(tokenData));
-}
-/**
- * Get refresh token, or null when it is missing, expired or has less than
- * TOKEN_MIN_REMAINING_MS left (such a token is removed so it is never sent).
- */
-export function getRefreshToken(): string | null {
-    if (!isSharedSessionCurrent()) {
-        clearToken();
-        return null;
-    }
-    try {
-        // First try to get from token data, then fall back to direct storage
-        const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY);
-        const fromData = tokenDataStr ? (JSON.parse(tokenDataStr) as TokenData).refreshToken : undefined;
-        const refreshToken = fromData || localStorage.getItem(REFRESH_TOKEN_KEY);
-        if (!refreshToken)
-            return null;
-        const expiresAt = getTokenExpiration(refreshToken);
-        if (expiresAt && Date.now() >= expiresAt - TOKEN_MIN_REMAINING_MS) {
-            console.log('Refresh token expired or about to expire, discarding it');
-            dropRefreshToken();
-            return null;
-        }
-        return refreshToken;
-    }
-    catch (error) {
-        console.error('Error getting refresh token:', error);
-        return null;
-    }
-}
 let refreshInFlight: Promise<string | null> | null = null;
+let sessionVersion = 0;
 /**
- * Refresh access token using refresh token.
- * Concurrent callers share one request, so a refresh token is never sent twice at once.
+ * Restore this app's access token using the shared HttpOnly SSO cookie.
+ * Concurrent callers share one request.
  */
 export function refreshAccessToken(): Promise<string | null> {
+    if (!isSharedSessionCurrent() || isSharedSessionSignedOut()) {
+        clearToken();
+        return Promise.resolve(null);
+    }
     if (!refreshInFlight) {
         refreshInFlight = requestNewAccessToken().finally(() => {
             refreshInFlight = null;
@@ -256,11 +216,8 @@ export async function getFreshAccessToken(): Promise<string | null> {
     return getValidToken() ?? await refreshAccessToken();
 }
 async function requestNewAccessToken(): Promise<string | null> {
+    const version = sessionVersion;
     try {
-        // No stored refresh token: nothing to refresh, so never call the API.
-        const refreshToken = getRefreshToken();
-        if (!refreshToken)
-            return null;
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
         if (!apiUrl) {
             console.error('API URL is not configured');
@@ -275,20 +232,19 @@ async function requestNewAccessToken(): Promise<string | null> {
                 [CLIENT_ID_HEADER]: CLIENT_ID,
             },
             credentials: 'include',
-            body: JSON.stringify({ refresh_token: refreshToken }),
         });
-        if (!isSharedSessionCurrent() || getRefreshToken() !== refreshToken) return null;
+        if (!isSharedSessionCurrent() || sessionVersion !== version) return null;
         if (!response.ok) {
-            console.log('Refresh token failed or expired');
-            clearToken();
+            console.log('Shared session refresh failed');
+            if (response.status === 401 || response.status === 403) clearToken();
             return null;
         }
         const data = await response.json();
-        if (!isSharedSessionCurrent() || getRefreshToken() !== refreshToken) return null;
+        if (!isSharedSessionCurrent() || sessionVersion !== version) return null;
         if (data.access_token) {
             console.log('Successfully refreshed access token');
             // Save the new tokens
-            saveToken(data.access_token, data.refresh_token || refreshToken);
+            saveToken(data.access_token);
             return data.access_token;
         }
         return null;
@@ -301,7 +257,7 @@ async function requestNewAccessToken(): Promise<string | null> {
             return null;
         }
         console.error('Error refreshing access token:', error);
-        clearToken();
+        if (isSharedSessionCurrent() && sessionVersion === version) clearToken();
         return null;
     }
 }

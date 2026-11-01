@@ -7,7 +7,7 @@ import { authFetch } from "@/lib/api-client";
 import { safeSetItem, safeRemoveItem } from "@/lib/storage-utils";
 import { toast } from "@/hooks/use-toast";
 import { getCurrentRelativeUrl, getLoginUrl, getReturnToFromLocation } from "@/lib/auth-redirect";
-import { isSharedSessionCurrent, publishSharedSession, watchSharedSession } from "@/lib/shared-session";
+import { acceptSharedSession, getSharedSessionRevision, isSharedSessionCurrent, publishSharedSession, watchSharedSession } from "@/lib/shared-session";
 export interface UserCapabilities {
     is_super_admin: boolean;
     can_view_all_users: boolean;
@@ -76,9 +76,10 @@ export function AuthProvider({ children }: {
     const pathname = usePathname();
     // Function to fetch user data
     const fetchUser = async () => {
+        const revision = getSharedSessionRevision();
         try {
             const response = await fetchUserProfile();
-            if (!isSharedSessionCurrent()) return;
+            if (!isSharedSessionCurrent() || revision !== getSharedSessionRevision()) return;
             if (response.user) {
                 const rawUser = response.user;
                 const permissions: string[] = Array.isArray(rawUser.permissions) ? rawUser.permissions : [];
@@ -113,13 +114,16 @@ export function AuthProvider({ children }: {
         }
         catch (error) {
             console.error('Failed to fetch user:', error);
-            setUser(null);
+            if (revision === getSharedSessionRevision()) setUser(null);
         }
     };
     // Function to check authentication status
-    const checkAuth = async () => {
-        // Expired access token: refresh it (no API call when no refresh token is stored).
-        const token = getValidToken() ?? await refreshAccessToken();
+    const checkAuth = async (restoreSharedSession = false) => {
+        const revision = getSharedSessionRevision();
+        const token = restoreSharedSession
+            ? await refreshAccessToken()
+            : getValidToken() ?? await refreshAccessToken();
+        if (!isSharedSessionCurrent() || revision !== getSharedSessionRevision()) return false;
         const authenticated = !!token;
         setIsAuthenticated(authenticated);
         if (authenticated) {
@@ -161,17 +165,11 @@ export function AuthProvider({ children }: {
         return false;
     };
     useEffect(() => {
-        // Check if user is authenticated on initial load
-        checkAuth().finally(() => setIsLoading(false));
+        // The shared cookie wins over access tokens saved by an earlier account.
+        acceptSharedSession();
+        checkAuth(true).finally(() => setIsLoading(false));
     }, []);
-    useEffect(() => watchSharedSession(() => {
-        clearToken();
-        safeRemoveItem('user_capabilities');
-        safeRemoveItem('user_timezone');
-        setIsAuthenticated(false);
-        setUser(null);
-        setTimeUntilExpiration(null);
-    }), []);
+    useEffect(() => watchSharedSession(), []);
     useEffect(() => {
         // Set up interval to check token expiration and auto-refresh
         const interval = setInterval(async () => {
@@ -226,15 +224,15 @@ export function AuthProvider({ children }: {
             }
         }
     }, [isAuthenticated, isLoading, pathname, router]);
-    const login = (token: string, refreshToken?: string) => {
+    const login = (token: string, _refreshToken?: string) => {
         publishSharedSession();
-        saveToken(token, refreshToken);
+        saveToken(token);
         checkAuth();
         router.push(getReturnToFromLocation());
     };
     const logout = () => {
         if (isSharedSessionCurrent()) {
-            publishSharedSession();
+            publishSharedSession(false);
             void revokeSharedSession();
         }
         clearToken();
