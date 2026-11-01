@@ -4928,6 +4928,7 @@
     "qrAlt": "Mã QR thiết lập Google Authenticator",
     "setupExpiry": "Thiết lập hết hạn sau 10 phút. Giữ kín mã QR và khóa thiết lập.",
     "studioLocked": "Không thể tắt 2FA sau khi đã tạo hoặc tham gia studio.",
+    "disableSupportNote": "Nếu bạn cần tắt 2FA, vui lòng liên hệ",
     "unavailable": "Hiện chưa thể thiết lập Authenticator.",
     "changed": "Đã thay đổi cài đặt 2FA. Vui lòng đăng nhập lại. Nếu vừa bật, hãy chờ mã tiếp theo trước khi đăng nhập.",
     "signInAgain": "Đăng nhập lại",

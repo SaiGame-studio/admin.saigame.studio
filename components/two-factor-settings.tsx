@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TwoFactorProofInput } from "@/components/two-factor-proof-input";
 import { TwoFactorRecoveryCodes } from "@/components/two-factor-recovery-codes";
+import { SUPPORT_CHAT_OPEN_EVENT } from "@/components/support-chat-widget";
 
 type SecurityAction = "disable" | "replace" | "regenerate" | null;
 
@@ -69,13 +70,18 @@ export function TwoFactorSettings({ id }: { id: string }) {
                 {!status.available && <p id="user-2fa-unavailable" className="text-sm text-muted-foreground">{t("twoFactor.unavailable")}</p>}
                 {status.enabled && <p id="user-2fa-recovery-count" className="text-sm">{t("twoFactor.codesRemaining", { count: status.recovery_codes_remaining })}</p>}
                 {status.enabled && status.recovery_codes_remaining === 0 && <p id="user-2fa-recovery-warning" className="text-sm text-destructive">{t("twoFactor.noRecoveryCodes")}</p>}
-                {status.enabled && !status.can_disable && <p id="user-2fa-studio-lock" className="text-sm text-muted-foreground">{t("twoFactor.studioLocked")}</p>}
                 {!hasForm && <div id="user-2fa-management-actions" className="flex flex-wrap gap-2">
                     {!status.enabled ? <Button id="user-2fa-enable" disabled={busy || !status.available} onClick={begin}>{t("twoFactor.enable")}</Button> : <>
                         <Button id="user-2fa-replace" variant="outline" disabled={busy || !status.available} onClick={() => selectAction("replace")}>{t("twoFactor.changeDevice")}</Button>
                         <Button id="user-2fa-regenerate" variant="outline" disabled={busy} onClick={() => selectAction("regenerate")}>{t("twoFactor.regenerateCodes")}</Button>
-                        <Button id="user-2fa-disable" variant="outline" disabled={busy || !status.can_disable} onClick={() => selectAction("disable")}>{t("twoFactor.disable")}</Button>
                     </>}
+                </div>}
+                {!hasForm && status.enabled && <div id="user-2fa-disable-row" className="flex flex-wrap items-center gap-2">
+                    <Button id="user-2fa-disable" variant="outline" disabled={busy || !status.can_disable} onClick={() => selectAction("disable")}>{t("twoFactor.disable")}</Button>
+                    {!status.can_disable && <div id="user-2fa-disable-notes" className="text-sm text-muted-foreground">
+                        <p id="user-2fa-studio-lock">{t("twoFactor.studioLocked")}</p>
+                        <p id="user-2fa-support-note">{t("twoFactor.disableSupportNote")} <button id="user-2fa-support-chat" type="button" className="font-medium text-primary underline underline-offset-2" onClick={() => window.dispatchEvent(new CustomEvent(SUPPORT_CHAT_OPEN_EVENT))}>Sai</button></p>
+                    </div>}
                 </div>}
                 {action === "replace" && <p id="user-2fa-replace-help" className="text-sm text-muted-foreground">{t(setup ? "twoFactor.replacementScanHelp" : "twoFactor.replacementHelp")}</p>}
                 {action === "regenerate" && <p id="user-2fa-regenerate-help" className="text-sm text-muted-foreground">{t("twoFactor.regenerateHelp")}</p>}

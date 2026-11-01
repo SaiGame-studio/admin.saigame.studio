@@ -4860,6 +4860,7 @@
     "qrAlt": "Google Authenticator 設定用 QR コード",
     "setupExpiry": "設定は10分で期限切れになります。QR コードと設定キーを秘密にしてください。",
     "studioLocked": "スタジオを作成または参加した後は 2FA を無効にできません。",
+    "disableSupportNote": "無効にする必要がある場合は、こちらにご相談ください：",
     "unavailable": "現在、認証アプリの設定を利用できません。",
     "changed": "2FA 設定を変更しました。再度ログインしてください。有効にした直後は次のコードをお待ちください。",
     "signInAgain": "再度ログイン",
