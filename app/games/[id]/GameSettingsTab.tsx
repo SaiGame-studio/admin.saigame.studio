@@ -52,6 +52,16 @@ export function GameSettingsTab({ game, onUpdate }: { game: Game; onUpdate: (upd
         </div>
     );
 
+    const changeAllowPlayer2FA = async (checked: boolean) => {
+        try {
+            const updated = await updateGame(game.id, { settings: { ...game.settings, allow_player_2fa: checked } });
+            onUpdate(updated);
+            toast({ title: t("game.settingsUpdated"), description: t("game.allowPlayer2FA") });
+        } catch {
+            toast({ title: t("common.error"), description: t("game.failedUpdateSettings"), variant: "destructive" });
+        }
+    };
+
     const changeAllowNewPlayers = async (checked: boolean) => {
         try {
             const updated = await updateGame(game.id, { settings: { ...game.settings, allow_new_players: checked } });
@@ -78,6 +88,13 @@ export function GameSettingsTab({ game, onUpdate }: { game: Game; onUpdate: (upd
                         </>
                     )}
                     control={<Switch id="game-setting-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} onCheckedChange={(checked) => void changeAllowNewPlayers(checked)}/>}
+                />
+                <SettingRow
+                    id="allow-player-2fa"
+                    label={t("game.allowPlayer2FA")}
+                    htmlFor="game-setting-allow-player-2fa-switch"
+                    description={t("game.allowPlayer2FADesc")}
+                    control={<Switch id="game-setting-allow-player-2fa-switch" checked={game.settings?.allow_player_2fa ?? false} onCheckedChange={(checked) => void changeAllowPlayer2FA(checked)}/>}
                 />
                 <SettingRow
                     id="daily-quest-days"

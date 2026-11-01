@@ -499,6 +499,8 @@
     "failedRemoveTag": "Không thể xóa thẻ",
     "dailyQuestAdvanceDays": "Số ngày tối đa có thể bỏ qua nhiệm vụ hàng ngày",
     "dailyQuestAdvanceDaysDesc": "Số ngày tối đa người chơi có thể bỏ qua nhiệm vụ hàng ngày",
+    "allowPlayer2FA": "Cho phép người chơi dùng 2FA",
+    "allowPlayer2FADesc": "Chỉ yêu cầu xác thực hai bước khi đăng nhập vào game client nếu người chơi cũng đã bật 2FA. Mặc định tắt.",
     "allowPlayerTrading": "Cho phép giao dịch và hộp thư",
     "allowPlayerTradingDesc": "Bật giao dịch giữa người chơi và hệ thống hộp thư",
     "settingsUpdated": "Đã cập nhật cài đặt",

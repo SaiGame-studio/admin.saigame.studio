@@ -499,6 +499,8 @@
     "failedRemoveTag": "タグの削除に失敗しました",
     "dailyQuestAdvanceDays": "デイリークエスト最大スキップ日数",
     "dailyQuestAdvanceDaysDesc": "プレイヤーがデイリークエストをスキップできる最大日数",
+    "allowPlayer2FA": "プレイヤーの2FAを許可",
+    "allowPlayer2FADesc": "プレイヤーも2FAを有効にしている場合のみ、このゲームクライアントへのログイン時に二要素認証を要求します。初期設定はオフです。",
     "allowPlayerTrading": "プレイヤー間取引とメールボックスを許可",
     "allowPlayerTradingDesc": "プレイヤー間の取引とメールボックスシステムを有効にする",
     "settingsUpdated": "設定を更新しました",

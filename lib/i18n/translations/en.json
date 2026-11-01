@@ -499,6 +499,8 @@
     "failedRemoveTag": "Failed to remove tag",
     "dailyQuestAdvanceDays": "Daily quest max advance days",
     "dailyQuestAdvanceDaysDesc": "Maximum number of days players can advance daily quests",
+    "allowPlayer2FA": "Allow player 2FA",
+    "allowPlayer2FADesc": "Require two-factor authentication when signing in to this game's client only if the player has also enabled 2FA. Off by default.",
     "allowPlayerTrading": "Allow player trading and mailbox",
     "allowPlayerTradingDesc": "Enable trading between players and mailbox system",
     "settingsUpdated": "Settings updated",
