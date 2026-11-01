@@ -25,6 +25,8 @@ import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin }
 import { EquipmentPanel } from "@/components/EquipmentPanel";
 import { GamePublicInfoCard } from "./GamePublicInfoCard";
 import { GameTeamsCard } from "./GameTeamsCard";
+import { GameAPIKeysTab } from "./GameAPIKeysTab";
+import { useGameAPIKeys } from "@/hooks/use-game-api-keys";
 import { GameSettingsTab } from "./GameSettingsTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const fmt = (n: number) => n.toLocaleString();
@@ -32,6 +34,7 @@ const GAME_DETAIL_TABS = [
     { key: "info", labelKey: "game.tabGameInfo" },
     { key: "public", labelKey: "game.tabPublicInfo" },
     { key: "team", labelKey: "game.tabTeam" },
+    { key: "api-keys", labelKey: "game.apiKeys.title" },
     { key: "settings", labelKey: "game.tabSettings" },
 ] as const;
 type GameDetailTab = (typeof GAME_DETAIL_TABS)[number]["key"];
@@ -46,6 +49,7 @@ export default function GameDetailsPage({ params }: {
     }>;
 }) {
     const { id: gameId } = React.use(params);
+    const apiKeys = useGameAPIKeys(gameId);
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -208,6 +212,7 @@ export default function GameDetailsPage({ params }: {
         }
     };
     const handleTeamRemoved = () => {
+        void apiKeys.reload();
         fetchGameTeams(gameId)
             .then(data => setTeams(data))
             .catch(err => console.error("Failed to reload teams:", err));
@@ -311,7 +316,7 @@ export default function GameDetailsPage({ params }: {
 
             <Tabs id="game-detail-tabs" className="game-detail-tabs" value={tab} onValueChange={selectTab}>
                 <TabsList id="game-detail-tab-list" className="game-detail-tab-list mb-4">
-                    {GAME_DETAIL_TABS.map(({ key, labelKey }) => (
+                    {GAME_DETAIL_TABS.filter(entry => entry.key !== "api-keys" || apiKeys.canRead || (apiKeys.error != null && !apiKeys.forbidden)).map(({ key, labelKey }) => (
                         <TabsTrigger id={`game-detail-tab-${key}`} key={key} value={key}>{t(labelKey)}</TabsTrigger>
                     ))}
                 </TabsList>
@@ -622,6 +627,9 @@ export default function GameDetailsPage({ params }: {
                 </TabsContent>
                 <TabsContent id="game-detail-tab-panel-team" value="team" className="game-detail-tab-panel">
                     <GameTeamsCard game={game} teams={teams} teamsLoading={teamsLoading} onTeamsChanged={handleTeamRemoved}/>
+                </TabsContent>
+                <TabsContent id="game-detail-tab-panel-api-keys" value="api-keys" className="game-detail-tab-panel">
+                    <GameAPIKeysTab gameId={gameId} state={apiKeys}/>
                 </TabsContent>
                 <TabsContent id="game-detail-tab-panel-settings" value="settings" className="game-detail-tab-panel">
                     <GameSettingsTab game={game} onUpdate={setGame}/>

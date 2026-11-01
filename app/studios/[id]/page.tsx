@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { fetchStudio, fetchStudioGames, fetchStudioTeams, fetchStudioMembers, removeStudioMember, type StudioMember } from "@/lib/studio-api";
 import { sortGamesByName } from "@/lib/utils/sort-games";
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ArrowLeft, Plus, ExternalLink, BarChart2, Trash2, Users, Gamepad2, RefreshCw } from "lucide-react";
+import { AlertCircle, ArrowLeft, Plus, ExternalLink, BarChart2, Trash2, Users, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
@@ -24,6 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopyButton } from "@/components/CopyButton";
+import StudioDeletePanel from "@/components/StudioDeletePanel";
 export default function StudioDetailsPage({ params }: {
     params: Promise<{
         id: string;
@@ -43,9 +44,17 @@ export default function StudioDetailsPage({ params }: {
     const [teamsError, setTeamsError] = useState<string | null>(null);
     const [membersError, setMembersError] = useState<string | null>(null);
     const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState('games');
     const hasFetched = useRef(false);
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const requestedTab = searchParams.get("tab");
+    const activeTab = requestedTab === "teams" || requestedTab === "games" || requestedTab === "delete"
+        ? requestedTab : "info";
+    const selectTab = (value: string) => {
+        const nextTab = value === "teams" || value === "games" || value === "delete" ? value : "info";
+        router.push(`${pathname}?tab=${nextTab}`, { scroll: false });
+    };
     const { t } = useTranslation();
     const { toast } = useToast();
     // ── Load studio info + teams once on mount ───────────────────────────
@@ -117,7 +126,7 @@ export default function StudioDetailsPage({ params }: {
     useEffect(() => {
         if (activeTab === 'games')
             loadGames();
-        else if (activeTab === 'members')
+        else if (activeTab === 'teams')
             loadMembers();
     }, [activeTab, loadGames, loadMembers]);
     async function handleRemoveMember(userId: string) {
@@ -193,6 +202,14 @@ export default function StudioDetailsPage({ params }: {
             </div>
           </div>
 
+          <Tabs id="studio-details-tabs" className="studio-details-tabs" value={activeTab} onValueChange={selectTab}>
+            <TabsList id="studio-details-tab-list" className="studio-details-tab-list mb-4">
+              <TabsTrigger id="studio-details-info-tab" value="info">{t('studio.details')}</TabsTrigger>
+              <TabsTrigger id="studio-details-teams-tab" value="teams">{t('studio.teams')}</TabsTrigger>
+              <TabsTrigger id="studio-details-games-tab" value="games">{t('common.games')}</TabsTrigger>
+              <TabsTrigger id="studio-details-delete-tab" value="delete" className="bg-destructive text-destructive-foreground hover:bg-destructive/90 data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">{t('studio.deleteAction')}</TabsTrigger>
+            </TabsList>
+            <TabsContent id="studio-details-info-panel" value="info">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <Card>
               <CardHeader>
@@ -301,6 +318,8 @@ export default function StudioDetailsPage({ params }: {
               </CardContent>
             </Card>)}
 
+            </TabsContent>
+            <TabsContent id="studio-details-teams-panel" value="teams">
           {/* Teams Section */}
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -338,99 +357,6 @@ export default function StudioDetailsPage({ params }: {
             </CardContent>
           </Card>
 
-          {/* Games + Members Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-            <TabsList>
-              <TabsTrigger value="games" className="flex items-center gap-1.5">
-                <Gamepad2 className="h-4 w-4"/>
-                {t('common.games')}
-              </TabsTrigger>
-              <TabsTrigger value="members" className="flex items-center gap-1.5">
-                <Users className="h-4 w-4"/>
-                {t('studio.members')}
-              </TabsTrigger>
-            </TabsList>
-
-            {/* ── Games Tab ──────────────────────────────────────── */}
-            <TabsContent value="games">
-              <Card className="border-t-0 rounded-tl-none">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>{t('common.games')}</CardTitle>
-                    <CardDescription>{t('studio.gamesBelonging')}</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={loadGames} disabled={gamesLoading}>
-                      <RefreshCw className={`h-4 w-4 ${gamesLoading ? 'animate-spin' : ''}`}/>
-                    </Button>
-                    <Button asChild size="sm">
-                      <a href={`/games/new?studio=${studio.id}`}>
-                        <Plus className="mr-1.5 h-4 w-4"/> {t('studio.createGame')}
-                      </a>
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {gamesError && (<Alert variant="destructive" className="mb-4">
-                      <AlertCircle className="h-4 w-4"/>
-                      <AlertDescription>{gamesError}</AlertDescription>
-                    </Alert>)}
-                  {gamesLoading ? (<div className="space-y-4">
-                      <Skeleton className="h-12 w-full"/>
-                      <Skeleton className="h-12 w-full"/>
-                      <Skeleton className="h-12 w-full"/>
-                    </div>) : games.length > 0 ? (<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {games.map((game) => (<div key={game.id} className="p-4 border rounded-md">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <p className="font-medium text-lg">
-                                <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary">
-                                  {game.name}
-                                  <ExternalLink className="w-4 h-4"/>
-                                </Link>
-                              </p>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => router.push(`/games/${game.id}`)}>
-                              {t('studio.viewDetails')}
-                            </Button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div>
-                              <p className="text-sm font-medium">ID</p>
-                              <p className="text-sm">{game.id}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{t('studio.status')}</p>
-                              <p className="text-sm">{game.status}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{t('studio.shopCount')}</p>
-                              <p className="text-sm">{game.usage?.shops ?? 0}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{t('studio.totalPlayer')}</p>
-                              <p className="text-sm">{game.usage?.player_profiles ?? 0}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{t('studio.itemProfileCount')}</p>
-                              <p className="text-sm">{game.usage?.items ?? 0}</p>
-                            </div>
-                          </div>
-                        </div>))}
-                    </div>) : (<div className="text-center py-6">
-                      <p>{t('studio.noGamesInStudio')}</p>
-                      <Button asChild className="mt-4">
-                        <a href={`/games/new?studio=${studio.id}`}>
-                          <Plus className="mr-2 h-4 w-4"/> {t('studio.createFirstGame')}
-                        </a>
-                      </Button>
-                    </div>)}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* ── Members Tab ────────────────────────────────────── */}
-            <TabsContent value="members">
               <Card className="border-t-0 rounded-tl-none">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
@@ -440,9 +366,8 @@ export default function StudioDetailsPage({ params }: {
                     </CardTitle>
                     <CardDescription>{t('studio.membersInStudio')}</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={loadMembers} disabled={membersLoading}>
-                    <RefreshCw className={`h-4 w-4 mr-1.5 ${membersLoading ? 'animate-spin' : ''}`}/>
-                    {t('common.refresh')}
+                  <Button id="studio-details-members-refresh" variant="outline" size="icon" aria-label={t('common.refresh')} onClick={loadMembers} disabled={membersLoading}>
+                    <RefreshCw id="studio-details-members-refresh-icon" className={`h-4 w-4 ${membersLoading ? 'animate-spin' : ''}`}/>
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -518,6 +443,93 @@ export default function StudioDetailsPage({ params }: {
                           </TableRow>))}
                       </TableBody>
                     </Table>) : (<p className="text-sm text-muted-foreground">{t('studio.noMembers')}</p>)}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent id="studio-details-games-panel" value="games">
+              <Card className="border-t-0 rounded-tl-none">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>{t('common.games')}</CardTitle>
+                    <CardDescription>{t('studio.gamesBelonging')}</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={loadGames} disabled={gamesLoading}>
+                      <RefreshCw className={`h-4 w-4 ${gamesLoading ? 'animate-spin' : ''}`}/>
+                    </Button>
+                    <Button asChild size="sm">
+                      <a href={`/games/new?studio=${studio.id}`}>
+                        <Plus className="mr-1.5 h-4 w-4"/> {t('studio.createGame')}
+                      </a>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {gamesError && (<Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4"/>
+                      <AlertDescription>{gamesError}</AlertDescription>
+                    </Alert>)}
+                  {gamesLoading ? (<div className="space-y-4">
+                      <Skeleton className="h-12 w-full"/>
+                      <Skeleton className="h-12 w-full"/>
+                      <Skeleton className="h-12 w-full"/>
+                    </div>) : games.length > 0 ? (<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {games.map((game) => (<div key={game.id} className="p-4 border rounded-md">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className="font-medium text-lg">
+                                <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary">
+                                  {game.name}
+                                  <ExternalLink className="w-4 h-4"/>
+                                </Link>
+                              </p>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => router.push(`/games/${game.id}`)}>
+                              {t('studio.viewDetails')}
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div>
+                              <p className="text-sm font-medium">ID</p>
+                              <p className="text-sm">{game.id}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{t('studio.status')}</p>
+                              <p className="text-sm">{game.status}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{t('studio.shopCount')}</p>
+                              <p className="text-sm">{game.usage?.shops ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{t('studio.totalPlayer')}</p>
+                              <p className="text-sm">{game.usage?.player_profiles ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{t('studio.itemProfileCount')}</p>
+                              <p className="text-sm">{game.usage?.items ?? 0}</p>
+                            </div>
+                          </div>
+                        </div>))}
+                    </div>) : (<div className="text-center py-6">
+                      <p>{t('studio.noGamesInStudio')}</p>
+                      <Button asChild className="mt-4">
+                        <a href={`/games/new?studio=${studio.id}`}>
+                          <Plus className="mr-2 h-4 w-4"/> {t('studio.createFirstGame')}
+                        </a>
+                      </Button>
+                    </div>)}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent id="studio-details-delete-panel" value="delete">
+              <Card id="studio-details-delete-card" className="border-destructive/30">
+                <CardHeader id="studio-details-delete-card-header">
+                  <CardTitle id="studio-details-delete-card-title">{t('studio.deleteAction')}</CardTitle>
+                  <CardDescription id="studio-details-delete-card-description">{t('studio.deleteDescription')}</CardDescription>
+                </CardHeader>
+                <CardContent id="studio-details-delete-card-content">
+                  <StudioDeletePanel key={studio.id} studio={studio}/>
                 </CardContent>
               </Card>
             </TabsContent>

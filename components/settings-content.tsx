@@ -5,9 +5,11 @@ import { Label } from "@/components/ui/label";
 import { LanguageSelector } from "@/components/ui/language-selector";
 import { ThemeSelector } from "@/components/ui/theme-selector";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { TwoFactorSettings } from "@/components/two-factor-settings";
 export function SettingsContent() {
     const { t, locale } = useTranslation();
     return (<div className="space-y-6 max-w-4xl">
+      <TwoFactorSettings id="settings-2fa" />
       {/* Language Settings */}
       <Card>
         <CardHeader>

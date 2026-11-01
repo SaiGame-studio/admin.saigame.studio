@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, } from "@/components/ui/alert-dialog";
@@ -9,6 +9,7 @@ import { deleteGame } from "@/lib/game-api";
 import type { Game } from "@/types/game";
 import { Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { DeletionTwoFactorFields, useDeletionTwoFactor } from "@/components/deletion-two-factor";
 interface DeleteGameDialogProps {
     game: Game;
 }
@@ -18,13 +19,16 @@ export function DeleteGameDialog({ game }: DeleteGameDialogProps) {
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
+    const factor = useDeletionTwoFactor(open);
+    const submitting = useRef(false);
     const isConfirmed = confirmText === game.name;
-    async function handleDelete() {
-        if (!isConfirmed)
+    async function handleDelete(code = factor.value) {
+        if (!open || !isConfirmed || loading || submitting.current || !factor.canSubmit(code))
             return;
+        submitting.current = true;
         try {
             setLoading(true);
-            await deleteGame(game.id);
+            await deleteGame(game.id, factor.proofFor(code));
             toast({
                 title: "Success",
                 description: "Game deleted successfully.",
@@ -39,6 +43,7 @@ export function DeleteGameDialog({ game }: DeleteGameDialogProps) {
             }
         }
         catch (err) {
+            if (factor.handleError(err)) return;
             console.error("Failed to delete game:", err);
             toast({
                 title: "Error",
@@ -47,10 +52,11 @@ export function DeleteGameDialog({ game }: DeleteGameDialogProps) {
             });
         }
         finally {
+            submitting.current = false;
             setLoading(false);
         }
     }
-    return (<AlertDialog open={open} onOpenChange={setOpen}>
+    return (<AlertDialog open={open} onOpenChange={value => { if (!loading) { setOpen(value); setConfirmText(""); } }}>
       <AlertDialogTrigger asChild>
         <Button variant="destructive" size="sm">
           <Trash2 className="mr-2 h-4 w-4"/>
@@ -79,15 +85,19 @@ export function DeleteGameDialog({ game }: DeleteGameDialogProps) {
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+        <DeletionTwoFactorFields id="game-delete-two-factor" factor={factor} disabled={loading || !isConfirmed} onComplete={code => void handleDelete(code)} />
+        <AlertDialogFooter id="game-delete-footer" className="flex-row items-center justify-between gap-3 sm:space-x-0">
+          {factor.error && <p id="game-delete-two-factor-error" role="alert" className="min-w-0 flex-1 text-left text-sm text-destructive">{factor.error}</p>}
+          <div id="game-delete-actions" className="ml-auto flex shrink-0 items-center gap-2">
+          <AlertDialogCancel id="game-delete-cancel" className="mt-0" disabled={loading}>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={(e) => {
             e.preventDefault();
             handleDelete();
-        }} disabled={loading || !isConfirmed} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+        }} disabled={loading || !isConfirmed || !factor.ready} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
             Delete Permanently
           </AlertDialogAction>
+          </div>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>);

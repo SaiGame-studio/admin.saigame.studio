@@ -228,51 +228,34 @@ export default function TeamDetailsPage({ params }: {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('team.timestamps')}</CardTitle>
-                <CardDescription>{t('team.timestampsDesc')}</CardDescription>
+            {/* Games Section */}
+            <Card id="team-detail-games">
+              <CardHeader id="team-detail-games-header" className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div id="team-detail-games-heading">
+                  <CardTitle id="team-detail-games-title">{t('team.games')}</CardTitle>
+                  <CardDescription id="team-detail-games-description">{t('team.gamesDesc')}</CardDescription>
+                </div>
+                {team.studio_id && (<AddGameToTeamDialog teamId={team.id} studioId={team.studio_id} existingGameIds={games.map(g => g.id)} onGamesAdded={handleGamesAdded}/>)}
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium">{t('team.createdAt')}</p>
-                  <p className="text-sm text-muted-foreground">{formatTimestamp(team.created_at)}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{t('team.updatedAt')}</p>
-                  <p className="text-sm text-muted-foreground">{formatTimestamp(team.updated_at)}</p>
-                </div>
+              <CardContent id="team-detail-games-content" className="group">
+                {gamesLoading ? (<div id="team-detail-games-loading" className="space-y-2">
+                    <Skeleton id="team-detail-games-loading-first" className="h-8 w-full"/>
+                    <Skeleton id="team-detail-games-loading-second" className="h-8 w-full"/>
+                  </div>) : games.length > 0 ? (<div id="team-detail-games-list" className="flex flex-wrap items-center gap-2">
+                    {games.map((game, index) => (<React.Fragment key={game.id}>
+                        <div id={`team-detail-game-${game.id}`} className="inline-flex items-center gap-1">
+                          <Link id={`team-detail-game-link-${game.id}`} href={`/games/${game.id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                            {game.name}
+                            <ExternalLink id={`team-detail-game-icon-${game.id}`} className="w-4 h-4"/>
+                          </Link>
+                          <RemoveGameFromTeamDialog teamId={team.id} game={game} onGameRemoved={handleGamesAdded}/>
+                        </div>
+                        {index < games.length - 1 && (<span id={`team-detail-game-separator-${game.id}`} className="text-muted-foreground">•</span>)}
+                      </React.Fragment>))}
+                  </div>) : (<p id="team-detail-games-empty" className="text-sm text-muted-foreground">{t('team.noGames')}</p>)}
               </CardContent>
             </Card>
           </div>
-
-          {/* Games Section */}
-          <Card className="mt-6">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <div>
-                <CardTitle>{t('team.games')}</CardTitle>
-                <CardDescription>{t('team.gamesDesc')}</CardDescription>
-              </div>
-              {team.studio_id && (<AddGameToTeamDialog teamId={team.id} studioId={team.studio_id} existingGameIds={games.map(g => g.id)} onGamesAdded={handleGamesAdded}/>)}
-            </CardHeader>
-            <CardContent className="group">
-              {gamesLoading ? (<div className="space-y-2">
-                  <Skeleton className="h-8 w-full"/>
-                  <Skeleton className="h-8 w-full"/>
-                </div>) : games.length > 0 ? (<div className="flex flex-wrap items-center gap-2">
-                  {games.map((game, index) => (<React.Fragment key={game.id}>
-                      <div className="inline-flex items-center gap-1">
-                        <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
-                          {game.name}
-                          <ExternalLink className="w-4 h-4"/>
-                        </Link>
-                        <RemoveGameFromTeamDialog teamId={team.id} game={game} onGameRemoved={handleGamesAdded}/>
-                      </div>
-                      {index < games.length - 1 && (<span className="text-muted-foreground">•</span>)}
-                    </React.Fragment>))}
-                </div>) : (<p className="text-sm text-muted-foreground">{t('team.noGames')}</p>)}
-            </CardContent>
-          </Card>
 
           {/* Members Section */}
           <Card className="mt-6 border-0 shadow-none">

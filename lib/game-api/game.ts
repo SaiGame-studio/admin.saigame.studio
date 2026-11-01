@@ -1,4 +1,5 @@
 import type { Game } from "@/types/game";
+import type { TwoFactorProof } from "@/lib/two-factor-api";
 import type { Team } from "@/types/team";
 import { api } from "@/lib/api-client";
 import type { CloneableGamesResponse } from "./clone-session-types";
@@ -59,7 +60,7 @@ export async function createGame(studioId: string, gameData: {
 }
 
 /** Update an existing game */
-export async function updateGame(gameId: string, gameData: {
+export async function updateGame(gameId: string, gameData: TwoFactorProof & {
     name?: string;
     description?: string;
     is_active?: boolean;
@@ -74,6 +75,7 @@ export async function updateGame(gameId: string, gameData: {
     };
     settings?: {
         allow_new_players?: boolean;
+        allow_player_2fa?: boolean;
         allow_player_trading?: boolean;
         clone_cost?: number;
         clone_cost_currency?: "sGem" | "sCoin" | string;
@@ -91,8 +93,8 @@ export async function getAllGames(): Promise<Game[]> {
 }
 
 /** Deletes a game by ID */
-export async function deleteGame(gameId: string): Promise<void> {
-    await api.delete(`/api/v1/games/${gameId}`);
+export async function deleteGame(gameId: string, proof: TwoFactorProof = {}): Promise<void> {
+    await api.delete(`/api/v1/games/${gameId}`, { body: proof, suppressToast: true });
 }
 
 /** Fetches all item profiles of a game */

@@ -140,7 +140,7 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {})
             // Handle 403: inactive/banned user -> clear session; otherwise just throw
             if (response.status === 403) {
                 const msg = errorMessage.toLowerCase();
-                if (msg.includes('inactive') || msg.includes('banned') || msg.includes('deactivated') || msg.includes('disabled')) {
+                if (!data?.message_code?.startsWith('TWO_FACTOR_') && (msg.includes('inactive') || msg.includes('banned') || msg.includes('deactivated') || msg.includes('disabled'))) {
                     clearToken();
                     if (typeof window !== 'undefined') {
                         window.location.replace('/login');
