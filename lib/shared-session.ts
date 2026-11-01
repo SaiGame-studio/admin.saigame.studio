@@ -1,4 +1,4 @@
-// Non-secret login revision shared by the two web apps. Tokens stay in their own storage.
+// Non-secret change signal. Authentication comes only from the shared HttpOnly cookie.
 const scope = encodeURIComponent(process.env.NEXT_PUBLIC_API_URL ?? "default");
 const cookieName = `ss_web_session_${scope}`;
 const storageKey = `sharedSessionRevision:${scope}`;
@@ -37,8 +37,9 @@ export function isSharedSessionCurrent(): boolean {
     return localRevision() === readRevision();
 }
 
-export function publishSharedSession() {
-    const value = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+export function publishSharedSession(signedIn = true) {
+    const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const value = `${signedIn ? "login" : "logout"}-${nonce}`;
     const hostname = window.location.hostname;
     const domain = hostname === "saigame.studio" || hostname.endsWith(".saigame.studio")
         ? "; Domain=saigame.studio" : "";
@@ -47,23 +48,26 @@ export function publishSharedSession() {
     rememberRevision(readRevision());
 }
 
-export function hasNewerLocalSession(): boolean {
-    try {
-        const stored = localStorage.getItem(storageKey);
-        return stored !== localRevision() && stored === readRevision();
-    } catch {
-        return false;
-    }
+export function acceptSharedSession() {
+    rememberRevision(readRevision());
 }
 
-export function watchSharedSession(onChanged: () => void): () => void {
+export function getSharedSessionRevision(): string | null {
+    return localRevision();
+}
+
+export function isSharedSessionSignedOut(): boolean {
+    return readRevision()?.startsWith("logout-") ?? false;
+}
+
+export function watchSharedSession(): () => void {
     localRevision();
     const check = () => {
-        if (hasNewerLocalSession()) {
+        if (!isSharedSessionCurrent()) {
+            acceptSharedSession();
+            // Reload clears account-specific state before restoring the new shared session.
             window.location.reload();
-            return;
         }
-        if (!isSharedSessionCurrent()) onChanged();
     };
     const interval = window.setInterval(check, 1000);
     window.addEventListener("focus", check);
