@@ -124,7 +124,8 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     // When (client clock) the saved banner may be deleted; from the server's remaining seconds, so clock skew does not matter.
     const [imageUnlockAt, setImageUnlockAt] = useState(0);
     useEffect(() => {
-        setImageUnlockAt(Date.now() + (saved?.image_locked_seconds ?? 0) * 1000);
+        const lockedSeconds = saved?.image_locked_seconds ?? 0;
+        setImageUnlockAt(lockedSeconds > 0 ? Date.now() + lockedSeconds * 1000 : 0);
     }, [saved]);
 
     useEffect(() => {

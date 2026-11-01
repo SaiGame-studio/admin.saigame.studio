@@ -40,10 +40,13 @@ export function GameBannerField({ imageUrl, unlockAt, busy, disabled, onFileChos
 
     // Ticks once a second until the banner unlocks.
     useEffect(() => {
-        if (unlockAt <= Date.now()) {
+        // Refresh now even when already unlocked: a stale mount-time now would leave unlockAt - now at a few ms,
+        // which rounds up to a permanent "1s" countdown.
+        const start = Date.now();
+        setNow(start);
+        if (unlockAt <= start) {
             return;
         }
-        setNow(Date.now());
         const timer = window.setInterval(() => {
             const current = Date.now();
             setNow(current);
