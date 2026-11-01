@@ -1,15 +1,14 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
-import { updateGame } from "@/lib/game-api";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Game } from "@/types/game";
 import { GameDangerZone } from "./GameDangerZone";
+import { GameSettingTwoFactorDialog } from "./GameSettingTwoFactorDialog";
 
 type SettingRowProps = {
     id: string;
@@ -36,7 +35,7 @@ function SettingRow({ id, label, htmlFor, description, control }: SettingRowProp
 /** Settings tab: the game's settings, one per row with an explanation, and Delete Game at the bottom. */
 export function GameSettingsTab({ game, onUpdate }: { game: Game; onUpdate: (updated: Game) => void }) {
     const { t } = useTranslation();
-    const { toast } = useToast();
+    const [pendingSetting, setPendingSetting] = useState<{ key: "allow_player_2fa" | "allow_new_players"; enabled: boolean } | null>(null);
     const tracingNote = (
         <>
             {t("game.tracingDescPre")}
@@ -51,26 +50,6 @@ export function GameSettingsTab({ game, onUpdate }: { game: Game; onUpdate: (upd
             <span id={`game-setting-${id}-manual-warning`} className="game-setting-manual-warning text-xs font-medium text-amber-500 dark:text-amber-400">{t("game.settingCannotChangeManually")}</span>
         </div>
     );
-
-    const changeAllowPlayer2FA = async (checked: boolean) => {
-        try {
-            const updated = await updateGame(game.id, { settings: { ...game.settings, allow_player_2fa: checked } });
-            onUpdate(updated);
-            toast({ title: t("game.settingsUpdated"), description: t("game.allowPlayer2FA") });
-        } catch {
-            toast({ title: t("common.error"), description: t("game.failedUpdateSettings"), variant: "destructive" });
-        }
-    };
-
-    const changeAllowNewPlayers = async (checked: boolean) => {
-        try {
-            const updated = await updateGame(game.id, { settings: { ...game.settings, allow_new_players: checked } });
-            onUpdate(updated);
-            toast({ title: t("game.settingsUpdated"), description: t("gameUsers.allowNewPlayers") });
-        } catch {
-            toast({ title: t("common.error"), description: t("game.failedUpdateSettings"), variant: "destructive" });
-        }
-    };
 
     return (
         <div id="game-settings-tab" className="game-settings-tab space-y-8">
@@ -87,14 +66,14 @@ export function GameSettingsTab({ game, onUpdate }: { game: Game; onUpdate: (upd
                             </Link>
                         </>
                     )}
-                    control={<Switch id="game-setting-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} onCheckedChange={(checked) => void changeAllowNewPlayers(checked)}/>}
+                    control={<Switch id="game-setting-allow-new-players-switch" checked={game.settings?.allow_new_players ?? true} disabled={pendingSetting !== null} onCheckedChange={enabled => setPendingSetting({ key: "allow_new_players", enabled })}/>}
                 />
                 <SettingRow
                     id="allow-player-2fa"
                     label={t("game.allowPlayer2FA")}
                     htmlFor="game-setting-allow-player-2fa-switch"
                     description={t("game.allowPlayer2FADesc")}
-                    control={<Switch id="game-setting-allow-player-2fa-switch" checked={game.settings?.allow_player_2fa ?? false} onCheckedChange={(checked) => void changeAllowPlayer2FA(checked)}/>}
+                    control={<Switch id="game-setting-allow-player-2fa-switch" checked={game.settings?.allow_player_2fa ?? false} disabled={pendingSetting !== null} onCheckedChange={enabled => setPendingSetting({ key: "allow_player_2fa", enabled })}/>}
                 />
                 <SettingRow
                     id="daily-quest-days"
@@ -139,6 +118,7 @@ export function GameSettingsTab({ game, onUpdate }: { game: Game; onUpdate: (upd
                 />
             </section>
             <GameDangerZone game={game}/>
+            {pendingSetting !== null && <GameSettingTwoFactorDialog game={game} setting={pendingSetting.key} enabled={pendingSetting.enabled} onUpdate={onUpdate} onClose={() => setPendingSetting(null)}/>}
         </div>
     );
 }

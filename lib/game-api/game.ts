@@ -1,4 +1,5 @@
 import type { Game } from "@/types/game";
+import type { TwoFactorProof } from "@/lib/two-factor-api";
 import type { Team } from "@/types/team";
 import { api } from "@/lib/api-client";
 import type { CloneableGamesResponse } from "./clone-session-types";
@@ -59,7 +60,7 @@ export async function createGame(studioId: string, gameData: {
 }
 
 /** Update an existing game */
-export async function updateGame(gameId: string, gameData: {
+export async function updateGame(gameId: string, gameData: TwoFactorProof & {
     name?: string;
     description?: string;
     is_active?: boolean;
