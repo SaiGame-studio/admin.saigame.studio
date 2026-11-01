@@ -4861,6 +4861,7 @@
     }
   },
   "twoFactor": {
+    "loginInvalidCode": "無効なコード",
     "title": "Google Authenticator",
     "enabled": "2FA は有効です。",
     "disabled": "2FA は無効です。",

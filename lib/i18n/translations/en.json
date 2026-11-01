@@ -4904,6 +4904,7 @@
     }
   },
   "twoFactor": {
+    "loginInvalidCode": "Code invalid",
     "title": "Google Authenticator",
     "enabled": "2FA is enabled.",
     "disabled": "2FA is disabled.",

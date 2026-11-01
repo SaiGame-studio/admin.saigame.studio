@@ -4929,6 +4929,7 @@
     }
   },
   "twoFactor": {
+    "loginInvalidCode": "Mã không hợp lệ",
     "title": "Google Authenticator",
     "enabled": "2FA đang bật.",
     "disabled": "2FA đang tắt.",
