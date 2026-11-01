@@ -18,10 +18,13 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { LanguageSelector } from "@/components/ui/language-selector";
 import { useServerConfig } from "@/hooks/use-server-config";
 import { CLIENT_ID, CLIENT_ID_HEADER } from "@/lib/client-id";
+import { TwoFactorLogin } from "@/components/two-factor-login";
+import type { TwoFactorChallenge } from "@/lib/two-factor-api";
 // Storage key for remembered email/username
 const REMEMBERED_LOGIN_KEY = "game_server_admin_remembered_login";
 export function LoginForm() {
     const { login } = useAuth();
+    const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null);
     const { toast } = useToast();
     const { t } = useTranslation();
     const { config } = useServerConfig();
@@ -94,6 +97,9 @@ export function LoginForm() {
                 throw new Error(data.message || "Login failed. Please check your credentials.");
             }
             // Success - use the auth context to login
+            if (data.message_code === "TWO_FACTOR_REQUIRED") {
+                setChallenge(data); setPassword(""); return;
+            }
             if (data.access_token) {
                 login(data.access_token, data.refresh_token);
                 toast({
@@ -134,6 +140,9 @@ export function LoginForm() {
             if (!response.ok) {
                 throw new Error(data.message || "Google login failed");
             }
+            if (data.message_code === "TWO_FACTOR_REQUIRED") {
+                setChallenge(data); setPassword(""); return;
+            }
             if (data.access_token) {
                 login(data.access_token, data.refresh_token);
                 toast({
@@ -155,6 +164,7 @@ export function LoginForm() {
     const handleGoogleError = () => {
         setError("Google login failed. Please try again.");
     };
+    if (challenge) return <TwoFactorLogin id="login-2fa-form" challenge={challenge} onSuccess={result => login(result.access_token, result.refresh_token)} onCancel={() => { setChallenge(null); setError(null); }} />;
     return (<Card className="w-full relative">
       <div className="absolute top-3 right-3 z-10">
         <LanguageSelector compact/>
