@@ -84,6 +84,7 @@ export default function StudiosPage() {
         };
     }, [user?.id]);
     async function handleCreateStudio() {
+        if (loading || error || creating) return;
         if (twoFactorEnabled !== true) return;
         if (!newStudioName.trim()) {
             setCreateError("Please enter a studio name");
@@ -108,6 +109,7 @@ export default function StudiosPage() {
             const studio = await createStudio({ name: newStudioName.trim() });
             setStudios(prev => [studio, ...prev]);
             setNewStudioName("");
+            await refreshUser();
             window.dispatchEvent(new Event("wallet:refresh"));
         }
         catch (err: any) {
@@ -156,12 +158,12 @@ export default function StudiosPage() {
           <div className="flex flex-col gap-1 sm:items-end">
             {twoFactorError && <p id="studios-two-factor-error" role="alert" className="text-sm text-destructive">{t('studio.twoFactorStatusFailed')}</p>}
             <div className="flex items-center gap-2">
-              <Input id="studios-create-name" value={newStudioName} onChange={e => setNewStudioName(e.target.value)} placeholder={t('studio.newName')} className="flex-1 sm:w-48 sm:flex-none" disabled={creating || atLimit || !canCreate || !isVerified || twoFactorEnabled !== true} onKeyDown={e => {
+              <Input id="studios-create-name" value={newStudioName} onChange={e => setNewStudioName(e.target.value)} placeholder={t('studio.newName')} className="flex-1 sm:w-48 sm:flex-none" disabled={loading || !!error || creating || atLimit || !canCreate || !isVerified || twoFactorEnabled !== true} onKeyDown={e => {
             if (e.key === 'Enter' && !creating && !atLimit && canCreate && isVerified && twoFactorEnabled === true) {
                 handleCreateStudio();
             }
         }}/>
-              <Button id="studios-create-button" onClick={handleCreateStudio} disabled={creating || atLimit || !canCreate || !isVerified || twoFactorEnabled !== true} variant="default" className="shrink-0" title={twoFactorEnabled === false ? t('studio.twoFactorRequired') : !isVerified ? t('studio.verifyEmailToCreate') : !canCreate ? t('studio.activateToCreate') : atLimit ? `${t('studio.studioLimitTitle')} (${usedStudios} / ${maxStudios})` : undefined}>
+              <Button id="studios-create-button" onClick={handleCreateStudio} disabled={loading || !!error || creating || atLimit || !canCreate || !isVerified || twoFactorEnabled !== true} variant="default" className="shrink-0" title={twoFactorEnabled === false ? t('studio.twoFactorRequired') : !isVerified ? t('studio.verifyEmailToCreate') : !canCreate ? t('studio.activateToCreate') : atLimit ? `${t('studio.studioLimitTitle')} (${usedStudios} / ${maxStudios})` : undefined}>
                 {creating ? t('common.loading') : t('studio.create')}
               </Button>
             </div>

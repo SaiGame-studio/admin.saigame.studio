@@ -93,8 +93,8 @@ export async function getAllGames(): Promise<Game[]> {
 }
 
 /** Deletes a game by ID */
-export async function deleteGame(gameId: string): Promise<void> {
-    await api.delete(`/api/v1/games/${gameId}`);
+export async function deleteGame(gameId: string, proof: TwoFactorProof = {}): Promise<void> {
+    await api.delete(`/api/v1/games/${gameId}`, { body: proof, suppressToast: true });
 }
 
 /** Fetches all item profiles of a game */

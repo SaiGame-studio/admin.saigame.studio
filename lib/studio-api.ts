@@ -1,4 +1,5 @@
 import type { ApiResponse, Studio } from "@/types/studio";
+import type { TwoFactorProof } from "@/lib/two-factor-api";
 import type { Game } from "@/types/game";
 import type { Team } from "@/types/team";
 export interface StudioMember {
@@ -19,7 +20,7 @@ export interface StudioMember {
         name: string;
     }[];
 }
-import { getCacheItem, setCacheItem } from "@/lib/utils/cache-utils";
+import { getCacheItem, setCacheItem, removeCacheItem } from "@/lib/utils/cache-utils";
 import { api } from "@/lib/api-client";
 /**
  * Fetches all studios for the current user
@@ -36,6 +37,11 @@ export async function fetchStudio(id: string): Promise<Studio> {
     const data = await api.get(`/api/v1/studios/${id}`);
     // API trả về trực tiếp studio object
     return data;
+}
+
+export async function deleteStudio(id: string, proof: TwoFactorProof = {}): Promise<void> {
+    await api.delete(`/api/v1/studios/${id}`, { body: proof, suppressToast: true });
+    removeCacheItem(`studio_${id}`);
 }
 /**
  * Fetches a single studio by ID with caching support

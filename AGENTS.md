@@ -6,6 +6,8 @@
 - If any file you read, modify, or create exceeds 700 lines, warn the user and propose a concrete split (target modules and what moves where) before or alongside the change. Do not silently grow it or refactor it unasked.
 - Every JSX/HTML element needs a feature-scoped, kebab-case `id`; list item IDs include the record identifier.
 - Refresh buttons are icon-only. Tooltips use `side="top"`.
+- Every 2FA Authenticator code input must automatically submit as soon as it contains exactly six digits, including pasted or autofilled codes; do not require an additional click. Preserve other required form validations, prevent duplicate submissions, and respect loading and rate-limit lockouts. Recovery codes use their own format and must not use the six-digit trigger.
+- When 2FA verification returns an invalid-code error, preserve the current input value so the user can edit it. Do not clear or reset the code, and do not automatically resubmit the unchanged invalid code.
 - Every tabbed page must persist its selected, named tab in the `tab` URL query parameter. Read and validate that parameter on load, and update it when the tab changes so refresh, direct links, and browser navigation preserve the active tab.
 - Links open in the current tab by default. Do not add `target="_blank"` or programmatically force a new tab; users may use Ctrl/Cmd-click or their browser context menu when they want a new tab.
 - Search for an existing component or pattern before creating one.
