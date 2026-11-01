@@ -271,6 +271,9 @@
   },
   "studio": {
     "manageTitle": "Manage your game development studios",
+    "twoFactorRequired": "Enable 2FA before creating a studio.",
+    "openUserSettings": "Open user settings",
+    "twoFactorStatusFailed": "Unable to check 2FA status. Reload the page to try again.",
     "viewDetails": "View Details",
     "newName": "New studio name",
     "create": "Create Studio",

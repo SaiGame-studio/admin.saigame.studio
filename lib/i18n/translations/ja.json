@@ -271,6 +271,9 @@
   },
   "studio": {
     "manageTitle": "ゲーム開発スタジオを管理",
+    "twoFactorRequired": "スタジオを作成する前に2FAを有効にしてください。",
+    "openUserSettings": "ユーザー設定を開く",
+    "twoFactorStatusFailed": "2FAの状態を確認できません。ページを再読み込みしてお試しください。",
     "viewDetails": "詳細を表示",
     "newName": "新しいスタジオ名",
     "create": "スタジオを作成",

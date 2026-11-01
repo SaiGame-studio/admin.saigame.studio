@@ -271,6 +271,9 @@
   },
   "studio": {
     "manageTitle": "Quản lý Studio phát triển game của bạn",
+    "twoFactorRequired": "Bạn phải bật 2FA trước khi tạo studio.",
+    "openUserSettings": "Mở cài đặt tài khoản",
+    "twoFactorStatusFailed": "Không thể kiểm tra trạng thái 2FA. Hãy tải lại trang để thử lại.",
     "viewDetails": "Xem chi tiết",
     "newName": "Tên Studio mới",
     "create": "Tạo Studio",

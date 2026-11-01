@@ -16,6 +16,7 @@ import { activateReferralCode } from "@/lib/referral-api";
 import { fetchServerConfig } from "@/lib/server-config-api";
 import Link from "next/link";
 import { SCoinIcon } from "@/components/SCoinIcon";
+import { twoFactorApi } from "@/lib/two-factor-api";
 export default function StudiosPage() {
     const [studios, setStudios] = useState<Studio[]>([]);
     const [loading, setLoading] = useState(true);
@@ -24,6 +25,8 @@ export default function StudiosPage() {
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean | null>(null);
+    const [twoFactorError, setTwoFactorError] = useState(false);
     const [referralCodeRequired, setReferralCodeRequired] = useState<boolean | null>(null);
     const { t } = useTranslation();
     const { user, refreshUser } = useAuth();
@@ -56,7 +59,32 @@ export default function StudiosPage() {
             .then(config => setReferralCodeRequired(config.features.referral_code_required))
             .catch(() => setReferralCodeRequired(true));
     }, []);
+    useEffect(() => {
+        let cancelled = false;
+        let generation = 0;
+        setTwoFactorEnabled(null);
+        setTwoFactorError(false);
+        const loadTwoFactor = async () => {
+            const current = ++generation;
+            setTwoFactorEnabled(null);
+            setTwoFactorError(false);
+            if (!user?.id) return;
+            try {
+                const status = await twoFactorApi.status();
+                if (!cancelled && current === generation) setTwoFactorEnabled(status.enabled);
+            } catch {
+                if (!cancelled && current === generation) setTwoFactorError(true);
+            }
+        };
+        void loadTwoFactor();
+        window.addEventListener("focus", loadTwoFactor);
+        return () => {
+            cancelled = true;
+            window.removeEventListener("focus", loadTwoFactor);
+        };
+    }, [user?.id]);
     async function handleCreateStudio() {
+        if (twoFactorEnabled !== true) return;
         if (!newStudioName.trim()) {
             setCreateError("Please enter a studio name");
             return;
@@ -73,6 +101,7 @@ export default function StudiosPage() {
         setShowConfirm(true);
     }
     async function doCreateStudio() {
+        if (twoFactorEnabled !== true) return;
         setCreating(true);
         setCreateError(null);
         try {
@@ -100,7 +129,7 @@ export default function StudiosPage() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-          <AlertDialogAction onClick={doCreateStudio}>
+          <AlertDialogAction id="studios-create-confirm" disabled={twoFactorEnabled !== true} onClick={doCreateStudio}>
             {t('studio.confirmCreationPay')} {STUDIO_COST} coins
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -113,10 +142,6 @@ export default function StudiosPage() {
           <p className="text-sm sm:text-base">{t('studio.manageTitle')}</p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
-          {!isVerified && (<div className="flex items-center gap-1.5 text-sm">
-              <ShieldOff className="h-3.5 w-3.5 text-yellow-500 shrink-0"/>
-              <span className="text-yellow-500 font-medium">{t('studio.emailNotVerified')}</span>
-            </div>)}
           {isVerified && !isActivated && referralCodeRequired !== false && (<div className="flex items-center gap-1.5 text-sm">
               <ShieldOff className="h-3.5 w-3.5 text-yellow-500 shrink-0"/>
               <span className="text-yellow-500 font-medium">{t('studio.notActivated')}</span>
@@ -129,13 +154,14 @@ export default function StudiosPage() {
               {atLimit && <Lock className="h-3.5 w-3.5 text-destructive shrink-0"/>}
             </div>)}
           <div className="flex flex-col gap-1 sm:items-end">
+            {twoFactorError && <p id="studios-two-factor-error" role="alert" className="text-sm text-destructive">{t('studio.twoFactorStatusFailed')}</p>}
             <div className="flex items-center gap-2">
-              <Input value={newStudioName} onChange={e => setNewStudioName(e.target.value)} placeholder={t('studio.newName')} className="flex-1 sm:w-48 sm:flex-none" disabled={creating || atLimit || !canCreate || !isVerified} onKeyDown={e => {
-            if (e.key === 'Enter' && !creating && !atLimit && canCreate && isVerified) {
+              <Input id="studios-create-name" value={newStudioName} onChange={e => setNewStudioName(e.target.value)} placeholder={t('studio.newName')} className="flex-1 sm:w-48 sm:flex-none" disabled={creating || atLimit || !canCreate || !isVerified || twoFactorEnabled !== true} onKeyDown={e => {
+            if (e.key === 'Enter' && !creating && !atLimit && canCreate && isVerified && twoFactorEnabled === true) {
                 handleCreateStudio();
             }
         }}/>
-              <Button onClick={handleCreateStudio} disabled={creating || atLimit || !canCreate || !isVerified} variant="default" className="shrink-0" title={!isVerified ? t('studio.verifyEmailToCreate') : !canCreate ? t('studio.activateToCreate') : atLimit ? `${t('studio.studioLimitTitle')} (${usedStudios} / ${maxStudios})` : undefined}>
+              <Button id="studios-create-button" onClick={handleCreateStudio} disabled={creating || atLimit || !canCreate || !isVerified || twoFactorEnabled !== true} variant="default" className="shrink-0" title={twoFactorEnabled === false ? t('studio.twoFactorRequired') : !isVerified ? t('studio.verifyEmailToCreate') : !canCreate ? t('studio.activateToCreate') : atLimit ? `${t('studio.studioLimitTitle')} (${usedStudios} / ${maxStudios})` : undefined}>
                 {creating ? t('common.loading') : t('studio.create')}
               </Button>
             </div>
@@ -190,6 +216,14 @@ export default function StudiosPage() {
         </div>) : studios.length === 0 ? (<Card className="bg-muted/50">
           <CardContent className="flex flex-col items-center justify-center py-10">
             <p className="mb-4">{t('studio.noStudios')}</p>
+            {!isVerified && <div id="studios-email-warning" role="alert" className="mb-4 flex items-center justify-center gap-1.5 text-center text-sm text-amber-600 dark:text-amber-400">
+              <ShieldOff id="studios-email-warning-icon" className="h-3.5 w-3.5 shrink-0" />
+              <span id="studios-email-warning-text" className="font-medium">{t('studio.emailNotVerified')}</span>
+            </div>}
+            {twoFactorEnabled === false && <p id="studios-two-factor-warning" role="alert" className="mb-4 text-center text-sm text-amber-600 dark:text-amber-400">
+              <span id="studios-two-factor-warning-text">{t('studio.twoFactorRequired')} </span>
+              <Link id="studios-two-factor-settings-link" href="/profile?tab=settings#settings-2fa" className="font-medium underline underline-offset-2">{t('studio.openUserSettings')}</Link>
+            </p>}
             {!isActivated && referralCodeRequired && (<ReferralCodeInput onActivated={async () => { await refreshUser(); loadStudios(); }}/>)}
           </CardContent>
         </Card>) : (<div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
