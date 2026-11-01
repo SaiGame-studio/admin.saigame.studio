@@ -54,14 +54,16 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
         setName(next.kind === "create" ? "" : next.key.key_name);
         setAction(next);
     };
-    const submit = async () => {
-        if (!action || busy || (action.kind === "revoke" && !revokeConfirmed) || (action.kind !== "rename" && !validFactorProof(proof, recovery))) return;
+    const submitting = useRef(false);
+    const submit = async (value = proof) => {
+        if (!action || submitting.current || busy || ((action.kind === "create" || action.kind === "rename") && !name.trim()) || (action.kind === "revoke" && !revokeConfirmed) || (action.kind !== "rename" && !validFactorProof(value, recovery)) || (action.kind === "create" && !!state.meta && state.meta.used >= state.meta.limit)) return;
+        submitting.current = true;
         setBusy(true);
         setError(null);
         try {
-            const result = action.kind === "create" ? await createGameAPIKey(gameId, name.trim(), factorProof(proof, recovery))
+            const result = action.kind === "create" ? await createGameAPIKey(gameId, name.trim(), factorProof(value, recovery))
                 : action.kind === "rename" ? await renameGameAPIKey(gameId, action.key.id, name.trim())
-                : await revokeGameAPIKey(gameId, action.key.id, factorProof(proof, recovery));
+                : await revokeGameAPIKey(gameId, action.key.id, factorProof(value, recovery));
             if (result.data.api_key) {
                 setStored(false);
                 setCopied(false);
@@ -77,6 +79,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
             // Refresh limits and permissions after a concurrent change.
             await state.reload();
         } finally {
+            submitting.current = false;
             setBusy(false);
         }
     };
@@ -183,7 +186,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
                     </div>}
                     {action && (action.kind === "create" || (action.kind === "revoke" && revokeConfirmed)) && <div id="game-api-keys-factor-section" className="space-y-2">
                         <p id="game-api-keys-factor-help" className="text-sm text-muted-foreground">{tr("twoFactorRequired")}</p>
-                        <TwoFactorProofInput id="game-api-keys-factor" value={proof} onChange={setProof} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy} />
+                        <TwoFactorProofInput id="game-api-keys-factor" value={proof} onChange={setProof} onComplete={value => void submit(value)} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy} />
                     </div>}
                     {action?.kind === "revoke" && state.meta?.used === 1 && <p id="game-api-keys-last-key" className="text-sm text-muted-foreground">{tr("lastKey")}</p>}
                     {error && <p id="game-api-keys-action-error" role="alert" className="text-sm text-destructive">{error}</p>}

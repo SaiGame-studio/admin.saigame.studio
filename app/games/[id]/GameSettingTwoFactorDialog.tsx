@@ -67,10 +67,7 @@ export function GameSettingTwoFactorDialog({ game, setting, enabled, onUpdate, o
                 <DialogTitle id="game-player-2fa-dialog-title">{t(isPlayer2FA ? "game.player2FAConfirmTitle" : "game.newPlayersConfirmTitle")}</DialogTitle>
                 <DialogDescription id="game-player-2fa-dialog-description">{t(isPlayer2FA ? "game.player2FAConfirmDesc" : "game.newPlayersConfirmDesc")}</DialogDescription>
             </DialogHeader>
-            <TwoFactorProofInput id="game-player-2fa-proof" value={proof} onChange={value => {
-                setProof(value);
-                if (!recovery && validFactorProof(value, false)) void submit(value);
-            }} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy || locked}/>
+            <TwoFactorProofInput id="game-player-2fa-proof" value={proof} onChange={setProof} onComplete={value => void submit(value)} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy || locked}/>
             <DialogFooter id="game-player-2fa-dialog-footer" className="flex-col gap-3 sm:items-center sm:space-x-0">
                 {(locked || error) && <p id="game-player-2fa-dialog-error" role="alert" className="text-left text-sm text-destructive sm:mr-auto">{locked ? t("twoFactor.retryIn", { time: waitTime }) : error}</p>}
                 <div id="game-player-2fa-dialog-actions" className="flex justify-end gap-2">
