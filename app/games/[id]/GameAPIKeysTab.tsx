@@ -1,5 +1,8 @@
 "use client";
 
+import { TwoFactorProofInput } from "@/components/two-factor-proof-input";
+import { factorProof, validFactorProof, twoFactorErrorKey } from "@/lib/two-factor-api";
+import { GameAPIKeyAuditList } from "./GameAPIKeyAuditList";
 import { useRef, useState } from "react";
 import { AlertTriangle, Copy, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +24,9 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
     const { toast } = useToast();
     const [action, setAction] = useState<Action | null>(null);
     const [name, setName] = useState("");
+    const [proof, setProof] = useState("");
+    const [recovery, setRecovery] = useState(false);
+    const [revokeConfirmed, setRevokeConfirmed] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [secret, setSecret] = useState<string | null>(null);
@@ -32,6 +38,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
     const date = (value: string | number | null) => value === null ? tr("never") : new Date(typeof value === "number" ? value * 1000 : value).toLocaleString(locale);
     const explainError = (err: unknown) => {
         const code = err instanceof ApiError ? err.data?.message_code : undefined;
+        if (typeof code === "string" && code.startsWith("TWO_FACTOR_")) return t(twoFactorErrorKey(err));
         if (code === "API_KEY_LIMIT_REACHED") return tr("limitReached");
         if (code === "API_KEY_NAME_TAKEN") return tr("nameTaken");
         if (code === "API_KEY_NOT_FOUND") return tr("notFound");
@@ -41,17 +48,20 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
     };
     const open = (next: Action) => {
         setError(null);
+        setProof("");
+        setRecovery(false);
+        setRevokeConfirmed(false);
         setName(next.kind === "create" ? "" : next.key.key_name);
         setAction(next);
     };
     const submit = async () => {
-        if (!action || busy) return;
+        if (!action || busy || (action.kind === "revoke" && !revokeConfirmed) || (action.kind !== "rename" && !validFactorProof(proof, recovery))) return;
         setBusy(true);
         setError(null);
         try {
-            const result = action.kind === "create" ? await createGameAPIKey(gameId, name.trim())
+            const result = action.kind === "create" ? await createGameAPIKey(gameId, name.trim(), factorProof(proof, recovery))
                 : action.kind === "rename" ? await renameGameAPIKey(gameId, action.key.id, name.trim())
-                : await revokeGameAPIKey(gameId, action.key.id);
+                : await revokeGameAPIKey(gameId, action.key.id, factorProof(proof, recovery));
             if (result.data.api_key) {
                 setStored(false);
                 setCopied(false);
@@ -59,6 +69,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
                 setSecret(result.data.api_key);
             }
             setAction(null);
+            setProof("");
             toast({ title: tr("saved") });
             await state.reload();
         } catch (err) {
@@ -104,8 +115,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
     return (
         <section id="game-api-keys-section" className="space-y-4">
             <div id="game-api-keys-header" className="flex flex-wrap items-start justify-between gap-3">
-                <div id="game-api-keys-heading" className="space-y-1">
-                    <h2 id="game-api-keys-title" className="text-lg font-semibold">{tr("title")}</h2>
+                <div id="game-api-keys-heading" className="min-w-0 flex-1 basis-80">
                     <div id="game-api-keys-description" className="flex items-start gap-2 text-sm text-muted-foreground">
                         <AlertTriangle id="game-api-keys-warning-icon" className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
                         <ul id="game-api-keys-guidelines" className="list-disc space-y-1 pl-4">
@@ -115,7 +125,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
                         </ul>
                     </div>
                 </div>
-                <div id="game-api-keys-toolbar" className="flex items-center gap-2">
+                <div id="game-api-keys-toolbar" className="ml-auto flex shrink-0 items-center justify-end gap-2">
                     {state.meta && <span id="game-api-keys-count" className="text-sm text-muted-foreground">{state.meta.used} / {state.meta.limit}</span>}
                     <TooltipProvider>
                         <Tooltip>
@@ -160,6 +170,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
                 </table>
             </div>}
             {state.meta?.next_cursor && <Button id="game-api-keys-load-more" variant="outline" disabled={state.loading || busy} onClick={() => void state.loadMore()}>{tr("loadMore")}</Button>}
+            {state.canRead && <GameAPIKeyAuditList gameId={gameId} revision={state.keys} />}
             <Dialog open={action !== null} onOpenChange={value => { if (!value && !busy) setAction(null); }}>
                 <DialogContent id="game-api-keys-action-dialog" onInteractOutside={event => { if (busy) event.preventDefault(); }} onEscapeKeyDown={event => { if (busy) event.preventDefault(); }}>
                     <DialogHeader id="game-api-keys-action-header">
@@ -170,11 +181,17 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
                         <Label id="game-api-keys-name-label" htmlFor="game-api-keys-name-input">{tr("name")}</Label>
                         <Input id="game-api-keys-name-input" value={name} maxLength={64} disabled={busy} autoComplete="off" onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && name.trim()) { event.preventDefault(); void submit(); } }} />
                     </div>}
+                    {action && (action.kind === "create" || (action.kind === "revoke" && revokeConfirmed)) && <div id="game-api-keys-factor-section" className="space-y-2">
+                        <p id="game-api-keys-factor-help" className="text-sm text-muted-foreground">{tr("twoFactorRequired")}</p>
+                        <TwoFactorProofInput id="game-api-keys-factor" value={proof} onChange={setProof} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy} />
+                    </div>}
                     {action?.kind === "revoke" && state.meta?.used === 1 && <p id="game-api-keys-last-key" className="text-sm text-muted-foreground">{tr("lastKey")}</p>}
                     {error && <p id="game-api-keys-action-error" role="alert" className="text-sm text-destructive">{error}</p>}
                     <DialogFooter id="game-api-keys-action-footer">
                         <Button id="game-api-keys-cancel" variant="outline" disabled={busy} onClick={() => setAction(null)}>{tr("cancel")}</Button>
-                        <Button id="game-api-keys-confirm" variant={action?.kind === "revoke" ? "destructive" : "default"} disabled={busy || (needsName && !name.trim()) || (action?.kind === "create" && limitReached)} onClick={() => void submit()}>{busy ? tr("saving") : action ? tr(action.kind) : tr("save")}</Button>
+                        {action?.kind === "revoke" && !revokeConfirmed
+                            ? <Button id="game-api-keys-confirm-revoke" variant="destructive" onClick={() => setRevokeConfirmed(true)}>{tr("confirmRevoke")}</Button>
+                            : <Button id="game-api-keys-confirm" variant={action?.kind === "revoke" ? "destructive" : "default"} disabled={busy || (action?.kind !== "rename" && !validFactorProof(proof, recovery)) || (needsName && !name.trim()) || (action?.kind === "create" && limitReached)} onClick={() => void submit()}>{busy ? tr("saving") : action ? tr(action.kind) : tr("save")}</Button>}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -182,7 +199,10 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
                 <DialogContent id="game-api-keys-secret-dialog" className="[&>button]:hidden" onInteractOutside={event => event.preventDefault()} onEscapeKeyDown={event => { if (!stored) event.preventDefault(); }}>
                     <DialogHeader id="game-api-keys-secret-header">
                         <DialogTitle id="game-api-keys-secret-title">{tr("copyNow")}</DialogTitle>
-                        <DialogDescription id="game-api-keys-secret-description">{tr("secretWarning")}</DialogDescription>
+                        <DialogDescription id="game-api-keys-secret-description">
+                            <span id="game-api-keys-secret-warning" className="block text-amber-600 dark:text-amber-400">{tr("secretWarning")}</span>
+                            <span id="game-api-keys-secret-storage-help" className="block">{tr("secretStorageHelp")}</span>
+                        </DialogDescription>
                     </DialogHeader>
                     <Label id="game-api-keys-secret-label" htmlFor="game-api-keys-secret-value">{tr("title")}</Label>
                     <div id="game-api-keys-secret-input-row" className="flex items-center gap-2">

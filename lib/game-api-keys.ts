@@ -1,3 +1,4 @@
+import type { TwoFactorProof } from "@/lib/two-factor-api";
 import { api } from "@/lib/api-client";
 
 export interface GameAPIKey {
@@ -31,12 +32,27 @@ export function listGameAPIKeys(gameId: string, after?: string): Promise<GameAPI
     if (after) query.set("after", after);
     return api.get(`${base(gameId)}?${query}`, options);
 }
-export function createGameAPIKey(gameId: string, keyName: string): Promise<GameAPIKeyResult<GameAPIKey>> {
-    return api.post(base(gameId), { key_name: keyName }, options);
+export function createGameAPIKey(gameId: string, keyName: string, proof: TwoFactorProof): Promise<GameAPIKeyResult<GameAPIKey>> {
+    return api.post(base(gameId), { key_name: keyName, ...proof }, options);
 }
 export function renameGameAPIKey(gameId: string, keyId: string, keyName: string): Promise<GameAPIKeyResult<GameAPIKey>> {
     return api.patch(`${base(gameId)}/${encodeURIComponent(keyId)}`, { key_name: keyName }, options);
 }
-export function revokeGameAPIKey(gameId: string, keyId: string): Promise<GameAPIKeyResult<GameAPIKey>> {
-    return api.delete(`${base(gameId)}/${encodeURIComponent(keyId)}`, options);
+export function revokeGameAPIKey(gameId: string, keyId: string, proof: TwoFactorProof): Promise<GameAPIKeyResult<GameAPIKey>> {
+    return api.delete(`${base(gameId)}/${encodeURIComponent(keyId)}`, { ...options, body: proof });
+}
+
+export interface GameAPIKeyAudit {
+ id: string;
+ game_id: string;
+ key_id: string;
+ key_name: string;
+ action: "create" | "rename" | "revoke";
+ actor: { id: string; name: string; email: string };
+ created_at: string;
+}
+export function listGameAPIKeyAudit(gameId: string, after?: string): Promise<GameAPIKeyResult<GameAPIKeyAudit[]>> {
+ const query = new URLSearchParams({ limit: "20" });
+ if (after) query.set("after", after);
+ return api.get(`${base(gameId)}/logs?${query}`, options);
 }
