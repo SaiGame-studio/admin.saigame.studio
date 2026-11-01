@@ -82,7 +82,7 @@ export function TwoFactorSettings({ id }: { id: string }) {
                 {!hasForm && status.enabled && <div id="user-2fa-disable-row" className="flex flex-wrap items-center gap-2">
                     <Button id="user-2fa-disable" variant="outline" disabled={busy || !status.can_disable} onClick={() => selectAction("disable")}>{t("twoFactor.disable")}</Button>
                     {!status.can_disable && <div id="user-2fa-disable-notes" className="text-sm text-muted-foreground">
-                        <p id="user-2fa-studio-lock">{t("twoFactor.studioLocked")}</p>
+                        <p id="user-2fa-studio-lock" className="text-amber-600 dark:text-amber-400">{t("twoFactor.studioLocked")}</p>
                         <p id="user-2fa-support-note">{t("twoFactor.disableSupportNote")} <button id="user-2fa-support-chat" type="button" className="font-medium text-primary underline underline-offset-2" onClick={() => window.dispatchEvent(new CustomEvent(SUPPORT_CHAT_OPEN_EVENT))}>Sai</button></p>
                     </div>}
                 </div>}

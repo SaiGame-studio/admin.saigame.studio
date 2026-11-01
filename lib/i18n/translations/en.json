@@ -4917,7 +4917,7 @@
     "manualKey": "Or enter this setup key manually:",
     "qrAlt": "Google Authenticator setup QR code",
     "setupExpiry": "Setup expires after 10 minutes. Keep the QR code and setup key private.",
-    "studioLocked": "You can turn off 2FA only when you no longer own or belong to any studio that has not been deleted.",
+    "studioLocked": "You can turn off 2FA only when you no longer own or belong to any studio.",
     "disableSupportNote": "If you have to turn it off, pls talk to",
     "unavailable": "Authenticator setup is currently unavailable.",
     "changed": "Your 2FA setting has changed. Sign in again to continue. If you just enabled it, wait for the next code before signing in.",
