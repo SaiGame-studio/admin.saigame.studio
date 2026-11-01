@@ -1,4 +1,5 @@
 import { CLIENT_ID, CLIENT_ID_HEADER } from './client-id';
+import { hasNewerLocalSession, isSharedSessionCurrent } from './shared-session';
 // Token management utilities with expiration support
 interface TokenData {
     token: string;
@@ -96,6 +97,10 @@ export function saveToken(token: string, refreshToken?: string): void {
  * Get token if it's still valid
  */
 export function getValidToken(): string | null {
+    if (!isSharedSessionCurrent()) {
+        clearToken();
+        return null;
+    }
     try {
         // First check if we have token data with expiration
         const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY);
@@ -184,6 +189,7 @@ export function getTimeUntilExpiration(): number | null {
  * Clear all token data
  */
 export function clearToken(): void {
+    if (hasNewerLocalSession()) return;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_DATA_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -205,6 +211,10 @@ function dropRefreshToken(): void {
  * TOKEN_MIN_REMAINING_MS left (such a token is removed so it is never sent).
  */
 export function getRefreshToken(): string | null {
+    if (!isSharedSessionCurrent()) {
+        clearToken();
+        return null;
+    }
     try {
         // First try to get from token data, then fall back to direct storage
         const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY);
@@ -267,12 +277,14 @@ async function requestNewAccessToken(): Promise<string | null> {
             credentials: 'include',
             body: JSON.stringify({ refresh_token: refreshToken }),
         });
+        if (!isSharedSessionCurrent() || getRefreshToken() !== refreshToken) return null;
         if (!response.ok) {
             console.log('Refresh token failed or expired');
             clearToken();
             return null;
         }
         const data = await response.json();
+        if (!isSharedSessionCurrent() || getRefreshToken() !== refreshToken) return null;
         if (data.access_token) {
             console.log('Successfully refreshed access token');
             // Save the new tokens

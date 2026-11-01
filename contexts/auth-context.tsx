@@ -7,6 +7,7 @@ import { authFetch } from "@/lib/api-client";
 import { safeSetItem, safeRemoveItem } from "@/lib/storage-utils";
 import { toast } from "@/hooks/use-toast";
 import { getCurrentRelativeUrl, getLoginUrl, getReturnToFromLocation } from "@/lib/auth-redirect";
+import { isSharedSessionCurrent, publishSharedSession, watchSharedSession } from "@/lib/shared-session";
 export interface UserCapabilities {
     is_super_admin: boolean;
     can_view_all_users: boolean;
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: {
     const fetchUser = async () => {
         try {
             const response = await fetchUserProfile();
+            if (!isSharedSessionCurrent()) return;
             if (response.user) {
                 const rawUser = response.user;
                 const permissions: string[] = Array.isArray(rawUser.permissions) ? rawUser.permissions : [];
@@ -162,6 +164,14 @@ export function AuthProvider({ children }: {
         // Check if user is authenticated on initial load
         checkAuth().finally(() => setIsLoading(false));
     }, []);
+    useEffect(() => watchSharedSession(() => {
+        clearToken();
+        safeRemoveItem('user_capabilities');
+        safeRemoveItem('user_timezone');
+        setIsAuthenticated(false);
+        setUser(null);
+        setTimeUntilExpiration(null);
+    }), []);
     useEffect(() => {
         // Set up interval to check token expiration and auto-refresh
         const interval = setInterval(async () => {
@@ -217,12 +227,16 @@ export function AuthProvider({ children }: {
         }
     }, [isAuthenticated, isLoading, pathname, router]);
     const login = (token: string, refreshToken?: string) => {
+        publishSharedSession();
         saveToken(token, refreshToken);
         checkAuth();
         router.push(getReturnToFromLocation());
     };
     const logout = () => {
-        void revokeSharedSession();
+        if (isSharedSessionCurrent()) {
+            publishSharedSession();
+            void revokeSharedSession();
+        }
         clearToken();
         safeRemoveItem('user_capabilities');
         safeRemoveItem('user_timezone');
