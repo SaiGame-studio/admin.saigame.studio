@@ -4940,5 +4940,22 @@
     "replacementScanHelp": "Quét QR mới bằng thiết bị mới và xác nhận mã. Thiết bị cũ vẫn hoạt động đến khi xác nhận; sau đó mã từ thiết bị cũ hết hiệu lực.",
     "regenerateCodes": "Tạo bộ mã khôi phục mới",
     "regenerateHelp": "Xác thực bằng mã Authenticator hoặc mã khôi phục chưa dùng. Thao tác này thay thế toàn bộ mã khôi phục cũ và yêu cầu đăng nhập lại."
+},
+  "adminTwoFactor": {
+    "column": "2FA",
+    "disableOnly": "Chỉ được tắt. Người dùng tự bật 2FA.",
+    "disableLabel": "Tắt 2FA của {name}",
+    "loading": "Đang tải…",
+    "unavailable": "Không tải được trạng thái",
+    "confirmTitle": "Tắt 2FA của người dùng này?",
+    "confirmHelp": "Tắt 2FA của {name} kể cả khi có studio? Authenticator, mã khôi phục, thiết lập đang chờ và các phiên đăng nhập hiện tại sẽ bị vô hiệu hóa. Người dùng phải tự bật lại nếu cần. Bạn không thể bật thay họ.",
+    "confirmDisable": "Tắt 2FA",
+    "disabledSuccess": "Đã tắt 2FA của người dùng",
+    "sessionsRevoked": "Đã thu hồi các phiên đăng nhập hiện tại của {name}.",
+    "failed": "Không thể tắt 2FA",
+    "failedHelp": "Chưa thể hoàn tất thao tác. Hãy tải lại danh sách và thử lại.",
+    "unknownLocation": "Không rõ vị trí",
+    "emailVerified": "Email đã xác minh",
+    "emailNotVerified": "Email chưa xác minh"
 }
 }

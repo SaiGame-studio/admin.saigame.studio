@@ -4872,5 +4872,22 @@
     "replacementScanHelp": "新しい端末で QR コードを読み取り、コードを確認してください。確認が完了するまで旧端末は有効で、その後は旧端末のコードが無効になります。",
     "regenerateCodes": "リカバリーコードを再発行",
     "regenerateHelp": "認証コードまたは未使用のリカバリーコードで認証してください。以前のコードはすべて無効になり、再ログインが必要です。"
+},
+  "adminTwoFactor": {
+    "column": "2FA",
+    "disableOnly": "無効化のみ可能です。有効化は本人が行います。",
+    "disableLabel": "{name} の 2FA を無効化",
+    "loading": "読み込み中…",
+    "unavailable": "状態を取得できません",
+    "confirmTitle": "このユーザーの 2FA を無効化しますか？",
+    "confirmHelp": "スタジオへの所属に関係なく、{name} の 2FA を無効化しますか？認証アプリ、リカバリーコード、設定中の端末、既存のログインセッションは無効になります。再度有効化するには本人の操作が必要です。管理者は代理で有効化できません。",
+    "confirmDisable": "2FA を無効化",
+    "disabledSuccess": "ユーザーの 2FA を無効化しました",
+    "sessionsRevoked": "{name} の既存セッションを取り消しました。",
+    "failed": "2FA を無効化できません",
+    "failedHelp": "操作を完了できませんでした。一覧を更新して再試行してください。",
+    "unknownLocation": "位置情報なし",
+    "emailVerified": "メール認証済み",
+    "emailNotVerified": "メール未認証"
 }
 }

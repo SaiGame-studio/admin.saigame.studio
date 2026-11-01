@@ -4915,5 +4915,22 @@
     "replacementScanHelp": "Scan the new QR with your new device and confirm its code. The old device stays active until confirmation; then its codes stop working.",
     "regenerateCodes": "Generate new recovery codes",
     "regenerateHelp": "Verify with an Authenticator code or an unused recovery code. This replaces every previous recovery code and requires signing in again."
+},
+  "adminTwoFactor": {
+    "column": "2FA",
+    "disableOnly": "Disable only. Users enable 2FA themselves.",
+    "disableLabel": "Disable 2FA for {name}",
+    "loading": "Loading…",
+    "unavailable": "Status unavailable",
+    "confirmTitle": "Disable this user's 2FA?",
+    "confirmHelp": "Disable 2FA for {name}, regardless of studio membership? Their Authenticator, recovery codes, pending setup, and existing sessions will be invalidated. The user must enable 2FA themselves if needed. You cannot enable it for them.",
+    "confirmDisable": "Disable 2FA",
+    "disabledSuccess": "User 2FA disabled",
+    "sessionsRevoked": "Existing sessions for {name} have been revoked.",
+    "failed": "Unable to disable 2FA",
+    "failedHelp": "The operation could not be completed. Refresh the list and try again.",
+    "unknownLocation": "Unknown location",
+    "emailVerified": "Email verified",
+    "emailNotVerified": "Email not verified"
 }
 }
