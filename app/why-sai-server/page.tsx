@@ -8,6 +8,7 @@ import { TrustSection } from "./_components/trust-section";
 import { ContactSection } from "./_components/contact-section";
 import { ClosingSection } from "./_components/closing-section";
 import { SaiPlaySection } from "./_components/sai-play-section";
+import "./why-sai-server.css";
 
 export default function WhySaiServerPage() {
     return (<div id="why-sai-server-page" className="mx-auto w-full max-w-6xl px-4 pb-16 md:px-6">
