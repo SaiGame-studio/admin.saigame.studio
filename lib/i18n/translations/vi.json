@@ -4745,6 +4745,11 @@
     "size": "Dung lượng"
   },
   "whySaiServer": {
+    "saiPlay": {
+      "title": "Không gian dành cho người chơi của bạn",
+      "description": "Sai Play là trang dành cho người chơi trong hệ sinh thái Sai Server. Người chơi có thể khám phá game, xem các game đã chơi và tiến trình của mình, đồng thời quản lý tài khoản bằng cùng tài khoản dùng trên Sai Server.",
+      "cta": "Khám phá Sai Play"
+    },
     "hero": {
       "eyebrow": "Backend-as-a-Service cho game Unity",
       "title": "Code Games, Not Infra.",

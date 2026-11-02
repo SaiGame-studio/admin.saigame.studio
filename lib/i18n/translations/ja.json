@@ -4677,6 +4677,11 @@
     "size": "サイズ"
   },
   "whySaiServer": {
+    "saiPlay": {
+      "title": "プレイヤーのための場所",
+      "description": "Sai Playは、Sai Serverと連携するプレイヤー向けサイトです。Sai Serverと同じアカウントで、ゲームを探したり、プレイしたゲームや進行状況を確認したり、アカウントを管理したりできます。",
+      "cta": "Sai Playを見る"
+    },
     "hero": {
       "eyebrow": "Unityゲーム向けBackend-as-a-Service",
       "title": "Code Games, Not Infra.",

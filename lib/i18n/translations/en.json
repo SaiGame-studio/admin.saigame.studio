@@ -4720,6 +4720,11 @@
     "size": "Size"
   },
   "whySaiServer": {
+    "saiPlay": {
+      "title": "A home for your players",
+      "description": "Sai Play is the player-facing companion to Sai Server. Players can discover games, view the games they have played and their progress, and manage their account using the same account as Sai Server.",
+      "cta": "Explore Sai Play"
+    },
     "hero": {
       "eyebrow": "Backend-as-a-Service for Unity games",
       "title": "Code Games, Not Infra.",

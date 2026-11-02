@@ -5,6 +5,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 
 const SDK_SERVICES = [
     "SaiAuth",
+    "2FA",
     "GamerProgress",
     "Mailbox",
     "PlayerContainer",
