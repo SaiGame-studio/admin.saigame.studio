@@ -56,6 +56,12 @@ export function getSharedSessionRevision(): string | null {
     return localRevision();
 }
 
+// JavaScript cannot inspect the HttpOnly refresh cookie. Only attempt restoration
+// for a session established by a successful login on either web app.
+export function hasSharedLoginSession(): boolean {
+    return typeof document !== "undefined" && (readRevision()?.startsWith("login-") ?? false);
+}
+
 export function isSharedSessionSignedOut(): boolean {
     return readRevision()?.startsWith("logout-") ?? false;
 }
@@ -77,4 +83,36 @@ export function watchSharedSession(): () => void {
         window.removeEventListener("focus", check);
         document.removeEventListener("visibilitychange", check);
     };
+}
+
+// Keep a rejected cookie from being retried by every API call or page reload.
+const rejectedRefreshKey = `rejectedRefresh:${scope}`;
+let rejectedRefreshRevision: string | null | undefined;
+
+export function isSessionRefreshRejected(): boolean {
+    try {
+        const stored = sessionStorage.getItem(rejectedRefreshKey);
+        if (stored !== null) rejectedRefreshRevision = JSON.parse(stored);
+    } catch {
+        // The in-memory guard still works when session storage is unavailable.
+    }
+    return rejectedRefreshRevision !== undefined && rejectedRefreshRevision === getSharedSessionRevision();
+}
+
+export function rejectSessionRefresh() {
+    rejectedRefreshRevision = getSharedSessionRevision();
+    try {
+        sessionStorage.setItem(rejectedRefreshKey, JSON.stringify(rejectedRefreshRevision));
+    } catch {
+        // The in-memory guard still works when session storage is unavailable.
+    }
+}
+
+export function allowSessionRefresh() {
+    rejectedRefreshRevision = undefined;
+    try {
+        sessionStorage.removeItem(rejectedRefreshKey);
+    } catch {
+        // The in-memory guard still works when session storage is unavailable.
+    }
 }

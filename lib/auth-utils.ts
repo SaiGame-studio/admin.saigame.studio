@@ -1,5 +1,5 @@
 import { CLIENT_ID, CLIENT_ID_HEADER } from './client-id';
-import { isSharedSessionCurrent, isSharedSessionSignedOut } from './shared-session';
+import { allowSessionRefresh, hasSharedLoginSession, isSessionRefreshRejected, isSharedSessionCurrent, isSharedSessionSignedOut, rejectSessionRefresh } from './shared-session';
 // Token management utilities with expiration support
 interface TokenData {
     token: string;
@@ -65,6 +65,7 @@ function getUsableUntil(token: string, expiresAt: number): number {
  * Save an access token with expiration data.
  */
 export function saveToken(token: string): void {
+    allowSessionRefresh();
     sessionVersion++;
     // Save the raw token for backward compatibility
     localStorage.setItem(TOKEN_KEY, token);
@@ -201,6 +202,7 @@ export function refreshAccessToken(): Promise<string | null> {
         clearToken();
         return Promise.resolve(null);
     }
+    if (!hasSharedLoginSession() || isSessionRefreshRejected()) return Promise.resolve(null);
     if (!refreshInFlight) {
         refreshInFlight = requestNewAccessToken().finally(() => {
             refreshInFlight = null;
@@ -236,7 +238,10 @@ async function requestNewAccessToken(): Promise<string | null> {
         if (!isSharedSessionCurrent() || sessionVersion !== version) return null;
         if (!response.ok) {
             console.log('Shared session refresh failed');
-            if (response.status === 401 || response.status === 403) clearToken();
+            if (response.status === 401 || response.status === 403) {
+                rejectSessionRefresh();
+                clearToken();
+            }
             return null;
         }
         const data = await response.json();
