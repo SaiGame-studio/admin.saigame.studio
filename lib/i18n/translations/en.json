@@ -4763,21 +4763,8 @@
         "infra": "100% free infrastructure: all server resources and databases needed to build your game.",
         "lua": "Built-in Lua scripting, so your team can implement backend game logic without building a backend from scratch."
       },
-      "pricingTitle": "A clear cost model",
-      "pricing": {
-        "oneTime": {
-          "title": "Studios, teams, games: pay once",
-          "desc": "One-time payment in sCoin, with no monthly fee for how many you create. Your first studio is free."
-        },
-        "perGame": {
-          "title": "Advanced features: per game",
-          "desc": "Subscription tiers raise quotas and unlock features such as Leaderboards. Pay only for the games that need them."
-        },
-        "scale": {
-          "title": "Start now, upgrade as you grow",
-          "desc": "Prototype on the default plan, then expand players and content when you're ready to launch."
-        }
-      }
+      "posterAlt": "Poster: a Go backend developer ready to join your game project for 6 months, free of charge",
+      "posterCaption": "A Go backend developer joins your game project for 6 months, free of charge."
     },
     "features": {
       "eyebrow": "Features",

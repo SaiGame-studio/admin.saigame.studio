@@ -4788,21 +4788,8 @@
         "infra": "Hạ tầng miễn phí 100%: toàn bộ server và database cần để xây game.",
         "lua": "Lua scripting tích hợp sẵn để đội tự viết logic backend mà không phải dựng server từ đầu."
       },
-      "pricingTitle": "Mô hình chi phí rõ ràng",
-      "pricing": {
-        "oneTime": {
-          "title": "Studio, Team, Game: trả một lần",
-          "desc": "Thanh toán một lần bằng sCoin, không phí hàng tháng theo số lượng. Studio đầu tiên miễn phí."
-        },
-        "perGame": {
-          "title": "Tính năng nâng cao: theo từng game",
-          "desc": "Gói subscription mở rộng quota và tính năng như Leaderboard. Chỉ trả cho game thực sự cần."
-        },
-        "scale": {
-          "title": "Bắt đầu ngay, nâng cấp khi game lớn",
-          "desc": "Prototype trên gói mặc định, mở rộng người chơi và nội dung khi sẵn sàng ra mắt."
-        }
-      }
+      "posterAlt": "Poster: Backend developer Go sẵn sàng đồng hành cùng dự án game của bạn 6 tháng miễn phí",
+      "posterCaption": "Backend developer Go đồng hành cùng dự án game của bạn trong 6 tháng, hoàn toàn miễn phí."
     },
     "features": {
       "eyebrow": "Tính năng",

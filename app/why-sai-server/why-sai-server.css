@@ -69,9 +69,7 @@
 #why-sai-server-value-list svg { color: hsl(var(--why-blue)); }
 #why-sai-server-offer { border: 0; border-radius: 16px; background: hsl(var(--why-blue-soft)); padding-inline: clamp(24px, 4vw, 48px); align-items: start; gap: 48px; }
 #why-sai-server-offer-title { margin-top: 0; color: hsl(var(--why-blue-ink)); }
-#why-sai-server-offer-pricing { border: 0; border-radius: 0; background: transparent; padding: 0; }
 #why-sai-server-offer-points svg { color: hsl(var(--why-blue)); }
-#why-sai-server-offer-pricing-list > div:first-child { border-top: 0; }
 #why-sai-server-features { border-top: 0; }
 #why-sai-server-features > div:not(:first-child) { margin-top: 48px; }
 #why-sai-server-features h3 { font-family: inherit; font-size: 1rem; font-weight: 600; text-transform: none; letter-spacing: 0; color: hsl(var(--why-blue-ink)); }
