@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -51,8 +52,13 @@ export function GameAPIKeyItemGrantLogList({ gameId, keys }: { gameId: string; k
         setInvalidGamerProgress(false);
         setFilters({ gamerProgressId: gamerProgressId || undefined, itemCode: itemCodeInput.trim() || undefined });
     }
-    function clearFilters() {
-        setGamerProgressInput(""); setItemCodeInput(""); setInvalidGamerProgress(false); setFilters({});
+    function clearGamerProgress() {
+        setGamerProgressInput(""); setInvalidGamerProgress(false);
+        if (filters.gamerProgressId) setFilters(previous => ({ ...previous, gamerProgressId: undefined }));
+    }
+    function clearItemCode() {
+        setItemCodeInput("");
+        if (filters.itemCode) setFilters(previous => ({ ...previous, itemCode: undefined }));
     }
     const submitOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") { event.preventDefault(); applyFilters(); } };
     const hasFilters = Boolean(filters.gamerProgressId || filters.itemCode);
@@ -60,12 +66,21 @@ export function GameAPIKeyItemGrantLogList({ gameId, keys }: { gameId: string; k
     return <div id="game-api-keys-grants" className="space-y-3">
         <div id="game-api-keys-grants-filters" className="flex flex-wrap items-start gap-2">
             <div id="game-api-keys-grants-filter-gamer-progress-field" className="min-w-0 flex-1 basis-72 space-y-1">
-                <Input id="game-api-keys-grants-filter-gamer-progress" value={gamerProgressInput} placeholder={tr("grantFilterGamerProgress")} autoComplete="off" className="font-mono" aria-invalid={invalidGamerProgress} onChange={event => setGamerProgressInput(event.target.value)} onKeyDown={submitOnEnter} />
+                <div id="game-api-keys-grants-filter-gamer-progress-wrap" className="relative">
+                    <Input id="game-api-keys-grants-filter-gamer-progress" value={gamerProgressInput} placeholder={tr("grantFilterGamerProgress")} autoComplete="off" className="pr-9 font-mono" aria-invalid={invalidGamerProgress} onChange={event => setGamerProgressInput(event.target.value)} onKeyDown={submitOnEnter} />
+                    {gamerProgressInput && <Button id="game-api-keys-grants-filter-gamer-progress-clear" type="button" variant="ghost" size="sm" aria-label={tr("grantClear")} className="absolute right-1 top-1/2 h-7 -translate-y-1/2 px-1.5" disabled={loading} onClick={clearGamerProgress}>
+                        <X id="game-api-keys-grants-filter-gamer-progress-clear-icon" className="h-3.5 w-3.5" />
+                    </Button>}
+                </div>
                 {invalidGamerProgress && <p id="game-api-keys-grants-filter-gamer-progress-error" role="alert" className="text-xs text-destructive">{tr("grantInvalidGamerProgress")}</p>}
             </div>
-            <Input id="game-api-keys-grants-filter-item-code" value={itemCodeInput} maxLength={100} placeholder={tr("grantFilterItemCode")} autoComplete="off" className="min-w-0 flex-1 basis-48" onChange={event => setItemCodeInput(event.target.value)} onKeyDown={submitOnEnter} />
+            <div id="game-api-keys-grants-filter-item-code-wrap" className="relative min-w-0 flex-1 basis-48">
+                <Input id="game-api-keys-grants-filter-item-code" value={itemCodeInput} maxLength={100} placeholder={tr("grantFilterItemCode")} autoComplete="off" className="pr-9" onChange={event => setItemCodeInput(event.target.value)} onKeyDown={submitOnEnter} />
+                {itemCodeInput && <Button id="game-api-keys-grants-filter-item-code-clear" type="button" variant="ghost" size="sm" aria-label={tr("grantClear")} className="absolute right-1 top-1/2 h-7 -translate-y-1/2 px-1.5" disabled={loading} onClick={clearItemCode}>
+                    <X id="game-api-keys-grants-filter-item-code-clear-icon" className="h-3.5 w-3.5" />
+                </Button>}
+            </div>
             <Button id="game-api-keys-grants-search" variant="outline" disabled={loading} onClick={applyFilters}>{tr("grantSearch")}</Button>
-            {(hasFilters || gamerProgressInput || itemCodeInput) && <Button id="game-api-keys-grants-clear" variant="ghost" disabled={loading} onClick={clearFilters}>{tr("grantClear")}</Button>}
         </div>
         {failed && <p id="game-api-keys-grants-error" role="alert" className="text-sm text-destructive">{tr("failed")}</p>}
         {failed && <Button id="game-api-keys-grants-retry" variant="outline" disabled={loading} onClick={() => void load()}>{tr("retry")}</Button>}
