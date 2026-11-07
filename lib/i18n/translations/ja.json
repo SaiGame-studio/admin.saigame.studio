@@ -72,7 +72,7 @@
     "roadmap": "ロードマップ",
     "discordSupport": "Discordサポート",
     "bugReport": "バグ報告",
-    "whySaiServer": "Sai Serverを選ぶ理由",
+    "whySaiServer": "Sai Serverを選ぶ理由？",
     "saved": "保存しました",
     "deleted": "削除しました",
     "added": "追加しました",
@@ -4066,6 +4066,8 @@
     "noRegistration": "Googleまたはテストアカウントでログインしてください。アカウント登録は現在ご利用いただけません。",
     "dontHaveAccount": "アカウントをお持ちでないですか？",
     "signUp": "新規登録",
+    "whySaiServer": "なぜ Sai Server？",
+    "whySaiServerCta": "詳しく見る",
     "loginSuccess": "ログイン成功",
     "welcomeBack": "おかえりなさい",
     "footer": "全著作権所有。"

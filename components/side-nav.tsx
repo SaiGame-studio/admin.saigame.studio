@@ -125,8 +125,8 @@ export function SideNav({ mobile = false }: {
               </div>)}
             <div id="side-nav-support" className="side-nav-support space-y-1">
               <NavGroupTitle id="side-nav-support-title" title={t('common.support')} collapsed={isCollapsed}/>
-              <NavItem id="side-nav-tutorials-link" href="/tutorials" icon={BookOpen} iconClassName="animate-pulse" label={t('tutorials.title')} active={isActive("/tutorials")} collapsed={isCollapsed} suffix={<span className="animate-pulse text-yellow-400 text-[10px]">&#9733;</span>}/>
               <NavItem id="side-nav-why-sai-server-link" href="/why-sai-server" icon={Rocket} label={t('common.whySaiServer')} active={isActive("/why-sai-server")} collapsed={isCollapsed}/>
+              <NavItem id="side-nav-tutorials-link" href="/tutorials" icon={BookOpen} iconClassName="animate-pulse" label={t('tutorials.title')} active={isActive("/tutorials")} collapsed={isCollapsed} suffix={<span className="animate-pulse text-yellow-400 text-[10px]">&#9733;</span>}/>
               <NavItem id="side-nav-unity-package-link" href="https://github.com/SaiGame-studio/ss-unity/releases" external icon={Download} label="Unity Package" collapsed={isCollapsed}/>
               <NavItem id="side-nav-discord-support-link" href="https://discord.gg/UU3YarmVde" external icon={MessageCircle} label={t('common.discordSupport')} collapsed={isCollapsed}/>
               <NavItem id="side-nav-bug-report-link" href="https://discord.gg/UU3YarmVde" external icon={Bug} label={t('common.bugReport')} collapsed={isCollapsed}/>

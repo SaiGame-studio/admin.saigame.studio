@@ -73,7 +73,7 @@
     "roadmap": "Roadmap",
     "discordSupport": "Discord Support",
     "bugReport": "Bug Report",
-    "whySaiServer": "Why Sai Server",
+    "whySaiServer": "Why Sai Server?",
     "saved": "Saved",
     "deleted": "Deleted",
     "added": "Added",
@@ -4107,6 +4107,8 @@
     "noRegistration": "Login with Google or use a test account. Account registration is not available.",
     "dontHaveAccount": "Don't have an account?",
     "signUp": "Sign up",
+    "whySaiServer": "Why Sai Server?",
+    "whySaiServerCta": "Learn more",
     "loginSuccess": "Login successful",
     "welcomeBack": "Welcome back",
     "footer": "All rights reserved."
