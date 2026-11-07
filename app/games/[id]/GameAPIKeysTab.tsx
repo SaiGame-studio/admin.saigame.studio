@@ -2,7 +2,7 @@
 
 import { TwoFactorProofInput } from "@/components/two-factor-proof-input";
 import { factorProof, validFactorProof, twoFactorErrorKey } from "@/lib/two-factor-api";
-import { GameAPIKeyAuditList } from "./GameAPIKeyAuditList";
+import { GameAPIKeyActivityLogs } from "./GameAPIKeyActivityLogs";
 import { useRef, useState } from "react";
 import { AlertTriangle, Copy, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -173,7 +173,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
                 </table>
             </div>}
             {state.meta?.next_cursor && <Button id="game-api-keys-load-more" variant="outline" disabled={state.loading || busy} onClick={() => void state.loadMore()}>{tr("loadMore")}</Button>}
-            {state.canRead && <GameAPIKeyAuditList gameId={gameId} revision={state.keys} />}
+            {state.canRead && <GameAPIKeyActivityLogs gameId={gameId} keys={state.keys} />}
             <Dialog open={action !== null} onOpenChange={value => { if (!value && !busy) setAction(null); }}>
                 <DialogContent id="game-api-keys-action-dialog" onInteractOutside={event => { if (busy) event.preventDefault(); }} onEscapeKeyDown={event => { if (busy) event.preventDefault(); }}>
                     <DialogHeader id="game-api-keys-action-header">

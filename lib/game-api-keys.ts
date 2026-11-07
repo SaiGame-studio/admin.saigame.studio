@@ -56,3 +56,29 @@ export function listGameAPIKeyAudit(gameId: string, after?: string): Promise<Gam
  if (after) query.set("after", after);
  return api.get(`${base(gameId)}/logs?${query}`, options);
 }
+
+export interface GameAPIKeyItemGrantLog {
+ id: string;
+ game_id: string;
+ api_key_id: string;
+ gamer_progress_id: string | null;
+ user_id: string | null;
+ item_definition_id: string | null;
+ item_code: string;
+ quantity: number;
+ status: "success" | "failed";
+ message_code: string;
+ caller_ip: string;
+ created_at: string;
+}
+export interface GameAPIKeyItemGrantLogFilters {
+ gamerProgressId?: string;
+ itemCode?: string;
+}
+export function listGameAPIKeyItemGrantLogs(gameId: string, filters: GameAPIKeyItemGrantLogFilters, after?: string): Promise<GameAPIKeyResult<GameAPIKeyItemGrantLog[]>> {
+ const query = new URLSearchParams({ limit: "50" });
+ if (after) query.set("after", after);
+ if (filters.gamerProgressId) query.set("gamer_progress_id", filters.gamerProgressId);
+ if (filters.itemCode) query.set("item_code", filters.itemCode);
+ return api.get(`${base(gameId)}/item-grant-logs?${query}`, options);
+}
