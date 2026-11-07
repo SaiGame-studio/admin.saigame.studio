@@ -76,7 +76,10 @@ function formatCountdown(iso?: string | null): string | null {
     const diffMin = Math.ceil(diffMs / 60000);
     if (diffMin < 60)
         return `Next alert in ${diffMin} min`;
-    return `Next alert in ${Math.ceil(diffMin / 60)}h`;
+    if (diffMin < 24 * 60)
+        return `Next alert in ${Math.ceil(diffMin / 60)}h`;
+    const monthDay = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return `Next alert on ${monthDay} (in ${Math.ceil(diffMin / (24 * 60))}d)`;
 }
 // ---------------------------------------------------------------------------
 // Worker state badge
@@ -117,11 +120,12 @@ function WorkerStateBadge({ state }: {
 // ---------------------------------------------------------------------------
 const SPECIFIC_TRIGGER_WORKERS: Record<string, {
     label: string;
-    type: "simple" | "date" | "backfill";
+    type: "simple" | "date" | "backfill" | "run";
 }> = {
     system_monitor: { label: "Send Notify", type: "simple" },
     activity_summary: { label: "Send Report", type: "date" },
     aggregation_cron: { label: "Backfill", type: "backfill" },
+    partition_maintenance: { label: "Run Now", type: "run" },
 };
 function getSpecificTriggerConfig(workerName: string) {
     const key = workerName.toLowerCase().replace(/[\s-]+/g, "_");
@@ -351,7 +355,6 @@ function BackfillTriggerButton({ workerName }: {
 function GenericTriggerButton({ worker }: {
     worker: Worker;
 }) {
-    const [loading, setLoading] = useState(false);
     const noTriggerReason = worker.meta?.no_trigger_reason;
     // non-empty reason → locked
     if (noTriggerReason !== "") {
@@ -368,11 +371,21 @@ function GenericTriggerButton({ worker }: {
         </Tooltip>
       </TooltipProvider>);
     }
+    return <RunNowButton workerName={worker.name} label="Run Now"/>;
+}
+// Manual run button: POST /api/v1/admin/workers/{name}/trigger
+function RunNowButton({ workerName, label, onTriggered }: {
+    workerName: string;
+    label: string;
+    onTriggered?: () => void;
+}) {
+    const [loading, setLoading] = useState(false);
     async function handleRunNow() {
         setLoading(true);
         try {
-            await triggerWorker(worker.name);
-            toast({ title: "Triggered", description: `${worker.name} run initiated.` });
+            await triggerWorker(workerName);
+            toast({ title: "Triggered", description: `${workerName} run completed.` });
+            onTriggered?.();
         }
         catch (err) {
             toast({ title: "Error", description: String(err), variant: "destructive" });
@@ -381,13 +394,14 @@ function GenericTriggerButton({ worker }: {
             setLoading(false);
         }
     }
-    return (<Button id={`worker-trigger-run-${worker.name}`} variant="outline" size="sm" onClick={handleRunNow} disabled={loading} className="flex items-center gap-1.5">
+    return (<Button id={`worker-trigger-run-${workerName}`} variant="outline" size="sm" onClick={handleRunNow} disabled={loading} className="flex items-center gap-1.5">
       {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Send className="h-3.5 w-3.5"/>}
-      Run Now
+      {label}
     </Button>);
 }
-function WorkerTriggerButton({ worker }: {
+function WorkerTriggerButton({ worker, onTriggered }: {
     worker: Worker;
+    onTriggered?: () => void;
 }) {
     const specificConfig = getSpecificTriggerConfig(worker.name);
     if (specificConfig) {
@@ -398,6 +412,8 @@ function WorkerTriggerButton({ worker }: {
                 return <DateTriggerButton workerName={worker.name}/>;
             case "backfill":
                 return <BackfillTriggerButton workerName={worker.name}/>;
+            case "run":
+                return <RunNowButton workerName={worker.name} label={specificConfig.label} onTriggered={onTriggered}/>;
         }
     }
     // Fall back to generic trigger based on meta.no_trigger_reason
@@ -406,8 +422,9 @@ function WorkerTriggerButton({ worker }: {
     }
     return null;
 }
-function WorkerCard({ worker }: {
+function WorkerCard({ worker, onTriggered }: {
     worker: Worker;
+    onTriggered?: () => void;
 }) {
     const details = worker.details;
     const meta = worker.meta;
@@ -444,7 +461,7 @@ function WorkerCard({ worker }: {
             </div>
           </div>
           <div id={`worker-card-actions-${worker.name}`} className="flex items-center gap-2 shrink-0 mt-0.5">
-            <WorkerTriggerButton worker={worker}/>
+            <WorkerTriggerButton worker={worker} onTriggered={onTriggered}/>
             <WorkerStateBadge state={worker.state}/>
           </div>
         </div>
@@ -797,7 +814,7 @@ function WorkersTab() {
       {!loading && !error && data && (<div id="workers-tab-grid" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {filteredWorkers.length === 0 ? (<p id="workers-empty-state" className="col-span-2 py-12 text-center text-sm text-muted-foreground">
               No workers in <span className="font-medium capitalize">{stateFilter}</span> state.
-            </p>) : (filteredWorkers.map((worker) => (<WorkerCard key={worker.name} worker={worker}/>)))}
+            </p>) : (filteredWorkers.map((worker) => (<WorkerCard key={worker.name} worker={worker} onTriggered={load}/>)))}
         </div>)}
     </div>);
 }

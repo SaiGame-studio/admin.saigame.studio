@@ -30,8 +30,7 @@ export function GameAPIKeyAuditList({ gameId, revision }: { gameId: string; revi
   setItems([]); setCursor(undefined); void load();
   return () => { generation.current++; };
  }, [load, revision]);
- return <section id="game-api-keys-audit-section" className="space-y-3 pt-6">
-  <h3 id="game-api-keys-audit-title" className="text-lg font-semibold">{tr("auditTitle")}</h3>
+ return <div id="game-api-keys-audit-changes" className="space-y-3">
   {failed && <p id="game-api-keys-audit-error" role="alert" className="text-sm text-destructive">{tr("failed")}</p>}
   {failed && <Button id="game-api-keys-audit-retry" variant="outline" disabled={loading} onClick={() => void load()}>{tr("retry")}</Button>}
   {loading && <p id="game-api-keys-audit-loading" className="text-sm text-muted-foreground">{tr("loading")}</p>}
@@ -52,5 +51,5 @@ export function GameAPIKeyAuditList({ gameId, revision }: { gameId: string; revi
    </table>
   </div>}
   {cursor && <Button id="game-api-keys-audit-more" variant="outline" disabled={loading} onClick={() => void load(cursor)}>{tr("loadMore")}</Button>}
- </section>;
+ </div>;
 }
