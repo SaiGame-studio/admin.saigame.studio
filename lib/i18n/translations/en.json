@@ -5024,5 +5024,10 @@
     "fallbackHelp": "Add translations for the supported languages. Leave a field empty to use its English text in Sai Play.",
     "displayName": "Display name",
     "description": "Description"
+  },
+  "shopText": {
+    "edit": "Edit shop text",
+    "nameRequired": "English shop name is required.",
+    "saveFailed": "Failed to save shop text."
   }
 }

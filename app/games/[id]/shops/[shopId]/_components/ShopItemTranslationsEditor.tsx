@@ -14,13 +14,15 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import type { ShopItemTranslation, ShopItemTranslations } from "@/lib/shop-admin-api";
 
 interface ShopItemTranslationsEditorProps {
+    nameAction?: ReactNode;
+    nameLabel?: string;
     translations: ShopItemTranslations;
     english: ShopItemTranslation;
     onChange: (translations: ShopItemTranslations) => void;
     children: (languagePicker: ReactNode) => ReactNode;
 }
 
-export function ShopItemTranslationsEditor({ translations, english, onChange, children }: ShopItemTranslationsEditorProps) {
+export function ShopItemTranslationsEditor({ translations, english, onChange, children, nameLabel, nameAction }: ShopItemTranslationsEditorProps) {
     const { t } = useTranslation();
     const [selected, setSelected] = useState<ValidLocale>(defaultLocale);
     const [open, setOpen] = useState(false);
@@ -50,6 +52,7 @@ export function ShopItemTranslationsEditor({ translations, english, onChange, ch
     }
 
     const languagePicker = (
+        <>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button id="shop-item-translations-language" type="button" variant="outline" role="combobox" aria-expanded={open} aria-label={`${t("shopItemTranslations.language")}: ${languageNames.of(selected)}`} className="w-20 shrink-0 justify-between px-3">
@@ -75,6 +78,8 @@ export function ShopItemTranslationsEditor({ translations, english, onChange, ch
                     </Command>
                 </PopoverContent>
             </Popover>
+            {nameAction}
+        </>
     );
 
     return (
@@ -84,7 +89,7 @@ export function ShopItemTranslationsEditor({ translations, english, onChange, ch
                 <div id={`shop-item-translation-${selected}`} className="space-y-3">
                     <p id="shop-item-translations-help" className="text-xs text-muted-foreground">{t("shopItemTranslations.fallbackHelp")}</p>
                     <div id={`${nameId}-field`} className="space-y-1.5">
-                        <Label id={`${nameId}-label`} htmlFor={nameId}>{t("shopItemTranslations.displayName")} ({languageNames.of(selected)})</Label>
+                        <Label id={`${nameId}-label`} htmlFor={nameId}>{nameLabel ?? t("shopItemTranslations.displayName")} ({languageNames.of(selected)})</Label>
                         <div id={`${nameId}-row`} className="flex items-center gap-2">
                             <Input id={nameId} className="min-w-0 flex-1" value={text?.display_name ?? ""} onChange={(event) => update("display_name", event.target.value)} />
                             {languagePicker}

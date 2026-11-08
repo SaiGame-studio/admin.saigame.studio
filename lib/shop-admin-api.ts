@@ -12,7 +12,14 @@ export type PurchaseLimitType = 'unlimited' | 'player' | 'global';
 export type RestockSchedule = 'none' | 'daily' | 'weekly' | 'monthly';
 /** item = inventory item currency (or legacy coin wallet); sgem = platform sGem wallet. */
 export type ShopCurrencyType = 'item' | 'sgem';
+export interface ShopTranslation {
+    name: string;
+    description: string;
+}
+export type ShopTranslations = Record<string, ShopTranslation>;
+
 export interface ShopDefinition {
+    translations: ShopTranslations;
     id: string;
     studio_id: string;
     game_id: string;
@@ -66,6 +73,7 @@ export interface ShopItem {
     purchased_count?: number;
 }
 export interface CreateShopPayload {
+    translations?: ShopTranslations;
     shop_key: string;
     name: string;
     description?: string;
@@ -80,6 +88,7 @@ export interface CreateShopPayload {
     currency_type?: ShopCurrencyType;
 }
 export interface UpdateShopPayload {
+    translations?: ShopTranslations;
     name?: string;
     description?: string;
     shop_type?: ShopType;

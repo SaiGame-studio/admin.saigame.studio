@@ -20,9 +20,10 @@ import { ArrowLeft, Calendar, Check, ChevronsUpDown, Clock, Coins, ExternalLink,
 import Link from "next/link";
 import { ShopSaiPlayField } from "../../_components/ShopSaiPlayField";
 import { SHOP_TYPE_BADGE, dateStatusColor, formatDate, formatDateInput, toDatetimeLocal } from "./shop-detail-shared";
+import { ShopTextEditor } from "./ShopTextEditor";
 import type { ShopDetailViewState } from "./use-shop-detail";
 export function ShopDetailOverview(state: ShopDetailViewState) {
-    const { shop, params, items, setPendingToggle, gameName, t, itemDefs, itemDefsLoading, editingField, setEditingField, tmpVal, setTmpVal, tmpShopType, setTmpShopType, saving, currencyCbOpen, setCurrencyCbOpen, currencyCbSearch, setCurrencyCbSearch, currencyCbShowAll, setCurrencyCbShowAll, currencyItem, startEdit, saveField } = state;
+    const { shop, setShop, params, items, setPendingToggle, gameName, t, itemDefs, itemDefsLoading, editingField, setEditingField, tmpVal, setTmpVal, tmpShopType, setTmpShopType, saving, currencyCbOpen, setCurrencyCbOpen, currencyCbSearch, setCurrencyCbSearch, currencyCbShowAll, setCurrencyCbShowAll, currencyItem, startEdit, saveField } = state;
     return <>
 
 
@@ -97,28 +98,13 @@ export function ShopDetailOverview(state: ShopDetailViewState) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
 
                     {/* LEFT column */}
-                    <div className="space-y-1 text-sm">
+                    <div id="shop-text-column" className="min-w-0 space-y-4 text-sm">
+ <ShopTextEditor key={shop.id} shop={shop} onSaved={setShop} />
+</div>
 
-                        {/* Shop Name */}
-                        <div className="flex items-baseline gap-3 min-h-[32px]">
-                            <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">Name</span>
-                            {editingField === "name" ? (<div className="flex items-center gap-1 flex-1">
-                                <Input className="h-7 text-sm w-56" value={tmpVal} onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus />
-                                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ name: tmpVal.trim() })}>
-                                    <Save className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}>
-                                    <X className="h-3.5 w-3.5" />
-                                </Button>
-                            </div>) : (<div className="group/name flex items-center gap-1 flex-1">
-                                <span className="font-semibold text-foreground">{shop.name}</span>
-                                <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("name", shop.name)}>
-                                    <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                            </div>)}
-                        </div>
-
-                        {/* Shop Code Name */}
+                    {/* RIGHT column */}
+                    <div id="shop-settings-column" className="min-w-0 space-y-1 text-sm">
+{/* Shop Code Name */}
                         <div className="flex items-baseline gap-3 min-h-[32px]">
                             <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">Code Name</span>
                             {editingField === "shop_key" ? (<div className="flex items-center gap-1 flex-1">
@@ -131,6 +117,7 @@ export function ShopDetailOverview(state: ShopDetailViewState) {
                                 </Button>
                             </div>) : (<div className="group/key flex items-center gap-1 flex-1">
                                 <span className="font-mono text-foreground/80">{shop.shop_key}</span>
+                                <CopyButton id="shop-detail-code-name-copy" iconId="shop-detail-code-name-copy-icon" text={shop.shop_key} className="h-7 w-7 shrink-0 justify-center" />
                                 <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("shop_key", shop.shop_key)}>
                                     <Pencil className="h-3.5 w-3.5" />
                                 </Button>
@@ -163,165 +150,6 @@ export function ShopDetailOverview(state: ShopDetailViewState) {
                                     <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                             </div>)}
-                        </div>
-
-                        {/* Starts / Ends At — event only */}
-                        {(editingField === "shop_type" ? tmpShopType : shop.shop_type) === "event" && (<>
-                            {/* Starts At */}
-                            <div className="flex items-baseline gap-3 min-h-[32px]">
-                                <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" /> Starts At
-                                </span>
-                                {editingField === "starts_at" ? (<div className="space-y-1.5 flex-1">
-                                    <div className="flex items-center gap-1">
-                                        <Input type="datetime-local" className="h-7 text-xs w-48" value={tmpVal} onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus />
-                                        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ starts_at: tmpVal ? new Date(tmpVal).toISOString() : null })}>
-                                            <Save className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}>
-                                            <X className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1">
-                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => setTmpVal(toDatetimeLocal(new Date()))}>Now</Button>
-                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setHours(0, 0, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>Today 00:00</Button>
-                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(0, 0, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>Tomorrow</Button>
-                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 1); d.setHours(0, 0, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>Next month</Button>
-                                    </div>
-                                </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
-                                    <span className={`font-semibold ${dateStatusColor(shop.starts_at, "start")}`}>
-                                        {formatDate(shop.starts_at)}
-                                        {shop.starts_at && new Date(shop.starts_at).getTime() > Date.now() && (<span className="ml-1.5 text-xs font-normal opacity-80">not started</span>)}
-                                    </span>
-                                    <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("starts_at", formatDateInput(shop.starts_at))}>
-                                        <Pencil className="h-3.5 w-3.5" />
-                                    </Button>
-                                </div>)}
-                            </div>
-
-                            {/* Ends At */}
-                            <div className="flex items-baseline gap-3 min-h-[32px]">
-                                <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" /> Ends At
-                                </span>
-                                {editingField === "ends_at" ? (<div className="space-y-1.5 flex-1">
-                                    <div className="flex items-center gap-1">
-                                        <Input type="datetime-local" className="h-7 text-xs w-48" value={tmpVal} onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus />
-                                        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ ends_at: tmpVal ? new Date(tmpVal).toISOString() : null })}>
-                                            <Save className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}>
-                                            <X className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1">
-                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(23, 59, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>+1 week</Button>
-                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 14); d.setHours(23, 59, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>+2 weeks</Button>
-                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setMonth(d.getMonth() + 1); d.setHours(23, 59, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>+1 month</Button>
-                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setMonth(d.getMonth() + 2, 0); d.setHours(23, 59, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>End of next month</Button>
-                                    </div>
-                                </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
-                                    <span className={`font-semibold ${dateStatusColor(shop.ends_at, "end")}`}>
-                                        {formatDate(shop.ends_at)}
-                                        {shop.ends_at && (() => {
-                                            const diff = new Date(shop.ends_at).getTime() - Date.now();
-                                            if (diff < 0)
-                                                return <span className="ml-1.5 text-xs font-normal opacity-80">expired</span>;
-                                            if (diff < 24 * 60 * 60 * 1000)
-                                                return <span className="ml-1.5 text-xs font-normal opacity-80">ending soon</span>;
-                                            return null;
-                                        })()}
-                                    </span>
-                                    <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("ends_at", formatDateInput(shop.ends_at))}>
-                                        <Pencil className="h-3.5 w-3.5" />
-                                    </Button>
-                                </div>)}
-                            </div>
-                        </>)}
-
-                        <div id="shop-detail-item-delivery" className="space-y-2 pt-2">
-                            <div id="shop-detail-delivery-destination" className="flex items-baseline gap-3 min-h-[32px]">
-                                <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">{t('shop.collectDestination')}</span>
-                                {editingField === "collect_destination" ? (<div className="flex items-center gap-1 flex-1">
-                                    <Select value={tmpVal} onValueChange={setTmpVal} disabled={saving}>
-                                        <SelectTrigger id="shop-detail-collect-destination" className="h-7 text-xs w-52"><SelectValue /></SelectTrigger>
-                                        <SelectContent id="shop-detail-collect-destination-options">
-                                            <SelectItem id="shop-detail-collect-destination-mailbox" value="mailbox">{t('shop.collectDestinationMailbox')}</SelectItem>
-                                            <SelectItem id="shop-detail-collect-destination-inventory" value="inventory">{t('shop.collectDestinationInventory')}</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Button id="shop-detail-save-collect-destination" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ collect_destination: tmpVal as ShopCollectDestination })}><Save className="h-3.5 w-3.5" /></Button>
-                                    <Button id="shop-detail-cancel-collect-destination" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5" /></Button>
-                                </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
-                                    <span>{shop.collect_destination === "inventory" ? t('shop.collectDestinationInventory') : t('shop.collectDestinationMailbox')}</span>
-                                    <Button id="shop-detail-edit-collect-destination" size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("collect_destination", shop.collect_destination ?? "mailbox")}><Pencil className="h-3.5 w-3.5" /></Button>
-                                </div>)}
-                            </div>
-
-                            {shop.collect_destination !== "inventory" && (<>
-                                <div id="shop-detail-mailbox-title" className="flex items-baseline gap-3 min-h-[32px]">
-                                    <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">{t('shop.mailboxTitle')}</span>
-                                    {editingField === "mailbox_title" ? (<div className="flex items-center gap-1 flex-1">
-                                        <Input id="shop-detail-mailbox-title-input" className="h-7 text-sm" value={tmpVal} onChange={(event) => setTmpVal(event.target.value)} disabled={saving} autoFocus />
-                                        <Button id="shop-detail-save-mailbox-title" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ mailbox_title: tmpVal })}><Save className="h-3.5 w-3.5" /></Button>
-                                        <Button id="shop-detail-cancel-mailbox-title" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5" /></Button>
-                                    </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
-                                        <span>{shop.mailbox_title || t('shop.mailboxTitleDefault')}</span>
-                                        <Button id="shop-detail-edit-mailbox-title" size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("mailbox_title", shop.mailbox_title ?? "")}><Pencil className="h-3.5 w-3.5" /></Button>
-                                    </div>)}
-                                </div>
-
-                                <div id="shop-detail-mailbox-body" className="flex items-start gap-3 min-h-[32px]">
-                                    <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">{t('shop.mailboxBody')}</span>
-                                    {editingField === "mailbox_body" ? (<div className="space-y-1 flex-1">
-                                        <Textarea id="shop-detail-mailbox-body-input" className="min-h-[80px] resize-none text-sm" value={tmpVal} onChange={(event) => setTmpVal(event.target.value)} disabled={saving} autoFocus />
-                                        <div className="flex gap-1">
-                                            <Button id="shop-detail-save-mailbox-body" size="sm" variant="ghost" className="h-7 px-2" disabled={saving} onClick={() => saveField({ mailbox_body: tmpVal })}><Save className="mr-1 h-3.5 w-3.5" />{t('common.save')}</Button>
-                                            <Button id="shop-detail-cancel-mailbox-body" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5" /></Button>
-                                        </div>
-                                    </div>) : (<div className="group/meta flex items-start gap-1 flex-1">
-                                        <p className="flex-1 whitespace-pre-line text-foreground/80">{shop.mailbox_body || t('shop.mailboxBodyDefault')}</p>
-                                        <Button id="shop-detail-edit-mailbox-body" size="icon" variant="ghost" className="h-7 w-7 shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("mailbox_body", shop.mailbox_body ?? "")}><Pencil className="h-3.5 w-3.5" /></Button>
-                                    </div>)}
-                                </div>
-                            </>)}
-                        </div>
-
-                        <ShopSaiPlayField gameId={params.id} shopId={shop.id} checked={shop.show_in_sai_play ?? false} disabled={saving} onCheckedChange={(checked) => saveField({ show_in_sai_play: checked })} labels={{ title: t('shop.showInSaiPlay'), hint: t('shop.showInSaiPlayHint'), on: t('shop.showInSaiPlayOn'), off: t('shop.showInSaiPlayOff'), open: t('shop.openInSaiPlay') }} />
-
-                    </div>
-
-                    {/* RIGHT column */}
-                    <div className="space-y-1 text-sm">
-
-                        {/* IDs */}
-                        <div className="flex items-baseline gap-3 min-h-[32px]">
-                            <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none">Game ID</span>
-                            <span className="flex items-center gap-1.5 text-xs font-mono text-foreground/70">
-                                {shop.game_id}
-                                <CopyButton text={shop.game_id} />
-                            </span>
-                        </div>
-                        <div className="flex items-baseline gap-3 min-h-[32px]">
-                            <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none">Shop ID</span>
-                            <span className="flex items-center gap-1.5 text-xs font-mono text-foreground/70">
-                                {shop.id}
-                                <CopyButton text={shop.id} />
-                            </span>
-                        </div>
-
-                        {/* Created At / Updated At */}
-                        <div className="flex items-baseline gap-3 min-h-[32px]">
-                            <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none flex items-center gap-1">
-                                <Clock className="h-3 w-3" /> Created
-                            </span>
-                            <span className="text-foreground/80">{formatDate(shop.created_at)}</span>
-                        </div>
-                        <div className="flex items-baseline gap-3 min-h-[32px]">
-                            <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none flex items-center gap-1">
-                                <Clock className="h-3 w-3" /> Updated
-                            </span>
-                            <span className="text-foreground/80">{formatDate(shop.updated_at)}</span>
                         </div>
 
                         {/* Currency */}
@@ -413,33 +241,171 @@ export function ShopDetailOverview(state: ShopDetailViewState) {
                             </div>)}
                         </div>
 
-                        {/* Description */}
-                        <div className="flex gap-3 min-h-[32px] mt-2">
-                            <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none">Description</span>
-                            {editingField === "description" ? (<div className="space-y-1 flex-1">
-                                <textarea className="w-full border rounded px-2 py-1.5 text-sm resize-none min-h-[80px] bg-background" value={tmpVal} onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus maxLength={700} />
-                                <p className={`text-right text-xs ${tmpVal.length >= 700 ? 'text-destructive font-medium' : tmpVal.length >= 600 ? 'text-amber-500' : 'text-muted-foreground'}`}>
-                                    {tmpVal.length}/700
-                                </p>
-                                <div className="flex gap-1">
-                                    <Button size="sm" variant="ghost" className="h-7 px-2" disabled={saving} onClick={() => saveField({ description: tmpVal.trim() || undefined })}>
-                                        <Save className="h-3.5 w-3.5 mr-1" /> Save
+                        {/* Starts / Ends At — event only */}
+                        {(editingField === "shop_type" ? tmpShopType : shop.shop_type) === "event" && (<>
+                            {/* Starts At */}
+                            <div className="flex items-baseline gap-3 min-h-[32px]">
+                                <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" /> Starts At
+                                </span>
+                                {editingField === "starts_at" ? (<div className="space-y-1.5 flex-1">
+                                    <div className="flex items-center gap-1">
+                                        <Input type="datetime-local" className="h-7 text-xs w-48" value={tmpVal} onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus />
+                                        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ starts_at: tmpVal ? new Date(tmpVal).toISOString() : null })}>
+                                            <Save className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}>
+                                            <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => setTmpVal(toDatetimeLocal(new Date()))}>Now</Button>
+                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setHours(0, 0, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>Today 00:00</Button>
+                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(0, 0, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>Tomorrow</Button>
+                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 1); d.setHours(0, 0, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>Next month</Button>
+                                    </div>
+                                </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
+                                    <span className={`font-semibold ${dateStatusColor(shop.starts_at, "start")}`}>
+                                        {formatDate(shop.starts_at)}
+                                        {shop.starts_at && new Date(shop.starts_at).getTime() > Date.now() && (<span className="ml-1.5 text-xs font-normal opacity-80">not started</span>)}
+                                    </span>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("starts_at", formatDateInput(shop.starts_at))}>
+                                        <Pencil className="h-3.5 w-3.5" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}>
-                                        <X className="h-3.5 w-3.5" />
+                                </div>)}
+                            </div>
+
+                            {/* Ends At */}
+                            <div className="flex items-baseline gap-3 min-h-[32px]">
+                                <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" /> Ends At
+                                </span>
+                                {editingField === "ends_at" ? (<div className="space-y-1.5 flex-1">
+                                    <div className="flex items-center gap-1">
+                                        <Input type="datetime-local" className="h-7 text-xs w-48" value={tmpVal} onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus />
+                                        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ ends_at: tmpVal ? new Date(tmpVal).toISOString() : null })}>
+                                            <Save className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}>
+                                            <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(23, 59, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>+1 week</Button>
+                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 14); d.setHours(23, 59, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>+2 weeks</Button>
+                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setMonth(d.getMonth() + 1); d.setHours(23, 59, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>+1 month</Button>
+                                        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { const d = new Date(); d.setMonth(d.getMonth() + 2, 0); d.setHours(23, 59, 0, 0); setTmpVal(toDatetimeLocal(d)); }}>End of next month</Button>
+                                    </div>
+                                </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
+                                    <span className={`font-semibold ${dateStatusColor(shop.ends_at, "end")}`}>
+                                        {formatDate(shop.ends_at)}
+                                        {shop.ends_at && (() => {
+                                            const diff = new Date(shop.ends_at).getTime() - Date.now();
+                                            if (diff < 0)
+                                                return <span className="ml-1.5 text-xs font-normal opacity-80">expired</span>;
+                                            if (diff < 24 * 60 * 60 * 1000)
+                                                return <span className="ml-1.5 text-xs font-normal opacity-80">ending soon</span>;
+                                            return null;
+                                        })()}
+                                    </span>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("ends_at", formatDateInput(shop.ends_at))}>
+                                        <Pencil className="h-3.5 w-3.5" />
                                     </Button>
-                                </div>
-                            </div>) : (<div className="group/desc flex w-full items-start gap-1 flex-1">
-                                <p className="flex-1 text-sm leading-relaxed whitespace-pre-line text-foreground/80">
-                                    {shop.description || <span className="italic text-muted-foreground/50">—</span>}
-                                </p>
-                                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("description", shop.description ?? "")}>
-                                    <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                            </div>)}
+                                </div>)}
+                            </div>
+                        </>)}
+
+
+
+                        <ShopSaiPlayField gameId={params.id} shopId={shop.id} checked={shop.show_in_sai_play ?? false} disabled={saving} onCheckedChange={(checked) => saveField({ show_in_sai_play: checked })} labels={{ title: t('shop.showInSaiPlay'), hint: t('shop.showInSaiPlayHint'), on: t('shop.showInSaiPlayOn'), off: t('shop.showInSaiPlayOff'), open: t('shop.openInSaiPlay') }} />
+
+
+
+
+                        {/* IDs */}
+                        <div id="shop-detail-ids-separator" role="separator" className="!my-3 border-t border-border/60" />
+                        <div className="flex items-baseline gap-3 min-h-[32px]">
+                            <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none">Game ID</span>
+                            <span className="flex items-center gap-1.5 text-xs font-mono text-foreground/70">
+                                {shop.game_id}
+                                <CopyButton text={shop.game_id} />
+                            </span>
+                        </div>
+                        <div className="flex items-baseline gap-3 min-h-[32px]">
+                            <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none">Shop ID</span>
+                            <span className="flex items-center gap-1.5 text-xs font-mono text-foreground/70">
+                                {shop.id}
+                                <CopyButton text={shop.id} />
+                            </span>
                         </div>
 
-                    </div>{/* /right column */}
+                        {/* Created At / Updated At */}
+                        <div className="flex items-baseline gap-3 min-h-[32px]">
+                            <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> Created
+                            </span>
+                            <span className="text-foreground/80">{formatDate(shop.created_at)}</span>
+                        </div>
+                        <div className="flex items-baseline gap-3 min-h-[32px]">
+                            <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> Updated
+                            </span>
+                            <span className="text-foreground/80">{formatDate(shop.updated_at)}</span>
+                        </div>
+
+
+
+
+
+                        <div id="shop-detail-delivery-separator" role="separator" className="!my-3 border-t border-border/60" />
+                        <div id="shop-detail-item-delivery" className="space-y-2 pt-2">
+                            <div id="shop-detail-delivery-destination" className="flex items-baseline gap-3 min-h-[32px]">
+                                <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">{t('shop.collectDestination')}</span>
+                                {editingField === "collect_destination" ? (<div className="flex items-center gap-1 flex-1">
+                                    <Select value={tmpVal} onValueChange={setTmpVal} disabled={saving}>
+                                        <SelectTrigger id="shop-detail-collect-destination" className="h-7 text-xs w-52"><SelectValue /></SelectTrigger>
+                                        <SelectContent id="shop-detail-collect-destination-options">
+                                            <SelectItem id="shop-detail-collect-destination-mailbox" value="mailbox">{t('shop.collectDestinationMailbox')}</SelectItem>
+                                            <SelectItem id="shop-detail-collect-destination-inventory" value="inventory">{t('shop.collectDestinationInventory')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button id="shop-detail-save-collect-destination" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ collect_destination: tmpVal as ShopCollectDestination })}><Save className="h-3.5 w-3.5" /></Button>
+                                    <Button id="shop-detail-cancel-collect-destination" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5" /></Button>
+                                </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
+                                    <span>{shop.collect_destination === "inventory" ? t('shop.collectDestinationInventory') : t('shop.collectDestinationMailbox')}</span>
+                                    <Button id="shop-detail-edit-collect-destination" size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("collect_destination", shop.collect_destination ?? "mailbox")}><Pencil className="h-3.5 w-3.5" /></Button>
+                                </div>)}
+                            </div>
+
+                            {shop.collect_destination !== "inventory" && (<>
+                                <div id="shop-detail-mailbox-title" className="flex items-baseline gap-3 min-h-[32px]">
+                                    <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">{t('shop.mailboxTitle')}</span>
+                                    {editingField === "mailbox_title" ? (<div className="flex items-center gap-1 flex-1">
+                                        <Input id="shop-detail-mailbox-title-input" className="h-7 text-sm" value={tmpVal} onChange={(event) => setTmpVal(event.target.value)} disabled={saving} autoFocus />
+                                        <Button id="shop-detail-save-mailbox-title" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => saveField({ mailbox_title: tmpVal })}><Save className="h-3.5 w-3.5" /></Button>
+                                        <Button id="shop-detail-cancel-mailbox-title" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5" /></Button>
+                                    </div>) : (<div className="group/meta flex items-center gap-1 flex-1">
+                                        <span>{shop.mailbox_title || t('shop.mailboxTitleDefault')}</span>
+                                        <Button id="shop-detail-edit-mailbox-title" size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("mailbox_title", shop.mailbox_title ?? "")}><Pencil className="h-3.5 w-3.5" /></Button>
+                                    </div>)}
+                                </div>
+
+                                <div id="shop-detail-mailbox-body" className="flex items-start gap-3 min-h-[32px]">
+                                    <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">{t('shop.mailboxBody')}</span>
+                                    {editingField === "mailbox_body" ? (<div className="space-y-1 flex-1">
+                                        <Textarea id="shop-detail-mailbox-body-input" className="min-h-[80px] resize-none text-sm" value={tmpVal} onChange={(event) => setTmpVal(event.target.value)} disabled={saving} autoFocus />
+                                        <div className="flex gap-1">
+                                            <Button id="shop-detail-save-mailbox-body" size="sm" variant="ghost" className="h-7 px-2" disabled={saving} onClick={() => saveField({ mailbox_body: tmpVal })}><Save className="mr-1 h-3.5 w-3.5" />{t('common.save')}</Button>
+                                            <Button id="shop-detail-cancel-mailbox-body" size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingField(null)}><X className="h-3.5 w-3.5" /></Button>
+                                        </div>
+                                    </div>) : (<div className="group/meta flex items-start gap-1 flex-1">
+                                        <p className="flex-1 whitespace-pre-line text-foreground/80">{shop.mailbox_body || t('shop.mailboxBodyDefault')}</p>
+                                        <Button id="shop-detail-edit-mailbox-body" size="icon" variant="ghost" className="h-7 w-7 shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={() => startEdit("mailbox_body", shop.mailbox_body ?? "")}><Pencil className="h-3.5 w-3.5" /></Button>
+                                    </div>)}
+                                </div>
+                            </>)}
+                        </div>
+</div>{/* /right column */}
 
                 </div>
             </CardContent>

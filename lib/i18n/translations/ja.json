@@ -4981,5 +4981,10 @@
     "fallbackHelp": "対応する言語の翻訳を入力してください。空欄の項目は、Sai Playで英語の内容が表示されます。",
     "displayName": "表示名",
     "description": "説明"
+  },
+  "shopText": {
+    "edit": "ショップの内容を編集",
+    "nameRequired": "英語のショップ名を入力してください。",
+    "saveFailed": "ショップの内容を保存できませんでした。"
   }
 }

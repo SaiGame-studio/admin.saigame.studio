@@ -5049,5 +5049,10 @@
     "fallbackHelp": "Nhập bản dịch cho các ngôn ngữ được hỗ trợ. Để trống trường nào thì Sai Play dùng nội dung tiếng Anh của trường đó.",
     "displayName": "Tên hiển thị",
     "description": "Mô tả"
+  },
+  "shopText": {
+    "edit": "Sửa nội dung shop",
+    "nameRequired": "Cần nhập tên shop bằng tiếng Anh.",
+    "saveFailed": "Không thể lưu nội dung shop."
   }
 }
