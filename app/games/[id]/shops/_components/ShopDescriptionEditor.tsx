@@ -17,9 +17,10 @@ interface ShopDescriptionEditorProps {
     value: string;
     onChange: (value: string) => void;
     disabled?: boolean;
+    maxLength?: number;
 }
 
-export function ShopDescriptionEditor({ id, labelId, value, onChange, disabled = false }: ShopDescriptionEditorProps) {
+export function ShopDescriptionEditor({ id, labelId, value, onChange, disabled = false, maxLength = 700 }: ShopDescriptionEditorProps) {
     const { resolvedTheme } = useTheme();
     const { t } = useTranslation();
     const editor = useRef<EditorView | null>(null);
@@ -45,12 +46,12 @@ export function ShopDescriptionEditor({ id, labelId, value, onChange, disabled =
             const end = view.state.doc.lineAt(to > from ? to - 1 : to).to;
             const text = view.state.doc.sliceString(start, end);
             const insert = text.split("\n").map((line) => tool.prefix + line).join("\n");
-            if (view.state.doc.length + insert.length - (end - start) > 700) return;
+            if (view.state.doc.length + insert.length - (end - start) > maxLength) return;
             view.dispatch({ changes: { from: start, to: end, insert }, selection: { anchor: from + tool.prefix.length, head: to + insert.length - text.length }, userEvent: "input" });
         } else {
             const before = tool.before ?? "";
             const after = tool.after ?? "";
-            if (view.state.doc.length + before.length + after.length > 700) return;
+            if (view.state.doc.length + before.length + after.length > maxLength) return;
             const text = view.state.doc.sliceString(from, to);
             view.dispatch({ changes: { from, to, insert: before + text + after }, selection: { anchor: from + before.length, head: to + before.length }, userEvent: "input" });
         }
@@ -61,7 +62,7 @@ export function ShopDescriptionEditor({ id, labelId, value, onChange, disabled =
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({ id, "aria-labelledby": labelId }),
         EditorState.transactionFilter.of((transaction) => {
-            if (transaction.docChanged && transaction.newDoc.length > 700 && transaction.newDoc.length >= transaction.startState.doc.length) return [];
+            if (transaction.docChanged && transaction.newDoc.length > maxLength && transaction.newDoc.length >= transaction.startState.doc.length) return [];
             return transaction;
         }),
         EditorView.theme({
@@ -70,7 +71,7 @@ export function ShopDescriptionEditor({ id, labelId, value, onChange, disabled =
             ".cm-line": { padding: "0 12px", lineHeight: "20px" },
             ".cm-scroller": { fontFamily: "inherit" },
         }),
-    ], [id, labelId]);
+    ], [id, labelId, maxLength]);
 
     return <div id={`${id}-container`} className="overflow-hidden rounded-md border border-input focus-within:ring-2 focus-within:ring-ring">
         <div id={`${id}-toolbar`} role="group" aria-label={t("markdownEditor.toolbar")} className="flex flex-wrap items-center gap-0.5 border-b bg-muted/30 p-1">

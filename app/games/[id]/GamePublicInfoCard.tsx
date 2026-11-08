@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { GamePublicInfoTextFields } from "./GamePublicInfoTextFields";
+import type { GamePublicInfoTranslations } from "@/lib/game-public-info-api";
 import { GameBannerField } from "./GameBannerField";
 import { GameImageCropDialog } from "./GameImageCropDialog";
 import { GameMainCurrencyField } from "./GameMainCurrencyField";
@@ -29,6 +30,7 @@ const RELEASE_STATUS_LABEL_KEYS: Record<GameReleaseStatus, string> = {
 };
 
 type FormState = {
+    translations: GamePublicInfoTranslations;
     gameName: string;
     releaseStatus: GameReleaseStatus;
     releaseAt: string;
@@ -46,6 +48,7 @@ function formToInput(form: FormState): UpsertGamePublicInfoInput {
     const imageUrl = form.imageUrl.trim();
     return {
         game_name: form.gameName.trim(),
+        translations: { ...form.translations, en: { game_name: form.gameName.trim(), content: form.content } },
         release_status: form.releaseStatus,
         release_at: form.releaseStatus === "released" ? new Date(form.releaseAt).toISOString() : undefined,
         release_date_text: form.releaseStatus === "coming_soon" ? form.releaseDateText.trim() || undefined : undefined,
@@ -105,6 +108,7 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     const { toast } = useToast();
     const [form, setForm] = useState<FormState>({
         gameName: defaultGameName,
+        translations: {},
         releaseStatus: "coming_soon",
         releaseAt: "",
         releaseDateText: "",
@@ -136,11 +140,12 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                 if (active) {
                     setSaved(info);
                     setForm({
-                        gameName: info.game_name,
+                        gameName: info.translations?.en?.game_name?.trim() ? info.translations.en.game_name : info.game_name,
+                        translations: info.translations ?? {},
                         releaseStatus: info.release_status ?? "coming_soon",
                         releaseAt: toDateTimeLocal(info.release_at),
                         releaseDateText: info.release_date_text ?? "",
-                        content: info.content ?? "",
+                        content: info.translations?.en?.content?.trim() ? info.translations.en.content : info.content ?? "",
                         imageUrl: info.image_url ?? "",
                         imageAssetId: null,
                         isPublic: info.is_public ?? false,
@@ -165,7 +170,8 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
     const contentBytes = new TextEncoder().encode(form.content).length;
     const requiresReleaseAt = form.releaseStatus === "released";
     const allowsReleaseDateText = form.releaseStatus === "coming_soon";
-    const canSave = form.gameName.trim().length > 0 && (!requiresReleaseAt || form.releaseAt.length > 0) && contentBytes <= maxContentBytes;
+    const translationsValid = Object.values(form.translations).every((text) => Array.from(text.game_name).length <= 255 && new TextEncoder().encode(text.content).length <= maxContentBytes);
+    const canSave = form.gameName.trim().length > 0 && (!requiresReleaseAt || form.releaseAt.length > 0) && contentBytes <= maxContentBytes && translationsValid;
 
     // Saves the uploaded image right away: onto the saved record when there is one, otherwise with the
     // form when it is complete. Returns false when it must wait for a manual Save.
@@ -313,8 +319,8 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
             toast({ title: t("common.error"), description: t("gamePublicInfo.releaseAtRequired"), variant: "destructive" });
             return false;
         }
-        const { game_name, release_status, release_at, release_date_text } = formToInput(next);
-        const input = saved && savedInfoWith(saved, { game_name, release_status, release_at, release_date_text });
+        const { release_status, release_at, release_date_text } = formToInput(next);
+        const input = saved && savedInfoWith(saved, { release_status, release_at, release_date_text });
         if (!input) {
             setForm(next);
             return true;
@@ -384,16 +390,12 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                                     </div>
                                     <GameMainCurrencyField gameId={gameId} value={form.mainCurrency} disabled={saving || savingVisibility || uploading} onChange={(value) => void changeMainCurrency(value)}/>
                                 </div>
-                                <div id="game-public-info-fields" className="game-public-info-fields grid gap-4 sm:grid-cols-3">
-                                    <InlineEditField
-                                        id="game-public-info-name"
-                                        label={t("gamePublicInfo.gameName")}
-                                        display={form.gameName}
-                                        disabled={saving}
-                                        onEdit={startEdit}
-                                        editor={<Input id="game-public-info-name-input" value={draft.gameName} maxLength={255} autoFocus onChange={(event) => setDraft((current) => ({ ...current, gameName: event.target.value }))}/>}
-                                        onSave={() => saveFields({ gameName: draft.gameName })}
-                                    />
+                                <GamePublicInfoTextFields
+                            gameName={form.gameName} content={form.content} translations={form.translations} disabled={saving}
+                            onChange={(text) => setForm((current) => ({ ...current, ...text }))}
+                        />
+<div id="game-public-info-release-save-row" className="game-public-info-release-save-row flex flex-wrap items-end gap-4">
+<div id="game-public-info-fields" className="game-public-info-fields grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
                                     <InlineEditField
                                         id="game-public-info-release-status"
                                         label={t("gamePublicInfo.releaseStatus")}
@@ -446,22 +448,21 @@ export function GamePublicInfoCard({ gameId, defaultGameName }: { gameId: string
                                         />
                                     )}
                                 </div>
-                            </div>
-                            <GameBannerField imageUrl={form.imageUrl} unlockAt={imageUnlockAt} busy={uploading} disabled={saving || savingVisibility} onFileChosen={chooseImage} onDelete={deleteImage}/>
-                        </div>
-                        <div id="game-public-info-content-field" className="game-public-info-field space-y-2">
-                            <Label id="game-public-info-content-label" htmlFor="game-public-info-content-input">{t("gamePublicInfo.content")}</Label>
-                            <Textarea id="game-public-info-content-input" value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} rows={12} disabled={saving} className="min-h-64 resize-y"/>
-                            <p id="game-public-info-content-counter" className={`game-public-info-content-counter text-xs ${contentBytes > maxContentBytes ? "text-destructive" : "text-muted-foreground"}`}>
-                                {t("gamePublicInfo.contentLimit", { current: contentBytes.toLocaleString(), max: maxContentBytes.toLocaleString() })}
-                            </p>
-                        </div>
-                        <div id="game-public-info-actions" className="game-public-info-actions flex justify-end">
+<div id="game-public-info-actions" className="game-public-info-actions flex shrink-0 justify-end">
                             <Button id="game-public-info-save-button" type="button" onClick={save} disabled={saving || uploading || !canSave}>
                                 {saving && <Loader2 id="game-public-info-save-icon" className="mr-2 h-4 w-4 animate-spin"/>}
                                 {t("common.save")}
                             </Button>
                         </div>
+</div>
+                            </div>
+                            <div id="game-public-info-banner-column" className="game-public-info-banner-column min-w-0 space-y-4">
+<GameBannerField imageUrl={form.imageUrl} unlockAt={imageUnlockAt} busy={uploading} disabled={saving || savingVisibility} onFileChosen={chooseImage} onDelete={deleteImage}/>
+
+</div>
+                        </div>
+
+
                     </>
                 )}
             </CardContent>
