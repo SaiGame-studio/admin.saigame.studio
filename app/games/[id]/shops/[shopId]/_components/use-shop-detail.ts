@@ -318,8 +318,8 @@ export function useShopDetail() {
     function setEditField<K extends keyof ItemFormState>(k: K, v: ItemFormState[K]) {
         setEditForm((p) => ({ ...p, [k]: v }));
     }
-    async function handleEdit() {
-        if (!editItem)
+    async function handleEdit(closeAfterSave: boolean) {
+        if (!editItem || editing)
             return;
         const err = validateItemForm(editForm);
         if (err) {
@@ -346,9 +346,10 @@ export function useShopDetail() {
                 payload.available_from = new Date(editForm.available_from).toISOString();
             if (editForm.available_until)
                 payload.available_until = new Date(editForm.available_until).toISOString();
-            await updateShopItem(params.id, params.shopId, editItem.id, payload);
+            const updated = await updateShopItem(params.id, params.shopId, editItem.id, payload);
+            setEditItem(updated);
             await loadItems();
-            setEditOpen(false);
+            if (closeAfterSave) setEditOpen(false);
         }
         catch (err: any) {
             setEditError(err?.message ?? "Failed to update item");

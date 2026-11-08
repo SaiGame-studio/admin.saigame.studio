@@ -91,9 +91,11 @@ export function ShopItemTranslationsEditor({ translations, english, onChange, ch
                         </div>
                     </div>
                     <div id={`${descriptionId}-field`} className="space-y-1.5">
-                        <Label id={`${descriptionId}-label`} htmlFor={descriptionId}>{t("shopItemTranslations.description")} ({languageNames.of(selected)})</Label>
-                        <Textarea id={descriptionId} rows={3} value={text?.description ?? ""} maxLength={700} onChange={(event) => update("description", event.target.value)} />
-                        <p id={`${descriptionId}-count`} className="text-right text-xs text-muted-foreground">{text?.description.length ?? 0}/700</p>
+                        <div id={`${descriptionId}-header`} className="flex items-center justify-between gap-2">
+                            <Label id={`${descriptionId}-label`} htmlFor={descriptionId}>{t("shopItemTranslations.description")} ({languageNames.of(selected)})</Label>
+                            <span id={`${descriptionId}-count`} className="shrink-0 text-xs text-muted-foreground">{text?.description.length ?? 0}/700</span>
+                        </div>
+                        <Textarea id={descriptionId} rows={7} value={text?.description ?? ""} maxLength={700} onChange={(event) => update("description", event.target.value)} />
                     </div>
                 </div>
             )}

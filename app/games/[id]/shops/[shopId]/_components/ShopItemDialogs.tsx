@@ -6,8 +6,10 @@ import { Sheet, SheetDescription, SheetFooter, SheetHeader, SheetTitle, } from "
 import { AlertCircle, Loader2 } from "lucide-react";
 import { ItemForm } from "./ShopItemForm";
 import { ShopItemSheetContent } from "./ShopItemSheetContent";
+import { useTranslation } from "@/lib/i18n/use-translation";
 import type { ShopDetailViewState } from "./use-shop-detail";
 export function ShopItemDialogs(state: ShopDetailViewState) {
+    const { t } = useTranslation();
     const { params, shop, error, itemDefs, itemDefsLoading, addOpen, setAddOpen, addForm, addError, adding, editOpen, setEditOpen, editItem, editForm, editError, editing, deleteOpen, setDeleteOpen, deleteItem, deleting, deleteError, pendingToggle, setPendingToggle, toggling, setAddField, handleAdd, setEditField, handleEdit, handleDelete, confirmToggleActive } = state;
     return <>
         <Sheet open={addOpen} onOpenChange={setAddOpen}>
@@ -45,9 +47,12 @@ export function ShopItemDialogs(state: ShopDetailViewState) {
                     <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editing}>
                         Cancel
                     </Button>
-                    <Button onClick={handleEdit} disabled={editing}>
+                    <Button id="shop-edit-item-save-continue" variant="outline" onClick={() => handleEdit(false)} disabled={editing}>
+                        {t("items.saveAndContinue")}
+                    </Button>
+                    <Button id="shop-edit-item-save-close" onClick={() => handleEdit(true)} disabled={editing}>
                         {editing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                        Save Changes
+                        {t("items.saveAndClose")}
                     </Button>
                 </SheetFooter>
             </ShopItemSheetContent>

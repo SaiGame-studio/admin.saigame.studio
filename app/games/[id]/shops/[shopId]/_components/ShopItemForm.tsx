@@ -103,7 +103,6 @@ export function ItemForm({ form, setField, itemDefs, itemDefsLoading, error, dis
 
         <ShopItemTranslationsEditor translations={form.translations} english={{ display_name: form.display_name, description: form.description }} onChange={(translations) => setField("translations", translations)}>
         {(languagePicker) => <>
-        <p id="shop-item-form-english-help" className="text-sm text-muted-foreground">{t("shopItemTranslations.englishHelp")}</p>
         {/* Display name */}
         <div className="space-y-1.5">
             <Label>
@@ -131,11 +130,14 @@ export function ItemForm({ form, setField, itemDefs, itemDefsLoading, error, dis
 
         {/* Description */}
         <div className="space-y-1.5">
-            <Label>{t("shopItemTranslations.description")} (English)</Label>
-            <Textarea placeholder="Optional description…" value={form.description} onChange={(e) => setField("description", e.target.value)} rows={2} maxLength={700} />
-            <p className={`text-right text-xs ${form.description.length >= 700 ? 'text-destructive font-medium' : form.description.length >= 600 ? 'text-amber-500' : 'text-muted-foreground'}`}>
-                {form.description.length}/700
-            </p>
+            <div id="shop-item-english-description-header" className="flex items-center justify-between gap-2">
+                <Label id="shop-item-english-description-label">{t("shopItemTranslations.description")} (English)</Label>
+                <span id="shop-item-english-description-count" className={`shrink-0 text-xs ${form.description.length >= 700 ? 'text-destructive font-medium' : form.description.length >= 600 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                    {form.description.length}/700
+                </span>
+            </div>
+            <Textarea placeholder="Optional description…" value={form.description} onChange={(e) => setField("description", e.target.value)} rows={7} maxLength={700} />
+            <p id="shop-item-form-english-help" className="text-xs leading-snug text-muted-foreground">{t("shopItemTranslations.englishHelp")}</p>
         </div>
 
         </>}
