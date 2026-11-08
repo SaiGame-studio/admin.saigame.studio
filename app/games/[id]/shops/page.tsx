@@ -1,4 +1,5 @@
 "use client";
+import { ShopTextFields } from "./_components/ShopTextFields";
 import { useEffect, useState, useRef } from "react";
 import { toSlugUnderscore } from "@/lib/utils";
 import { useParams } from "next/navigation";
@@ -72,6 +73,7 @@ function getEventTimeStatus(starts_at: string | null | undefined, ends_at: strin
     return null;
 }
 const defaultForm: CreateShopPayload = {
+    translations: {},
     shop_key: "",
     name: "",
     description: "",
@@ -219,7 +221,8 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
             const payload: CreateShopPayload = {
                 shop_key: form.shop_key.trim(),
                 name: form.name.trim(),
-                description: form.description?.trim() || undefined,
+                description: form.description?.trim() ?? "",
+                translations: { ...form.translations, en: { name: form.name.trim(), description: form.description?.trim() ?? "" } },
                 shop_type: form.shop_type,
                 is_active: form.is_active,
                 collect_destination: form.collect_destination ?? "mailbox",
@@ -484,17 +487,9 @@ export default function GameShopsPage({ embedded = false, active = true }: GameS
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="shop_name">
-                {t('shop.name')} <span className="text-destructive">*</span>
-              </Label>
-              <Input id="shop_name" placeholder={t('shop.shopNamePlaceholder')} value={form.name} onChange={(e) => {
-            const name = e.target.value;
-            setField("name", name);
-            if (autoSlug)
-                setField("shop_key", genSlug(name));
-        }}/>
-            </div>
+            <ShopTextFields value={{ name: form.name, description: form.description ?? "", translations: form.translations ?? {} }} onChange={(text) => {
+                setForm((previous) => ({ ...previous, ...text, shop_key: autoSlug && text.name !== previous.name ? genSlug(text.name) : previous.shop_key }));
+            }} />
 
             <div className="space-y-1.5">
               <Label htmlFor="shop_key">

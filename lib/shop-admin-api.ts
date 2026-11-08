@@ -12,7 +12,14 @@ export type PurchaseLimitType = 'unlimited' | 'player' | 'global';
 export type RestockSchedule = 'none' | 'daily' | 'weekly' | 'monthly';
 /** item = inventory item currency (or legacy coin wallet); sgem = platform sGem wallet. */
 export type ShopCurrencyType = 'item' | 'sgem';
+export interface ShopTranslation {
+    name: string;
+    description: string;
+}
+export type ShopTranslations = Record<string, ShopTranslation>;
+
 export interface ShopDefinition {
+    translations: ShopTranslations;
     id: string;
     studio_id: string;
     game_id: string;
@@ -36,12 +43,19 @@ export interface ShopDefinition {
     updated_at: string;
     items?: ShopItem[];
 }
+export interface ShopItemTranslation {
+    display_name: string;
+    description: string;
+}
+export type ShopItemTranslations = Record<string, ShopItemTranslation>;
+
 export interface ShopItem {
     id: string;
     shop_id: string;
     item_def_id: string;
     display_name: string;
     description: string;
+    translations: ShopItemTranslations;
     price: number;
     currency_item_def_id?: string | null;
     /** Per-item override; absent = inherit the shop. */
@@ -59,6 +73,7 @@ export interface ShopItem {
     purchased_count?: number;
 }
 export interface CreateShopPayload {
+    translations?: ShopTranslations;
     shop_key: string;
     name: string;
     description?: string;
@@ -73,6 +88,7 @@ export interface CreateShopPayload {
     currency_type?: ShopCurrencyType;
 }
 export interface UpdateShopPayload {
+    translations?: ShopTranslations;
     name?: string;
     description?: string;
     shop_type?: ShopType;
@@ -90,6 +106,7 @@ export interface AddShopItemPayload {
     item_def_id: string;
     display_name: string;
     description?: string;
+    translations?: ShopItemTranslations;
     price: number;
     currency_item_def_id?: string;
     currency_type?: ShopCurrencyType;
@@ -105,6 +122,7 @@ export interface AddShopItemPayload {
 export interface UpdateShopItemPayload {
     display_name?: string;
     description?: string;
+    translations?: ShopItemTranslations;
     price?: number;
     currency_item_def_id?: string;
     /** "" clears the override (inherit the shop). */

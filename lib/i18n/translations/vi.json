@@ -5036,5 +5036,36 @@
     "unknownLocation": "Không rõ vị trí",
     "emailVerified": "Email đã xác minh",
     "emailNotVerified": "Email chưa xác minh"
-}
+},
+  "shopItemTranslations": {
+    "resizePanel": "Điều chỉnh chiều rộng bảng item",
+    "language": "Ngôn ngữ",
+    "searchLanguage": "Tìm ngôn ngữ…",
+    "noLanguage": "Không tìm thấy ngôn ngữ.",
+    "title": "Bản dịch",
+    "englishHelp": "Tiếng Anh là ngôn ngữ mặc định. Nhập tên và mô tả tiếng Anh bên dưới.",
+    "englishName": "Tên hiển thị (tiếng Anh)",
+    "englishDescription": "Mô tả (tiếng Anh)",
+    "fallbackHelp": "Nhập bản dịch cho các ngôn ngữ được hỗ trợ. Để trống trường nào thì Sai Play dùng nội dung tiếng Anh của trường đó.",
+    "displayName": "Tên hiển thị",
+    "description": "Mô tả"
+  },
+  "markdownEditor": {
+    "toolbar": "Định dạng văn bản",
+    "bold": "In đậm",
+    "italic": "In nghiêng",
+    "heading": "Tiêu đề",
+    "bulletList": "Danh sách dấu đầu dòng",
+    "orderedList": "Danh sách đánh số",
+    "link": "Liên kết",
+    "image": "Hình ảnh",
+    "quote": "Trích dẫn",
+    "code": "Mã nội tuyến",
+    "codeBlock": "Khối mã"
+  },
+  "shopText": {
+    "edit": "Sửa nội dung shop",
+    "nameRequired": "Cần nhập tên shop bằng tiếng Anh.",
+    "saveFailed": "Không thể lưu nội dung shop."
+  }
 }

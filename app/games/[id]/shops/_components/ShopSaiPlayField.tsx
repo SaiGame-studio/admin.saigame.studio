@@ -17,7 +17,7 @@ const SAI_PLAY_NAME = "Sai Play";
 export function ShopSaiPlayField({ gameId, shopId, checked, disabled, onCheckedChange, labels }: Props) {
   const shopUrl = saiPlayShopUrl(gameId, shopId);
   const nameIndex = labels.title.indexOf(SAI_PLAY_NAME);
-  return <div id="shop-detail-sai-play" className="flex items-start gap-3 min-h-[32px] pt-2">
+  return <div id="shop-detail-sai-play" className="grid grid-cols-[6rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 min-h-[32px] pt-2">
     <span id="shop-detail-sai-play-label" className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">
       {nameIndex < 0 ? labels.title : (<>
           {labels.title.slice(0, nameIndex)}
@@ -34,7 +34,7 @@ export function ShopSaiPlayField({ gameId, shopId, checked, disabled, onCheckedC
             {labels.open}
           </a>)}
       </div>
-      <p id="shop-detail-sai-play-hint" className="text-xs text-muted-foreground">{labels.hint}</p>
     </div>
+    <p id="shop-detail-sai-play-hint" className="col-span-2 text-xs leading-snug text-muted-foreground">{labels.hint}</p>
   </div>;
 }
