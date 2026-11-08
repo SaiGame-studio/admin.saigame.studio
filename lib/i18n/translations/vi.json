@@ -5050,6 +5050,19 @@
     "displayName": "Tên hiển thị",
     "description": "Mô tả"
   },
+  "markdownEditor": {
+    "toolbar": "Định dạng văn bản",
+    "bold": "In đậm",
+    "italic": "In nghiêng",
+    "heading": "Tiêu đề",
+    "bulletList": "Danh sách dấu đầu dòng",
+    "orderedList": "Danh sách đánh số",
+    "link": "Liên kết",
+    "image": "Hình ảnh",
+    "quote": "Trích dẫn",
+    "code": "Mã nội tuyến",
+    "codeBlock": "Khối mã"
+  },
   "shopText": {
     "edit": "Sửa nội dung shop",
     "nameRequired": "Cần nhập tên shop bằng tiếng Anh.",

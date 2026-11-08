@@ -8,12 +8,13 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
+import { ShopDescriptionEditor } from "../../_components/ShopDescriptionEditor";
 import { defaultLocale, locales, type ValidLocale } from "@/lib/i18n/config";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { ShopItemTranslation, ShopItemTranslations } from "@/lib/shop-admin-api";
 
 interface ShopItemTranslationsEditorProps {
+    disabled?: boolean;
     nameAction?: ReactNode;
     nameLabel?: string;
     translations: ShopItemTranslations;
@@ -22,7 +23,7 @@ interface ShopItemTranslationsEditorProps {
     children: (languagePicker: ReactNode) => ReactNode;
 }
 
-export function ShopItemTranslationsEditor({ translations, english, onChange, children, nameLabel, nameAction }: ShopItemTranslationsEditorProps) {
+export function ShopItemTranslationsEditor({ translations, english, onChange, children, nameLabel, nameAction, disabled = false }: ShopItemTranslationsEditorProps) {
     const { t } = useTranslation();
     const [selected, setSelected] = useState<ValidLocale>(defaultLocale);
     const [open, setOpen] = useState(false);
@@ -100,7 +101,7 @@ export function ShopItemTranslationsEditor({ translations, english, onChange, ch
                             <Label id={`${descriptionId}-label`} htmlFor={descriptionId}>{t("shopItemTranslations.description")} ({languageNames.of(selected)})</Label>
                             <span id={`${descriptionId}-count`} className="shrink-0 text-xs text-muted-foreground">{text?.description.length ?? 0}/700</span>
                         </div>
-                        <Textarea id={descriptionId} rows={7} value={text?.description ?? ""} maxLength={700} onChange={(event) => update("description", event.target.value)} />
+                        <ShopDescriptionEditor key={selected} id={descriptionId} labelId={`${descriptionId}-label`} value={text?.description ?? ""} disabled={disabled} onChange={(description) => update("description", description)} />
                     </div>
                 </div>
             )}

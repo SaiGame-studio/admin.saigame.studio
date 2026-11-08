@@ -38,7 +38,7 @@ export function ShopTextEditor({ shop, onSaved }: { shop: ShopDefinition; onSave
     return (
         <div id="shop-text-editor" className="space-y-3">
             <fieldset id="shop-text-editor-fields" className="min-w-0 space-y-3" disabled={saving}>
-                <ShopTextFields value={value} onChange={setValue} nameAction={
+                <ShopTextFields value={value} onChange={setValue} disabled={saving} nameAction={
                     <Button id="shop-text-editor-save" type="button" size="sm" className="h-9 shrink-0 px-2 text-xs" disabled={saving} onClick={() => save()}>{t("common.save")}</Button>
                 } />
             </fieldset>

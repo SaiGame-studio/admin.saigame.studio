@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { ShopDescriptionEditor } from "../../_components/ShopDescriptionEditor";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { type PurchaseLimitType, type RestockSchedule } from "@/lib/shop-admin-api";
 import { SGEM_CURRENCY_LABEL, SGEM_CURRENCY_VALUE, isSGemCurrency, matchesSGemSearch } from "@/lib/shop-currency";
@@ -136,7 +136,7 @@ export function ItemForm({ form, setField, itemDefs, itemDefsLoading, error, dis
                     {form.description.length}/700
                 </span>
             </div>
-            <Textarea placeholder="Optional description…" value={form.description} onChange={(e) => setField("description", e.target.value)} rows={7} maxLength={700} />
+            <ShopDescriptionEditor id="shop-item-english-description" labelId="shop-item-english-description-label" value={form.description} onChange={(description) => setField("description", description)} />
             <p id="shop-item-form-english-help" className="text-xs leading-snug text-muted-foreground">{t("shopItemTranslations.englishHelp")}</p>
         </div>
 

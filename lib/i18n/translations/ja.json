@@ -4982,6 +4982,19 @@
     "displayName": "表示名",
     "description": "説明"
   },
+  "markdownEditor": {
+    "toolbar": "テキスト書式",
+    "bold": "太字",
+    "italic": "斜体",
+    "heading": "見出し",
+    "bulletList": "箇条書き",
+    "orderedList": "番号付きリスト",
+    "link": "リンク",
+    "image": "画像",
+    "quote": "引用",
+    "code": "インラインコード",
+    "codeBlock": "コードブロック"
+  },
   "shopText": {
     "edit": "ショップの内容を編集",
     "nameRequired": "英語のショップ名を入力してください。",
