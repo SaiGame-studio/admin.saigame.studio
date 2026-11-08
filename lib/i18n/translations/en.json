@@ -5011,5 +5011,18 @@
     "unknownLocation": "Unknown location",
     "emailVerified": "Email verified",
     "emailNotVerified": "Email not verified"
-}
+},
+  "shopItemTranslations": {
+    "resizePanel": "Resize item panel",
+    "language": "Language",
+    "searchLanguage": "Search languages…",
+    "noLanguage": "No language found.",
+    "title": "Translations",
+    "englishHelp": "English is the default language. Fill in the English name and description below.",
+    "englishName": "Display name (English)",
+    "englishDescription": "Description (English)",
+    "fallbackHelp": "Add translations for the supported languages. Leave a field empty to use its English text in Sai Play.",
+    "displayName": "Display name",
+    "description": "Description"
+  }
 }

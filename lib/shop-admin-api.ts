@@ -36,12 +36,19 @@ export interface ShopDefinition {
     updated_at: string;
     items?: ShopItem[];
 }
+export interface ShopItemTranslation {
+    display_name: string;
+    description: string;
+}
+export type ShopItemTranslations = Record<string, ShopItemTranslation>;
+
 export interface ShopItem {
     id: string;
     shop_id: string;
     item_def_id: string;
     display_name: string;
     description: string;
+    translations: ShopItemTranslations;
     price: number;
     currency_item_def_id?: string | null;
     /** Per-item override; absent = inherit the shop. */
@@ -90,6 +97,7 @@ export interface AddShopItemPayload {
     item_def_id: string;
     display_name: string;
     description?: string;
+    translations?: ShopItemTranslations;
     price: number;
     currency_item_def_id?: string;
     currency_type?: ShopCurrencyType;
@@ -105,6 +113,7 @@ export interface AddShopItemPayload {
 export interface UpdateShopItemPayload {
     display_name?: string;
     description?: string;
+    translations?: ShopItemTranslations;
     price?: number;
     currency_item_def_id?: string;
     /** "" clears the override (inherit the shop). */
