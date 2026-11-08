@@ -14,6 +14,10 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import type { ShopItemTranslation, ShopItemTranslations } from "@/lib/shop-admin-api";
 
 interface ShopItemTranslationsEditorProps {
+    nameMaxLength?: number;
+    contentLabel?: string;
+    maxLength?: number;
+    contentCounter?: (value: string) => ReactNode;
     disabled?: boolean;
     nameAction?: ReactNode;
     nameLabel?: string;
@@ -23,7 +27,7 @@ interface ShopItemTranslationsEditorProps {
     children: (languagePicker: ReactNode) => ReactNode;
 }
 
-export function ShopItemTranslationsEditor({ translations, english, onChange, children, nameLabel, nameAction, disabled = false }: ShopItemTranslationsEditorProps) {
+export function ShopItemTranslationsEditor({ translations, english, onChange, children, nameLabel, nameAction, disabled = false, contentLabel, contentCounter, maxLength = 700, nameMaxLength }: ShopItemTranslationsEditorProps) {
     const { t } = useTranslation();
     const [selected, setSelected] = useState<ValidLocale>(defaultLocale);
     const [open, setOpen] = useState(false);
@@ -92,16 +96,16 @@ export function ShopItemTranslationsEditor({ translations, english, onChange, ch
                     <div id={`${nameId}-field`} className="space-y-1.5">
                         <Label id={`${nameId}-label`} htmlFor={nameId}>{nameLabel ?? t("shopItemTranslations.displayName")} ({languageNames.of(selected)})</Label>
                         <div id={`${nameId}-row`} className="flex items-center gap-2">
-                            <Input id={nameId} className="min-w-0 flex-1" value={text?.display_name ?? ""} onChange={(event) => update("display_name", event.target.value)} />
+                            <Input id={nameId} className="min-w-0 flex-1" maxLength={nameMaxLength} value={text?.display_name ?? ""} onChange={(event) => update("display_name", event.target.value)} />
                             {languagePicker}
                         </div>
                     </div>
                     <div id={`${descriptionId}-field`} className="space-y-1.5">
                         <div id={`${descriptionId}-header`} className="flex items-center justify-between gap-2">
-                            <Label id={`${descriptionId}-label`} htmlFor={descriptionId}>{t("shopItemTranslations.description")} ({languageNames.of(selected)})</Label>
-                            <span id={`${descriptionId}-count`} className="shrink-0 text-xs text-muted-foreground">{text?.description.length ?? 0}/700</span>
+                            <Label id={`${descriptionId}-label`} htmlFor={descriptionId}>{contentLabel ?? t("shopItemTranslations.description")} ({languageNames.of(selected)})</Label>
+                            <span id={`${descriptionId}-count`} className="shrink-0 text-xs text-muted-foreground">{contentCounter ? contentCounter(text?.description ?? "") : `${text?.description.length ?? 0}/${maxLength}`}</span>
                         </div>
-                        <ShopDescriptionEditor key={selected} id={descriptionId} labelId={`${descriptionId}-label`} value={text?.description ?? ""} disabled={disabled} onChange={(description) => update("description", description)} />
+                        <ShopDescriptionEditor key={selected} id={descriptionId} labelId={`${descriptionId}-label`} maxLength={maxLength} value={text?.description ?? ""} disabled={disabled} onChange={(description) => update("description", description)} />
                     </div>
                 </div>
             )}

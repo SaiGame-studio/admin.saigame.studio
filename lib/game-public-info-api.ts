@@ -2,7 +2,14 @@ import { api } from "@/lib/api-client";
 
 export type GameReleaseStatus = "released" | "coming_soon" | "to_be_announced";
 
+export interface GamePublicInfoTranslation {
+    game_name: string;
+    content: string;
+}
+export type GamePublicInfoTranslations = Record<string, GamePublicInfoTranslation>;
+
 export interface GamePublicInfo {
+    translations: GamePublicInfoTranslations;
     id: string | null;
     game_id: string | null;
     game_name: string;
@@ -22,6 +29,7 @@ export interface GamePublicInfo {
 }
 
 export interface UpsertGamePublicInfoInput {
+    translations?: GamePublicInfoTranslations;
     game_name: string;
     release_status: GameReleaseStatus;
     release_at?: string;
@@ -58,7 +66,7 @@ export function mainCurrencyPayload(value: string): Pick<UpsertGamePublicInfoInp
 
 export async function getGamePublicInfo(gameId: string): Promise<GamePublicInfo> {
     // Signed in, so a game that is not public still loads for studio members.
-    return api.get(`/api/v1/public/games/${gameId}/info`, {
+    return api.get(`/api/v1/games/${gameId}/public-info`, {
         suppressToast: true,
     });
 }
