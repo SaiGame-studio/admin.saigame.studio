@@ -4232,7 +4232,15 @@
     "noContent": "Chưa có nội dung.",
     "selectTopic": "Chọn một chủ đề từ menu.",
     "comingSoon": "nội dung hướng dẫn sắp ra mắt.",
-    "unityPackage": "Unity Package"
+    "unityPackage": "Unity Package",
+    "tipsTab": "Mẹo",
+    "tipLoadFailed": "Không tải được mẹo này.",
+    "tipChatText": "{link} để chat với chúng tôi ngay.",
+    "tipChatLink": "Bấm vào đây",
+    "tips": {
+      "gameExpectUser": "Mở Sai Play từ game",
+      "keepSdkUnmodified": "Không chỉnh sửa Unity SDK của Sai Server"
+    }
   },
   "llmConversation": {
     "title": "Chat với AI",

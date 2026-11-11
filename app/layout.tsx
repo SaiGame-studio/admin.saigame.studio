@@ -15,11 +15,13 @@ import { LLMConversationPanelGate } from "@/components/llm-conversations/Convers
 import { SupportPresenceHeartbeat } from "@/components/support-presence-heartbeat";
 import { SupportChatWidget } from "@/components/support-chat-widget";
 export const metadata: Metadata = {
+    // Social previews need absolute image URLs.
+    metadataBase: new URL("https://server.saigame.studio"),
     title: {
         default: SITE_NAME,
         template: `%s | Sai Game`,
     },
-    description: `${SITE_NAME} dashboard for managing Game Server`,
+    description: "Game backend platform: accounts, cloud save, inventory, economy, quests, leaderboards and Lua on the server.",
     generator: 'v0.dev',
     icons: {
         icon: '/logo.png',
@@ -30,20 +32,21 @@ export const metadata: Metadata = {
         type: 'website',
         siteName: SITE_NAME,
         title: SITE_NAME,
-        description: `${SITE_NAME} dashboard for managing Game Server`,
+        description: "Game backend platform: accounts, cloud save, inventory, economy, quests, leaderboards and Lua on the server.",
         images: [
             {
+                // Built by saigame.studio/tools/build-app-og-images.mjs
                 url: '/og-image.png',
-                width: 1456,
-                height: 816,
-                alt: `${SITE_NAME} - Quản lý Game Server chuyên nghiệp`,
+                width: 1200,
+                height: 630,
+                alt: `${SITE_NAME} - Code games, not infra.`,
             },
         ],
     },
     twitter: {
         card: 'summary_large_image',
         title: SITE_NAME,
-        description: `${SITE_NAME} dashboard for managing Game Server`,
+        description: "Game backend platform: accounts, cloud save, inventory, economy, quests, leaderboards and Lua on the server.",
         images: ['/og-image.png'],
     },
 };
