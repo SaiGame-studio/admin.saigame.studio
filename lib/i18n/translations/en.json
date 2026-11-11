@@ -4266,7 +4266,15 @@
     "noContent": "No content available.",
     "selectTopic": "Select a topic from the menu.",
     "comingSoon": "tutorials content coming soon.",
-    "unityPackage": "Unity Package"
+    "unityPackage": "Unity Package",
+    "tipsTab": "Tips",
+    "tipLoadFailed": "Could not load this tip.",
+    "tipChatText": "{link} to chat with us now.",
+    "tipChatLink": "Click here",
+    "tips": {
+      "gameExpectUser": "Open Sai Play from your game",
+      "keepSdkUnmodified": "Do not edit the Sai Server Unity SDK"
+    }
   },
   "llmConversation": {
     "title": "AI Conversations",

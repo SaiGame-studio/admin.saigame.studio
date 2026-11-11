@@ -24,6 +24,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { useTheme } from "next-themes";
+import { TutorialTipsPanel } from "@/components/tutorials/TutorialTipsPanel";
+import { TIPS_PATH, TIPS_TAB, getTipSlugFromPath, isTipsPath } from "@/lib/tutorial-tips";
 interface Category {
     id: string;
     parent_id: string | null;
@@ -386,14 +388,23 @@ function TutorialsTabs() {
         : null;
     // Will be resolved after categories load: split fullPath into categoryPath + contentSlug
     const [contentSlug, setContentSlug] = useState<string | null>(null);
+    const [tipSlug, setTipSlug] = useState<string | null>(null);
     const navigateTo = useCallback((path: string | null, slug?: string | null) => {
         const base = path ? `/tutorials/${path}` : "/tutorials";
         const url = slug ? `${base}/${slug}` : base;
         window.history.replaceState(null, "", url);
     }, []);
     useEffect(() => {
+        // The static Tips tab does not depend on the CMS categories.
+        const isTips = isTipsPath(fullPath);
+        if (isTips) {
+            setActiveTab(TIPS_TAB);
+            setTipSlug(getTipSlugFromPath(fullPath!));
+        }
         const processCategories = (roots: Category[]) => {
             setCategories(roots);
+            if (isTips)
+                return;
             if (fullPath) {
                 // Try exact category match first
                 let matched = findCategoryByPath(roots, fullPath);
@@ -445,6 +456,11 @@ function TutorialsTabs() {
         setActiveTab(slug);
         setSelectedChildId(null);
         setContentSlug(null);
+        if (slug === TIPS_TAB) {
+            setTipSlug(null);
+            navigateTo(TIPS_PATH);
+            return;
+        }
         const root = categories.find((c) => c.slug === slug);
         navigateTo(root?.path ?? null);
     };
@@ -473,6 +489,10 @@ function TutorialsTabs() {
             catch { /* skip */ }
         }
     }, [categories, selectedChildId, locale, navigateTo]);
+    const handleSelectTip = (slug: string) => {
+        setTipSlug(slug);
+        navigateTo(TIPS_PATH, slug);
+    };
     const handleSelectCategory = (cat: Category) => {
         setSelectedChildId(cat.id);
         setContentSlug(null);
@@ -497,6 +517,9 @@ function TutorialsTabs() {
               {categories.map((cat) => (<TabsTrigger key={cat.id} value={cat.slug} className="flex items-center gap-2 whitespace-nowrap">
                   {getCatName(cat, locale)}
                 </TabsTrigger>))}
+              <TabsTrigger id="tutorials-tab-tips" value={TIPS_TAB} href={`/tutorials/${TIPS_PATH}`} className="flex items-center gap-2 whitespace-nowrap">
+                {t('tutorials.tipsTab')}
+              </TabsTrigger>
               <TabsTrigger value="_download" className="flex items-center gap-2 whitespace-nowrap" onClick={(e) => {
                 e.preventDefault();
                 window.open("https://github.com/SaiGame-studio/ss-unity/releases", "_blank");
@@ -511,6 +534,9 @@ function TutorialsTabs() {
           {categories.map((cat) => (<TabsContent key={cat.id} value={cat.slug} className="mt-0">
               <CategorySidebar category={cat} selectedId={selectedChildId} onSelect={handleSelectCategory} locale={locale} initialContentSlug={contentSlug} onSlugNotFound={handleSlugNotFound}/>
             </TabsContent>))}
+          <TabsContent id="tutorials-tips-content" value={TIPS_TAB} className="mt-0">
+            <TutorialTipsPanel selectedSlug={tipSlug} onSelect={handleSelectTip}/>
+          </TabsContent>
         </Tabs>) : null}
     </div>);
 }

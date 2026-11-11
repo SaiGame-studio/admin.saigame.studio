@@ -4225,7 +4225,15 @@
     "noContent": "コンテンツがありません。",
     "selectTopic": "メニューからトピックを選択してください。",
     "comingSoon": "チュートリアルコンテンツは近日公開予定です。",
-    "unityPackage": "Unity Package"
+    "unityPackage": "Unity Package",
+    "tipsTab": "ヒント",
+    "tipLoadFailed": "このヒントを読み込めませんでした。",
+    "tipChatText": "{link}からすぐにチャットでお問い合わせいただけます。",
+    "tipChatLink": "こちら",
+    "tips": {
+      "gameExpectUser": "ゲームから Sai Play を開く",
+      "keepSdkUnmodified": "Sai Server の Unity SDK を編集しない"
+    }
   },
   "llmConversation": {
     "title": "AIチャット",
