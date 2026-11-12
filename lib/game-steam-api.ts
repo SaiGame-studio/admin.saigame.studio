@@ -6,7 +6,6 @@ export interface GameSteamSettings {
     game_id: string;
     enabled: boolean;
     app_id: number;
-    reward_code: string;
     items: SteamRewardItem[];
     has_publisher_key: boolean;
     updated_at: string | null;
@@ -14,7 +13,6 @@ export interface GameSteamSettings {
 export interface UpdateGameSteamSettings {
     enabled: boolean;
     app_id: number;
-    reward_code: string;
     items: SteamRewardItem[];
     publisher_key?: string;
 }

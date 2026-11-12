@@ -47,7 +47,7 @@ export function SteamRewardItemsEditor({ gameId, items, onChange, disabled }: {
         })).then(entries => { if (active) setNames(Object.fromEntries(entries)); });
         return () => { active = false; };
     }, [gameId, ids]);
-    return <div id="game-steam-rewards-editor" className="space-y-3">
+    return <div id="game-steam-rewards-editor" className="min-w-0 space-y-2">
         <Label id="game-steam-rewards-label" htmlFor="game-steam-item-select">{t("steam.items")}</Label>
         <Popover open={open && !disabled} onOpenChange={value => { if (!disabled) setOpen(value); }}>
             <PopoverTrigger asChild>
@@ -77,7 +77,7 @@ export function SteamRewardItemsEditor({ gameId, items, onChange, disabled }: {
                 </Command>
             </PopoverContent>
         </Popover>
-        <p id="game-steam-items-hint" className="text-xs text-muted-foreground">{t("steam.searchHint")}</p>
+        <p id="game-steam-rewards-description" className="text-xs text-muted-foreground">{t("steam.itemsDescription")}</p>
         {items.map(item => <div id={`game-steam-reward-${item.item_definition_id}`} key={item.item_definition_id} className="flex items-center gap-2 rounded-md border p-3">
             <Link id={`game-steam-reward-link-${item.item_definition_id}`} href={`/games/${gameId}/items/${item.item_definition_id}`} className="min-w-0 flex-1 truncate text-sm underline">{names[item.item_definition_id] ?? item.item_definition_id}</Link>
             <Label id={`game-steam-quantity-label-${item.item_definition_id}`} htmlFor={`game-steam-quantity-${item.item_definition_id}`} className="sr-only">{t("steam.quantity")}</Label>

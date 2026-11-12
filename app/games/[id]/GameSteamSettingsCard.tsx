@@ -18,7 +18,6 @@ export function GameSteamSettingsCard({ gameId }: { gameId: string }) {
     const [appId, setAppId] = useState("");
     const [publisherKey, setPublisherKey] = useState("");
     const [removeKey, setRemoveKey] = useState(false);
-    const [rewardCode, setRewardCode] = useState("");
     const [items, setItems] = useState<SteamRewardItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -26,7 +25,7 @@ export function GameSteamSettingsCard({ gameId }: { gameId: string }) {
     const [pending, setPending] = useState<UpdateGameSteamSettings | null>(null);
     const apply = (value: GameSteamSettings) => {
         setSettings(value); setEnabled(value.enabled); setAppId(value.app_id ? String(value.app_id) : "");
-        setRewardCode(value.reward_code); setItems(value.items ?? []); setPublisherKey(""); setRemoveKey(false);
+        setItems(value.items ?? []); setPublisherKey(""); setRemoveKey(false);
     };
     useEffect(() => {
         let active = true;
@@ -40,13 +39,11 @@ export function GameSteamSettingsCard({ gameId }: { gameId: string }) {
         setSaved(false);
         const id = appId === "" ? 0 : Number(appId);
         if (!Number.isInteger(id) || id < 0 || id > 4294967295 || (enabled && (id === 0 || (removeKey || (!publisherKey.trim() && !settings?.has_publisher_key)))) ||
-            (items.length > 0 && !/^[a-zA-Z0-9_-]{1,100}$/.test(rewardCode.trim())) ||
-            (items.length === 0 && rewardCode.trim() !== "") ||
             items.some(item => !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10000)) {
             setError("steam.invalid"); return;
         }
         setError(null);
-        setPending({ enabled, app_id: id, reward_code: rewardCode.trim(), items,
+        setPending({ enabled, app_id: id, items,
             ...(removeKey ? { publisher_key: "" } : publisherKey.trim() ? { publisher_key: publisherKey.trim() } : {}) });
     };
     const disabled = loading || !settings || pending !== null;
@@ -63,7 +60,7 @@ export function GameSteamSettingsCard({ gameId }: { gameId: string }) {
                 <Label id="game-steam-enabled-label" htmlFor="game-steam-enabled">{t("steam.enabled")}</Label>
                 <Switch id="game-steam-enabled" checked={enabled} disabled={disabled} onCheckedChange={setEnabled}/>
             </div>
-            <div id="game-steam-credentials-row" className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+            <div id="game-steam-credentials-row" className="grid grid-cols-1 items-start gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)]">
                 <div id="game-steam-app-id-field" className="min-w-0 space-y-2">
                     <Label id="game-steam-app-id-label" htmlFor="game-steam-app-id">{t("steam.appId")}</Label>
                     <Input id="game-steam-app-id" type="number" min={1} max={4294967295} step={1} value={appId} onChange={event => setAppId(event.target.value)} disabled={disabled}/>
@@ -71,19 +68,15 @@ export function GameSteamSettingsCard({ gameId }: { gameId: string }) {
                 <div id="game-steam-key-field" className="min-w-0 space-y-2">
                     <Label id="game-steam-key-label" htmlFor="game-steam-key">{t("steam.publisherKey")}</Label>
                     <Input id="game-steam-key" type="password" autoComplete="new-password" maxLength={1024} value={publisherKey} onChange={event => setPublisherKey(event.target.value)} disabled={disabled || removeKey}/>
-                    <p id="game-steam-key-status" className="text-xs text-muted-foreground">{t(settings?.has_publisher_key ? "steam.keySaved" : "steam.keyMissing")}</p>
+                    <a id="game-steam-key-help-link" href="https://partner.steamgames.com/doc/webapi_overview/auth" className="block text-xs text-blue-500 hover:underline">{t("steam.getPublisherKey")}</a>
+                    {settings?.has_publisher_key && <p id="game-steam-key-status" className="text-xs text-muted-foreground">{t("steam.keySaved")}</p>}
                     {settings?.has_publisher_key && <div id="game-steam-remove-key-row" className="flex items-center gap-3">
                         <Switch id="game-steam-remove-key" checked={removeKey} onCheckedChange={setRemoveKey} disabled={disabled || enabled}/>
                         <Label id="game-steam-remove-key-label" htmlFor="game-steam-remove-key">{t("steam.removeKey")}</Label>
                     </div>}
                 </div>
+                <SteamRewardItemsEditor gameId={gameId} items={items} onChange={setItems} disabled={disabled}/>
             </div>
-            <div id="game-steam-reward-code-field" className="space-y-2">
-                <Label id="game-steam-reward-code-label" htmlFor="game-steam-reward-code">{t("steam.rewardCode")}</Label>
-                <Input id="game-steam-reward-code" value={rewardCode} onChange={event => setRewardCode(event.target.value)} maxLength={100} disabled={disabled}/>
-                <p id="game-steam-reward-code-hint" className="text-xs text-muted-foreground">{t("steam.rewardCodeHint")}</p>
-            </div>
-            <SteamRewardItemsEditor gameId={gameId} items={items} onChange={setItems} disabled={disabled}/>
             <Button id="game-steam-save" disabled={disabled} onClick={prepareSave}>{t("common.save")}</Button>
             {pending && <SteamSettingsConfirmDialog gameId={gameId} input={pending} onClose={() => setPending(null)} onSaved={value => { apply(value); setPending(null); setSaved(true); }}/>}
         </CardContent>
