@@ -9,6 +9,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Game } from "@/types/game";
 import { GameDangerZone } from "./GameDangerZone";
 import { GameSettingTwoFactorDialog } from "./GameSettingTwoFactorDialog";
+import { GameSteamSettingsCard } from "./GameSteamSettingsCard";
 
 type SettingRowProps = {
     id: string;
@@ -117,6 +118,7 @@ export function GameSettingsTab({ game, onUpdate }: { game: Game; onUpdate: (upd
                     control={lockedSwitch("leaderboard-tracing", game.settings?.leaderboard_tracing ?? false)}
                 />
             </section>
+            <GameSteamSettingsCard key={game.id} gameId={game.id}/>
             <GameDangerZone game={game}/>
             {pendingSetting !== null && <GameSettingTwoFactorDialog game={game} setting={pendingSetting.key} enabled={pendingSetting.enabled} onUpdate={onUpdate} onClose={() => setPendingSetting(null)}/>}
         </div>
