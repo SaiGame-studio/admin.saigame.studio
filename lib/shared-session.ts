@@ -66,9 +66,24 @@ export function isSharedSessionSignedOut(): boolean {
     return readRevision()?.startsWith("logout-") ?? false;
 }
 
+// While one-time secrets (2FA recovery codes) are on screen, a session change made by
+// another tab must not reload this page; the reload happens after the hold is released.
+let reloadHolds = 0;
+
+export function holdSharedSessionReload(): () => void {
+    reloadHolds++;
+    let released = false;
+    return () => {
+        if (released) return;
+        released = true;
+        reloadHolds--;
+    };
+}
+
 export function watchSharedSession(): () => void {
     localRevision();
     const check = () => {
+        if (reloadHolds > 0) return;
         if (!isSharedSessionCurrent()) {
             acceptSharedSession();
             // Reload clears account-specific state before restoring the new shared session.
