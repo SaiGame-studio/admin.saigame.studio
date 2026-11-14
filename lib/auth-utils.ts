@@ -1,5 +1,5 @@
 import { CLIENT_ID, CLIENT_ID_HEADER } from './client-id';
-import { allowSessionRefresh, hasSharedLoginSession, isSessionRefreshRejected, isSharedSessionCurrent, isSharedSessionSignedOut, rejectSessionRefresh } from './shared-session';
+import { allowSessionRefresh, endExpiredSharedSession, hasSharedLoginSession, isSessionRefreshRejected, isSharedSessionCurrent, isSharedSessionSignedOut, rejectSessionRefresh } from './shared-session';
 // Token management utilities with expiration support
 interface TokenData {
     token: string;
@@ -240,6 +240,7 @@ async function requestNewAccessToken(): Promise<string | null> {
             console.log('Shared session refresh failed');
             if (response.status === 401 || response.status === 403) {
                 rejectSessionRefresh();
+                await endExpiredSharedSession(response);
                 clearToken();
             }
             return null;

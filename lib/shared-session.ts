@@ -116,3 +116,21 @@ export function allowSessionRefresh() {
         // The in-memory guard still works when session storage is unavailable.
     }
 }
+
+// The login hint cookie outlives the HttpOnly refresh cookie. When the server reports the
+// shared refresh cookie as missing or expired, mark the shared session as signed out so no
+// tab or app keeps sending refresh requests without a token.
+const ENDED_SESSION_CODES = new Set(["REFRESH_TOKEN_MISSING", "TOKEN_EXPIRED"]);
+
+export async function endExpiredSharedSession(response: Response): Promise<void> {
+    if (response.status !== 401 || !hasSharedLoginSession()) return;
+    let code: unknown;
+    try {
+        code = ((await response.json()) as { message_code?: unknown }).message_code;
+    } catch {
+        return;
+    }
+    if (typeof code === "string" && ENDED_SESSION_CODES.has(code) && isSharedSessionCurrent()) {
+        publishSharedSession(false);
+    }
+}
