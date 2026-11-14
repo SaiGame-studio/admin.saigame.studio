@@ -7,7 +7,7 @@
  * X-Studio-ID and X-Game-ID headers are NOT used.
  */
 import { api } from '@/lib/api-client';
-import type { ItemDefinition, CreateItemRequest, UpdateItemRequest, GachaPack, GachaPoolEntry, GachaPackResult, CreateGachaPackRequest, UpdateGachaPackRequest, InventoryTransaction, Paginated, ItemCategory, ItemRarity, TxType, ContainerDefinition, ContainerType, CreateContainerDefinitionRequest, UpdateContainerDefinitionRequest, EquipmentSlot, } from '@/types/inventory';
+import type { ItemDefinition, CreateItemRequest, UpdateItemRequest, GachaPack, GachaPoolEntry, GachaPackResult, CreateGachaPackRequest, UpdateGachaPackRequest, Paginated, ItemCategory, ItemRarity, ContainerDefinition, ContainerType, CreateContainerDefinitionRequest, UpdateContainerDefinitionRequest, EquipmentSlot, } from '@/types/inventory';
 /** Tenant context required by every call to the inventory/gacha service */
 export interface TenantCtx {
     studioId?: string; // kept for backward compat — no longer sent as a header
@@ -128,22 +128,6 @@ export async function setGachaPackEnabled(ctx: TenantCtx, packId: string, isEnab
 /** POST /api/v1/games/:gameId/gacha/open — Open a gacha pack (requires idempotency key) */
 export async function openGachaPack(ctx: TenantCtx, packType: string, idempotencyKey: string): Promise<GachaPackResult> {
     return api.post(`/api/v1/games/${ctx.gameId}/gacha/open`, { pack_type: packType }, { headers: { 'X-Idempotency-Key': idempotencyKey } });
-}
-/** GET /api/v1/games/:gameId/transactions — List a player's transaction history */
-export async function listTransactions(ctx: TenantCtx, params: {
-    limit?: number;
-    offset?: number;
-    type?: TxType;
-} = {}): Promise<Paginated<InventoryTransaction>> {
-    const qs = new URLSearchParams();
-    if (params.limit != null)
-        qs.set('limit', String(params.limit));
-    if (params.offset != null)
-        qs.set('offset', String(params.offset));
-    if (params.type)
-        qs.set('type', params.type);
-    const query = qs.toString();
-    return api.get(`/api/v1/games/${ctx.gameId}/transactions${query ? `?${query}` : ''}`);
 }
 /** GET /api/v1/items/categories — List available item categories */
 export async function fetchItemCategories(): Promise<ItemCategory[]> {

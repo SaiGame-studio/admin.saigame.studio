@@ -2,7 +2,6 @@
 // Matches the backend API defined in INVENTORY_GACHA_FRONTEND_GUIDE.md
 export type ItemCategory = 'weapon' | 'armor' | 'consumable' | 'currency' | 'material' | 'card' | 'container' | 'decoration' | 'gacha_pack' | 'generator' | 'other';
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-export type TxType = 'GACHA_OPEN' | 'ITEM_ADD' | 'ITEM_REMOVE' | 'ITEM_EQUIP' | 'ITEM_TRADE';
 export interface ItemDefinition {
     id: string;
     studio_id: string;
@@ -123,24 +122,6 @@ export interface GachaPackResult {
     transaction_id: string;
     is_duplicate: boolean;
     items_granted: GrantedItem[];
-}
-export interface TransactionItem {
-    item_definition_id: string;
-    name: string;
-    quantity: number;
-    rarity: ItemRarity;
-    category: ItemCategory;
-}
-export interface InventoryTransaction {
-    id: string;
-    user_id: string;
-    studio_id: string;
-    game_id: string;
-    transaction_type: TxType;
-    items: TransactionItem[];
-    metadata: Record<string, unknown> | null;
-    reference_id: string | null;
-    created_at: string;
 }
 export interface Paginated<T> {
     items?: T[];
