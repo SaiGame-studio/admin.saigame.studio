@@ -25,7 +25,7 @@ export function useDeletionTwoFactor(open: boolean) {
         setError(null);
         if (open && user?.id) {
             twoFactorApi.status()
-                .then(status => { if (!cancelled) setEnabled(status.enabled); })
+                .then(status => { if (!cancelled) setEnabled(status.enabled && status.verification_required !== false); })
                 .catch(() => { if (!cancelled) setError(t("twoFactor.unavailable")); });
         }
         return () => { cancelled = true; };

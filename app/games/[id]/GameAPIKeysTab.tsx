@@ -1,5 +1,6 @@
 "use client";
 
+import { useTwoFactorGrace } from "@/hooks/use-two-factor-grace";
 import { TwoFactorProofInput } from "@/components/two-factor-proof-input";
 import { factorProof, validFactorProof, twoFactorErrorKey } from "@/lib/two-factor-api";
 import { GameAPIKeyActivityLogs } from "./GameAPIKeyActivityLogs";
@@ -56,8 +57,9 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
         setAction(next);
     };
     const submitting = useRef(false);
+    const grace = useTwoFactorGrace(action !== null && action.kind !== "rename");
     const submit = async (value = proof) => {
-        if (!action || submitting.current || busy || ((action.kind === "create" || action.kind === "rename") && !name.trim()) || (action.kind === "revoke" && !revokeConfirmed) || (action.kind !== "rename" && !validFactorProof(value, recovery)) || (action.kind === "create" && !!state.meta && state.meta.used >= state.meta.limit)) return;
+        if (!action || submitting.current || grace.loading || busy || ((action.kind === "create" || action.kind === "rename") && !name.trim()) || (action.kind === "revoke" && !revokeConfirmed) || (action.kind !== "rename" && (!grace.trusted && !validFactorProof(value, recovery))) || (action.kind === "create" && !!state.meta && state.meta.used >= state.meta.limit)) return;
         submitting.current = true;
         setBusy(true);
         setError(null);
@@ -76,6 +78,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
             toast({ title: tr("saved") });
             await state.reload();
         } catch (err) {
+            grace.requireVerification();
             setError(explainError(err));
             // Refresh limits and permissions after a concurrent change.
             await state.reload();
@@ -188,7 +191,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
                         <Label id="game-api-keys-name-label" htmlFor="game-api-keys-name-input">{tr("name")}</Label>
                         <Input id="game-api-keys-name-input" value={name} maxLength={64} disabled={busy} autoComplete="off" onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && name.trim()) { event.preventDefault(); void submit(); } }} />
                     </div>}
-                    {action && (action.kind === "create" || (action.kind === "revoke" && revokeConfirmed)) && <div id="game-api-keys-factor-section" className="space-y-2">
+                    {!grace.trusted && action && (action.kind === "create" || (action.kind === "revoke" && revokeConfirmed)) && <div id="game-api-keys-factor-section" className="space-y-2">
                         <p id="game-api-keys-factor-help" className="text-sm text-muted-foreground">{tr("twoFactorRequired")}</p>
                         <TwoFactorProofInput id="game-api-keys-factor" value={proof} onChange={setProof} onComplete={value => void submit(value)} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy} />
                     </div>}
@@ -198,7 +201,7 @@ export function GameAPIKeysTab({ gameId, state }: { gameId: string; state: GameA
                         <Button id="game-api-keys-cancel" variant="outline" disabled={busy} onClick={() => setAction(null)}>{tr("cancel")}</Button>
                         {action?.kind === "revoke" && !revokeConfirmed
                             ? <Button id="game-api-keys-confirm-revoke" variant="destructive" onClick={() => setRevokeConfirmed(true)}>{tr("confirmRevoke")}</Button>
-                            : <Button id="game-api-keys-confirm" variant={action?.kind === "revoke" ? "destructive" : "default"} disabled={busy || (action?.kind !== "rename" && !validFactorProof(proof, recovery)) || (needsName && !name.trim()) || (action?.kind === "create" && limitReached)} onClick={() => void submit()}>{busy ? tr("saving") : action ? tr(action.kind) : tr("save")}</Button>}
+                            : <Button id="game-api-keys-confirm" variant={action?.kind === "revoke" ? "destructive" : "default"} disabled={busy || grace.loading || (action?.kind !== "rename" && (!grace.trusted && !validFactorProof(proof, recovery))) || (needsName && !name.trim()) || (action?.kind === "create" && limitReached)} onClick={() => void submit()}>{busy ? tr("saving") : action ? tr(action.kind) : tr("save")}</Button>}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

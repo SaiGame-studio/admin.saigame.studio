@@ -31,7 +31,7 @@ export function TwoFactorSettings({ id }: { id: string }) {
         return () => { cancelled = true; };
     }, [t, result]);
     const reset = () => { setSetup(null); setAction(null); setCode(""); setRecovery(false); setError(""); };
-    const selectAction = (value: SecurityAction) => { reset(); setAction(value); };
+    const selectAction = (value: SecurityAction) => { reset(); setAction(value); twoFactorApi.status().then(setStatus).catch(() => setStatus(current => current ? { ...current, verification_required: true } : current)); };
     const begin = async () => {
         setBusy(true); setError("");
         try { setSetup(await twoFactorApi.setup()); setCode(""); setRecovery(false); }
@@ -39,9 +39,10 @@ export function TwoFactorSettings({ id }: { id: string }) {
         finally { setBusy(false); }
     };
     const submitting = useRef(false);
+    const trusted = !setup && status?.enabled === true && status.verification_required === false;
     const submit = async (event?: FormEvent, value = code) => {
         event?.preventDefault();
-        if (submitting.current || !validFactorProof(value, recovery)) return;
+        if (submitting.current || (!trusted && !validFactorProof(value, recovery))) return;
         submitting.current = true; setBusy(true); setError("");
         try {
             if (action === "replace" && !setup) {
@@ -96,9 +97,9 @@ export function TwoFactorSettings({ id }: { id: string }) {
                     <p id="user-2fa-expiry" className="text-xs text-muted-foreground">{t("twoFactor.setupExpiry")}</p>
                 </div>}
                 {hasForm && <form id="user-2fa-form" onSubmit={submit} className="space-y-3">
-                    <TwoFactorProofInput id="user-2fa-proof" value={code} onChange={setCode} onComplete={value => void submit(undefined, value)} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy} allowRecovery={!setup} />
+                    {!trusted && <TwoFactorProofInput id="user-2fa-proof" value={code} onChange={setCode} onComplete={value => void submit(undefined, value)} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy} allowRecovery={!setup} />}
                     <div id="user-2fa-actions" className="flex gap-2">
-                        <Button id="user-2fa-submit" disabled={busy || !validFactorProof(code, recovery)}>{t(submitKey)}</Button>
+                        <Button id="user-2fa-submit" disabled={busy || (!trusted && !validFactorProof(code, recovery))}>{t(submitKey)}</Button>
                         <Button id="user-2fa-cancel" type="button" variant="outline" disabled={busy} onClick={reset}>{t("twoFactor.cancel")}</Button>
                     </div>
                 </form>}

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useTwoFactorGrace } from "@/hooks/use-two-factor-grace";
 import { TwoFactorProofInput } from "@/components/two-factor-proof-input";
 import { useToast } from "@/hooks/use-toast";
 import { useTwoFactorLockout } from "@/hooks/use-two-factor-lockout";
@@ -28,13 +29,14 @@ export function GameSettingTwoFactorDialog({ game, setting, enabled, onUpdate, o
     const [recovery, setRecovery] = useState(false);
     const [busy, setBusy] = useState(false);
     const submitting = useRef(false);
+    const grace = useTwoFactorGrace(true);
     const [error, setError] = useState<string | null>(null);
     const isPlayer2FA = setting === "allow_player_2fa";
     const locked = secondsRemaining > 0;
     const waitTime = `${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, "0")}`;
 
     const submit = async (value = proof) => {
-        if (submitting.current || locked || !validFactorProof(value, recovery)) return;
+        if (submitting.current || grace.loading || locked || (!grace.trusted && !validFactorProof(value, recovery))) return;
         submitting.current = true;
         setBusy(true);
         setError(null);
@@ -47,6 +49,7 @@ export function GameSettingTwoFactorDialog({ game, setting, enabled, onUpdate, o
             toast({ title: t("game.settingsUpdated"), description: t(isPlayer2FA ? "game.allowPlayer2FA" : "gameUsers.allowNewPlayers") });
             onClose();
         } catch (err) {
+            grace.requireVerification();
             const code = err instanceof ApiError ? err.data?.message_code : undefined;
             if (code === "TWO_FACTOR_RATE_LIMITED") {
                 const seconds = Number(err instanceof ApiError ? err.data?.retry_after : undefined);
@@ -67,12 +70,12 @@ export function GameSettingTwoFactorDialog({ game, setting, enabled, onUpdate, o
                 <DialogTitle id="game-player-2fa-dialog-title">{t(isPlayer2FA ? "game.player2FAConfirmTitle" : "game.newPlayersConfirmTitle")}</DialogTitle>
                 <DialogDescription id="game-player-2fa-dialog-description">{t(isPlayer2FA ? "game.player2FAConfirmDesc" : "game.newPlayersConfirmDesc")}</DialogDescription>
             </DialogHeader>
-            <TwoFactorProofInput id="game-player-2fa-proof" value={proof} onChange={setProof} onComplete={value => void submit(value)} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy || locked}/>
+            {!grace.trusted && <TwoFactorProofInput id="game-player-2fa-proof" value={proof} onChange={setProof} onComplete={value => void submit(value)} recovery={recovery} onRecoveryChange={setRecovery} disabled={busy || grace.loading || locked}/>}
             <DialogFooter id="game-player-2fa-dialog-footer" className="flex-col gap-3 sm:items-center sm:space-x-0">
                 {(locked || error) && <p id="game-player-2fa-dialog-error" role="alert" className="text-left text-sm text-destructive sm:mr-auto">{locked ? t("twoFactor.retryIn", { time: waitTime }) : error}</p>}
                 <div id="game-player-2fa-dialog-actions" className="flex justify-end gap-2">
                     <Button id="game-player-2fa-dialog-cancel" variant="outline" disabled={busy} onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button id="game-player-2fa-dialog-confirm" disabled={busy || locked || !validFactorProof(proof, recovery)} onClick={() => void submit()}>{t(busy ? "common.saving" : "common.confirm")}</Button>
+                    <Button id="game-player-2fa-dialog-confirm" disabled={busy || grace.loading || locked || (!grace.trusted && !validFactorProof(proof, recovery))} onClick={() => void submit()}>{t(busy ? "common.saving" : "common.confirm")}</Button>
                 </div>
             </DialogFooter>
         </DialogContent>

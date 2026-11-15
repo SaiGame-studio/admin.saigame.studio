@@ -1,6 +1,6 @@
 import { apiRequest, ApiError } from "@/lib/api-client";
 
-export interface TwoFactorStatus { enabled: boolean; can_disable: boolean; available: boolean; recovery_codes_remaining: number }
+export interface TwoFactorStatus { enabled: boolean; can_disable: boolean; available: boolean; recovery_codes_remaining: number; verification_required: boolean }
 export interface TwoFactorSetup { secret: string; qr_code: string; expires_in: number }
 export interface TwoFactorChallenge { user_id: string; challenge_token: string; expires_in: number; message_code: "TWO_FACTOR_REQUIRED" }
 export interface TwoFactorLogin { access_token: string; refresh_token: string }
