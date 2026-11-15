@@ -28,6 +28,7 @@ import { GameTeamsCard } from "./GameTeamsCard";
 import { GameAPIKeysTab } from "./GameAPIKeysTab";
 import { useGameAPIKeys } from "@/hooks/use-game-api-keys";
 import { GameSettingsTab } from "./GameSettingsTab";
+import { GameSteamSettingsCard } from "./GameSteamSettingsCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const fmt = (n: number) => n.toLocaleString();
 const GAME_DETAIL_TABS = [
@@ -35,6 +36,7 @@ const GAME_DETAIL_TABS = [
     { key: "public", labelKey: "game.tabPublicInfo" },
     { key: "team", labelKey: "game.tabTeam" },
     { key: "api-keys", labelKey: "game.apiKeys.title" },
+    { key: "steam", labelKey: "steam.title" },
     { key: "settings", labelKey: "game.tabSettings" },
 ] as const;
 type GameDetailTab = (typeof GAME_DETAIL_TABS)[number]["key"];
@@ -633,6 +635,9 @@ export default function GameDetailsPage({ params }: {
                 </TabsContent>
                 <TabsContent id="game-detail-tab-panel-settings" value="settings" className="game-detail-tab-panel">
                     <GameSettingsTab game={game} onUpdate={setGame}/>
+                </TabsContent>
+                <TabsContent id="game-detail-tab-panel-steam" value="steam" className="game-detail-tab-panel">
+                    <GameSteamSettingsCard key={game.id} gameId={game.id}/>
                 </TabsContent>
             </Tabs>
         </div>);

@@ -1,5 +1,9 @@
 {
   "title": "Steam",
+  "enabledDescription": "Quyền sở hữu game đã mua thành công trên Steam có thể được đồng bộ sang Sai Server, từ đó cấp các item tương ứng cho tài khoản {saiPlay} đã liên kết thông qua Claim Game.",
+  "linkTwoFactorRequired": "Yêu cầu 2FA khi liên kết Steam",
+  "linkTwoFactorRequiredDescription": "Nếu người dùng đã bật 2FA trên tài khoản, game client phải thực hiện xác thực 2FA khi liên kết Steam. Yêu cầu này luôn bật và {cannotDisable}.",
+  "linkTwoFactorCannotDisable": "không thể tắt",
   "description": "Cấu hình đăng nhập Steam và thưởng sở hữu cho game này. Thay đổi có hiệu lực ngay sau khi lưu.",
   "enabled": "Bật đăng nhập Steam",
   "appId": "Steam AppID",

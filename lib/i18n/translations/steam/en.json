@@ -1,5 +1,9 @@
 {
   "title": "Steam",
+  "enabledDescription": "Ownership of a game purchased on Steam can be synced to Sai Server, allowing the corresponding items to be granted to the linked {saiPlay} account through Claim Game.",
+  "linkTwoFactorRequired": "Require 2FA when linking Steam",
+  "linkTwoFactorRequiredDescription": "If a user has 2FA enabled on their account, the game client must complete 2FA verification when linking Steam. This requirement is always enabled and {cannotDisable}.",
+  "linkTwoFactorCannotDisable": "cannot be turned off",
   "description": "Configure Steam login and ownership rewards for this game. Changes apply immediately after saving.",
   "enabled": "Enable Steam login",
   "appId": "Steam AppID",
