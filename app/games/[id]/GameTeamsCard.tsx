@@ -1,10 +1,7 @@
 "use client";
 
-import React from "react";
-import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { GameTeamRow } from "./GameTeamRow";
 import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog";
-import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/lib/i18n/use-translation";
@@ -36,17 +33,8 @@ export function GameTeamsCard({ game, teams, teamsLoading, onTeamsChanged }: Pro
             <CardContent id="game-detail-teams-content" className="game-detail-teams-content group px-0 pb-0">
                 {teamsLoading ? (<div id="game-detail-teams-loading" className="game-detail-teams-loading space-y-2">
                         <Skeleton id="game-detail-teams-loading-skeleton" className="game-detail-teams-loading-skeleton h-6 w-full"/>
-                    </div>) : teams.length > 0 ? (<div id="game-detail-teams-list" className="game-detail-teams-list flex flex-wrap items-center gap-2">
-                        {teams.map((team, index) => (<React.Fragment key={team.id}>
-                                <div id={`game-detail-team-${team.id}`} className="game-detail-team inline-flex items-center gap-1">
-                                    <Link id={`game-detail-team-link-${team.id}`} href={`/teams/${team.id}`} className="game-detail-team-link inline-flex items-center gap-1 text-sm text-primary hover:underline">
-                                        {team.name}
-                                        <ExternalLink className="w-4 h-4"/>
-                                    </Link>
-                                    <RemoveTeamFromGameDialog gameId={game.id} team={team} onTeamRemoved={onTeamsChanged}/>
-                                </div>
-                                {index < teams.length - 1 && (<span id={`game-detail-team-separator-${team.id}`} className="game-detail-team-separator text-muted-foreground">•</span>)}
-                            </React.Fragment>))}
+                    </div>) : teams.length > 0 ? (<div id="game-detail-teams-list" className="game-detail-teams-list space-y-3">
+                        {teams.map(team => <GameTeamRow key={team.id} team={team} gameId={game.id} onTeamRemoved={onTeamsChanged}/>)}
                     </div>) : (<p id="game-detail-teams-empty-state" className="game-detail-teams-empty-state text-sm text-muted-foreground">{t('game.noTeamsAssigned')}</p>)}
             </CardContent>
         </Card>
