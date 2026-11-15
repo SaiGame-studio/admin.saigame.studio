@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { Hammer } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Plugin, GamePluginsResult } from "@/lib/plugin-api";
 const GEM_TIERS = [
@@ -57,11 +56,5 @@ export function EquipmentPanel({ gameId, catalog, gamePlugins }: EquipmentPanelP
         })}
       </div>
 
-      <Button asChild variant="outline" size="sm" className="mt-3 w-full flex items-center gap-2">
-        <Link href={`/games/${gameId}/plugins`}>
-          <Hammer className="h-4 w-4"/>
-          {t("game.upgradeThisGame")}
-        </Link>
-      </Button>
     </div>);
 }

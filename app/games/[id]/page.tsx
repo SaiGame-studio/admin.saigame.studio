@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, BookOpen, Dices, ScrollText, RefreshCw, Tag, X, Plus, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, BookOpen, Dices, ScrollText, RefreshCw, Tag, X, Plus, Loader2, Hammer } from "lucide-react";
 import Link from "next/link";
 import { formatTimestamp } from "@/lib/utils/date-utils";
 import { Progress } from "@/components/ui/progress";
@@ -323,8 +323,8 @@ export default function GameDetailsPage({ params }: {
                     ))}
                 </TabsList>
                 <TabsContent id="game-detail-tab-panel-info" value="info" className="game-detail-tab-panel">
-                    <div id="game-detail-content" className="game-detail-content grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <Card id="game-detail-information-card" className="game-detail-information-card lg:col-span-3 group border-0 bg-transparent shadow-none">
+                    <div id="game-detail-content" className="game-detail-content grid grid-cols-1 items-start gap-8 xl:grid-cols-2">
+                        <Card id="game-detail-information-card" className="game-detail-information-card min-w-0 group border-0 bg-transparent shadow-none">
                             <CardHeader id="game-detail-information-header" className="game-detail-information-header px-0 pt-0">
                                 <CardTitle id="game-detail-information-title" className="game-detail-information-title flex items-center">
                                     <Gamepad2 className="mr-2 h-5 w-5"/>
@@ -332,11 +332,11 @@ export default function GameDetailsPage({ params }: {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent id="game-detail-information-content" className="game-detail-information-content px-0 pb-0">
-                                <div id="game-detail-information-grid" className="game-detail-information-grid grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div id="game-detail-information-grid" className="game-detail-information-grid space-y-4">
                                     <div id="game-detail-information-primary" className="game-detail-information-column space-y-4">
-                                        <div id="game-detail-id-field" className="game-detail-field">
-                                            <h3 id="game-detail-id-label" className="game-detail-field-label text-sm font-medium">{t('game.gameId')}</h3>
-                                            <div id="game-detail-id-value-row" className="game-detail-id-value-row flex items-center gap-2">
+                                        <div id="game-detail-id-field" className="game-detail-field grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                                            <h3 id="game-detail-id-label" className="game-detail-field-label text-sm font-medium">{t('game.gameId')}:</h3>
+                                            <div id="game-detail-id-value-row" className="game-detail-id-value-row flex min-w-0 items-center gap-2">
                                                 <code id="game-detail-id-value" className="game-detail-id-value relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm break-all">
                                                     {game.id}
                                                 </code>
@@ -361,45 +361,29 @@ export default function GameDetailsPage({ params }: {
                                                 </Button>
                                             </div>
                                         </div>
-                                        {game.studio_id && (<div id="game-detail-studio-field" className="game-detail-field">
-                                                <h3 id="game-detail-studio-label" className="game-detail-field-label text-sm font-medium">{t('common.studio')}</h3>
-                                                <Link id="game-detail-studio-link" href={`/studios/${game.studio_id}`} className="game-detail-studio-link inline-flex items-center gap-1 hover:text-primary transition-colors text-lg">
+                                        {game.studio_id && (<div id="game-detail-studio-field" className="game-detail-field grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                                                <h3 id="game-detail-studio-label" className="game-detail-field-label text-sm font-medium">{t('common.studio')}:</h3>
+                                                <Link id="game-detail-studio-link" href={`/studios/${game.studio_id}`} className="game-detail-studio-link inline-flex items-center gap-1 hover:text-primary transition-colors text-sm">
                                                     {studio?.name || game.studio_id}
                                                     <ExternalLink className="w-4 h-4"/>
                                                 </Link>
                                             </div>)}
-                                        <div id="game-detail-lifecycle-status-field" className="game-detail-field">
-                                            <h3 id="game-detail-lifecycle-status-label" className="game-detail-field-label text-sm font-medium">{t('game.status')}</h3>
+                                        <div id="game-detail-lifecycle-status-field" className="game-detail-field grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                                            <h3 id="game-detail-lifecycle-status-label" className="game-detail-field-label text-sm font-medium">{t('game.status')}:</h3>
                                             <GameStatusEditable game={game} gameId={game.id} onStatusUpdate={newStatus => setGame(prev => prev ? { ...prev, status: newStatus } : prev)}/>
                                         </div>
-                                        {game.tier && (<div id="game-detail-tier-field" className="game-detail-field">
-                                                <h3 id="game-detail-tier-label" className="game-detail-field-label text-sm font-medium">{t('game.tier')}</h3>
-                                                <p id="game-detail-tier-value" className="game-detail-field-value text-lg">{game.tier}</p>
-                                            </div>)}
-                                        {game.studio?.name && (<div id="game-detail-studio-name-field" className="game-detail-field">
-                                                <h3 id="game-detail-studio-name-label" className="game-detail-field-label text-sm font-medium">{t('game.studioName')}</h3>
-                                                <p id="game-detail-studio-name-value" className="game-detail-field-value text-lg">
-                                                    <Link id="game-detail-studio-name-link" href={`/studios/${game.studio.id}`} className="game-detail-studio-name-link inline-flex items-center gap-1 hover:text-primary">
-                                                        {game.studio.name}
-                                                        <ExternalLink className="w-4 h-4 "/>
-                                                    </Link>
-                                                </p>
-                                            </div>)}
-                                        <div id="game-detail-created-at-field" className="game-detail-field">
-                                            <h3 id="game-detail-created-at-label" className="game-detail-field-label text-xs font-medium text-muted-foreground">{t('game.createdAt')}</h3>
+                                        <div id="game-detail-created-at-field" className="game-detail-field grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                                            <h3 id="game-detail-created-at-label" className="game-detail-field-label text-xs font-medium text-muted-foreground">{t('game.createdAt')}:</h3>
                                             <p id="game-detail-created-at-value" className="game-detail-field-value text-sm">{formatTimestamp(game.created_at)}</p>
                                         </div>
-                                        <div id="game-detail-updated-at-field" className="game-detail-field">
-                                            <h3 id="game-detail-updated-at-label" className="game-detail-field-label text-xs font-medium text-muted-foreground">{t('game.updatedAt')}</h3>
+                                        <div id="game-detail-updated-at-field" className="game-detail-field grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                                            <h3 id="game-detail-updated-at-label" className="game-detail-field-label text-xs font-medium text-muted-foreground">{t('game.updatedAt')}:</h3>
                                             <p id="game-detail-updated-at-value" className="game-detail-field-value text-sm">{formatTimestamp(game.updated_at)}</p>
                                         </div>
-                                    </div>
-                                    <div id="game-detail-information-secondary" className="game-detail-information-column space-y-4">
-                                        <GameDescriptionEditable game={game} gameId={game.id} onDescriptionUpdate={newDescription => setGame(prev => prev ? { ...prev, description: newDescription } : prev)}/>
-                                        <div id="game-detail-tags-field" className="game-detail-tags-field">
-                                            <h3 id="game-detail-tags-label" className="game-detail-field-label text-sm font-medium flex items-center gap-1 mb-2">
+                                        <div id="game-detail-tags-field" className="game-detail-tags-field grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                                            <h3 id="game-detail-tags-label" className="game-detail-field-label text-sm font-medium flex items-center gap-1">
                                                 <Tag className="h-3.5 w-3.5"/>
-                                                {t('game.tags')}
+                                                {t('game.tags')}:
                                                 <span id="game-detail-tags-count" className="game-detail-tags-count text-xs text-muted-foreground font-normal">
                                                     {(game.tags ?? []).length}/10
                                                 </span>
@@ -432,6 +416,21 @@ export default function GameDetailsPage({ params }: {
                                                     </Popover>)}
                                             </div>
                                         </div>
+                                        {game.tier && (<div id="game-detail-tier-field" className="game-detail-field grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                                                <h3 id="game-detail-tier-label" className="game-detail-field-label text-sm font-medium">{t('game.tier')}:</h3>
+                                                <p id="game-detail-tier-value" className="game-detail-field-value text-sm">{game.tier}</p>
+                                            </div>)}
+                                        {game.studio?.name && (<div id="game-detail-studio-name-field" className="game-detail-field grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                                                <h3 id="game-detail-studio-name-label" className="game-detail-field-label text-sm font-medium">{t('game.studioName')}:</h3>
+                                                <p id="game-detail-studio-name-value" className="game-detail-field-value text-sm">
+                                                    <Link id="game-detail-studio-name-link" href={`/studios/${game.studio.id}`} className="game-detail-studio-name-link inline-flex items-center gap-1 hover:text-primary">
+                                                        {game.studio.name}
+                                                        <ExternalLink className="w-4 h-4 "/>
+                                                    </Link>
+                                                </p>
+                                            </div>)}
+
+                                        <GameDescriptionEditable game={game} gameId={game.id} onDescriptionUpdate={newDescription => setGame(prev => prev ? { ...prev, description: newDescription } : prev)}/>
                                     </div>
 
                                 </div>
@@ -439,17 +438,22 @@ export default function GameDetailsPage({ params }: {
                         </Card>
 
                         {/* Limits & Usage Section */}
-                        {(game.limits || game.usage) && (<hr id="game-detail-info-divider" className="game-detail-info-divider border-border lg:col-span-3"/>)}
-                        {(game.limits || game.usage) && (<Card id="game-detail-limits-card" className="game-detail-limits-card lg:col-span-3 border-0 bg-transparent shadow-none">
-                                <CardHeader id="game-detail-limits-header" className="game-detail-limits-header px-0 pt-0">
-                                    <CardTitle id="game-detail-limits-title" className="game-detail-limits-title flex items-center">
+                        {(game.limits || game.usage) && (<section id="game-detail-limits-card" className="game-detail-limits-card min-w-0" aria-labelledby="game-detail-limits-title">
+                                <div id="game-detail-limits-header" className="game-detail-limits-header flex items-center justify-between gap-3 pb-6">
+                                    <h2 id="game-detail-limits-title" className="game-detail-limits-title flex items-center text-2xl font-semibold leading-none tracking-tight">
                                         <BarChart2 className="mr-2 h-5 w-5"/>
                                         {t('game.limitsAndUsage')}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent id="game-detail-limits-content" className="game-detail-limits-content px-0 pb-0">
-                                    <div id="game-detail-limits-grid" className="game-detail-limits-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {/* Column 1: First set of limits */}
+                                    </h2>
+                                    {catalog.some(plugin => plugin.max_stacks > 0) && <Button id="game-detail-upgrade-button" asChild variant="outline" size="sm" className="ml-auto shrink-0">
+                                        <Link id="game-detail-upgrade-link" href={`/games/${game.id}/plugins`}>
+                                            <Hammer id="game-detail-upgrade-icon" className="mr-2 h-4 w-4"/>
+                                            {t("game.upgradeThisGame")}
+                                        </Link>
+                                    </Button>}
+                                </div>
+                                <div id="game-detail-limits-content" className="game-detail-limits-content">
+                                    <div id="game-detail-limits-grid" className="game-detail-limits-grid space-y-6">
+                                        {/* Resource usage */}
                                         <div id="game-detail-limits-primary-column" className="game-detail-limits-column space-y-6">
                                             {/* Concurrent Users (CCU) */}
                                             <div id="game-detail-limit-ccu" className="game-detail-limit-item space-y-2">
@@ -533,7 +537,7 @@ export default function GameDetailsPage({ params }: {
                                         </div>
                                     </div>
 
-                                    {/* Column 2: Second set of limits */}
+                                    {/* Additional resource usage */}
                                     <div id="game-detail-limits-secondary-column" className="game-detail-limits-column space-y-6">
                                         {/* Quests */}
                                         <div id="game-detail-limit-quests" className="game-detail-limit-item space-y-2">
@@ -617,11 +621,11 @@ export default function GameDetailsPage({ params }: {
                                         </div>
                                     </div>
 
-                                    {/* Column 3: Equipment Panel */}
+                                    {/* Equipment */}
                                     {catalog.length > 0 && (<EquipmentPanel gameId={game.id} catalog={catalog} gamePlugins={gamePlugins}/>)}
                                 </div>
-                                </CardContent>
-                            </Card>)}
+                                </div>
+                            </section>)}
                     </div>
                 </TabsContent>
                 <TabsContent id="game-detail-tab-panel-public" value="public" className="game-detail-tab-panel">
