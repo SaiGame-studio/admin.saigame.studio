@@ -1,5 +1,9 @@
 {
   "title": "Steam",
+  "enabledDescription": "Steamで購入したゲームの所有情報をSai Serverに同期し、Claim Gameを通じて対応するアイテムを連携済みの{saiPlay}アカウントに付与できます。",
+  "linkTwoFactorRequired": "Steam連携時に2FAを要求",
+  "linkTwoFactorRequiredDescription": "ユーザーのアカウントで2FAが有効な場合、ゲームクライアントはSteam連携時に2FA認証を行う必要があります。この要件は常に有効で、{cannotDisable}。",
+  "linkTwoFactorCannotDisable": "無効にすることはできません",
   "description": "このゲームのSteamログインと所有者報酬を設定します。変更は保存後すぐに適用されます。",
   "enabled": "Steamログインを有効にする",
   "appId": "Steam AppID",

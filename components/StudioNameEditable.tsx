@@ -127,9 +127,10 @@ export function GameDescriptionEditable({ game, gameId, onDescriptionUpdate }: G
             setLoading(false);
         }
     };
-    return (<div className="group mt-1 space-y-1">
-      <div id={`game-description-editable-header-${gameId}`} className="flex items-center gap-2">
-        <h3 id={`game-description-editable-label-${gameId}`} className="text-sm font-medium">Description</h3>
+    return (<div id={`game-description-editable-${gameId}`} className="group space-y-1">
+      <div id={`game-description-editable-header-${gameId}`} className="grid grid-cols-[8rem_minmax(0,1fr)_auto] items-start gap-x-3 sm:grid-cols-[10rem_minmax(0,1fr)_auto]">
+        <h3 id={`game-description-editable-label-${gameId}`} className="shrink-0 text-sm font-medium">Description:</h3>
+        {!editing && <span id={`game-description-editable-value-${gameId}`} className="min-w-0 whitespace-pre-wrap break-words text-sm text-muted-foreground">{description || "Add game description..."}</span>}
         {editing ? (<>
             <Button id={`game-description-editable-save-${gameId}`} size="icon" variant="ghost" onClick={handleSave} disabled={loading} className="h-7 w-7">
               <Save id={`game-description-editable-save-icon-${gameId}`} className="w-4 h-4"/>
@@ -144,13 +145,9 @@ export function GameDescriptionEditable({ game, gameId, onDescriptionUpdate }: G
           )}
       </div>
       {editing ? (
-          <Textarea id={`game-description-editable-input-${gameId}`} value={description} onChange={e => setDescription(e.target.value)} placeholder="Add game description..." className="min-h-40 resize-y text-sm" disabled={loading}/>
-        ) : (
-          <span id={`game-description-editable-value-${gameId}`} className="block text-sm text-muted-foreground break-words min-w-0">
-            {description || "Add game description..."}
-          </span>
-        )}
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+          <Textarea id={`game-description-editable-input-${gameId}`} value={description} onChange={e => setDescription(e.target.value)} placeholder="Add game description..." className="ml-[8.75rem] min-h-40 w-[calc(100%-8.75rem)] resize-y text-sm sm:ml-[10.75rem] sm:w-[calc(100%-10.75rem)]" disabled={loading}/>
+        ) : null}
+      {error && <div id={`game-description-editable-error-${gameId}`} className="text-red-500 text-xs mt-1">{error}</div>}
     </div>);
 }
 interface GameStatusEditableProps {
