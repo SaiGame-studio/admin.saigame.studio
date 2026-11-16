@@ -3,12 +3,10 @@ import { Check } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { ZoomableImage } from "./zoomable-image";
 
-// Sponsorship poster: a Go backend developer joining the studio's game project for 6 months, free.
-// The Vietnamese poster is the original; other locales use the English version.
 const OFFER_IMAGE = { width: 1054, height: 1492 };
 const OFFER_IMAGE_SRC: Record<string, string> = {
-    vi: "/why-sai-server/backend-sponsorship.png",
-    en: "/why-sai-server/backend-sponsorship-en.png",
+    vi: "/why-sai-server/backend-sponsorship-release-ready.png",
+    en: "/why-sai-server/backend-sponsorship-release-ready-en.png",
 };
 const OFFER_POINTS = ["sponsorship", "infra", "lua"];
 

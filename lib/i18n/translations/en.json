@@ -4795,7 +4795,7 @@
       "title": "Code Games, Not Infra.",
       "subtitle": "Your team builds the game. Sai Server runs the backend.",
       "description": "Accounts, cloud save, inventory, in-game economy, quests, leaderboards, analytics and server-side Lua logic — prebuilt, managed from one web admin, and plugged into Unity with a single prefab.",
-      "ctaOffer": "Get 6 months of sponsored infrastructure",
+      "ctaOffer": "Free until your game is ready",
       "ctaTutorials": "Open the Learning Center",
       "tags": "Unity 6+ · Web admin · REST API · Server-side Lua scripting",
       "servicesLabel": "Services — already wired"
@@ -4821,15 +4821,15 @@
     },
     "offer": {
       "eyebrow": "Sponsorship program",
-      "title": "6 months.\nZero infrastructure cost.",
+      "title": "Free until your game\nis ready",
       "description": "Sai Server is built to bring your studio's backend development cost down to zero.",
       "points": {
-        "sponsorship": "100% sponsorship of backend engineering and infrastructure for 6 months.",
+        "sponsorship": "100% sponsorship of backend engineering and infrastructure until your game is ready.",
         "infra": "100% free infrastructure: all server resources and databases needed to build your game.",
         "lua": "Built-in Lua scripting, so your team can implement backend game logic without building a backend from scratch."
       },
-      "posterAlt": "Poster: a Go backend developer ready to join your game project for 6 months, free of charge",
-      "posterCaption": "A Go backend developer joins your game project for 6 months, free of charge."
+      "posterAlt": "Poster: A Go backend developer joins your game project for free until your game is ready",
+      "posterCaption": "Free backend engineering and infrastructure until your game is ready."
     },
     "features": {
       "eyebrow": "Features",
@@ -4953,7 +4953,7 @@
     },
     "cta": {
       "title": "Let your team get back to making games.",
-      "description": "Talk with the Sai Server team about what your game needs and claim the 6-month sponsorship.",
+      "description": "Talk to the Sai Server team about what your game needs and get free backend engineering and infrastructure until your game is ready.",
       "chat": "Chat to us now",
       "discord": "Talk to us on Discord",
       "createStudio": "Create your studio",
