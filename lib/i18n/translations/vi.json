@@ -4820,7 +4820,7 @@
       "title": "Code Games, Not Infra.",
       "subtitle": "Đội của bạn làm game. Sai Server lo phần backend.",
       "description": "Tài khoản, cloud save, inventory, kinh tế trong game, nhiệm vụ, bảng xếp hạng, analytics và logic phía server bằng Lua — dựng sẵn, quản lý trên một trang admin, gắn vào Unity bằng một prefab.",
-      "ctaOffer": "Nhận 6 tháng tài trợ hạ tầng",
+      "ctaOffer": "Miễn phí đến khi game sẵn sàng",
       "ctaTutorials": "Xem Learning Center",
       "tags": "Unity 6+ · Web admin · REST API · Lua scripting phía server",
       "servicesLabel": "Services — đã nối sẵn"
@@ -4846,15 +4846,15 @@
     },
     "offer": {
       "eyebrow": "Chương trình tài trợ",
-      "title": "6 tháng.\n0 đồng chi phí hạ tầng.",
+      "title": "Miễn phí đến khi game\nsẵn sàng",
       "description": "Sai Server được xây để đưa chi phí phát triển backend của studio về 0.",
       "points": {
-        "sponsorship": "Tài trợ 100% kỹ thuật backend và hạ tầng trong 6 tháng.",
+        "sponsorship": "Tài trợ 100% kỹ thuật backend và hạ tầng cho đến khi game của bạn sẵn sàng.",
         "infra": "Hạ tầng miễn phí 100%: toàn bộ server và database cần để xây game.",
         "lua": "Lua scripting tích hợp sẵn để đội tự viết logic backend mà không phải dựng server từ đầu."
       },
-      "posterAlt": "Poster: Backend developer Go sẵn sàng đồng hành cùng dự án game của bạn 6 tháng miễn phí",
-      "posterCaption": "Backend developer Go đồng hành cùng dự án game của bạn trong 6 tháng, hoàn toàn miễn phí."
+      "posterAlt": "Poster: Lập trình viên backend Go đồng hành miễn phí cho đến khi game sẵn sàng",
+      "posterCaption": "Miễn phí kỹ thuật backend và hạ tầng cho đến khi game của bạn sẵn sàng."
     },
     "features": {
       "eyebrow": "Tính năng",
@@ -4978,7 +4978,7 @@
     },
     "cta": {
       "title": "Để đội của bạn quay lại làm game.",
-      "description": "Trao đổi với đội Sai Server về những gì game của bạn cần và nhận gói tài trợ 6 tháng.",
+      "description": "Trao đổi với đội Sai Server về những gì game của bạn cần và nhận tài trợ miễn phí kỹ thuật backend và hạ tầng cho đến khi game sẵn sàng.",
       "chat": "Chat với chúng tôi ngay",
       "discord": "Trao đổi trên Discord",
       "createStudio": "Tạo Studio",
