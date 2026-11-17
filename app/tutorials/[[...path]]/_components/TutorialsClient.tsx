@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useCallback, useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { useTheme } from "next-themes";
+import { TutorialFontSize, useTutorialFontSize } from "@/components/tutorials/TutorialFontSize";
 import { StaticArticlesPanel } from "@/components/tutorials/StaticArticlesPanel";
 import { GUIDES_SECTION, STATIC_SECTIONS, findStaticSection, findStaticSectionByTab, getStaticArticleSlugFromPath, type StaticSection } from "@/lib/tutorial-static-sections";
 import { preprocessImgSize } from "@/lib/tutorials/markdown";
@@ -395,6 +396,7 @@ function TutorialsTabs({ serverView }: {
             catch { /* skip */ }
         }
     }, [categories, selectedChildId, locale, navigateTo]);
+    const { fontSize, changeFontSize } = useTutorialFontSize();
     // the Basic tab's own label, so the Tutorials note names it the way the tab bar does
     const basicCategory = categories.find((cat) => cat.slug === "basic");
     const basicName = basicCategory ? getCatName(basicCategory, locale) : "Basic";
@@ -408,13 +410,14 @@ function TutorialsTabs({ serverView }: {
         navigateTo(cat.path);
         setTimeout(() => { document.title = `${getCatName(cat, locale)} | Sai Game`; }, 100);
     };
-    return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
-      <div className="flex items-center gap-3 mb-4 sm:mb-6">
-        <BookOpen className="h-6 w-6 text-primary shrink-0"/>
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold sm:text-2xl truncate">{t('tutorials.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('tutorials.subtitle')}</p>
+    return (<div id="tutorials-page" style={{ "--tutorials-font-size": `${fontSize}px` } as CSSProperties} className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 [&_.prose]:text-[length:var(--tutorials-font-size)]">
+      <div id="tutorials-page-header" className="flex flex-wrap items-center gap-3 mb-4 sm:mb-6">
+        <BookOpen id="tutorials-page-icon" className="h-6 w-6 text-primary shrink-0"/>
+        <div id="tutorials-page-heading" className="min-w-0">
+          <h1 id="tutorials-page-title" className="text-xl font-bold sm:text-2xl truncate">{t('tutorials.title')}</h1>
+          <p id="tutorials-page-subtitle" className="text-sm text-muted-foreground">{t('tutorials.subtitle')}</p>
         </div>
+        <TutorialFontSize fontSize={fontSize} onChange={changeFontSize}/>
       </div>
 
       {loading && serverView ? serverView : loading ? (<div className="flex items-center gap-2 text-muted-foreground">

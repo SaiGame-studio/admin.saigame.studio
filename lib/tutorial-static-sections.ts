@@ -4,9 +4,11 @@
  * (a body's images live in public/{bodyDir}/{slug}/).
  */
 
+import { BASIC_GUIDE_ARTICLES, BASIC_GUIDE_GROUPS } from "./tutorials/basic-guides";
+
 export interface StaticArticle {
-    /** Shown as #number in the menu and the title. */
-    number: number;
+    /** Optional number shown in the menu and title. */
+    number?: number;
     slug: string;
     titleKey: string;
     /** Shows a "chat with us" line under the article for signed-in users. */
@@ -19,6 +21,7 @@ export interface StaticArticle {
 export interface StaticArticleGroup {
     key: string;
     titleKey: string;
+    parent?: string;
 }
 
 export interface StaticSection {
@@ -48,10 +51,12 @@ export const GUIDES_SECTION: StaticSection = {
     bordered: false,
     groups: [
         { key: "get-started", titleKey: "tutorials.guideGroups.getStarted" },
+        ...BASIC_GUIDE_GROUPS,
     ],
     articles: [
-        { number: 1, slug: "create-a-studio", titleKey: "tutorials.guides.createAStudio", group: "get-started" },
-        { number: 2, slug: "import-unity-package", titleKey: "tutorials.guides.importUnityPackage", group: "get-started" },
+        { slug: "create-a-studio", titleKey: "tutorials.guides.createAStudio", group: "get-started" },
+        { slug: "import-unity-package", titleKey: "tutorials.guides.importUnityPackage", group: "get-started" },
+        ...BASIC_GUIDE_ARTICLES,
     ],
 };
 
