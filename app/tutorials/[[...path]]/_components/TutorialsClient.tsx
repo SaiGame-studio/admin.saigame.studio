@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, ChevronDown, ChevronRight, Clock, Download, Eye, Info, Loader2, ThumbsUp } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronRight, Clock, Download, Info, Loader2, ThumbsUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -179,10 +179,6 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
               <h2 className="text-2xl font-bold break-words min-w-0 sm:text-3xl lg:text-4xl">{detail.title}</h2>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-              {detail.metadata?.view_count != null && (<span className="flex items-center gap-1">
-                  <Eye className="h-3 w-3"/>
-                  {detail.metadata.view_count}
-                </span>)}
               <span>v{detail.version_number}</span>
             </div>
           </div>

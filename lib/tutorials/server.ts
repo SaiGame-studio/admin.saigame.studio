@@ -65,9 +65,17 @@ export async function resolveTutorialPath(path: string): Promise<ResolvedTutoria
     return content ? { kind: "content", roots, category: parent, content } : null;
 }
 
+/** Every leaf category with its articles (in English), in menu order. One request per leaf: bounded by the size of the category tree, cached for an hour. */
+export async function getTutorialLeaves(): Promise<{ roots: Category[]; leaves: { category: Category; items: ContentItem[] }[] }> {
+    const roots = await getTutorialRoots();
+    const leafCategories = getAllLeafCategories(roots);
+    const contents = await Promise.all(leafCategories.map((leaf) => getCategoryContents(leaf.id)));
+    return { roots, leaves: leafCategories.map((category, i) => ({ category, items: contents[i] })) };
+}
+
 /** Every public tutorial URL path (without the /tutorials prefix): categories and their articles. */
 export async function listTutorialPaths(): Promise<string[]> {
-    const roots = await getTutorialRoots();
+    const { roots, leaves } = await getTutorialLeaves();
     const paths: string[] = [];
     const addCategories = (categories: Category[]) => {
         for (const cat of categories) {
@@ -76,9 +84,6 @@ export async function listTutorialPaths(): Promise<string[]> {
         }
     };
     addCategories(roots);
-    // one request per leaf category: bounded by the size of the category tree, cached for an hour
-    const leaves = getAllLeafCategories(roots);
-    const contents = await Promise.all(leaves.map((leaf) => getCategoryContents(leaf.id)));
-    leaves.forEach((leaf, i) => contents[i].forEach((item) => paths.push(`${leaf.path}/${item.slug}`)));
+    leaves.forEach(({ category, items }) => items.forEach((item) => paths.push(`${category.path}/${item.slug}`)));
     return paths;
 }
