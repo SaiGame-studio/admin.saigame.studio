@@ -214,7 +214,7 @@ export function AuthProvider({ children }: {
         if (!isLoading) {
             const guestOnlyPages = ["/login", "/register", "/forgot-password", "/reset-password"];
             const publicPages = ["/google-login-success"];
-            const publicPrefixes = ["/tutorials", "/why-sai-server"];
+            const publicPrefixes = ["/tutorials", "/why-sai-server", "/download-sdk"];
             const isPublicPage = guestOnlyPages.includes(pathname) || publicPages.includes(pathname) || publicPrefixes.some(p => pathname.startsWith(p));
             if (!isAuthenticated && !isPublicPage) {
                 router.replace(getLoginUrl(getCurrentRelativeUrl()));

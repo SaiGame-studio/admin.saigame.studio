@@ -1,11 +1,12 @@
 "use client";
 import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, ChevronDown, ChevronRight, Clock, Download, ExternalLink, Eye, Loader2, ThumbsUp } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronRight, Clock, Download, Eye, Info, Loader2, ThumbsUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -13,9 +14,10 @@ import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { useTheme } from "next-themes";
-import { TutorialTipsPanel } from "@/components/tutorials/TutorialTipsPanel";
-import { TIPS_PATH, TIPS_TAB, getTipSlugFromPath, isTipsPath } from "@/lib/tutorial-tips";
+import { StaticArticlesPanel } from "@/components/tutorials/StaticArticlesPanel";
+import { GUIDES_SECTION, STATIC_SECTIONS, findStaticSection, findStaticSectionByTab, getStaticArticleSlugFromPath, type StaticSection } from "@/lib/tutorial-static-sections";
 import { preprocessImgSize } from "@/lib/tutorials/markdown";
+import { DOWNLOAD_SDK_PATH } from "@/lib/sdk-links";
 import { extractContentItems, findCategoryById, findCategoryByPath, findRootForPath, getActiveRoots, getAllLeafCategories, getCatName } from "@/lib/tutorials/categories";
 import type { Category, ContentDetail, ContentItem } from "@/lib/tutorials/types";
 function UpvoteButton({ contentId, count }: {
@@ -299,22 +301,23 @@ function TutorialsTabs({ serverView }: {
         : null;
     // Will be resolved after categories load: split fullPath into categoryPath + contentSlug
     const [contentSlug, setContentSlug] = useState<string | null>(null);
-    const [tipSlug, setTipSlug] = useState<string | null>(null);
+    /** selected article of the active static tab (Tutorials, Tips) */
+    const [staticSlug, setStaticSlug] = useState<string | null>(null);
     const navigateTo = useCallback((path: string | null, slug?: string | null) => {
         const base = path ? `/tutorials/${path}` : "/tutorials";
         const url = slug ? `${base}/${slug}` : base;
         window.history.replaceState(null, "", url);
     }, []);
     useEffect(() => {
-        // The static Tips tab does not depend on the CMS categories.
-        const isTips = isTipsPath(fullPath);
-        if (isTips) {
-            setActiveTab(TIPS_TAB);
-            setTipSlug(getTipSlugFromPath(fullPath!));
+        // The static tabs (Tutorials, Tips) do not depend on the CMS categories.
+        const staticSection = findStaticSection(fullPath);
+        if (staticSection) {
+            setActiveTab(staticSection.tab);
+            setStaticSlug(getStaticArticleSlugFromPath(staticSection, fullPath!));
         }
         const processCategories = (roots: Category[]) => {
             setCategories(roots);
-            if (isTips)
+            if (staticSection)
                 return;
             if (fullPath) {
                 // Try exact category match first
@@ -364,9 +367,10 @@ function TutorialsTabs({ serverView }: {
         setActiveTab(slug);
         setSelectedChildId(null);
         setContentSlug(null);
-        if (slug === TIPS_TAB) {
-            setTipSlug(null);
-            navigateTo(TIPS_PATH);
+        const staticSection = findStaticSectionByTab(slug);
+        if (staticSection) {
+            setStaticSlug(null);
+            navigateTo(staticSection.path);
             return;
         }
         const root = categories.find((c) => c.slug === slug);
@@ -395,9 +399,12 @@ function TutorialsTabs({ serverView }: {
             catch { /* skip */ }
         }
     }, [categories, selectedChildId, locale, navigateTo]);
-    const handleSelectTip = (slug: string) => {
-        setTipSlug(slug);
-        navigateTo(TIPS_PATH, slug);
+    // the Basic tab's own label, so the Tutorials note names it the way the tab bar does
+    const basicCategory = categories.find((cat) => cat.slug === "basic");
+    const basicName = basicCategory ? getCatName(basicCategory, locale) : "Basic";
+    const handleSelectStaticArticle = (section: StaticSection, slug: string) => {
+        setStaticSlug(slug);
+        navigateTo(section.path, slug);
     };
     const handleSelectCategory = (cat: Category) => {
         setSelectedChildId(cat.id);
@@ -418,31 +425,33 @@ function TutorialsTabs({ serverView }: {
           <Loader2 className="h-4 w-4 animate-spin"/>
           <span className="text-sm">{t('tutorials.loading')}</span>
         </div>) : activeTab ? (<Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
-          <div className="-mx-4 px-4 overflow-x-auto mb-4 sm:mx-0 sm:px-0">
+          <div id="tutorials-tabs-row" className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+          <div className="-mx-4 px-4 overflow-x-auto sm:mx-0 sm:px-0">
             <TabsList className="w-auto inline-flex">
               {categories.map((cat) => (<TabsTrigger key={cat.id} value={cat.slug} className="flex items-center gap-2 whitespace-nowrap">
                   {getCatName(cat, locale)}
                 </TabsTrigger>))}
-              <TabsTrigger id="tutorials-tab-tips" value={TIPS_TAB} href={`/tutorials/${TIPS_PATH}`} className="flex items-center gap-2 whitespace-nowrap">
-                {t('tutorials.tipsTab')}
-              </TabsTrigger>
-              <TabsTrigger value="_download" className="flex items-center gap-2 whitespace-nowrap" onClick={(e) => {
-                e.preventDefault();
-                window.open("https://github.com/SaiGame-studio/ss-unity/releases", "_blank");
-            }}>
+              {STATIC_SECTIONS.map((section) => (<TabsTrigger key={section.tab} id={`tutorials-tab-${section.path}`} value={section.tab} href={`/tutorials/${section.path}`} className="flex items-center gap-2 whitespace-nowrap">
+                  {t(section.tabLabelKey)}
+                </TabsTrigger>))}
+              <Link id="tutorials-tab-download-sdk" href={DOWNLOAD_SDK_PATH} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                 <Download className="h-4 w-4 shrink-0"/>
-                {t('tutorials.unityPackage')}
-                <ExternalLink className="h-3 w-3 opacity-50 shrink-0"/>
-              </TabsTrigger>
+                {t('common.downloadSdk')}
+              </Link>
             </TabsList>
+          </div>
+          {activeTab === GUIDES_SECTION.tab && (<p id="tutorials-guides-note" className="flex items-center gap-1.5 text-xs text-muted-foreground lg:shrink-0">
+              <Info id="tutorials-guides-note-icon" className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
+              {t("tutorials.guidesNote").replace("{basic}", basicName)}
+            </p>)}
           </div>
 
           {categories.map((cat) => (<TabsContent key={cat.id} value={cat.slug} className="mt-0">
               <CategorySidebar category={cat} selectedId={selectedChildId} onSelect={handleSelectCategory} locale={locale} initialContentSlug={contentSlug} onSlugNotFound={handleSlugNotFound} pendingView={serverView}/>
             </TabsContent>))}
-          <TabsContent id="tutorials-tips-content" value={TIPS_TAB} className="mt-0">
-            <TutorialTipsPanel selectedSlug={tipSlug} onSelect={handleSelectTip}/>
-          </TabsContent>
+          {STATIC_SECTIONS.map((section) => (<TabsContent key={section.tab} id={`tutorials-${section.path}-content`} value={section.tab} className="mt-0">
+              <StaticArticlesPanel section={section} selectedSlug={activeTab === section.tab ? staticSlug : null} onSelect={(slug) => handleSelectStaticArticle(section, slug)}/>
+            </TabsContent>))}
         </Tabs>) : null}
     </div>);
 }

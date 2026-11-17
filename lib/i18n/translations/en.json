@@ -74,6 +74,7 @@
     "discordSupport": "Discord Support",
     "bugReport": "Bug Report",
     "whySaiServer": "Why Sai Server?",
+    "downloadSdk": "Download SDK",
     "saved": "Saved",
     "deleted": "Deleted",
     "added": "Added",
@@ -4266,11 +4267,20 @@
     "noContent": "No content available.",
     "selectTopic": "Select a topic from the menu.",
     "comingSoon": "tutorials content coming soon.",
-    "unityPackage": "Unity Package",
     "tipsTab": "Tips",
+    "guidesTab": "Tutorials",
+    "guideLoadFailed": "Could not load this tutorial.",
+    "guidesNote": "New version of the {basic} tab, still being rewritten.",
     "tipLoadFailed": "Could not load this tip.",
     "tipChatText": "{link} to chat with us now.",
     "tipChatLink": "Click here",
+    "guideGroups": {
+      "getStarted": "Get Started"
+    },
+    "guides": {
+      "createAStudio": "Create a Studio",
+      "importUnityPackage": "Import Unity Package"
+    },
     "tips": {
       "gameExpectUser": "Open Sai Play from your game",
       "keepSdkUnmodified": "Do not edit the Sai Server Unity SDK"
@@ -4783,6 +4793,26 @@
   },
   "playerGameData": {
     "size": "Size"
+  },
+  "downloadSdk": {
+    "title": "Download SDK",
+    "subtitle": "The Sai Server Unity SDK and the API documentation",
+    "unityPackageTitle": "Unity Package",
+    "unityPackageDescription": "The Sai Server Unity SDK. Download the latest release from GitHub and import it into your Unity project.",
+    "unityPackageAction": "Open GitHub Releases",
+    "unityPackageGuide": "How to import the package",
+    "unityPackageRequirement": "Recommended: Unity 6.x or newer.",
+    "quickStartTitle": "Quick start",
+    "stepDownload": "Download the latest Unity Package from GitHub Releases.",
+    "stepImport": "Import the package into your Unity project.",
+    "stepPrefab": "Drag the SaiServer prefab from Assets/SaiGame/Prefabs into your scene and paste your Game ID.",
+    "referenceTitle": "API reference",
+    "apiDocsTitle": "API documentation",
+    "apiDocsDescription": "Every HTTP API the SDK calls, with saved example responses.",
+    "apiDocsAction": "Open the API documentation",
+    "postmanTitle": "Postman collection",
+    "postmanDescription": "Import the collection into Postman to call any API by hand and compare the response with what your game receives.",
+    "postmanAction": "Open on GitHub"
   },
   "whySaiServer": {
     "saiPlay": {

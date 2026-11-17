@@ -74,6 +74,7 @@
     "discordSupport": "Hỗ trợ Discord",
     "bugReport": "Báo lỗi",
     "whySaiServer": "Sai Server là gì?",
+    "downloadSdk": "Tải SDK",
     "saved": "Đã lưu",
     "deleted": "Đã xóa",
     "added": "Đã thêm",
@@ -4232,11 +4233,20 @@
     "noContent": "Chưa có nội dung.",
     "selectTopic": "Chọn một chủ đề từ menu.",
     "comingSoon": "nội dung hướng dẫn sắp ra mắt.",
-    "unityPackage": "Unity Package",
     "tipsTab": "Mẹo",
+    "guidesTab": "Hướng dẫn",
+    "guideLoadFailed": "Không tải được bài hướng dẫn này.",
+    "guidesNote": "Phiên bản mới của tab {basic}, đang được viết lại.",
     "tipLoadFailed": "Không tải được mẹo này.",
     "tipChatText": "{link} để chat với chúng tôi ngay.",
     "tipChatLink": "Bấm vào đây",
+    "guideGroups": {
+      "getStarted": "Bắt Đầu"
+    },
+    "guides": {
+      "createAStudio": "Tạo Studio",
+      "importUnityPackage": "Cài Unity Package"
+    },
     "tips": {
       "gameExpectUser": "Mở Sai Play từ game",
       "keepSdkUnmodified": "Không chỉnh sửa Unity SDK của Sai Server"
@@ -4808,6 +4818,26 @@
   },
   "playerGameData": {
     "size": "Dung lượng"
+  },
+  "downloadSdk": {
+    "title": "Tải SDK",
+    "subtitle": "Sai Server Unity SDK và tài liệu API",
+    "unityPackageTitle": "Unity Package",
+    "unityPackageDescription": "Sai Server Unity SDK. Tải bản phát hành mới nhất từ GitHub rồi import vào project Unity của bạn.",
+    "unityPackageAction": "Mở GitHub Releases",
+    "unityPackageGuide": "Cách import package",
+    "unityPackageRequirement": "Khuyên dùng: Unity 6.x hoặc mới hơn.",
+    "quickStartTitle": "Bắt đầu nhanh",
+    "stepDownload": "Tải Unity Package mới nhất từ GitHub Releases.",
+    "stepImport": "Import package vào project Unity của bạn.",
+    "stepPrefab": "Kéo prefab SaiServer trong Assets/SaiGame/Prefabs vào scene và dán Game ID của bạn.",
+    "referenceTitle": "Tài liệu API",
+    "apiDocsTitle": "Tài liệu API",
+    "apiDocsDescription": "Mọi HTTP API mà SDK gọi, kèm các response mẫu.",
+    "apiDocsAction": "Mở tài liệu API",
+    "postmanTitle": "Postman collection",
+    "postmanDescription": "Import collection vào Postman để tự gọi bất kỳ API nào và so sánh response với dữ liệu game của bạn nhận được.",
+    "postmanAction": "Mở trên GitHub"
   },
   "whySaiServer": {
     "saiPlay": {
