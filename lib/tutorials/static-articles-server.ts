@@ -13,9 +13,9 @@ export function translateEn(key: string): string {
     return typeof value === "string" ? value : key;
 }
 
-/** "#1 Import Unity Package", as the panel shows it. */
+/** The localized title, with an optional article number, as the panel shows it. */
 export function getStaticArticleTitle(article: StaticArticle): string {
-    return `#${article.number} ${translateEn(article.titleKey)}`;
+    return `${article.number !== undefined ? `#${article.number} ` : ""}${translateEn(article.titleKey)}`;
 }
 
 /** The article named by the slug, or the section's first article (the panel shows it when none is selected). */

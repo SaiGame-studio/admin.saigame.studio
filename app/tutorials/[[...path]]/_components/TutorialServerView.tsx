@@ -42,7 +42,7 @@ export function TutorialServerView({ data }: { data: ServerViewData }) {
         return (<article id="tutorials-server-static" className={data.bordered ? "border rounded-lg p-4 sm:p-6" : undefined}>
         <h2 id="tutorials-server-static-title" className="text-2xl font-bold break-words mb-4 sm:text-3xl lg:text-4xl">{data.title}</h2>
         <div id="tutorials-server-static-body" className={PROSE}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.body}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{preprocessImgSize(data.body)}</ReactMarkdown>
         </div>
       </article>);
     }
