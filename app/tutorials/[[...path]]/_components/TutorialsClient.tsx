@@ -1,20 +1,9 @@
 "use client";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
-/** Pre-process markdown: convert ![alt](url =WxH) to <img> tags */
-function preprocessImgSize(md: string): string {
-    return md.replace(/!\[([^\]]*)\]\((\S+?)\s+=(\d+)?[x×](\d+)?\)/g, (_match, alt, url, w, h) => {
-        const attrs = [`src="${url}"`, `alt="${alt}"`];
-        if (w)
-            attrs.push(`width="${w}"`);
-        if (h)
-            attrs.push(`height="${h}"`);
-        return `<img ${attrs.join(" ")} />`;
-    });
-}
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, ChevronDown, ChevronRight, Clock, Download, ExternalLink, Eye, Loader2, ThumbsUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,50 +15,9 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { useTheme } from "next-themes";
 import { TutorialTipsPanel } from "@/components/tutorials/TutorialTipsPanel";
 import { TIPS_PATH, TIPS_TAB, getTipSlugFromPath, isTipsPath } from "@/lib/tutorial-tips";
-interface Category {
-    id: string;
-    parent_id: string | null;
-    name: string;
-    slug: string;
-    description: string;
-    path: string;
-    depth: number;
-    sort_order: number;
-    is_active: boolean;
-    languages?: Record<string, {
-        name?: string;
-        description?: string;
-    }>;
-    children?: Category[];
-}
-function getCatName(cat: Category, locale: string): string {
-    if (locale !== "en" && cat.languages?.[locale]?.name) {
-        return cat.languages[locale].name!;
-    }
-    return cat.name;
-}
-interface ContentItem {
-    id: string;
-    title: string;
-    slug: string;
-    description: string;
-    version_number?: number;
-    metadata?: Record<string, string>;
-}
-interface ContentDetail {
-    id: string;
-    title: string;
-    slug: string;
-    language: string;
-    description: string;
-    body: string;
-    status: string;
-    version_number: number;
-    metadata: Record<string, string>;
-    created_at: string;
-    updated_at: string;
-    published_at: string;
-}
+import { preprocessImgSize } from "@/lib/tutorials/markdown";
+import { extractContentItems, findCategoryById, findCategoryByPath, findRootForPath, getActiveRoots, getAllLeafCategories, getCatName } from "@/lib/tutorials/categories";
+import type { Category, ContentDetail, ContentItem } from "@/lib/tutorials/types";
 function UpvoteButton({ contentId, count }: {
     contentId: string;
     count?: string | number;
@@ -130,13 +78,16 @@ function UpvoteButton({ contentId, count }: {
       </AlertDialog>
     </>);
 }
-function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFound }: {
+function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFound, pendingView }: {
     categoryId: string;
     categoryPath: string;
     initialContentSlug?: string | null;
     onSlugNotFound?: (slug: string) => void;
+    /** server-rendered article shown until the client has loaded the same one */
+    pendingView?: ReactNode;
 }) {
     const [contents, setContents] = useState<ContentItem[]>([]);
+    const [loadingSlug, setLoadingSlug] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
     const [detail, setDetail] = useState<ContentDetail | null>(null);
@@ -146,6 +97,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
     const { t } = useTranslation();
     const loadContent = (item: ContentItem) => {
         setSelectedContentId(item.id);
+        setLoadingSlug(item.slug);
         setDetailLoading(true);
         setDetail(null);
         window.history.replaceState(null, "", `/tutorials/${categoryPath}/${item.slug}`);
@@ -172,9 +124,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
         setDetail(null);
         api.get(`/api/v1/categories/${categoryId}/contents?language=${locale}`, { requireAuth: false })
             .then((res) => {
-            const data = res?.data ?? res;
-            const items: ContentItem[] = Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? []);
-            items.sort((a, b) => a.title.localeCompare(b.title));
+            const items = extractContentItems(res);
             setContents(items);
             if (initialContentSlug) {
                 const match = items.find((i) => i.slug === initialContentSlug);
@@ -191,6 +141,8 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
             .finally(() => setLoading(false));
     }, [categoryId, locale]);
     if (loading) {
+        if (pendingView)
+            return <>{pendingView}</>;
         return (<div className="flex items-center gap-2 text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin"/>
         <span className="text-sm">{t('tutorials.loading')}</span>
@@ -213,10 +165,10 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
         })}
       </div>
 
-      {detailLoading && (<div className="flex items-center gap-2 text-muted-foreground mt-6">
+      {detailLoading && (pendingView && loadingSlug === initialContentSlug ? (<div id="tutorials-content-pending" className="mt-6">{pendingView}</div>) : (<div className="flex items-center gap-2 text-muted-foreground mt-6">
           <Loader2 className="h-4 w-4 animate-spin"/>
           <span className="text-sm">{t('tutorials.loadingContent')}</span>
-        </div>)}
+        </div>))}
 
       {detail && (<div className="mt-6 border rounded-lg p-4 sm:p-6">
           <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -301,13 +253,14 @@ function CategoryMenuItem({ category, selectedId, onSelect, level = 0, locale, }
         </div>)}
     </div>);
 }
-function CategorySidebar({ category, selectedId, onSelect, locale, initialContentSlug, onSlugNotFound, }: {
+function CategorySidebar({ category, selectedId, onSelect, locale, initialContentSlug, onSlugNotFound, pendingView, }: {
     category: Category;
     selectedId: string | null;
     onSelect: (cat: Category) => void;
     locale: string;
     initialContentSlug?: string | null;
     onSlugNotFound?: (slug: string) => void;
+    pendingView?: ReactNode;
 }) {
     const children = (category.children ?? [])
         .filter((c) => c.is_active)
@@ -327,55 +280,13 @@ function CategorySidebar({ category, selectedId, onSelect, locale, initialConten
         {children.map((child) => (<CategoryMenuItem key={child.id} category={child} selectedId={selectedId} onSelect={onSelect} locale={locale}/>))}
       </nav>
       <div className="flex-1 min-w-0">
-        {selectedId && selectedChild ? (<ContentList categoryId={selectedId} categoryPath={selectedChild.path} initialContentSlug={initialContentSlug} onSlugNotFound={onSlugNotFound}/>) : (<p className="text-muted-foreground text-sm">{t('tutorials.selectTopic')}</p>)}
+        {selectedId && selectedChild ? (<ContentList categoryId={selectedId} categoryPath={selectedChild.path} initialContentSlug={initialContentSlug} onSlugNotFound={onSlugNotFound} pendingView={initialContentSlug ? pendingView : undefined}/>) : (<p className="text-muted-foreground text-sm">{t('tutorials.selectTopic')}</p>)}
       </div>
     </div>);
 }
-function getAllLeafCategories(categories: Category[]): Category[] {
-    const leaves: Category[] = [];
-    for (const cat of categories) {
-        const children = (cat.children ?? []).filter((c) => c.is_active);
-        if (children.length === 0) {
-            leaves.push(cat);
-        }
-        else {
-            leaves.push(...getAllLeafCategories(children));
-        }
-    }
-    return leaves;
-}
-function findCategoryById(categories: Category[], id: string): Category | null {
-    for (const cat of categories) {
-        if (cat.id === id)
-            return cat;
-        if (cat.children) {
-            const found = findCategoryById(cat.children, id);
-            if (found)
-                return found;
-        }
-    }
-    return null;
-}
-function findCategoryByPath(categories: Category[], path: string): Category | null {
-    for (const cat of categories) {
-        if (cat.path === path)
-            return cat;
-        if (cat.children) {
-            const found = findCategoryByPath(cat.children, path);
-            if (found)
-                return found;
-        }
-    }
-    return null;
-}
-function findRootForPath(categories: Category[], path: string): Category | null {
-    for (const root of categories) {
-        if (path === root.path || path.startsWith(root.path + "/"))
-            return root;
-    }
-    return null;
-}
-function TutorialsTabs() {
+function TutorialsTabs({ serverView }: {
+    serverView?: ReactNode;
+}) {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -444,10 +355,7 @@ function TutorialsTabs() {
         };
         api.get("/api/v1/categories", { requireAuth: false })
             .then((res) => {
-            const roots = (res.data as Category[])
-                .filter((c) => c.parent_id === null && c.is_active)
-                .sort((a, b) => a.sort_order - b.sort_order);
-            processCategories(roots);
+            processCategories(getActiveRoots(res.data as Category[]));
         })
             .catch(() => setCategories([]))
             .finally(() => setLoading(false));
@@ -472,9 +380,7 @@ function TutorialsTabs() {
                 continue; // already checked
             try {
                 const res = await api.get(`/api/v1/categories/${leaf.id}/contents?language=${locale}`, { requireAuth: false });
-                const data = (res as any)?.data ?? res;
-                const items: ContentItem[] = Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? []);
-                const match = items.find((i) => i.slug === slug);
+                const match = extractContentItems(res).find((i) => i.slug === slug);
                 if (match) {
                     // Found — redirect to correct category
                     const root = findRootForPath(categories, leaf.path);
@@ -508,7 +414,7 @@ function TutorialsTabs() {
         </div>
       </div>
 
-      {loading ? (<div className="flex items-center gap-2 text-muted-foreground">
+      {loading && serverView ? serverView : loading ? (<div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin"/>
           <span className="text-sm">{t('tutorials.loading')}</span>
         </div>) : activeTab ? (<Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
@@ -532,7 +438,7 @@ function TutorialsTabs() {
           </div>
 
           {categories.map((cat) => (<TabsContent key={cat.id} value={cat.slug} className="mt-0">
-              <CategorySidebar category={cat} selectedId={selectedChildId} onSelect={handleSelectCategory} locale={locale} initialContentSlug={contentSlug} onSlugNotFound={handleSlugNotFound}/>
+              <CategorySidebar category={cat} selectedId={selectedChildId} onSelect={handleSelectCategory} locale={locale} initialContentSlug={contentSlug} onSlugNotFound={handleSlugNotFound} pendingView={serverView}/>
             </TabsContent>))}
           <TabsContent id="tutorials-tips-content" value={TIPS_TAB} className="mt-0">
             <TutorialTipsPanel selectedSlug={tipSlug} onSelect={handleSelectTip}/>
@@ -540,8 +446,11 @@ function TutorialsTabs() {
         </Tabs>) : null}
     </div>);
 }
-export default function TutorialsPage() {
+/** The interactive Learning Center; serverView is the server-rendered page shown while the client loads its data. */
+export default function TutorialsClient({ serverView }: {
+    serverView?: ReactNode;
+}) {
     return (<Suspense>
-      <TutorialsTabs />
+      <TutorialsTabs serverView={serverView}/>
     </Suspense>);
 }
