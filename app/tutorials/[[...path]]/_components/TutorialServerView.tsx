@@ -26,7 +26,7 @@ function CategoryLinks({ id, categories }: { id: string; categories: Category[] 
 export type ServerViewData =
     | ResolvedTutorial
     | { kind: "index"; roots: Category[] }
-    | { kind: "tip"; title: string; body: string };
+    | { kind: "static"; title: string; body: string; /** the article's path under /tutorials */ path: string; bordered: boolean };
 
 export function TutorialServerView({ data }: { data: ServerViewData }) {
     if (data.kind === "content") {
@@ -38,10 +38,10 @@ export function TutorialServerView({ data }: { data: ServerViewData }) {
           </div>)}
       </article>);
     }
-    if (data.kind === "tip") {
-        return (<article id="tutorials-server-tip" className="border rounded-lg p-4 sm:p-6">
-        <h2 id="tutorials-server-tip-title" className="text-2xl font-bold break-words mb-4 sm:text-3xl lg:text-4xl">{data.title}</h2>
-        <div id="tutorials-server-tip-body" className={PROSE}>
+    if (data.kind === "static") {
+        return (<article id="tutorials-server-static" className={data.bordered ? "border rounded-lg p-4 sm:p-6" : undefined}>
+        <h2 id="tutorials-server-static-title" className="text-2xl font-bold break-words mb-4 sm:text-3xl lg:text-4xl">{data.title}</h2>
+        <div id="tutorials-server-static-body" className={PROSE}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.body}</ReactMarkdown>
         </div>
       </article>);

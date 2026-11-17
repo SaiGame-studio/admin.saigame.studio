@@ -5,10 +5,10 @@
 import { cache } from "react";
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/json-ld";
-import { TIPS_PATH, getTipSlugFromPath, isTipsPath } from "@/lib/tutorial-tips";
+import { findStaticSection, getStaticArticleSlugFromPath } from "@/lib/tutorial-static-sections";
 import { getCategoryTrail } from "@/lib/tutorials/categories";
 import { getTutorialRoots, resolveTutorialPath } from "@/lib/tutorials/server";
-import { getTipForServer } from "@/lib/tutorials/tips-server";
+import { getStaticArticleForServer } from "@/lib/tutorials/static-articles-server";
 import { tutorialArticleJsonLd, tutorialBreadcrumbJsonLd } from "@/lib/structured-data";
 import TutorialsClient from "./_components/TutorialsClient";
 import { TutorialServerView, type ServerViewData } from "./_components/TutorialServerView";
@@ -20,9 +20,10 @@ const INDEX_DESCRIPTION = "Step-by-step Sai Server tutorials: get started, cloud
 const loadView = cache(async (path: string | null): Promise<ServerViewData | null> => {
     if (!path)
         return { kind: "index", roots: await getTutorialRoots() };
-    if (isTipsPath(path)) {
-        const tip = await getTipForServer(path === TIPS_PATH ? null : getTipSlugFromPath(path));
-        return tip && { kind: "tip", title: tip.title, body: tip.body };
+    const section = findStaticSection(path);
+    if (section) {
+        const article = await getStaticArticleForServer(section, getStaticArticleSlugFromPath(section, path));
+        return article && { kind: "static", title: article.title, body: article.body, path: `${section.path}/${article.article.slug}`, bordered: section.bordered };
     }
     return resolveTutorialPath(path);
 });
@@ -37,8 +38,9 @@ function toDescription(text: string): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const path = await joinPath(params);
-    const canonical = path ? `/tutorials/${path}` : "/tutorials";
     const view = await loadView(path);
+    // a static tab's own URL shows its first article, so that article's URL is the canonical one
+    const canonical = view?.kind === "static" ? `/tutorials/${view.path}` : path ? `/tutorials/${path}` : "/tutorials";
     const page = (title: string, description: string, article?: { published: string; modified: string }): Metadata => ({
         title,
         description,
@@ -49,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     });
     if (!view || view.kind === "index")
         return page("Sai Server Tutorials", INDEX_DESCRIPTION);
-    if (view.kind === "tip")
+    if (view.kind === "static")
         return page(view.title, toDescription(view.body));
     if (view.kind === "category")
         return page(`${view.category.name} – Sai Server Tutorials`, view.category.description || toDescription([...view.children.map((c) => c.name), ...view.items.map((i) => i.title)].join(", ")) || INDEX_DESCRIPTION);

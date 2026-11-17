@@ -13,6 +13,7 @@ import { safeGetItem, safeSetItem } from "@/lib/storage-utils";
 import { SITE_NAME } from "@/lib/utils/site-config";
 import { LanguageSelector } from "@/components/ui/language-selector";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { DOWNLOAD_SDK_PATH } from "@/lib/sdk-links";
 const MIN_SIDEBAR_WIDTH = 200;
 const MAX_SIDEBAR_WIDTH = 400;
 const DEFAULT_SIDEBAR_WIDTH = 240;
@@ -127,7 +128,7 @@ export function SideNav({ mobile = false }: {
               <NavGroupTitle id="side-nav-support-title" title={t('common.support')} collapsed={isCollapsed}/>
               <NavItem id="side-nav-why-sai-server-link" href="/why-sai-server" icon={Rocket} label={t('common.whySaiServer')} active={isActive("/why-sai-server")} collapsed={isCollapsed}/>
               <NavItem id="side-nav-tutorials-link" href="/tutorials" icon={BookOpen} iconClassName="animate-pulse" label={t('tutorials.title')} active={isActive("/tutorials")} collapsed={isCollapsed} suffix={<span className="animate-pulse text-yellow-400 text-[10px]">&#9733;</span>}/>
-              <NavItem id="side-nav-unity-package-link" href="https://github.com/SaiGame-studio/ss-unity/releases" external icon={Download} label="Unity Package" collapsed={isCollapsed}/>
+              <NavItem id="side-nav-download-sdk-link" href={DOWNLOAD_SDK_PATH} icon={Download} label={t('common.downloadSdk')} active={isActive(DOWNLOAD_SDK_PATH)} collapsed={isCollapsed}/>
               <NavItem id="side-nav-discord-support-link" href="https://discord.gg/UU3YarmVde" external icon={MessageCircle} label={t('common.discordSupport')} collapsed={isCollapsed}/>
               <NavItem id="side-nav-bug-report-link" href="https://discord.gg/UU3YarmVde" external icon={Bug} label={t('common.bugReport')} collapsed={isCollapsed}/>
             </div>

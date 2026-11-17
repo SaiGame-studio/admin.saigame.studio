@@ -73,6 +73,7 @@
     "discordSupport": "Discordサポート",
     "bugReport": "バグ報告",
     "whySaiServer": "Sai Serverを選ぶ理由？",
+    "downloadSdk": "SDKをダウンロード",
     "saved": "保存しました",
     "deleted": "削除しました",
     "added": "追加しました",
@@ -4225,11 +4226,20 @@
     "noContent": "コンテンツがありません。",
     "selectTopic": "メニューからトピックを選択してください。",
     "comingSoon": "チュートリアルコンテンツは近日公開予定です。",
-    "unityPackage": "Unity Package",
     "tipsTab": "ヒント",
+    "guidesTab": "チュートリアル",
+    "guideLoadFailed": "このチュートリアルを読み込めませんでした。",
+    "guidesNote": "{basic} タブの新バージョン（現在作成中）。",
     "tipLoadFailed": "このヒントを読み込めませんでした。",
     "tipChatText": "{link}からすぐにチャットでお問い合わせいただけます。",
     "tipChatLink": "こちら",
+    "guideGroups": {
+      "getStarted": "さあ、始めましょう"
+    },
+    "guides": {
+      "createAStudio": "ゲームスタジオ作成",
+      "importUnityPackage": "Unity Packageのインポート"
+    },
     "tips": {
       "gameExpectUser": "ゲームから Sai Play を開く",
       "keepSdkUnmodified": "Sai Server の Unity SDK を編集しない"
@@ -4740,6 +4750,26 @@
   },
   "playerGameData": {
     "size": "サイズ"
+  },
+  "downloadSdk": {
+    "title": "SDKをダウンロード",
+    "subtitle": "Sai Server Unity SDK と API ドキュメント",
+    "unityPackageTitle": "Unity Package",
+    "unityPackageDescription": "Sai Server Unity SDK です。GitHub から最新リリースをダウンロードし、Unity プロジェクトにインポートしてください。",
+    "unityPackageAction": "GitHub Releases を開く",
+    "unityPackageGuide": "パッケージのインポート方法",
+    "unityPackageRequirement": "推奨: Unity 6.x 以降。",
+    "quickStartTitle": "クイックスタート",
+    "stepDownload": "GitHub Releases から最新の Unity Package をダウンロードします。",
+    "stepImport": "パッケージを Unity プロジェクトにインポートします。",
+    "stepPrefab": "Assets/SaiGame/Prefabs の SaiServer プレハブをシーンにドラッグし、Game ID を貼り付けます。",
+    "referenceTitle": "API リファレンス",
+    "apiDocsTitle": "API ドキュメント",
+    "apiDocsDescription": "SDK が呼び出すすべての HTTP API と、保存済みのレスポンス例。",
+    "apiDocsAction": "API ドキュメントを開く",
+    "postmanTitle": "Postman コレクション",
+    "postmanDescription": "コレクションを Postman にインポートすると、任意の API を手動で呼び出し、ゲームが受け取るレスポンスと比較できます。",
+    "postmanAction": "GitHub で開く"
   },
   "whySaiServer": {
     "saiPlay": {
