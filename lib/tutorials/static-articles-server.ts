@@ -7,14 +7,15 @@ import path from "node:path";
 import en from "@/lib/i18n/translations/en.json";
 import type { StaticArticle, StaticSection } from "@/lib/tutorial-static-sections";
 
-function translate(key: string): string {
+/** The English text of a translation key (crawlers read the English site). */
+export function translateEn(key: string): string {
     const value = key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], en);
     return typeof value === "string" ? value : key;
 }
 
 /** "#1 Import Unity Package", as the panel shows it. */
 export function getStaticArticleTitle(article: StaticArticle): string {
-    return `#${article.number} ${translate(article.titleKey)}`;
+    return `#${article.number} ${translateEn(article.titleKey)}`;
 }
 
 /** The article named by the slug, or the section's first article (the panel shows it when none is selected). */
