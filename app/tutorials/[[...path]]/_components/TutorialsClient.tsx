@@ -16,7 +16,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { useTheme } from "next-themes";
 import { TutorialFontSize, useTutorialFontSize } from "@/components/tutorials/TutorialFontSize";
 import { StaticArticlesPanel } from "@/components/tutorials/StaticArticlesPanel";
-import { STATIC_SECTIONS, findStaticSection, findStaticSectionByTab, getStaticArticleSlugFromPath, type StaticSection } from "@/lib/tutorial-static-sections";
+import { GUIDES_SECTION, STATIC_SECTIONS, findStaticSection, findStaticSectionByTab, getStaticArticleSlugFromPath, type StaticSection } from "@/lib/tutorial-static-sections";
 import { preprocessImgSize } from "@/lib/tutorials/markdown";
 import { DOWNLOAD_SDK_PATH } from "@/lib/sdk-links";
 import { extractContentItems, findCategoryById, findCategoryByPath, findRootForPath, getActiveRoots, getAllLeafCategories, getCatName } from "@/lib/tutorials/categories";
@@ -311,6 +311,7 @@ function TutorialsTabs({ serverView }: {
         if (staticSection) {
             setActiveTab(staticSection.tab);
             setStaticSlug(getStaticArticleSlugFromPath(staticSection, fullPath!));
+            setLoading(false);
         }
         const processCategories = (roots: Category[]) => {
             setCategories(roots);
@@ -349,7 +350,7 @@ function TutorialsTabs({ serverView }: {
                     // already handled above
                 }
                 else {
-                    setActiveTab(roots[0]?.slug ?? null);
+                    setActiveTab(roots[0]?.slug ?? GUIDES_SECTION.tab);
                 }
             }
         };
@@ -357,7 +358,7 @@ function TutorialsTabs({ serverView }: {
             .then((res) => {
             processCategories(getActiveRoots(res.data as Category[]));
         })
-            .catch(() => setCategories([]))
+            .catch(() => processCategories([]))
             .finally(() => setLoading(false));
     }, []);
     const handleTabChange = (slug: string) => {
