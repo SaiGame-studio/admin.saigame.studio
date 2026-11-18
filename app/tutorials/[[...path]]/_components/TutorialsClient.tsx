@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, ChevronDown, ChevronRight, Clock, Download, Info, Loader2, ThumbsUp } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronRight, Clock, Download, Loader2, ThumbsUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -16,7 +16,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { useTheme } from "next-themes";
 import { TutorialFontSize, useTutorialFontSize } from "@/components/tutorials/TutorialFontSize";
 import { StaticArticlesPanel } from "@/components/tutorials/StaticArticlesPanel";
-import { GUIDES_SECTION, STATIC_SECTIONS, findStaticSection, findStaticSectionByTab, getStaticArticleSlugFromPath, type StaticSection } from "@/lib/tutorial-static-sections";
+import { STATIC_SECTIONS, findStaticSection, findStaticSectionByTab, getStaticArticleSlugFromPath, type StaticSection } from "@/lib/tutorial-static-sections";
 import { preprocessImgSize } from "@/lib/tutorials/markdown";
 import { DOWNLOAD_SDK_PATH } from "@/lib/sdk-links";
 import { extractContentItems, findCategoryById, findCategoryByPath, findRootForPath, getActiveRoots, getAllLeafCategories, getCatName } from "@/lib/tutorials/categories";
@@ -397,9 +397,6 @@ function TutorialsTabs({ serverView }: {
         }
     }, [categories, selectedChildId, locale, navigateTo]);
     const { fontSize, changeFontSize } = useTutorialFontSize();
-    // the Basic tab's own label, so the Tutorials note names it the way the tab bar does
-    const basicCategory = categories.find((cat) => cat.slug === "basic");
-    const basicName = basicCategory ? getCatName(basicCategory, locale) : "Basic";
     const handleSelectStaticArticle = (section: StaticSection, slug: string) => {
         setStaticSlug(slug);
         navigateTo(section.path, slug);
@@ -439,10 +436,6 @@ function TutorialsTabs({ serverView }: {
               </Link>
             </TabsList>
           </div>
-          {activeTab === GUIDES_SECTION.tab && (<p id="tutorials-guides-note" className="flex items-center gap-1.5 text-xs text-muted-foreground lg:shrink-0">
-              <Info id="tutorials-guides-note-icon" className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/>
-              {t("tutorials.guidesNote").replace("{basic}", basicName)}
-            </p>)}
           </div>
 
           {categories.map((cat) => (<TabsContent key={cat.id} value={cat.slug} className="mt-0">

@@ -1,7 +1,7 @@
 // /llms.txt (llmstxt.org): a Markdown summary of the public pages for AI assistants and answer engines.
 // The tutorial list comes from the Learning Center (CMS categories and the static Tutorials and Tips tabs).
 import { APP_URL } from "@/lib/structured-data";
-import { GUIDES_SECTION, STATIC_SECTIONS } from "@/lib/tutorial-static-sections";
+import { STATIC_SECTIONS } from "@/lib/tutorial-static-sections";
 import { findRootForPath, getCategoryTrail } from "@/lib/tutorials/categories";
 import { getTutorialLeaves } from "@/lib/tutorials/server";
 import { getStaticArticleTitle, translateEn } from "@/lib/tutorials/static-articles-server";
@@ -30,8 +30,6 @@ async function body(): Promise<string> {
     // Static tabs first: Tutorials is the new version of the Basic tab.
     for (const section of STATIC_SECTIONS) {
         lines.push("", `## ${translateEn(section.tabLabelKey)}`, "");
-        if (section === GUIDES_SECTION)
-            lines.push(translateEn("tutorials.guidesNote").replace("{basic}", "Basic"), "");
         section.articles.forEach((article) => lines.push(link(getStaticArticleTitle(article), `/tutorials/${section.path}/${article.slug}`)));
     }
     for (const root of roots) {
