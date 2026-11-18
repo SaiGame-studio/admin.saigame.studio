@@ -1,7 +1,7 @@
 import type React from "react";
 import "@/app/globals.css";
 import type { Metadata } from "next";
-import Script from "next/script";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ProtectedLayout } from "@/components/protected-layout";
@@ -55,15 +55,7 @@ export default function RootLayout({ children, }: {
 }) {
     return (<html lang="en" suppressHydrationWarning>
       <head>
-        <Script src="https://www.googletagmanager.com/gtag/js?id=G-SHR8QL7HZJ" strategy="afterInteractive"/>
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-SHR8QL7HZJ');
-          `}
-        </Script>
+        <GoogleAnalytics />
       </head>
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem={true} storageKey="sais-admin-theme" themes={['light', 'light-soft', 'light-warm', 'dark', 'dark-blue', 'dark-purple', 'dark-green', 'midnight', 'system']}>
