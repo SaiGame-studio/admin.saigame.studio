@@ -4260,6 +4260,33 @@
     "linkToConvFailed": "Failed to link to conversation"
   },
   "tutorials": {
+    "luaTab": "Lua Script",
+    "luaGroups": {
+      "hello-world": "Get Started",
+      "battle": "Battle Script",
+      "battle-define-enemies": "Define Enemies",
+      "battle-characters-preset": "Characters Preset",
+      "battle-execute-script": "Execute Script",
+      "api-reference": "API Reference",
+      "api-reference-overview": "Overview",
+      "api-reference-functions": "Functions"
+    },
+    "luaArticles": {
+      "hello-world": "Hello World",
+      "enemy-definition": "Enemy Definition",
+      "entity-pool": "Entity Pool",
+      "3a-characters-preset": "Characters Preset",
+      "execute-script": "Execute Script",
+      "overview": "Overview",
+      "inventory": "Func Inventory",
+      "gacha": "Func Gacha",
+      "quests": "Func Quests",
+      "events": "Func Event Type",
+      "entities": "Func Entities",
+      "6-presets": "Func Presets",
+      "equipment": "Func Equipment",
+      "battle-sessions": "Func Battle Sessions"
+    },
     "fontSize": "Font size",
     "decreaseFontSize": "Decrease font size",
     "increaseFontSize": "Increase font size",
@@ -4274,7 +4301,6 @@
     "tipsTab": "Tips",
     "guidesTab": "Tutorials",
     "guideLoadFailed": "Could not load this tutorial.",
-    "guidesNote": "New version of the {basic} tab, still being rewritten.",
     "tipLoadFailed": "Could not load this tip.",
     "tipChatText": "{link} to chat with us now.",
     "tipChatLink": "Click here",

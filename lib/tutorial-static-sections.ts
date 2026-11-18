@@ -5,6 +5,7 @@
  */
 
 import { BASIC_GUIDE_ARTICLES, BASIC_GUIDE_GROUPS } from "./tutorials/basic-guides";
+import { LUA_GUIDE_ARTICLES, LUA_GUIDE_GROUPS } from "./tutorials/lua-guides";
 
 export interface StaticArticle {
     /** Optional number shown in the menu and title. */
@@ -60,6 +61,18 @@ export const GUIDES_SECTION: StaticSection = {
     ],
 };
 
+export const LUA_SECTION: StaticSection = {
+    tab: "__lua",
+    path: "lua-guides",
+    bodyDir: "tutorial-lua",
+    tabLabelKey: "tutorials.luaTab",
+    loadFailedKey: "tutorials.guideLoadFailed",
+    idPrefix: "tutorial-lua",
+    bordered: false,
+    groups: LUA_GUIDE_GROUPS,
+    articles: LUA_GUIDE_ARTICLES,
+};
+
 export const TIPS_SECTION: StaticSection = {
     tab: "__tips",
     path: "tips",
@@ -75,7 +88,7 @@ export const TIPS_SECTION: StaticSection = {
 };
 
 /** In tab order, after the CMS categories. */
-export const STATIC_SECTIONS: StaticSection[] = [GUIDES_SECTION, TIPS_SECTION];
+export const STATIC_SECTIONS: StaticSection[] = [GUIDES_SECTION, LUA_SECTION, TIPS_SECTION];
 
 /** The static section a /tutorials path belongs to, if any. */
 export function findStaticSection(path: string | null): StaticSection | null {
