@@ -16,8 +16,18 @@ const link = (title: string, path: string, note?: string) => {
 };
 const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
 
+/** The CMS part is optional: if the Learning Center API is down, the page still lists the static tabs instead of failing the build. */
+async function getCmsLeaves(): Promise<Awaited<ReturnType<typeof getTutorialLeaves>>> {
+    try {
+        return await getTutorialLeaves();
+    } catch (error) {
+        console.warn("[llms.txt] Learning Center API unavailable, listing static tutorials only:", error);
+        return { roots: [], leaves: [] };
+    }
+}
+
 async function body(): Promise<string> {
-    const { roots, leaves } = await getTutorialLeaves();
+    const { roots, leaves } = await getCmsLeaves();
     const lines = [
         "# Sai Server",
         "",
