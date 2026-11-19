@@ -20,7 +20,9 @@ export function getStaticArticleTitle(article: StaticArticle): string {
 
 /** The article named by the slug, or the section's first article (the panel shows it when none is selected). */
 export async function getStaticArticleForServer(section: StaticSection, slug: string | null): Promise<{ article: StaticArticle; title: string; body: string } | null> {
-    const article = section.articles.find((item) => item.slug === slug) ?? section.articles[0];
+    const article = slug === null ? section.articles[0] : section.articles.find((item) => item.slug === slug);
+    if (!article)
+        return null;
     try {
         const body = await readFile(path.join(process.cwd(), "public", section.bodyDir, `${article.slug}.en.md`), "utf8");
         return { article, title: getStaticArticleTitle(article), body };

@@ -4,10 +4,12 @@
  */
 import { cache } from "react";
 import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 import { JsonLd } from "@/components/json-ld";
 import { findStaticSection, getStaticArticleSlugFromPath } from "@/lib/tutorial-static-sections";
 import { getCategoryTrail } from "@/lib/tutorials/categories";
 import { getTutorialRoots, resolveTutorialPath } from "@/lib/tutorials/server";
+import { getLegacyTutorialDestination } from "@/lib/tutorials/legacy-paths";
 import { getStaticArticleForServer } from "@/lib/tutorials/static-articles-server";
 import { tutorialArticleJsonLd, tutorialBreadcrumbJsonLd } from "@/lib/structured-data";
 import TutorialsClient from "./_components/TutorialsClient";
@@ -20,12 +22,22 @@ const INDEX_DESCRIPTION = "Step-by-step Sai Server tutorials: get started, cloud
 const loadView = cache(async (path: string | null): Promise<ServerViewData | null> => {
     if (!path)
         return { kind: "index", roots: await getTutorialRoots() };
+    const destination = getLegacyTutorialDestination(path);
+    if (destination)
+        permanentRedirect(`/tutorials/${destination}`);
     const section = findStaticSection(path);
     if (section) {
+        if (path !== section.path && !getStaticArticleSlugFromPath(section, path))
+            notFound();
         const article = await getStaticArticleForServer(section, getStaticArticleSlugFromPath(section, path));
-        return article && { kind: "static", title: article.title, body: article.body, path: `${section.path}/${article.article.slug}`, bordered: section.bordered };
+        if (!article)
+            throw new Error(`Static tutorial body is unavailable: ${path}`);
+        return { kind: "static", title: article.title, body: article.body, path: `${section.path}/${article.article.slug}`, bordered: section.bordered };
     }
-    return resolveTutorialPath(path);
+    const view = await resolveTutorialPath(path);
+    if (!view)
+        notFound();
+    return view;
 });
 
 const joinPath = async (params: Props["params"]) => (await params).path?.join("/") || null;
@@ -78,6 +90,6 @@ export default async function TutorialsPage({ params }: Props) {
             modified: view.content.updated_at,
         })}/>)}
       {crumbs.length > 1 && (<JsonLd id="tutorials-breadcrumb-json-ld" data={tutorialBreadcrumbJsonLd(crumbs)}/>)}
-      <TutorialsClient serverView={view ? <TutorialServerView data={view}/> : undefined}/>
+      <TutorialsClient initialRoots={view && "roots" in view ? view.roots : []} serverView={view ? <TutorialServerView data={view}/> : undefined}/>
     </>);
 }

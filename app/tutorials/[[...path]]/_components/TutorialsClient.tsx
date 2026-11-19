@@ -96,9 +96,11 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
     const [detail, setDetail] = useState<ContentDetail | null>(null);
     const { resolvedTheme } = useTheme();
     const [detailLoading, setDetailLoading] = useState(false);
+    const [loadFailed, setLoadFailed] = useState(false);
     const { locale } = useLanguage();
     const { t } = useTranslation();
     const loadContent = (item: ContentItem) => {
+        setLoadFailed(false);
         setSelectedContentId(item.id);
         setLoadingSlug(item.slug);
         setDetailLoading(true);
@@ -109,7 +111,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
             const detail = res as ContentDetail;
             setDetail(detail);
         })
-            .catch(() => setDetail(null))
+            .catch(() => { setDetail(null); setLoadFailed(true); })
             .finally(() => setDetailLoading(false));
     };
     useEffect(() => {
@@ -123,6 +125,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
     }, [detail]);
     useEffect(() => {
         setLoading(true);
+        setLoadFailed(false);
         setSelectedContentId(null);
         setDetail(null);
         api.get(`/api/v1/categories/${categoryId}/contents?language=${locale}`, { requireAuth: false })
@@ -136,11 +139,8 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
                 else
                     onSlugNotFound?.(initialContentSlug);
             }
-            else if (items.length > 0) {
-                loadContent(items[0]);
-            }
         })
-            .catch(() => setContents([]))
+            .catch(() => { setContents([]); setLoadFailed(true); })
             .finally(() => setLoading(false));
     }, [categoryId, locale]);
     if (loading) {
@@ -151,6 +151,8 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
         <span className="text-sm">{t('tutorials.loading')}</span>
       </div>);
     }
+    if (loadFailed && pendingView && (!selectedContentId || loadingSlug === initialContentSlug))
+        return <>{pendingView}</>;
     if (contents.length === 0) {
         return <p className="text-muted-foreground text-sm">{t('tutorials.noContent')}</p>;
     }
@@ -283,8 +285,9 @@ function CategorySidebar({ category, selectedId, onSelect, locale, initialConten
       </div>
     </div>);
 }
-function TutorialsTabs({ serverView }: {
+function TutorialsTabs({ serverView, initialRoots }: {
     serverView?: ReactNode;
+    initialRoots: Category[];
 }) {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
@@ -342,23 +345,16 @@ function TutorialsTabs({ serverView }: {
                 if (detectedSlug)
                     setContentSlug(detectedSlug);
             }
-            if (!fullPath || !findRootForPath(roots, fullPath)) {
-                // Also check without last segment
-                const lastSlash = fullPath?.lastIndexOf("/") ?? -1;
-                const catPath = lastSlash > 0 ? fullPath!.substring(0, lastSlash) : null;
-                if (catPath && findRootForPath(roots, catPath)) {
-                    // already handled above
-                }
-                else {
-                    setActiveTab(roots[0]?.slug ?? GUIDES_SECTION.tab);
-                }
+            if (!fullPath) {
+                setActiveTab(roots[0]?.slug ?? GUIDES_SECTION.tab);
             }
         };
+        processCategories(initialRoots);
         api.get("/api/v1/categories", { requireAuth: false })
             .then((res) => {
             processCategories(getActiveRoots(res.data as Category[]));
         })
-            .catch(() => processCategories([]))
+            .catch(() => processCategories(initialRoots))
             .finally(() => setLoading(false));
     }, []);
     const handleTabChange = (slug: string) => {
@@ -445,14 +441,15 @@ function TutorialsTabs({ serverView }: {
           {STATIC_SECTIONS.map((section) => (<TabsContent key={section.tab} id={`tutorials-${section.path}-content`} value={section.tab} className="mt-0">
               <StaticArticlesPanel section={section} selectedSlug={activeTab === section.tab ? staticSlug : null} onSelect={(slug) => handleSelectStaticArticle(section, slug)}/>
             </TabsContent>))}
-        </Tabs>) : null}
+        </Tabs>) : serverView}
     </div>);
 }
 /** The interactive Learning Center; serverView is the server-rendered page shown while the client loads its data. */
-export default function TutorialsClient({ serverView }: {
+export default function TutorialsClient({ serverView, initialRoots }: {
     serverView?: ReactNode;
+    initialRoots: Category[];
 }) {
     return (<Suspense>
-      <TutorialsTabs serverView={serverView}/>
+      <TutorialsTabs serverView={serverView} initialRoots={initialRoots}/>
     </Suspense>);
 }

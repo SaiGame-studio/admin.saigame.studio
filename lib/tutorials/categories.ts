@@ -12,14 +12,16 @@ export function getCatName(cat: Category, locale: string): string {
 export function getActiveRoots(data: Category[]): Category[] {
     return data
         .filter((c) => c.parent_id === null && c.is_active)
-        .sort((a, b) => a.sort_order - b.sort_order);
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((category) => ({ ...category, children: getActiveChildren(category) }));
 }
 
 /** Active children in menu order. */
 export function getActiveChildren(category: Category): Category[] {
     return (category.children ?? [])
         .filter((c) => c.is_active)
-        .sort((a, b) => a.sort_order - b.sort_order);
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((child) => ({ ...child, children: getActiveChildren(child) }));
 }
 
 /** The /api/v1/categories/{id}/contents response comes in several envelopes; returns its items sorted by title. */

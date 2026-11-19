@@ -1,6 +1,7 @@
 // /llms.txt (llmstxt.org): a Markdown summary of the public pages for AI assistants and answer engines.
 // The tutorial list comes from the Learning Center (CMS categories and the static Tutorials and Tips tabs).
 import { APP_URL } from "@/lib/structured-data";
+import { getLegacyTutorialDestination } from "@/lib/tutorials/legacy-paths";
 import { STATIC_SECTIONS } from "@/lib/tutorial-static-sections";
 import { findRootForPath, getCategoryTrail } from "@/lib/tutorials/categories";
 import { getTutorialLeaves } from "@/lib/tutorials/server";
@@ -9,7 +10,10 @@ import { getStaticArticleTitle, translateEn } from "@/lib/tutorials/static-artic
 // Rebuilt at most once an hour, like the sitemap.
 export const revalidate = 3600;
 
-const link = (title: string, path: string, note?: string) => `- [${title}](${APP_URL}${path})${note ? `: ${note}` : ""}`;
+const link = (title: string, path: string, note?: string) => {
+    const destination = path.startsWith("/tutorials/") ? getLegacyTutorialDestination(path.slice("/tutorials/".length)) : null;
+    return `- [${title}](${APP_URL}${destination ? `/tutorials/${destination}` : path})${note ? `: ${note}` : ""}`;
+};
 const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
 
 async function body(): Promise<string> {

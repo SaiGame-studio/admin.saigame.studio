@@ -16,24 +16,27 @@ const CONTENT_REVALIDATE = 60 * 60 * 24;
 
 async function getJson<T>(endpoint: string, revalidate: number): Promise<T | null> {
     if (!API_URL)
+        throw new Error("NEXT_PUBLIC_API_URL is required to render public tutorials.");
+    const res = await fetch(`${API_URL}${endpoint}`, { headers: { Accept: "application/json" }, next: { revalidate } });
+    if (res.status === 404)
         return null;
-    try {
-        const res = await fetch(`${API_URL}${endpoint}`, { headers: { Accept: "application/json" }, next: { revalidate } });
-        return res.ok ? (await res.json()) as T : null;
-    }
-    catch {
-        return null;
-    }
+    if (!res.ok)
+        throw new Error(`Public tutorial request failed (${res.status}): ${endpoint}`);
+    return (await res.json()) as T;
 }
 
 export async function getTutorialRoots(): Promise<Category[]> {
     const res = await getJson<{ data: Category[] }>("/api/v1/categories", TREE_REVALIDATE);
-    return res?.data ? getActiveRoots(res.data) : [];
+    if (!res || !Array.isArray(res.data))
+        throw new Error("The public tutorial category response is unavailable or invalid.");
+    return getActiveRoots(res.data);
 }
 
 export async function getCategoryContents(categoryId: string): Promise<ContentItem[]> {
     const res = await getJson<unknown>(`/api/v1/categories/${categoryId}/contents?language=${LANGUAGE}`, TREE_REVALIDATE);
-    return res ? extractContentItems(res) : [];
+    if (!res)
+        throw new Error(`Public tutorial category contents are unavailable: ${categoryId}`);
+    return extractContentItems(res);
 }
 
 async function getContentDetail(contentId: string): Promise<ContentDetail | null> {
