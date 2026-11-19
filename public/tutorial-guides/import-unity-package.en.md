@@ -1,78 +1,124 @@
-This guide outlines the initial setup for integrating the SaiGame SDK into your Unity project.
+Connect a Unity project to the Sai Server backend. You import the SaiGame Unity SDK, add the `SaiServer` prefab, set your Game ID, test the connection and log in. At the end, Unity talks to your game on Sai Server.
 
-### 1. Prerequisites & Installation
+**In this guide you will:**
+- import the SaiGame Unity package,
+- configure the `SaiServer` prefab with your Game ID,
+- optionally load settings from a `.env` file,
+- test the connection and log in with `SaiAuth`.
 
-* **Game Registration:** Ensure your game is already created in the SaiGame system.
-* **Unity Version:**
-    * Recommended: **Unity 6.x** or newer.
-    * Legacy Versions: If you are using an older version and encounter issues, please [contact **Sai** for support](https://discord.gg/UU3YarmVde).
-* **SDK Setup:**
-  1. Download the latest **Unity Package** from [this link](https://github.com/SaiGame-studio/ss-unity/releases).
-![alt](/tutorial-guides/import-unity-package/step-01.png)
+## Before you start
 
-  2. Import the package into your project.
-  3. Drag the `SaiServer` prefab from `Assets/SaiGame/Prefabs` into your scene. All services (authentication, items, quests, battle…) are already wired inside it.
-![alt](/tutorial-guides/import-unity-package/step-02.png)
+- A game created in Sai Server, and its **Game ID** (see [Create a Studio](/tutorials/guides/create-a-studio)).
+- **Unity 6.x or newer** (recommended). If you use an older version and run into problems, [ask Sai on Discord](https://discord.gg/UU3YarmVde).
 
----
+## Step 1: Import the SaiGame Unity package
 
-### 2. Configuration
+1. Download the latest Unity package from the [SaiGame SDK releases page](https://github.com/SaiGame-studio/ss-unity/releases).
+2. Import the package into your Unity project.
+3. Drag the `SaiServer` prefab from `Assets/SaiGame/Prefabs` into your scene. Every service (authentication, cloud save, items, quests, battle and more) is already wired inside it.
 
-Select the `SaiServer` object in the Hierarchy. Its Inspector contains everything needed to connect your project to the backend.
+![Download the SaiGame Unity package](/tutorial-guides/import-unity-package/step-01.png)
 
-#### Server Endpoint
-Set **Server Endpoint** to `Production API (HTTPS) - api.saigame.studio` so you are interacting with live data. This is the default value.
-![alt](/tutorial-guides/import-unity-package/step-03.png)
+![The SaiServer prefab in the scene](/tutorial-guides/import-unity-package/step-02.png)
 
-#### Game Identity
-1. Go to your **Game Detail** page on the dashboard and copy the **Game ID**.
-![alt](/tutorial-guides/import-unity-package/step-04.png)
-2. In the Unity Inspector, select the `SaiServer` component.
-3. Paste the ID into the **Game ID** field.
-![alt](/tutorial-guides/import-unity-package/step-05.png)
+The package name and version appear at the top of the `SaiServer` Inspector. Mention this version when you ask for support.
 
-#### Optional: Use a `.env` File
-Instead of typing the Game ID and test credentials into the Inspector, you can keep them in a `.env` file:
-1. In the `SaiServer` Inspector, click **Create .env**. This copies `Assets/SaiGame/env.txt` to a `.env` file at your project root.
-2. Open `.env` and fill in `GAME_ID`, `USERNAME` and `PASSWORD`.
-3. Enable **Load .env on Play**. When you enter Play Mode, the Game ID is applied to `SaiServer` and the credentials to `SaiAuth`.
+## Step 2: Set the Server Endpoint and Game ID
 
-> **Note:** `.env` must never be committed to source control. Credentials loaded from it are stored in PlayerPrefs only, not in the scene file.
+Select the `SaiServer` object in the Hierarchy.
 
-![alt](/tutorial-guides/import-unity-package/step-06.jpg)
+1. **Server Endpoint:** confirm the read-only production URL, **https://api.saigame.studio**.
+2. **Game ID:** open your game's **Game Detail** page in the admin, copy the Game ID and paste it into the **Game ID** field.
 
-#### Verify the Connection
-Click **Test Connection** in the `SaiServer` Inspector. A `✓ Connection test passed!` message in the Console confirms that Unity can reach the server. **Show Service Info** prints the current base URL and login state.
+When the Game ID is valid, the read-only **Game Name** field shows your game's name. Click **Refresh** next to it to load the name again.
 
----
+![Server Endpoint setting](/tutorial-guides/import-unity-package/step-03.png)
 
-### 3. Authentication & Testing
+![Copy the Game ID from the Game Detail page](/tutorial-guides/import-unity-package/step-04.png)
 
-Switch Unity to **Play Mode** to begin testing the integration.
+![Paste the Game ID into the SaiServer component](/tutorial-guides/import-unity-package/step-05.png)
 
-#### User Authentication
-Use the `SaiAuth` component to perform the following actions:
-* **Register** a new account.
-* **Login** with existing credentials.
-* **Get Me** to load the current user, **Refresh Token** and **Logout**.
-![alt](/tutorial-guides/import-unity-package/step-07.png)
+## Step 3 (optional): Keep settings in a .env file
 
-#### Google Login (Optional)
-Players can also sign in with Google through the `GoogleBackendLogin` component:
-1. Click **Start Login**. A browser window opens the Google sign-in page.
-2. Complete the sign-in in the browser. Unity polls the server and, once the login succeeds, passes the tokens to `SaiAuth` automatically.
-3. Use **Cancel Login** to abort, or **Open Auth URL** if the browser did not open.
+A `.env` file keeps your Game ID and test credentials out of the scene file.
 
-![alt](/tutorial-guides/import-unity-package/step-08.jpg)
+1. In the **Environment** section of the `SaiServer` Inspector, click **Create .env**. Unity copies `Assets/SaiGame/env.example.txt` to a `.env` file at the project root (next to the `Assets` folder). The button is disabled when `.env` already exists.
+2. Open `.env` and fill in the keys you need:
 
-#### Debugging & Implementation
-The Inspector includes helper buttons for rapid testing.
-* **Console Shortcuts:** Every time you click a test button, a **Color Log** will appear in the Console.
-* **Code Navigation:** Clicking the log entry will take you directly to the function responsible for that logic. You can use these functions as a reference when writing your custom game scripts.
-![alt](/tutorial-guides/import-unity-package/step-09.png)
----
+```ini
+GAME_ID=your-game-id-here
+USERNAME=your-username-here
+PASSWORD=your-password-here
+```
 
-### 4. Next Steps
-* Successfully logging in or creating an account creates a system user, but it does not automatically register them as a "Player" within your specific game.
-* We will cover the logic for converting a user into an active Player in the **next tutorial**.
-* There is much more to discover within the `SaiServer` and `SaiAuth` components, feel free to explore them at your own pace.
+3. Enable **Load .env on Play** and use these toggles to apply your settings when you enter Play Mode:
+   - **Override game id** – uses `GAME_ID`.
+   - **Override credentials** – sends `USERNAME` and `PASSWORD` to `SaiAuth`.
+
+![Load .env on Play setting](/tutorial-guides/import-unity-package/step-06.png)
+
+> **Security:** never commit `.env` to source control. Credentials from it are stored in PlayerPrefs only, never in the scene file.
+
+**For builds:** the **Load .env.build on build** section works the same way. Click **Create .env.build** and set `GAME_ID`. With **Override game id** checked, the Game ID goes into the built player only. Your scene asset is not changed.
+
+## Step 4: Test the connection
+
+Click **Test Connection** in the `SaiServer` Inspector.
+
+**Expected result:** the Console shows `✓ Connection test passed!`. **Show Service Info** prints the current base URL and login state.
+
+If you see `✗ Connection test failed!`, see "Common problems" below.
+
+## Step 5: Log in with SaiAuth
+
+Select `SaiServer` in the Hierarchy and expand **Sai Auth (Script)** in the Inspector. Enter **Play Mode**, then use the `SaiAuth` component:
+
+- **Register** – create a new account (email, username, password).
+- **Login (Check 2FA)** – log in with your username and password.
+- **2FA Login** – if the account uses two-factor authentication, the Console warns that a code is required. Enter the 6-digit code in **2FA Code** and click **2FA Login**.
+- **Get Me** – load the current user. **Refresh Token** – renew the access token. **Logout** – end the session.
+
+![SaiAuth Inspector with Login, 2FA Login, Register, Refresh Token and Get Me controls](/tutorial-guides/import-unity-package/step-07.png)
+
+The same calls are available from code:
+
+```csharp
+using SaiGame.Services;
+
+SaiServer.Instance.SaiAuth.Login(
+    "username", "password",
+    response => Debug.Log($"Logged in as {response.user.username}"),
+    error => Debug.LogError(error));
+```
+
+**Expected result:** the Console logs `Login successful.` and **Get Me** prints your username.
+
+Players can also sign in with Google. See [Google Login in Unity](/tutorials/guides/unity-google-login).
+
+## Use the Inspector logs to find the code
+
+Every test button writes a **colored log** to the Console. Click a log entry to open the function that handles it. Use these functions as a reference for your own game scripts.
+
+For example, **Show Service Info** writes a colored action label followed by the base URL and authentication state. The screenshot below was captured before login.
+
+![Show Service Info logs in the Unity Console before login](/tutorial-guides/import-unity-package/step-09.png)
+
+## Common problems
+
+- **Connection test failed.** Check your internet connection and confirm that Sai Server is available. If the problem continues, [ask for help on Discord](https://discord.gg/UU3YarmVde).
+- **Game Name stays empty.** The Game ID is wrong or belongs to another game. Copy it again from the Game Detail page.
+- **The .env values are ignored.** Make sure `.env` sits at the project root (not inside `Assets`) and that **Load .env on Play** is enabled.
+- **Login asks for a 2FA code.** Your account has 2FA enabled. Use **2FA Code** and **2FA Login**.
+
+## FAQ
+
+### Which Unity version does the Sai Server SDK support?
+Unity 6.x or newer is recommended.
+
+### Is logging in the same as becoming a player of my game?
+No. Logging in creates or loads a Sai Server user. The user becomes a **player** of your game when you create their Gamer Progress. That is the next lesson.
+
+## Next steps
+
+- [Google Login in Unity](/tutorials/guides/unity-google-login)
+- [Create Gamer Progress](/tutorials/guides/create-gamer-progress)

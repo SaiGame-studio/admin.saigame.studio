@@ -18,6 +18,7 @@ import { TutorialFontSize, useTutorialFontSize } from "@/components/tutorials/Tu
 import { StaticArticlesPanel } from "@/components/tutorials/StaticArticlesPanel";
 import { GUIDES_SECTION, STATIC_SECTIONS, findStaticSection, findStaticSectionByTab, getStaticArticleSlugFromPath, type StaticSection } from "@/lib/tutorial-static-sections";
 import { preprocessImgSize } from "@/lib/tutorials/markdown";
+import { tutorialMarkdownComponents } from "@/lib/tutorials/markdown-components";
 import { DOWNLOAD_SDK_PATH } from "@/lib/sdk-links";
 import { extractContentItems, findCategoryById, findCategoryByPath, findRootForPath, getActiveRoots, getAllLeafCategories, getCatName } from "@/lib/tutorials/categories";
 import type { Category, ContentDetail, ContentItem } from "@/lib/tutorials/types";
@@ -190,7 +191,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
               {detail.metadata.learn_time}
             </p>)}
           {detail.body && (<div className={cn("prose prose-sm max-w-none", resolvedTheme?.includes("dark") && "prose-invert")}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{preprocessImgSize(detail.body)}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={tutorialMarkdownComponents}>{preprocessImgSize(detail.body)}</ReactMarkdown>
               </div>)}
           <div className="flex justify-start mt-4">
             <UpvoteButton contentId={detail.id} count={detail.metadata?.upvote_count}/>

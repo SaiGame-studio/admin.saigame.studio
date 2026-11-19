@@ -4326,8 +4326,9 @@
     "guides": {
       "createAStudio": "Create a Studio",
       "importUnityPackage": "Import Unity Package",
+      "unity-google-login": "Google Login in Unity",
       "create-gamer-progress": "Create Gamer Progress",
-      "cross-platform-save": "Cross platform save",
+      "cross-platform-save": "Cross-Platform Cloud Save",
       "what-is-item-definition": "What is Item Definition?",
       "5b-send-an-item-to-a-player": "Send an item to a player",
       "what-is-container": "What is Container?",
@@ -4337,6 +4338,7 @@
       "item-swap": "Item Swap",
       "what-is-gacha-pack": "What is Gacha Pack?",
       "open-gacha-pack": "Open Gacha Pack",
+      "gift-codes": "Create and Redeem Gift Codes",
       "what-is-item-generator": "What is Item Generator?",
       "claim-resources-from-generator": "Claim Resources from Generator",
       "equipment-slots-definitions": "Equipment Slots Definitions",

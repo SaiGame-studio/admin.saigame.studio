@@ -1,59 +1,114 @@
-This guide demonstrates the foundational method of distributing items to players using the Mailbox system within the Sai Game Admin and Unity environment.
+Send an item to a player through the in-game **Mailbox** and claim it in Unity. The Mailbox is how you deliver rewards, compensation and gifts with Sai Server. You attach items to a mail in the admin, and the player claims them from the game client. The server then adds the items to the player's inventory.
 
-## 1. Overview
-The Mailbox system serves as a primary delivery mechanism for rewards, compensatio. This method allows administrators to push items directly to specific player accounts for manual retrieval.
+**In this guide you will:**
+- send a mail with an item attachment from the admin,
+- load and claim the mail in Unity with the `Mailbox` component,
+- verify that the item reached the player's inventory.
 
----
+## Before you start
 
-## 2. Locating the Player Profile
-Before sending items, you must verify the player's current inventory state to ensure the transaction is tracked correctly.
+- An Item Definition to send (see [What is Item Definition?](/tutorials/guides/what-is-item-definition)).
+- A player with Gamer Progress in your game (see [Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
 
-1. Navigate to the **Players** section of the Game Admin.
-2. Select the specific **Player Profile** from the list.
-3. Open the **Items Tab**.
-4. **Verification:** Confirm that the item list is currently empty.
-![alt](/tutorial-guides/5b-send-an-item-to-a-player/step-01.png)
+## Step 1: Open the player's profile
 
----
+1. Open **Players** in your game dashboard.
+2. Select the player.
+3. Open the **Items** tab and note the current items. A new test player has no items.
 
-## 3. Sending a Mail with Attachments
-To send an item, use the Player Mailbox interface. This ensures the unique Player ID is correctly mapped.
+![Player profile Items tab](/tutorial-guides/5b-send-an-item-to-a-player/step-01.png)
 
-### Navigation
-* While in the Player Profile, navigate to the **Mail Tab**.
-    * *Note: Using this tab automatically populates the Player ID field.*
-![alt](/tutorial-guides/5b-send-an-item-to-a-player/step-02.png) 
+## Step 2: Send a mail with an attachment
 
-### Execution Steps
-1. Locate the **Attachments** section at the bottom of the interface.
-2. Select a specific item from the available library.
-3. Set any necessary message parameters and click **Send**.
-4. **Verification:** The **Player Mailbox** list should now display a new entry with the status:
-    * **unread**
-    * **unclaim**
-![alt](/tutorial-guides/5b-send-an-item-to-a-player/step-03.png)
+1. In the same player profile, open the **Mail** tab. The Player ID is filled in for you.
+2. In **Attachments**, select the item and quantity.
+3. Write the title and message, then click **Send**.
 
----
+![Player profile Mail tab](/tutorial-guides/5b-send-an-item-to-a-player/step-02.png)
 
-## 4. Claiming Items in Unity
-Once the mail is sent via the Admin panel, the player must claim it within the game client to update their inventory.
+**Expected result:** the **Player Mailbox** list shows the new mail as **unread** and **unclaimed**.
 
-### Implementation Workflow
-1. Launch the project in **Unity**.
-2. Log in with the targeted player account.
-3. Locate the `Mailbox` class under the `SaiService` Object.
-4. Execute the `LoadMessage` method to fetch current mail data.
-![alt](/tutorial-guides/5b-send-an-item-to-a-player/step-04.png)
-5. Execute the **Claim** action on the specific email containing the attachment.
-![alt](/tutorial-guides/5b-send-an-item-to-a-player/step-05.png)
+![New mail is unread and unclaimed](/tutorial-guides/5b-send-an-item-to-a-player/step-03.png)
 
----
+## Step 3: Claim the item in Unity
 
-## 5. Verification of Receipt
-After the claim action is completed in Unity, the database updates the player's inventory state.
+1. Enter **Play Mode** and log in as that player.
+2. Select the `Mailbox` component on the `SaiServer` object.
+3. Click **Load Messages**. Each mail shows a status badge: **[Unread]**, **[Read]**, **[Claimed]** or **[Expired]**.
+4. Click **Claim** on the mail with the attachment. To claim every loaded mail at once, click **Claim All**.
 
-1. Return to the **Sai Game Admin**.
-2. Refresh the **Items Tab** within the Player Profile.
-3. The attached item will now appear in the player's inventory list.
-![alt](/tutorial-guides/5b-send-an-item-to-a-player/step-06.png)
+![Load Messages in the Mailbox component](/tutorial-guides/5b-send-an-item-to-a-player/step-04.png)
 
+![Claim the mail attachment](/tutorial-guides/5b-send-an-item-to-a-player/step-05.png)
+
+Use **Unread Count** and **Unclaimed Count** to show notification badges in your game UI.
+
+The same flow in code:
+
+```csharp
+using SaiGame.Services;
+using UnityEngine;
+
+public class MailboxExample : MonoBehaviour
+{
+    public void ClaimFirstMail()
+    {
+        Mailbox mailbox = SaiServer.Instance.Mailbox;
+        mailbox.GetMessages(null, null,
+            response =>
+            {
+                if (response.messages == null || response.messages.Length == 0) return;
+                string messageId = response.messages[0].id;
+                mailbox.ClaimMessage(messageId,
+                    claimed => Debug.Log("Claimed"),
+                    error => Debug.LogError(error));
+            },
+            error => Debug.LogError(error));
+    }
+
+    // Call after Load Messages / GetMessages: claims every loaded mail with an unclaimed attachment.
+    public void ClaimEverything()
+    {
+        SaiServer.Instance.Mailbox.ClaimAllMessages(
+            claimed => Debug.Log($"Claimed {claimed.Length} mails"),
+            error => Debug.LogError(error));
+    }
+}
+```
+
+## Step 4: Verify the item in the inventory
+
+1. Go back to the player's profile in the admin.
+2. Refresh the **Items** tab.
+
+**Expected result:** the attached item appears in the player's inventory.
+
+![The claimed item appears in the Items tab](/tutorial-guides/5b-send-an-item-to-a-player/step-06.png)
+
+## Why use the Mailbox to deliver items?
+
+- **The server grants the item.** The game client only asks to claim. It cannot invent items.
+- **Players see what they received.** Each mail has a title and message, for example "Maintenance compensation".
+- **Many features use it.** Gacha packs, item generators and quest rewards can deliver to the Mailbox instead of directly to the inventory.
+
+## Common problems
+
+- **Load Messages returns nothing.** Check that you are logged in as the same player the mail was sent to, in the same game.
+- **The Claim button is missing.** The mail has no attachment. Claim is only shown for mails with attachments.
+- **The item does not appear after claiming.** Refresh the **Items** tab. If the inventory is full, the server returns a storage error.
+
+## FAQ
+
+### How do I give an item to one player in Sai Server?
+Open the player's profile, use the **Mail** tab to send a mail with the item attached, and let the player claim it in the game.
+
+### Can a player claim all mails at once?
+Yes. Load the messages first, then **Claim All** (or `ClaimAllMessages` in code) claims every loaded mail that has an unclaimed attachment.
+
+### Can rewards skip the Mailbox?
+Yes. Some features, such as gacha packs and quests, can deliver directly to the main inventory. See [What is Gacha Pack?](/tutorials/guides/what-is-gacha-pack).
+
+## Next steps
+
+- [What is Container?](/tutorials/guides/what-is-container)
+- [Create and Redeem Gift Codes](/tutorials/guides/gift-codes)
