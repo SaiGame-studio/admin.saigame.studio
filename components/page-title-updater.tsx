@@ -27,6 +27,9 @@ function formatPathToTitle(pathname: string): string {
 export function PageTitleUpdater() {
     const pathname = usePathname();
     useEffect(() => {
+        // Public pages own their title through server metadata.
+        if (["/tutorials", "/why-sai-server", "/download-sdk"].some((path) => pathname === path || pathname.startsWith(`${path}/`)))
+            return;
         const pageTitle = formatPathToTitle(pathname);
         document.title = `${pageTitle} | ${SITE_NAME}`;
     }, [pathname]);
