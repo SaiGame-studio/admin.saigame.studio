@@ -8,8 +8,8 @@ Create a Studio, a Team and your first Game in the Sai Server admin. This is the
 ## Before you start
 
 - A Sai Server account with a **verified email**.
-- **Two-factor authentication (2FA)** enabled on your account. The Studios page asks you to turn on 2FA before you create a studio.
-- Enough **sCoin** if this is not your first studio (see "How much does it cost?" below).
+- **<a href="/profile?tab=settings" rel="nofollow">Two-factor authentication (2FA)</a>** enabled on your account.
+- Enough **sCoin** if this is not your first studio (see <a href="#create-a-studio-cost">How much does it cost?</a>).
 
 ## Step 1: Create a Studio
 
@@ -24,23 +24,27 @@ A Studio is your main workspace. Every Team, Game and member belongs to a Studio
 
 When you create a studio, Sai Server creates a default team (**Team #1**) and adds you as its owner.
 
-![The default team inside a studio](/tutorial-guides/create-a-studio/step-02.png)
+Open your studio's **Teams** tab, then select **Team #1** to open the team details.
+
+![The studio's Teams tab showing Team #1](/tutorial-guides/create-a-studio/step-02.png)
 
 - **Working alone?** You do not need to add anyone.
-- **Working with others?** Ask each teammate to register a Sai Server account and send you their **User ID**, then add them to your team.
+- **Working with others?** Ask each teammate to register a Sai Server account and send you their **User ID**. On the team details page, use **Add Member** in the **Members** section to add them.
 
-![Add a member to your team with their User ID](/tutorial-guides/create-a-studio/step-03.png)
+![The team's Members section with the Add Member button](/tutorial-guides/create-a-studio/step-03.png)
 
 ## Step 3: Create your first Game
 
-1. Create a new game from the [new game page](https://server.saigame.studio/games/new).
-2. Assign the game to your team so every team member can work on it.
+1. Create a new game from the <a href="/games/new" rel="nofollow">new game page</a>.
+2. On the team details page, click **Add Games** in the **Games** section and select your game so every team member can work on it.
 
 ![Create a game](/tutorial-guides/create-a-studio/step-04.png)
 
-![Add the game to the team](/tutorial-guides/create-a-studio/step-05.png)
+![The team's Games section with the Add Games button](/tutorial-guides/create-a-studio/step-05.png)
 
 **Expected result:** the game appears in your studio. Open its **Game Detail** page and copy the **Game ID**. You will paste it into Unity in the next lesson.
+
+<a id="create-a-studio-cost"></a>
 
 ## How much does it cost?
 
@@ -57,7 +61,7 @@ Some in-game features (for example Leaderboards) need a monthly subscription for
 
 ## Common problems
 
-- **I cannot create a studio.** Check that your email is verified and that 2FA is enabled on your account.
+- **I cannot create a studio.** Check that your email is verified and that <a href="/profile?tab=settings" rel="nofollow">2FA</a> is enabled on your account.
 - **Not enough sCoin.** Only your first studio is free. Top up sCoin before creating another studio or buying extra slots.
 - **I want to remove a studio.** The owner can delete a studio that has no games left. If your account uses 2FA, you are asked for a 2FA code.
 

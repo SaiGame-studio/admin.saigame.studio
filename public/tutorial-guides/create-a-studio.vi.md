@@ -8,8 +8,8 @@ Tạo Studio, Team và Game đầu tiên trong trang quản trị Sai Server. Đ
 ## Chuẩn bị
 
 - Một tài khoản Sai Server đã **xác minh email**.
-- Đã bật **xác thực hai lớp (2FA)** cho tài khoản. Trang Studios yêu cầu bật 2FA trước khi tạo studio.
-- Đủ **sCoin** nếu đây không phải studio đầu tiên của bạn (xem phần "Chi phí bao nhiêu?" bên dưới).
+- Đã bật **<a href="/profile?tab=settings" rel="nofollow">xác thực hai lớp (2FA)</a>** cho tài khoản.
+- Đủ **sCoin** nếu đây không phải studio đầu tiên của bạn (xem <a href="#create-a-studio-cost">Chi phí bao nhiêu?</a>).
 
 ## Bước 1: Tạo Studio
 
@@ -24,23 +24,27 @@ Studio là không gian làm việc chính. Mọi Team, Game và thành viên đ�
 
 Khi bạn tạo studio, Sai Server tự tạo một team mặc định (**Team #1**) và thêm bạn làm chủ sở hữu.
 
-![Team mặc định trong studio](/tutorial-guides/create-a-studio/step-02.png)
+Mở tab **Teams** trong studio, sau đó chọn **Team #1** để mở trang chi tiết team.
+
+![Tab Teams trong studio hiển thị Team #1](/tutorial-guides/create-a-studio/step-02.png)
 
 - **Làm một mình?** Bạn không cần thêm ai.
-- **Làm cùng người khác?** Nhờ từng đồng đội đăng ký tài khoản Sai Server và gửi bạn **User ID**, sau đó thêm họ vào team.
+- **Làm cùng người khác?** Nhờ từng đồng đội đăng ký tài khoản Sai Server và gửi bạn **User ID**. Trên trang chi tiết team, dùng nút **Add Member** trong phần **Members** để thêm họ.
 
-![Thêm thành viên vào team bằng User ID](/tutorial-guides/create-a-studio/step-03.png)
+![Phần Members của team với nút Add Member](/tutorial-guides/create-a-studio/step-03.png)
 
 ## Bước 3: Tạo Game đầu tiên
 
-1. Tạo game mới tại [trang tạo game](https://server.saigame.studio/games/new).
-2. Gán game cho team để mọi thành viên trong team cùng làm được.
+1. Tạo game mới tại <a href="/games/new" rel="nofollow">trang tạo game</a>.
+2. Trên trang chi tiết team, nhấn **Add Games** trong phần **Games** rồi chọn game để mọi thành viên trong team cùng làm được.
 
 ![Tạo game](/tutorial-guides/create-a-studio/step-04.png)
 
-![Thêm game vào team](/tutorial-guides/create-a-studio/step-05.png)
+![Phần Games của team với nút Add Games](/tutorial-guides/create-a-studio/step-05.png)
 
 **Kết quả mong đợi:** game xuất hiện trong studio. Mở trang **Game Detail** và sao chép **Game ID**. Bạn sẽ dán nó vào Unity ở bài tiếp theo.
+
+<a id="create-a-studio-cost"></a>
 
 ## Chi phí bao nhiêu?
 
@@ -57,7 +61,7 @@ Một số tính năng trong game (ví dụ Leaderboard) cần gói đăng ký h
 
 ## Lỗi thường gặp
 
-- **Không tạo được studio.** Kiểm tra email đã được xác minh và tài khoản đã bật 2FA.
+- **Không tạo được studio.** Kiểm tra email đã được xác minh và tài khoản đã bật <a href="/profile?tab=settings" rel="nofollow">2FA</a>.
 - **Không đủ sCoin.** Chỉ studio đầu tiên là miễn phí. Hãy nạp sCoin trước khi tạo studio khác hoặc mua thêm slot.
 - **Muốn xóa studio.** Chủ sở hữu có thể xóa studio không còn game nào. Nếu tài khoản dùng 2FA, bạn sẽ được hỏi mã 2FA.
 
