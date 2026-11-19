@@ -7,7 +7,7 @@
  * the server render adds at most about one view per article per day.
  */
 import type { Category, ContentDetail, ContentItem } from "./types";
-import { extractContentItems, findCategoryByPath, getActiveChildren, getActiveRoots, getAllLeafCategories } from "./categories";
+import { extractContentItems, findCategoryByPath, getActiveChildren, getAllLeafCategories } from "./categories";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const LANGUAGE = "en";
@@ -25,11 +25,14 @@ async function getJson<T>(endpoint: string, revalidate: number): Promise<T | nul
     return (await res.json()) as T;
 }
 
+/**
+ * The CMS category tree is no longer read: GET /api/v1/categories is disabled for the Learning Center,
+ * which now serves only the static tabs (lib/tutorial-static-sections.ts). With no roots there are no
+ * leaf categories either, so no /api/v1/categories/{id}/contents or /api/v1/contents request is made,
+ * and an unknown CMS path resolves to a 404.
+ */
 export async function getTutorialRoots(): Promise<Category[]> {
-    const res = await getJson<{ data: Category[] }>("/api/v1/categories", TREE_REVALIDATE);
-    if (!res || !Array.isArray(res.data))
-        throw new Error("The public tutorial category response is unavailable or invalid.");
-    return getActiveRoots(res.data);
+    return [];
 }
 
 export async function getCategoryContents(categoryId: string): Promise<ContentItem[]> {
