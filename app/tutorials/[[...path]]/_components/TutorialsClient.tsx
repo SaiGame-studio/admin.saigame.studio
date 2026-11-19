@@ -20,7 +20,7 @@ import { GUIDES_SECTION, STATIC_SECTIONS, findStaticSection, findStaticSectionBy
 import { preprocessImgSize } from "@/lib/tutorials/markdown";
 import { tutorialMarkdownComponents } from "@/lib/tutorials/markdown-components";
 import { DOWNLOAD_SDK_PATH } from "@/lib/sdk-links";
-import { extractContentItems, findCategoryById, findCategoryByPath, findRootForPath, getActiveRoots, getAllLeafCategories, getCatName } from "@/lib/tutorials/categories";
+import { extractContentItems, findCategoryById, findCategoryByPath, findRootForPath, getAllLeafCategories, getCatName } from "@/lib/tutorials/categories";
 import type { Category, ContentDetail, ContentItem } from "@/lib/tutorials/types";
 function UpvoteButton({ contentId, count }: {
     contentId: string;
@@ -350,13 +350,9 @@ function TutorialsTabs({ serverView, initialRoots }: {
                 setActiveTab(roots[0]?.slug ?? GUIDES_SECTION.tab);
             }
         };
+        // The CMS category tree is not fetched any more (GET /api/v1/categories is disabled): only the server-provided roots are used.
         processCategories(initialRoots);
-        api.get("/api/v1/categories", { requireAuth: false })
-            .then((res) => {
-            processCategories(getActiveRoots(res.data as Category[]));
-        })
-            .catch(() => processCategories(initialRoots))
-            .finally(() => setLoading(false));
+        setLoading(false);
     }, []);
     const handleTabChange = (slug: string) => {
         setActiveTab(slug);
