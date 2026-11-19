@@ -78,5 +78,5 @@ No. Studios, teams, games and slots are one-time sCoin purchases.
 
 ## Next steps
 
-- [#1b - Import the Unity package and connect to Sai Server](/tutorials/guides/import-unity-package)
-- [#1c - Add Google login to your Unity game](/tutorials/guides/unity-google-login)
+- [Import Unity Package](/tutorials/guides/import-unity-package)
+- [Google Login in Unity](/tutorials/guides/unity-google-login)

@@ -9,7 +9,7 @@ Write and run your first **server-side Lua script** on Sai Server, then call it 
 ## Before you start
 
 - A game in Sai Server (see [Create a Studio](/tutorials/guides/create-a-studio)).
-- For the Unity part: a connected Unity project with a logged-in player (see [Import Unity Package](/tutorials/guides/import-unity-package)).
+- For the Unity part: a connected Unity project with a logged-in player.
 
 Every game includes **7 script slots** by default. The usage counter at the top of the **Scripts** page shows how many you have used. Plugins can raise this limit.
 

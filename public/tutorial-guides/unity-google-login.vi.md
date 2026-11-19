@@ -7,7 +7,7 @@ Cho người chơi đăng nhập vào game Unity bằng tài khoản Google thô
 
 ## Chuẩn bị
 
-- Dự án Unity đã kết nối Sai Server với Game ID hợp lệ (xem [Cài Unity Package](/tutorials/guides/import-unity-package)).
+- Dự án Unity đã kết nối Sai Server với Game ID hợp lệ.
 - Thiết bị có trình duyệt. Trang đăng nhập được mở bằng trình duyệt hệ thống.
 
 ## Đăng nhập Google hoạt động thế nào
@@ -108,5 +108,5 @@ Có. Nếu tài khoản bật 2FA, trang trình duyệt sẽ hỏi mã trước 
 
 ## Bước tiếp theo
 
-- [Tạo Gamer Progress](/tutorials/guides/create-gamer-progress)
+- [Create Gamer Progress](/tutorials/guides/create-gamer-progress)
 - [Lưu game đám mây đa nền tảng](/tutorials/guides/cross-platform-save)

@@ -1,5 +1,7 @@
 Biến một user đã đăng nhập thành người chơi của game bằng **Gamer Progress**. Gamer Progress là bản ghi lưu game theo từng game mà Sai Server giữ cho mỗi người chơi: level, kinh nghiệm, vàng và dữ liệu JSON riêng của bạn. Chỉ cần tạo một lần, sau đó tải lại mỗi khi người chơi mở game.
 
+> **⚠️ Gamer Progress không chống hack.** Tính năng này chủ yếu dành cho các game, nhất là game offline, muốn lưu save game lên cloud.
+
 **Trong bài này bạn sẽ:**
 - tạo Gamer Progress cho user đang đăng nhập,
 - tải lại bằng Get Progress,
@@ -7,7 +9,7 @@ Biến một user đã đăng nhập thành người chơi của game bằng **G
 
 ## Chuẩn bị
 
-- Dự án Unity đã kết nối Sai Server, có user đăng nhập qua `SaiAuth` hoặc Google (xem [Cài Unity Package](/tutorials/guides/import-unity-package)).
+- Dự án Unity đã kết nối Sai Server, có user đăng nhập qua `SaiAuth` hoặc Google.
 
 Tài khoản bạn dùng để tạo studio và game cũng có thể đăng nhập và chơi game của bạn, rất tiện để làm người chơi test.
 
@@ -97,4 +99,4 @@ Có. Một tài khoản có một Gamer Profile và một Gamer Progress riêng 
 ## Bước tiếp theo
 
 - [Lưu game đám mây đa nền tảng](/tutorials/guides/cross-platform-save)
-- [Gửi vật phẩm cho người chơi](/tutorials/guides/5b-send-an-item-to-a-player)
+- [Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)

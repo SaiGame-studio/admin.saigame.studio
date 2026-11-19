@@ -1,5 +1,7 @@
 Lưu tiến trình người chơi lên đám mây và tải lại trên mọi thiết bị bằng Sai Server Unity SDK. Kinh nghiệm và vàng được cập nhật bằng delta phía server. Dữ liệu save riêng của bạn được lưu dạng JSON trong **Game Data**. Người chơi đăng nhập cùng tài khoản trên Android, iOS hay PC đều chơi tiếp được từ chỗ đã dừng.
 
+> **⚠️ Gamer Progress không chống hack.** Tính năng này chủ yếu dành cho các game, nhất là game offline, muốn lưu save game lên cloud.
+
 **Trong bài này bạn sẽ:**
 - cộng kinh nghiệm và vàng bằng delta,
 - lưu và tải trạng thái game dạng JSON,
@@ -8,7 +10,7 @@ Lưu tiến trình người chơi lên đám mây và tải lại trên mọi th
 
 ## Chuẩn bị
 
-- Người chơi đã đăng nhập và có Gamer Progress trong game (xem [Tạo Gamer Progress](/tutorials/guides/create-gamer-progress)).
+- Người chơi đã đăng nhập và có Gamer Progress trong game (xem [Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
 - Progress đã được tải bằng **Create Progress** hoặc **Get Progress** trong phiên hiện tại. Nếu chưa, mọi cập nhật sẽ bị từ chối.
 
 ## Bước 1: Cập nhật kinh nghiệm và vàng bằng delta
@@ -61,8 +63,6 @@ SaiServer.Instance.GamerProgress.UpdateProgress(0, 0, saveJson,
 ```
 
 ![Game Data JSON được lưu trên Gamer Progress](/tutorial-guides/cross-platform-save/step-02.png)
-
-> Với vật phẩm, tiền tệ và phần thưởng mà người chơi có thể tiêu hoặc trao đổi, hãy dùng [Item Definition](/tutorials/guides/what-is-item-definition) và inventory thay vì Game Data. Server sẽ kiểm tra các thay đổi đó.
 
 ## Bước 3: Tải bản save trên thiết bị khác
 
@@ -119,5 +119,5 @@ Tối đa 2,5 MiB JSON cho mỗi người chơi trong mỗi game.
 
 ## Bước tiếp theo
 
-- [Item Definition là gì?](/tutorials/guides/what-is-item-definition)
-- [Gửi vật phẩm cho người chơi](/tutorials/guides/5b-send-an-item-to-a-player)
+- [What is Item Definition?](/tutorials/guides/what-is-item-definition)
+- [Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)

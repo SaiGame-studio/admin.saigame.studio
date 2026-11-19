@@ -121,4 +121,4 @@ Không. Đăng nhập chỉ tạo hoặc tải user Sai Server. User trở thàn
 ## Bước tiếp theo
 
 - [Đăng nhập Google trong Unity](/tutorials/guides/unity-google-login)
-- [Tạo Gamer Progress](/tutorials/guides/create-gamer-progress)
+- [Create Gamer Progress](/tutorials/guides/create-gamer-progress)

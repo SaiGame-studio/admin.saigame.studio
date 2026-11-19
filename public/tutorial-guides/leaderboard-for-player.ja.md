@@ -8,7 +8,7 @@ Sai Server の `Leaderboard` コンポーネントで、Unity ゲームにリー
 ## 事前準備
 
 - ゲームに作成済みのリーダーボードが 1 つ以上あること（[Leaderboard](/tutorials/guides/15a-leaderboard)を参照）。リーダーボードにはゲームの **Rare** サブスクリプションが必要です。
-- Unity でログイン済みのプレイヤー（[Unity Package のインポート](/tutorials/guides/import-unity-package)を参照）
+- Unity でログイン済みのプレイヤー
 
 ## スコアがリーダーボードに反映される仕組み
 

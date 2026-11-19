@@ -7,7 +7,7 @@ Let players sign in to your Unity game with their Google account through Sai Ser
 
 ## Before you start
 
-- A Unity project connected to Sai Server with a valid Game ID (see [#1b - Import the Unity package](/tutorials/guides/import-unity-package)).
+- A Unity project connected to Sai Server with a valid Game ID.
 - A browser on the device. The sign-in page opens in the system browser.
 
 ## How Google login works
@@ -108,5 +108,5 @@ Yes. If the account has 2FA enabled, the browser page asks for the code before t
 
 ## Next steps
 
-- [#2a - Create Gamer Progress](/tutorials/guides/create-gamer-progress)
-- [#2b - Cross-platform cloud save](/tutorials/guides/cross-platform-save)
+- [Create Gamer Progress](/tutorials/guides/create-gamer-progress)
+- [Cross-Platform Cloud Save](/tutorials/guides/cross-platform-save)

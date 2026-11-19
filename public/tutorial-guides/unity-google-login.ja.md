@@ -7,7 +7,7 @@ Sai Server を通じて、プレイヤーが Google アカウントで Unity ゲ
 
 ## 事前準備
 
-- 有効な Game ID で Sai Server に接続済みの Unity プロジェクト（[Unity Package のインポート](/tutorials/guides/import-unity-package)を参照）
+- 有効な Game ID で Sai Server に接続済みの Unity プロジェクト
 - 端末にブラウザがあること。サインインページはシステムブラウザで開きます。
 
 ## Google ログインの仕組み
@@ -108,5 +108,5 @@ Sai Server は **メールアドレス** で照合します。同じメールの
 
 ## 次のステップ
 
-- [Gamer Progress を作成する](/tutorials/guides/create-gamer-progress)
+- [Create Gamer Progress](/tutorials/guides/create-gamer-progress)
 - [クロスプラットフォームのクラウドセーブ](/tutorials/guides/cross-platform-save)

@@ -1,5 +1,7 @@
 Sai Server Unity SDK でプレイヤーの進行データをクラウドに保存し、どの端末でも読み込めるようにします。経験値とゴールドはサーバー側のデルタで更新され、独自のセーブデータは **Game Data** に JSON として保存されます。同じアカウントでログインすれば、Android、iOS、PC のどれでも続きからプレイできます。
 
+> **⚠️ Gamer Progress にはチート対策がありません。** 主に、オフラインゲームなどでセーブデータをクラウドにバックアップしたいゲーム向けの機能です。
+
 **このガイドで行うこと：**
 - デルタ更新で経験値とゴールドを加算する
 - ゲームの状態を JSON で保存・読み込みする
@@ -8,7 +10,7 @@ Sai Server Unity SDK でプレイヤーの進行データをクラウドに保�
 
 ## 事前準備
 
-- プレイヤーがログインしており、ゲームに Gamer Progress があること（[Gamer Progress を作成する](/tutorials/guides/create-gamer-progress)を参照）
+- プレイヤーがログインしており、ゲームに Gamer Progress があること（[Create Gamer Progress](/tutorials/guides/create-gamer-progress)を参照）
 - このセッションで **Create Progress** または **Get Progress** により進行データが読み込まれていること。読み込み前の更新は拒否されます。
 
 ## ステップ 1：デルタで経験値とゴールドを更新する
@@ -61,8 +63,6 @@ SaiServer.Instance.GamerProgress.UpdateProgress(0, 0, saveJson,
 ```
 
 ![Gamer Progress に保存された JSON Game Data](/tutorial-guides/cross-platform-save/step-02.png)
-
-> プレイヤーが使用・取引できるアイテム、通貨、報酬には、Game Data ではなく [Item Definition](/tutorials/guides/what-is-item-definition) とインベントリを使ってください。これらの変更はサーバーが検証します。
 
 ## ステップ 3：別の端末でセーブを読み込む
 
@@ -119,5 +119,5 @@ SaiServer.Instance.GamerProgress.GetProgress(
 
 ## 次のステップ
 
-- [Item Definition とは？](/tutorials/guides/what-is-item-definition)
-- [プレイヤーにアイテムを送る](/tutorials/guides/5b-send-an-item-to-a-player)
+- [What is Item Definition?](/tutorials/guides/what-is-item-definition)
+- [Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)

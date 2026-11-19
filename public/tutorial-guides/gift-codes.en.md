@@ -8,8 +8,8 @@ Create gift codes (redeem codes) for your game and let players redeem them in Un
 
 ## Before you start
 
-- At least one gacha pack that holds the rewards (see [#8b - Open Gacha Pack](/tutorials/guides/open-gacha-pack)). The pack's reward destination (Mailbox or Direct Inventory) decides where the rewards go.
-- A logged-in player with Gamer Progress in Unity (see [#2a - Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
+- At least one gacha pack that holds the rewards (see [Open Gacha Pack](/tutorials/guides/open-gacha-pack)). The pack's reward destination (Mailbox or Direct Inventory) decides where the rewards go.
+- A logged-in player with Gamer Progress in Unity (see [Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
 
 ## Step 1: Create a gift code
 
@@ -112,5 +112,5 @@ A gift code opens its linked gacha packs. Put the exact rewards in a pack, for e
 
 ## Next steps
 
-- [#8a - What is Gacha Pack?](/tutorials/guides/what-is-gacha-pack)
-- [#5b - Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)
+- [What is Gacha Pack?](/tutorials/guides/what-is-gacha-pack)
+- [Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)

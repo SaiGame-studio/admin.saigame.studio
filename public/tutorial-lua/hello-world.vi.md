@@ -9,7 +9,7 @@ Viết và chạy **script Lua phía server** đầu tiên trên Sai Server, r�
 ## Chuẩn bị
 
 - Một game trên Sai Server (xem [Tạo Studio](/tutorials/guides/create-a-studio)).
-- Cho phần Unity: dự án Unity đã kết nối và có người chơi đăng nhập (xem [Cài Unity Package](/tutorials/guides/import-unity-package)).
+- Cho phần Unity: dự án Unity đã kết nối và có người chơi đăng nhập.
 
 Mỗi game có sẵn **7 slot script**. Bộ đếm ở đầu trang **Scripts** cho biết bạn đã dùng bao nhiêu. Plugin có thể tăng giới hạn này.
 
@@ -146,5 +146,5 @@ Server chạy luật chơi, nên người chơi không thể sửa phần thư�
 
 ## Bước tiếp theo
 
-- [Enemy Definition](/tutorials/lua-guides/enemy-definition)
-- [Execute Script](/tutorials/lua-guides/execute-script)
+- [Định nghĩa kẻ địch](/tutorials/lua-guides/enemy-definition)
+- [Thực thi script](/tutorials/lua-guides/execute-script)

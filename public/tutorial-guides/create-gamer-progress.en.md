@@ -1,5 +1,7 @@
 Turn a logged-in user into a player of your game with **Gamer Progress**. Gamer Progress is the per-game save record that Sai Server keeps for each player: level, experience, gold and your own JSON game data. Create it once, then load it every time the player opens the game.
 
+> **⚠️ Gamer Progress is not cheat-proof.** It is mainly meant for games, especially offline games, that want to back up their save to the cloud.
+
 **In this guide you will:**
 - create Gamer Progress for the logged-in user,
 - load it back with Get Progress,
@@ -7,7 +9,7 @@ Turn a logged-in user into a player of your game with **Gamer Progress**. Gamer 
 
 ## Before you start
 
-- A Unity project connected to Sai Server, with a user logged in through `SaiAuth` or Google (see [#1b - Import the Unity package](/tutorials/guides/import-unity-package)).
+- A Unity project connected to Sai Server, with a user logged in through `SaiAuth` or Google.
 
 The account you use to create studios and games can also log in and play your games. It is a convenient test player.
 
@@ -63,7 +65,7 @@ The loaded data is available in `GamerProgress.CurrentProgress`. You must load o
 | `level` | Calculated by the server from experience: `floor(sqrt(experience / 100))`, minimum 1. |
 | `experience` | Total experience. Updated with server-side deltas. |
 | `gold` | Gold balance. Updated with server-side deltas and never goes below 0. |
-| `game_data` | Your own JSON save data (see [#2b - Cross-platform cloud save](/tutorials/guides/cross-platform-save)). |
+| `game_data` | Your own JSON save data (see [Cross-Platform Cloud Save](/tutorials/guides/cross-platform-save)). |
 | `version` | Increases on every progress update. |
 
 ## Gamer Profile vs Gamer Progress
@@ -96,5 +98,5 @@ Yes. One account has one Gamer Profile and a separate Gamer Progress in each gam
 
 ## Next steps
 
-- [#2b - Cross-platform cloud save](/tutorials/guides/cross-platform-save)
-- [#5b - Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)
+- [Cross-Platform Cloud Save](/tutorials/guides/cross-platform-save)
+- [Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)

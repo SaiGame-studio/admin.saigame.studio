@@ -7,8 +7,8 @@ Gửi vật phẩm cho người chơi qua **Mailbox** trong game và nhận vậ
 
 ## Chuẩn bị
 
-- Một Item Definition để gửi (xem [Item Definition là gì?](/tutorials/guides/what-is-item-definition)).
-- Một người chơi đã có Gamer Progress trong game (xem [Tạo Gamer Progress](/tutorials/guides/create-gamer-progress)).
+- Một Item Definition để gửi (xem [What is Item Definition?](/tutorials/guides/what-is-item-definition)).
+- Một người chơi đã có Gamer Progress trong game (xem [Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
 
 ## Bước 1: Mở hồ sơ người chơi
 
@@ -106,9 +106,9 @@ Mở hồ sơ người chơi, dùng tab **Mail** gửi thư có đính kèm vậ
 Được. Tải thư trước, sau đó **Claim All** (hoặc `ClaimAllMessages` trong code) sẽ nhận mọi thư đã tải còn đính kèm chưa nhận.
 
 ### Phần thưởng có bỏ qua Mailbox được không?
-Được. Một số tính năng như gacha pack và nhiệm vụ có thể giao thẳng vào inventory chính. Xem [Gacha Pack là gì?](/tutorials/guides/what-is-gacha-pack).
+Được. Một số tính năng như gacha pack và nhiệm vụ có thể giao thẳng vào inventory chính. Xem [What is Gacha Pack?](/tutorials/guides/what-is-gacha-pack).
 
 ## Bước tiếp theo
 
-- [Container là gì?](/tutorials/guides/what-is-container)
+- [What is Container?](/tutorials/guides/what-is-container)
 - [Tạo và đổi Gift Code](/tutorials/guides/gift-codes)

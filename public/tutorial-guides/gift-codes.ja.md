@@ -8,8 +8,8 @@
 
 ## 事前準備
 
-- 報酬を含むガチャパックが 1 つ以上あること（[ガチャパックを開く](/tutorials/guides/open-gacha-pack)を参照）。パックの報酬の配送先（Mailbox または Direct Inventory）で、報酬の届き先が決まります。
-- Unity でログイン済みで、Gamer Progress を持つプレイヤー（[Gamer Progress を作成する](/tutorials/guides/create-gamer-progress)を参照）
+- 報酬を含むガチャパックが 1 つ以上あること（[Open Gacha Pack](/tutorials/guides/open-gacha-pack)を参照）。パックの報酬の配送先（Mailbox または Direct Inventory）で、報酬の届き先が決まります。
+- Unity でログイン済みで、Gamer Progress を持つプレイヤー（[Create Gamer Progress](/tutorials/guides/create-gamer-progress)を参照）
 
 ## ステップ 1：ギフトコードを作成する
 
@@ -112,5 +112,5 @@ public class RedeemCodeButton : MonoBehaviour
 
 ## 次のステップ
 
-- [ガチャパックとは？](/tutorials/guides/what-is-gacha-pack)
-- [プレイヤーにアイテムを送る](/tutorials/guides/5b-send-an-item-to-a-player)
+- [What is Gacha Pack?](/tutorials/guides/what-is-gacha-pack)
+- [Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)

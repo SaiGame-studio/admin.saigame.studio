@@ -8,7 +8,7 @@ Connect a Unity project to the Sai Server backend. You import the SaiGame Unity 
 
 ## Before you start
 
-- A game created in Sai Server, and its **Game ID** (see [#1a - Create a Studio](/tutorials/guides/create-a-studio)).
+- A game created in Sai Server, and its **Game ID** (see [Create a Studio](/tutorials/guides/create-a-studio)).
 - **Unity 6.x or newer** (recommended). If you use an older version and run into problems, [ask Sai on Discord](https://discord.gg/UU3YarmVde).
 
 ## Step 1: Import the SaiGame Unity package
@@ -93,7 +93,7 @@ SaiServer.Instance.SaiAuth.Login(
 
 **Expected result:** the Console logs `Login successful.` and **Get Me** prints your username.
 
-Players can also sign in with Google. See [#1c - Add Google login to your Unity game](/tutorials/guides/unity-google-login).
+Players can also sign in with Google. See [Google Login in Unity](/tutorials/guides/unity-google-login).
 
 ## Use the Inspector logs to find the code
 
@@ -120,5 +120,5 @@ No. Logging in creates or loads a Sai Server user. The user becomes a **player**
 
 ## Next steps
 
-- [#1c - Add Google login to your Unity game](/tutorials/guides/unity-google-login)
-- [#2a - Create Gamer Progress](/tutorials/guides/create-gamer-progress)
+- [Google Login in Unity](/tutorials/guides/unity-google-login)
+- [Create Gamer Progress](/tutorials/guides/create-gamer-progress)

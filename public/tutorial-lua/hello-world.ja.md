@@ -8,8 +8,8 @@ Sai Server で最初の **サーバーサイド Lua スクリプト** を書い�
 
 ## 事前準備
 
-- Sai Server のゲーム（[Studio の作成](/tutorials/guides/create-a-studio)を参照）
-- Unity 部分：接続済みの Unity プロジェクトとログイン中のプレイヤー（[Unity Package のインポート](/tutorials/guides/import-unity-package)を参照）
+- Sai Server のゲーム（[ゲームスタジオ作成](/tutorials/guides/create-a-studio)を参照）
+- Unity 部分：接続済みの Unity プロジェクトとログイン中のプレイヤー
 
 各ゲームにはデフォルトで **7 つのスクリプト枠** があります。使用数は **Scripts** ページ上部のカウンターで確認できます。プラグインで上限を増やせます。
 
@@ -146,5 +146,5 @@ public class HelloLua : MonoBehaviour
 
 ## 次のステップ
 
-- [Enemy Definition](/tutorials/lua-guides/enemy-definition)
-- [Execute Script](/tutorials/lua-guides/execute-script)
+- [敵の定義](/tutorials/lua-guides/enemy-definition)
+- [スクリプトの実行](/tutorials/lua-guides/execute-script)

@@ -78,5 +78,5 @@ Không. Studio, team, game và slot đều mua một lần bằng sCoin.
 
 ## Bước tiếp theo
 
-- [Cài Unity Package và kết nối Sai Server](/tutorials/guides/import-unity-package)
+- [Cài Unity Package](/tutorials/guides/import-unity-package)
 - [Đăng nhập Google trong Unity](/tutorials/guides/unity-google-login)

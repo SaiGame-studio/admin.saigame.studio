@@ -8,7 +8,7 @@ Unity プロジェクトを Sai Server バックエンドに接続します。Sa
 
 ## 事前準備
 
-- Sai Server で作成済みのゲームとその **Game ID**（[Studio の作成](/tutorials/guides/create-a-studio)を参照）
+- Sai Server で作成済みのゲームとその **Game ID**（[ゲームスタジオ作成](/tutorials/guides/create-a-studio)を参照）
 - **Unity 6.x 以降**（推奨）。古いバージョンで問題が発生した場合は [Discord で Sai に相談](https://discord.gg/UU3YarmVde)してください。
 
 ## ステップ 1：SaiGame Unity パッケージをインポートする
@@ -93,7 +93,7 @@ SaiServer.Instance.SaiAuth.Login(
 
 **期待される結果：** Console に `Login successful.` と表示され、**Get Me** でユーザー名が出力されます。
 
-プレイヤーは Google でもサインインできます。[Unity で Google ログインを追加する](/tutorials/guides/unity-google-login)を参照してください。
+プレイヤーは Google でもサインインできます。[UnityでのGoogleログイン](/tutorials/guides/unity-google-login)を参照してください。
 
 ## インスペクターのログからコードを探す
 
@@ -120,5 +120,5 @@ Unity 6.x 以降を推奨します。
 
 ## 次のステップ
 
-- [Unity で Google ログインを追加する](/tutorials/guides/unity-google-login)
-- [Gamer Progress を作成する](/tutorials/guides/create-gamer-progress)
+- [UnityでのGoogleログイン](/tutorials/guides/unity-google-login)
+- [Create Gamer Progress](/tutorials/guides/create-gamer-progress)

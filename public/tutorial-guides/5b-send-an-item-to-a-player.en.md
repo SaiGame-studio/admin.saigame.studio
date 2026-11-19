@@ -7,8 +7,8 @@ Send an item to a player through the in-game **Mailbox** and claim it in Unity. 
 
 ## Before you start
 
-- An Item Definition to send (see [#5a - What is Item Definition?](/tutorials/guides/what-is-item-definition)).
-- A player with Gamer Progress in your game (see [#2a - Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
+- An Item Definition to send (see [What is Item Definition?](/tutorials/guides/what-is-item-definition)).
+- A player with Gamer Progress in your game (see [Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
 
 ## Step 1: Open the player's profile
 
@@ -106,9 +106,9 @@ Open the player's profile, use the **Mail** tab to send a mail with the item att
 Yes. Load the messages first, then **Claim All** (or `ClaimAllMessages` in code) claims every loaded mail that has an unclaimed attachment.
 
 ### Can rewards skip the Mailbox?
-Yes. Some features, such as gacha packs and quests, can deliver directly to the main inventory. See [#8a - What is Gacha Pack?](/tutorials/guides/what-is-gacha-pack).
+Yes. Some features, such as gacha packs and quests, can deliver directly to the main inventory. See [What is Gacha Pack?](/tutorials/guides/what-is-gacha-pack).
 
 ## Next steps
 
-- [#6a - What is Container?](/tutorials/guides/what-is-container)
-- [#8c - Create and redeem gift codes](/tutorials/guides/gift-codes)
+- [What is Container?](/tutorials/guides/what-is-container)
+- [Create and Redeem Gift Codes](/tutorials/guides/gift-codes)

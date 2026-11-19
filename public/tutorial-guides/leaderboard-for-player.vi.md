@@ -8,7 +8,7 @@ Hiển thị bảng xếp hạng trong game Unity bằng component `Leaderboard`
 ## Chuẩn bị
 
 - Ít nhất một leaderboard đã tạo cho game (xem [Leaderboard](/tutorials/guides/15a-leaderboard)). Leaderboard cần gói đăng ký **Rare** cho game.
-- Một người chơi đã đăng nhập trong Unity (xem [Cài Unity Package](/tutorials/guides/import-unity-package)).
+- Một người chơi đã đăng nhập trong Unity.
 
 ## Điểm được đưa vào leaderboard thế nào
 

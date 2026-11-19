@@ -8,8 +8,8 @@ Tạo gift code (mã đổi quà) cho game và cho người chơi đổi mã tro
 
 ## Chuẩn bị
 
-- Ít nhất một gacha pack chứa phần thưởng (xem [Mở Gacha Pack](/tutorials/guides/open-gacha-pack)). Reward destination của pack (Mailbox hoặc Direct Inventory) quyết định phần thưởng được giao về đâu.
-- Một người chơi đã đăng nhập và có Gamer Progress trong Unity (xem [Tạo Gamer Progress](/tutorials/guides/create-gamer-progress)).
+- Ít nhất một gacha pack chứa phần thưởng (xem [Open Gacha Pack](/tutorials/guides/open-gacha-pack)). Reward destination của pack (Mailbox hoặc Direct Inventory) quyết định phần thưởng được giao về đâu.
+- Một người chơi đã đăng nhập và có Gamer Progress trong Unity (xem [Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
 
 ## Bước 1: Tạo gift code
 
@@ -112,5 +112,5 @@ Gift code mở các gacha pack được liên kết. Hãy đặt phần thưởn
 
 ## Bước tiếp theo
 
-- [Gacha Pack là gì?](/tutorials/guides/what-is-gacha-pack)
-- [Gửi vật phẩm cho người chơi](/tutorials/guides/5b-send-an-item-to-a-player)
+- [What is Gacha Pack?](/tutorials/guides/what-is-gacha-pack)
+- [Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)

@@ -1,5 +1,7 @@
 Save player progress in the cloud and load it on any device with the Sai Server Unity SDK. Experience and gold are updated with server-side deltas. Your own save data is stored as JSON in **Game Data**. The player logs in with the same account on Android, iOS or PC and continues where they left off.
 
+> **⚠️ Gamer Progress is not cheat-proof.** It is mainly meant for games, especially offline games, that want to back up their save to the cloud.
+
 **In this guide you will:**
 - add experience and gold with delta updates,
 - save and load a JSON game state,
@@ -8,7 +10,7 @@ Save player progress in the cloud and load it on any device with the Sai Server 
 
 ## Before you start
 
-- The player is logged in and has Gamer Progress in your game (see [#2a - Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
+- The player is logged in and has Gamer Progress in your game (see [Create Gamer Progress](/tutorials/guides/create-gamer-progress)).
 - Progress has been loaded with **Create Progress** or **Get Progress** in this session. Updates are rejected until it is loaded.
 
 ## Step 1: Update experience and gold with deltas
@@ -61,8 +63,6 @@ SaiServer.Instance.GamerProgress.UpdateProgress(0, 0, saveJson,
 ```
 
 ![JSON Game Data saved on Gamer Progress](/tutorial-guides/cross-platform-save/step-02.png)
-
-> For items, currencies and rewards that players can trade or spend, use [Item Definitions](/tutorials/guides/what-is-item-definition) and the inventory instead of Game Data. The server validates those changes.
 
 ## Step 3: Load the save on another device
 
@@ -119,5 +119,5 @@ Up to 2.5 MiB of serialized JSON per player per game.
 
 ## Next steps
 
-- [#5a - What is Item Definition?](/tutorials/guides/what-is-item-definition)
-- [#5b - Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)
+- [What is Item Definition?](/tutorials/guides/what-is-item-definition)
+- [Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)

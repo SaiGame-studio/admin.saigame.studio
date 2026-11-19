@@ -1,5 +1,7 @@
 **Gamer Progress** を使って、ログイン済みのユーザーをゲームのプレイヤーにします。Gamer Progress は Sai Server がプレイヤーごとに保持するゲーム単位のセーブ記録で、レベル、経験値、ゴールド、独自の JSON ゲームデータを含みます。一度作成し、プレイヤーがゲームを開くたびに読み込みます。
 
+> **⚠️ Gamer Progress にはチート対策がありません。** 主に、オフラインゲームなどでセーブデータをクラウドにバックアップしたいゲーム向けの機能です。
+
 **このガイドで行うこと：**
 - ログイン中のユーザーの Gamer Progress を作成する
 - Get Progress で読み込む
@@ -7,7 +9,7 @@
 
 ## 事前準備
 
-- Sai Server に接続済みで、`SaiAuth` または Google でユーザーがログインしている Unity プロジェクト（[Unity Package のインポート](/tutorials/guides/import-unity-package)を参照）
+- Sai Server に接続済みで、`SaiAuth` または Google でユーザーがログインしている Unity プロジェクト
 
 スタジオやゲームの作成に使うアカウントでも、ゲームにログインしてプレイできます。テストプレイヤーとして便利です。
 
@@ -97,4 +99,4 @@ public class LoadPlayerSave : MonoBehaviour
 ## 次のステップ
 
 - [クロスプラットフォームのクラウドセーブ](/tutorials/guides/cross-platform-save)
-- [プレイヤーにアイテムを送る](/tutorials/guides/5b-send-an-item-to-a-player)
+- [Send an item to a player](/tutorials/guides/5b-send-an-item-to-a-player)

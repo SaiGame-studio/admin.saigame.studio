@@ -78,5 +78,5 @@ Studio、Team、Game は月額ではなく **sCoin による買い切り** で�
 
 ## 次のステップ
 
-- [Unity Package をインポートして Sai Server に接続する](/tutorials/guides/import-unity-package)
-- [Unity で Google ログインを追加する](/tutorials/guides/unity-google-login)
+- [Unity Packageのインポート](/tutorials/guides/import-unity-package)
+- [UnityでのGoogleログイン](/tutorials/guides/unity-google-login)

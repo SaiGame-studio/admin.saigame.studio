@@ -7,8 +7,8 @@
 
 ## 事前準備
 
-- 送るための Item Definition（[Item Definition とは？](/tutorials/guides/what-is-item-definition)を参照）
-- ゲームに Gamer Progress を持つプレイヤー（[Gamer Progress を作成する](/tutorials/guides/create-gamer-progress)を参照）
+- 送るための Item Definition（[What is Item Definition?](/tutorials/guides/what-is-item-definition)を参照）
+- ゲームに Gamer Progress を持つプレイヤー（[Create Gamer Progress](/tutorials/guides/create-gamer-progress)を参照）
 
 ## ステップ 1：プレイヤーのプロフィールを開く
 
@@ -106,9 +106,9 @@ public class MailboxExample : MonoBehaviour
 はい。先にメールを読み込み、**Claim All**（コードでは `ClaimAllMessages`）を使うと、読み込んだメールのうち未受け取りの添付をすべて受け取ります。
 
 ### Mailbox を経由せずに報酬を渡せますか？
-はい。ガチャパックやクエストなど一部の機能は、メインインベントリに直接届けられます。[ガチャパックとは？](/tutorials/guides/what-is-gacha-pack)を参照してください。
+はい。ガチャパックやクエストなど一部の機能は、メインインベントリに直接届けられます。[What is Gacha Pack?](/tutorials/guides/what-is-gacha-pack)を参照してください。
 
 ## 次のステップ
 
-- [Container とは？](/tutorials/guides/what-is-container)
+- [What is Container?](/tutorials/guides/what-is-container)
 - [ギフトコードの作成と引き換え](/tutorials/guides/gift-codes)

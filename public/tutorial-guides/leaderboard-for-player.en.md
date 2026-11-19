@@ -7,8 +7,8 @@ Show leaderboards in your Unity game with the Sai Server `Leaderboard` component
 
 ## Before you start
 
-- At least one leaderboard created for your game (see [#15a - Leaderboard](/tutorials/guides/15a-leaderboard)). Leaderboards need the **Rare** subscription for the game.
-- A logged-in player in Unity (see [#1b - Import the Unity package](/tutorials/guides/import-unity-package)).
+- At least one leaderboard created for your game (see [Leaderboard](/tutorials/guides/15a-leaderboard)). Leaderboards need the **Rare** subscription for the game.
+- A logged-in player in Unity.
 
 ## How scores reach the leaderboard
 
@@ -94,9 +94,9 @@ No. Scores come only from server-side events, such as opening a gacha pack or re
 Up to 500 per request. The default is 100.
 
 ### Can leaderboards reset every day or week?
-Yes. Each board has a reset schedule (never, daily, weekly, monthly or season). See [#15a - Leaderboard](/tutorials/guides/15a-leaderboard).
+Yes. Each board has a reset schedule (never, daily, weekly, monthly or season). See [Leaderboard](/tutorials/guides/15a-leaderboard).
 
 ## Next steps
 
-- [#15b - Leaderboard Admin Page](/tutorials/guides/leaderboard-admin-page)
-- [#16a - Event Type](/tutorials/guides/event-type)
+- [Leaderboard Admin Page](/tutorials/guides/leaderboard-admin-page)
+- [Event Type](/tutorials/guides/event-type)
