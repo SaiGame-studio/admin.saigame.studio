@@ -27,7 +27,7 @@ Unity プロジェクトを Sai Server バックエンドに接続します。Sa
 
 Hierarchy で `SaiServer` オブジェクトを選択します。
 
-1. **Server Endpoint：** デフォルトの **Production API (HTTPS) - api.saigame.studio** のままにします。
+1. **Server Endpoint：** 読み取り専用の本番 URL **https://api.saigame.studio** を確認します。
 2. **Game ID：** 管理画面でゲームの **Game Detail** ページを開き、Game ID をコピーして **Game ID** 欄に貼り付けます。
 
 Game ID が正しければ、読み取り専用の **Game Name** 欄にゲーム名が表示されます。横の **Refresh** で名前を再読み込みできます。
@@ -49,16 +49,13 @@ Game ID が正しければ、読み取り専用の **Game Name** 欄にゲーム
 GAME_ID=your-game-id-here
 USERNAME=your-username-here
 PASSWORD=your-password-here
-# Optional. Leave empty to keep the Server Endpoint option.
-SERVER_ENDPOINT=
 ```
 
-3. **Load .env on Play** を有効にします。Play モード開始時に適用される値は 3 つのトグルで制御します（デフォルトはすべてオン）。
-   - **Override server endpoint** – このプレイセッションのみ `SERVER_ENDPOINT` を使用
+3. **Load .env on Play** を有効にし、以下のトグルで Play モード開始時に適用する設定を選びます。
    - **Override game id** – `GAME_ID` を使用
    - **Override credentials** – `USERNAME` と `PASSWORD` を `SaiAuth` に渡す
 
-![Load .env on Play の設定](/tutorial-guides/import-unity-package/step-06.jpg)
+![Load .env on Play の設定](/tutorial-guides/import-unity-package/step-06.png)
 
 > **セキュリティ：** `.env` は絶対にソース管理にコミットしないでください。読み込んだ認証情報は PlayerPrefs にのみ保存され、シーンファイルには保存されません。
 
@@ -74,14 +71,14 @@ SERVER_ENDPOINT=
 
 ## ステップ 5：SaiAuth でログインする
 
-**Play モード** に入り、`SaiAuth` コンポーネントを使います。
+Hierarchy で `SaiServer` を選択し、Inspector の **Sai Auth (Script)** を展開します。**Play モード** に入り、`SaiAuth` コンポーネントを使います。
 
 - **Register** – 新規アカウントを作成（メール、ユーザー名、パスワード）
 - **Login (Check 2FA)** – ユーザー名とパスワードでログイン
 - **2FA Login** – アカウントで二要素認証が有効な場合、Console にコードが必要という警告が出ます。**2FA Code** に 6 桁のコードを入力し、**2FA Login** をクリックします。
 - **Get Me** – 現在のユーザーを取得。**Refresh Token** – アクセストークンを更新。**Logout** – ログアウト
 
-![SaiAuth のログイン・登録ボタン](/tutorial-guides/import-unity-package/step-07.png)
+![Login、2FA Login、Register、Refresh Token、Get Me が表示された SaiAuth Inspector](/tutorial-guides/import-unity-package/step-07.png)
 
 コードからも同じ処理を呼び出せます。
 
@@ -102,11 +99,13 @@ SaiServer.Instance.SaiAuth.Login(
 
 テストボタンを押すたびに、Console に **色付きログ** が出力されます。ログをクリックすると、その処理を行う関数が開きます。ゲームのスクリプトを書く際の参考にしてください。
 
-![色付きログからソースコードへ移動](/tutorial-guides/import-unity-package/step-09.png)
+たとえば **Show Service Info** は、色付きの操作名に続いてベース URL と認証状態を出力します。以下の画像はログイン前に撮影しています。
+
+![ログイン前の Unity Console に表示された Show Service Info のログ](/tutorial-guides/import-unity-package/step-09.png)
 
 ## よくある問題
 
-- **Connection test failed。** Server Endpoint を確認してください。**Override server endpoint** がオンの場合は `.env` の `SERVER_ENDPOINT` を確認するか、空にしてください。
+- **Connection test failed。** インターネット接続と Sai Server の稼働状況を確認してください。解決しない場合は [Discord でサポートに相談](https://discord.gg/UU3YarmVde)してください。
 - **Game Name が空のまま。** Game ID が間違っているか、別のゲームのものです。Game Detail ページからコピーし直してください。
 - **.env の値が反映されない。** `.env` が `Assets` 内ではなくプロジェクトルートにあり、**Load .env on Play** が有効か確認してください。
 - **ログイン時に 2FA コードを求められる。** アカウントで 2FA が有効です。**2FA Code** と **2FA Login** を使ってください。
@@ -118,9 +117,6 @@ Unity 6.x 以降を推奨します。
 
 ### ログインすればゲームのプレイヤーになりますか？
 いいえ。ログインは Sai Server のユーザーを作成または読み込むだけです。Gamer Progress を作成した時点で、そのユーザーはゲームの **プレイヤー** になります。次のレッスンで説明します。
-
-### テスト用に別のサーバーへ接続できますか？
-はい。`.env` に `SERVER_ENDPOINT` を設定し、**Override server endpoint** を有効にしてください。この上書きはプレイセッション中のみ有効です。
 
 ## 次のステップ
 

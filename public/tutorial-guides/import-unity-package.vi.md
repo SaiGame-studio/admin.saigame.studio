@@ -27,7 +27,7 @@ Tên package và phiên bản hiển thị ở đầu Inspector của `SaiServer
 
 Chọn object `SaiServer` trong Hierarchy.
 
-1. **Server Endpoint:** giữ mặc định **Production API (HTTPS) - api.saigame.studio**.
+1. **Server Endpoint:** xác nhận URL production chỉ đọc là **https://api.saigame.studio**.
 2. **Game ID:** mở trang **Game Detail** của game trong trang quản trị, sao chép Game ID và dán vào ô **Game ID**.
 
 Khi Game ID hợp lệ, ô chỉ-đọc **Game Name** sẽ hiện tên game. Nhấn **Refresh** bên cạnh để tải lại tên.
@@ -49,16 +49,13 @@ File `.env` giúp Game ID và tài khoản test không bị lưu vào file scene
 GAME_ID=your-game-id-here
 USERNAME=your-username-here
 PASSWORD=your-password-here
-# Optional. Leave empty to keep the Server Endpoint option.
-SERVER_ENDPOINT=
 ```
 
-3. Bật **Load .env on Play**. Ba công tắc quyết định giá trị nào được áp dụng khi vào Play Mode, cả ba đều bật mặc định:
-   - **Override server endpoint** – dùng `SERVER_ENDPOINT` cho phiên chơi hiện tại.
+3. Bật **Load .env on Play** và dùng các công tắc sau để áp dụng cấu hình khi vào Play Mode:
    - **Override game id** – dùng `GAME_ID`.
    - **Override credentials** – gửi `USERNAME` và `PASSWORD` cho `SaiAuth`.
 
-![Cài đặt Load .env on Play](/tutorial-guides/import-unity-package/step-06.jpg)
+![Cài đặt Load .env on Play](/tutorial-guides/import-unity-package/step-06.png)
 
 > **Bảo mật:** không bao giờ commit `.env` lên source control. Thông tin đăng nhập từ file này chỉ được lưu trong PlayerPrefs, không lưu vào file scene.
 
@@ -74,14 +71,14 @@ Nếu thấy `✗ Connection test failed!`, xem phần "Lỗi thường gặp" b
 
 ## Bước 5: Đăng nhập bằng SaiAuth
 
-Vào **Play Mode**, rồi dùng component `SaiAuth`:
+Chọn `SaiServer` trong Hierarchy rồi mở **Sai Auth (Script)** trong Inspector. Vào **Play Mode**, rồi dùng component `SaiAuth`:
 
 - **Register** – tạo tài khoản mới (email, username, password).
 - **Login (Check 2FA)** – đăng nhập bằng username và password.
 - **2FA Login** – nếu tài khoản bật xác thực hai lớp, Console sẽ cảnh báo cần mã. Nhập mã 6 số vào **2FA Code** rồi nhấn **2FA Login**.
 - **Get Me** – tải thông tin user hiện tại. **Refresh Token** – làm mới access token. **Logout** – đăng xuất.
 
-![Các nút đăng nhập và đăng ký của SaiAuth](/tutorial-guides/import-unity-package/step-07.png)
+![Inspector SaiAuth với các nút Login, 2FA Login, Register, Refresh Token và Get Me](/tutorial-guides/import-unity-package/step-07.png)
 
 Gọi tương tự bằng code:
 
@@ -102,11 +99,13 @@ Người chơi cũng có thể đăng nhập bằng Google. Xem [Đăng nhập G
 
 Mỗi nút test đều ghi một **log có màu** vào Console. Nhấn vào log để mở hàm xử lý tương ứng, rồi dùng các hàm này làm mẫu khi viết script cho game.
 
-![Log có màu dẫn tới mã nguồn](/tutorial-guides/import-unity-package/step-09.png)
+Ví dụ, **Show Service Info** ghi tên thao tác có màu, tiếp theo là base URL và trạng thái đăng nhập. Ảnh dưới được chụp trước khi đăng nhập.
+
+![Log Show Service Info trong Unity Console trước khi đăng nhập](/tutorial-guides/import-unity-package/step-09.png)
 
 ## Lỗi thường gặp
 
-- **Connection test failed.** Kiểm tra Server Endpoint. Nếu bật **Override server endpoint**, kiểm tra `SERVER_ENDPOINT` trong `.env` hoặc để trống.
+- **Connection test failed.** Kiểm tra kết nối internet và xác nhận Sai Server đang hoạt động. Nếu vẫn gặp lỗi, hãy [nhờ hỗ trợ trên Discord](https://discord.gg/UU3YarmVde).
 - **Game Name để trống.** Game ID sai hoặc thuộc game khác. Sao chép lại từ trang Game Detail.
 - **Giá trị trong .env không được áp dụng.** Đảm bảo `.env` nằm ở thư mục gốc dự án (không nằm trong `Assets`) và đã bật **Load .env on Play**.
 - **Đăng nhập đòi mã 2FA.** Tài khoản đã bật 2FA. Dùng **2FA Code** và **2FA Login**.
@@ -118,9 +117,6 @@ Khuyến nghị Unity 6.x trở lên.
 
 ### Đăng nhập có phải là đã trở thành người chơi của game không?
 Không. Đăng nhập chỉ tạo hoặc tải user Sai Server. User trở thành **người chơi** của game khi bạn tạo Gamer Progress cho họ, nội dung của bài tiếp theo.
-
-### Có thể trỏ Unity tới server khác để test không?
-Có. Đặt `SERVER_ENDPOINT` trong `.env` và bật **Override server endpoint**. Giá trị này chỉ áp dụng cho phiên chơi hiện tại.
 
 ## Bước tiếp theo
 

@@ -27,7 +27,7 @@ The package name and version appear at the top of the `SaiServer` Inspector. Men
 
 Select the `SaiServer` object in the Hierarchy.
 
-1. **Server Endpoint:** keep the default, **Production API (HTTPS) - api.saigame.studio**.
+1. **Server Endpoint:** confirm the read-only production URL, **https://api.saigame.studio**.
 2. **Game ID:** open your game's **Game Detail** page in the admin, copy the Game ID and paste it into the **Game ID** field.
 
 When the Game ID is valid, the read-only **Game Name** field shows your game's name. Click **Refresh** next to it to load the name again.
@@ -49,16 +49,13 @@ A `.env` file keeps your Game ID and test credentials out of the scene file.
 GAME_ID=your-game-id-here
 USERNAME=your-username-here
 PASSWORD=your-password-here
-# Optional. Leave empty to keep the Server Endpoint option.
-SERVER_ENDPOINT=
 ```
 
-3. Enable **Load .env on Play**. Three toggles control what is applied when you enter Play Mode. All three are on by default:
-   - **Override server endpoint** – uses `SERVER_ENDPOINT` for this play session only.
+3. Enable **Load .env on Play** and use these toggles to apply your settings when you enter Play Mode:
    - **Override game id** – uses `GAME_ID`.
    - **Override credentials** – sends `USERNAME` and `PASSWORD` to `SaiAuth`.
 
-![Load .env on Play settings](/tutorial-guides/import-unity-package/step-06.jpg)
+![Load .env on Play setting](/tutorial-guides/import-unity-package/step-06.png)
 
 > **Security:** never commit `.env` to source control. Credentials from it are stored in PlayerPrefs only, never in the scene file.
 
@@ -74,14 +71,14 @@ If you see `✗ Connection test failed!`, see "Common problems" below.
 
 ## Step 5: Log in with SaiAuth
 
-Enter **Play Mode**, then use the `SaiAuth` component:
+Select `SaiServer` in the Hierarchy and expand **Sai Auth (Script)** in the Inspector. Enter **Play Mode**, then use the `SaiAuth` component:
 
 - **Register** – create a new account (email, username, password).
 - **Login (Check 2FA)** – log in with your username and password.
 - **2FA Login** – if the account uses two-factor authentication, the Console warns that a code is required. Enter the 6-digit code in **2FA Code** and click **2FA Login**.
 - **Get Me** – load the current user. **Refresh Token** – renew the access token. **Logout** – end the session.
 
-![SaiAuth login and register buttons](/tutorial-guides/import-unity-package/step-07.png)
+![SaiAuth Inspector with Login, 2FA Login, Register, Refresh Token and Get Me controls](/tutorial-guides/import-unity-package/step-07.png)
 
 The same calls are available from code:
 
@@ -102,11 +99,13 @@ Players can also sign in with Google. See [#1c - Add Google login to your Unity 
 
 Every test button writes a **colored log** to the Console. Click a log entry to open the function that handles it. Use these functions as a reference for your own game scripts.
 
-![Colored logs link to the source code](/tutorial-guides/import-unity-package/step-09.png)
+For example, **Show Service Info** writes a colored action label followed by the base URL and authentication state. The screenshot below was captured before login.
+
+![Show Service Info logs in the Unity Console before login](/tutorial-guides/import-unity-package/step-09.png)
 
 ## Common problems
 
-- **Connection test failed.** Check the Server Endpoint. If **Override server endpoint** is on, check `SERVER_ENDPOINT` in `.env`, or leave it empty.
+- **Connection test failed.** Check your internet connection and confirm that Sai Server is available. If the problem continues, [ask for help on Discord](https://discord.gg/UU3YarmVde).
 - **Game Name stays empty.** The Game ID is wrong or belongs to another game. Copy it again from the Game Detail page.
 - **The .env values are ignored.** Make sure `.env` sits at the project root (not inside `Assets`) and that **Load .env on Play** is enabled.
 - **Login asks for a 2FA code.** Your account has 2FA enabled. Use **2FA Code** and **2FA Login**.
@@ -118,9 +117,6 @@ Unity 6.x or newer is recommended.
 
 ### Is logging in the same as becoming a player of my game?
 No. Logging in creates or loads a Sai Server user. The user becomes a **player** of your game when you create their Gamer Progress. That is the next lesson.
-
-### Can I point Unity at a different server for testing?
-Yes. Set `SERVER_ENDPOINT` in `.env` and keep **Override server endpoint** enabled. The override lasts for the play session only.
 
 ## Next steps
 
