@@ -1,3 +1,4 @@
+import { trackEvent } from "@/lib/analytics";
 import type { TwoFactorProof } from "@/lib/two-factor-api";
 import { api } from "@/lib/api-client";
 
@@ -32,8 +33,10 @@ export function listGameAPIKeys(gameId: string, after?: string): Promise<GameAPI
     if (after) query.set("after", after);
     return api.get(`${base(gameId)}?${query}`, options);
 }
-export function createGameAPIKey(gameId: string, keyName: string, proof: TwoFactorProof): Promise<GameAPIKeyResult<GameAPIKey>> {
-    return api.post(base(gameId), { key_name: keyName, ...proof }, options);
+export async function createGameAPIKey(gameId: string, keyName: string, proof: TwoFactorProof): Promise<GameAPIKeyResult<GameAPIKey>> {
+    const result: GameAPIKeyResult<GameAPIKey> = await api.post(base(gameId), { key_name: keyName, ...proof }, options);
+    if (result.success && result.data?.id) trackEvent("create_api_key");
+    return result;
 }
 export function renameGameAPIKey(gameId: string, keyId: string, keyName: string): Promise<GameAPIKeyResult<GameAPIKey>> {
     return api.patch(`${base(gameId)}/${encodeURIComponent(keyId)}`, { key_name: keyName }, options);

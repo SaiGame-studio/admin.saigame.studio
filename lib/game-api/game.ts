@@ -1,3 +1,4 @@
+import { trackEvent } from "@/lib/analytics";
 import type { Game } from "@/types/game";
 import type { TwoFactorProof } from "@/lib/two-factor-api";
 import type { Team } from "@/types/team";
@@ -56,7 +57,9 @@ export async function createGame(studioId: string, gameData: {
             server_region: "us-west"
         }
     };
-    return await api.post(`/api/v1/studios/${studioId}/games`, requestData);
+    const data = await api.post(`/api/v1/studios/${studioId}/games`, requestData);
+    if (data?.id) trackEvent("create_game");
+    return data;
 }
 
 /** Update an existing game */

@@ -1,4 +1,5 @@
 "use client";
+import { getAuthPageUrl } from "@/lib/auth-redirect";
 import type React from "react";
 import { useState, useEffect } from "react";
 import { Eye, EyeOff, Loader2, Chrome } from "lucide-react";
@@ -144,7 +145,7 @@ export function LoginForm() {
                 setChallenge(data); setPassword(""); return;
             }
             if (data.access_token) {
-                login(data.access_token, data.refresh_token);
+                login(data.access_token, data.refresh_token, "google");
                 toast({
                     title: t('login.loginSuccess'),
                     description: `${t('login.welcomeBack')}, ${data.user?.username || data.user?.email || 'User'}!`,
@@ -164,7 +165,7 @@ export function LoginForm() {
     const handleGoogleError = () => {
         setError("Google login failed. Please try again.");
     };
-    if (challenge) return <TwoFactorLogin id="login-2fa-form" challenge={challenge} onSuccess={result => login(result.access_token, result.refresh_token)} onCancel={() => { setChallenge(null); setError(null); }} />;
+    if (challenge) return <TwoFactorLogin id="login-2fa-form" challenge={challenge} onSuccess={result => login(result.access_token, result.refresh_token, "two_factor")} onCancel={() => { setChallenge(null); setError(null); }} />;
     return (<Card className="w-full relative">
       <div className="absolute top-3 right-3 z-10">
         <LanguageSelector compact/>
@@ -249,7 +250,7 @@ export function LoginForm() {
           <div className="text-center text-sm text-muted-foreground">
             {registrationEnabled && (<>
                 {t('login.dontHaveAccount')}{" "}
-                <Button type="button" variant="link" className="px-0 font-normal" size="sm" formNoValidate onClick={() => router.push('/register')}>
+                <Button type="button" variant="link" className="px-0 font-normal" size="sm" formNoValidate onClick={() => router.push(getAuthPageUrl('/register'))}>
                   {t('login.signUp')}
                 </Button>
               </>)}

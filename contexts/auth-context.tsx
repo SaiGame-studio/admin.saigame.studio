@@ -1,4 +1,5 @@
 "use client";
+import { trackEvent } from "@/lib/analytics";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getValidToken, saveToken, clearToken, isTokenExpired, getTimeUntilExpiration, refreshAccessToken } from "@/lib/auth-utils";
@@ -39,7 +40,7 @@ interface User {
 interface AuthContextType {
     isAuthenticated: boolean;
     user: User | null;
-    login: (token: string, refreshToken?: string) => void;
+    login: (token: string, refreshToken?: string, method?: "password" | "google" | "two_factor") => void;
     logout: () => void;
     renewSession: () => Promise<boolean>;
     isLoading: boolean;
@@ -224,7 +225,8 @@ export function AuthProvider({ children }: {
             }
         }
     }, [isAuthenticated, isLoading, pathname, router]);
-    const login = (token: string, _refreshToken?: string) => {
+    const login = (token: string, _refreshToken?: string, method: "password" | "google" | "two_factor" = "password") => {
+        trackEvent("login", { method });
         publishSharedSession();
         saveToken(token);
         checkAuth();
