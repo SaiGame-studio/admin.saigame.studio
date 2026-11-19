@@ -15,13 +15,13 @@ Create gift codes (redeem codes) for your game and let players redeem them in Un
 
 1. Open **Items** in your game dashboard and select the **Giftcodes** tab.
 
-![Giftcodes tab on the Items page](/tutorial-guides/gift-codes/giftcodes-tab.png)
+![Giftcodes tab on the Items page](/tutorial-guides/gift-codes/giftcodes-tab.png =1500x)
 
 2. Create a new code and fill in the form:
 
 | Field | Description |
 |---|---|
-| **Code** | The text players type, for example `SUMMER2024`. It cannot be changed after creation. |
+| **Code** | The text players type, for example `WELCOME2026`. It cannot be changed after creation. |
 | **Description** | An internal note for your team. |
 | **Linked Gacha Packs** | The packs opened when the code is claimed. Key requirements are skipped, so players do not need keys. |
 | **Max Uses** | **Single use (1 person)**, **Limited uses** (enter a number) or **Unlimited (everyone can redeem)**. |
@@ -30,30 +30,28 @@ Create gift codes (redeem codes) for your game and let players redeem them in Un
 
 3. Save the code.
 
-![Create Gift Code form filled in with an example](/tutorial-guides/gift-codes/create-form.png)
+![Create Gift Code form filled in with an example](/tutorial-guides/gift-codes/create-form.png =544x)
+
+![Gift code usage, dates and Create button](/tutorial-guides/gift-codes/create-form-save.png =560x)
 
 
 **Expected result:** the code appears in **Game Giftcodes** with its status: **Active**, **Scheduled** (Active At is in the future), **Inactive**, **Expired** or **Depleted** (all uses taken).
 
-![Game Giftcodes list with status badges](/tutorial-guides/gift-codes/status-list.png)
+![Game Giftcodes list with status badges](/tutorial-guides/gift-codes/status-list.png =1495x)
 
 
 ## Step 2: Redeem the code in Unity
 
 1. Enter **Play Mode** and log in as a player.
-2. Select the `GiftCodeRedeemer` component under the `SaiServer` object.
+2. Select **SaiServer > Item** in the Hierarchy and expand the `GiftCodeRedeemer` component in the Inspector.
 3. Enter the code in **Default Gift Code** and click **Redeem Gift Code**.
 
-> 🖼️ **IMAGE PLACEHOLDER** · `/tutorial-guides/gift-codes/redeemer-inspector.png`  
-> Capture: the `GiftCodeRedeemer` component in the Inspector during Play Mode, with `SUMMER2024` entered in **Default Gift Code**.  
-> ⚙️ **Needs Unity:** capture manually in the Unity Editor (Play Mode).
+![Gift Code Redeemer in Unity Play Mode with an example code](/tutorial-guides/gift-codes/redeemer-inspector.png =808x)
 
 
-**Expected result:** the Inspector shows **Total Items Granted** and **Total Gacha Rolls**, with the gacha results. The rewards go to the player's Mailbox or inventory, depending on each pack's reward destination.
+**Expected result:** the Inspector shows **Total Items Granted** and **Total Gacha Rolls**. The rewards go to the player's Mailbox or inventory, depending on each pack's reward destination.
 
-> 🖼️ **IMAGE PLACEHOLDER** · `/tutorial-guides/gift-codes/redeem-result.png`  
-> Capture: the Inspector after a successful redeem, showing **Total Items Granted**, **Total Gacha Rolls** and the gacha results.  
-> ⚙️ **Needs Unity:** capture manually in the Unity Editor (Play Mode).
+![Successful WELCOME2026 redemption in Unity with the onSuccess Console log and one item granted](/tutorial-guides/gift-codes/redeem-result.png =1059x)
 
 
 From code, for example from a "Redeem" button in your settings screen:
@@ -75,13 +73,13 @@ public class RedeemCodeButton : MonoBehaviour
 }
 ```
 
-Codes are matched **exactly**, so `summer2024` and `SUMMER2024` are different codes. Tell players how to type the code, or convert the input to match the way you create codes.
+Codes are matched **exactly**, so `welcome2026` and `WELCOME2026` are different codes. Tell players how to type the code, or convert the input to match the way you create codes.
 
 ## Step 3: See who redeemed a code
 
 Open the code in the **Giftcodes** tab and view its **redemptions**. Each row shows the player and the time of redemption. The used count shows how many uses are taken.
 
-![Giftcode Redemptions dialog](/tutorial-guides/gift-codes/redemptions.png)
+![Giftcode Redemptions dialog](/tutorial-guides/gift-codes/redemptions.png =840x)
 
 
 A code that has been redeemed at least once cannot be deleted. Make it inactive or let it expire instead.

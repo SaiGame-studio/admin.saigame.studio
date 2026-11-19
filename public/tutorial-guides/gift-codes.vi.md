@@ -15,13 +15,13 @@ Tạo gift code (mã đổi quà) cho game và cho người chơi đổi mã tro
 
 1. Mở **Items** trong dashboard của game và chọn tab **Giftcodes**.
 
-![Tab Giftcodes trên trang Items](/tutorial-guides/gift-codes/giftcodes-tab.png)
+![Tab Giftcodes trên trang Items](/tutorial-guides/gift-codes/giftcodes-tab.png =1500x)
 
 2. Tạo mã mới và điền form:
 
 | Trường | Mô tả |
 |---|---|
-| **Code** | Chuỗi người chơi nhập, ví dụ `SUMMER2024`. Không đổi được sau khi tạo. |
+| **Code** | Chuỗi người chơi nhập, ví dụ `WELCOME2026`. Không đổi được sau khi tạo. |
 | **Description** | Ghi chú nội bộ cho team. |
 | **Linked Gacha Packs** | Các pack được mở khi đổi mã. Yêu cầu chìa khóa được bỏ qua, người chơi không cần key. |
 | **Max Uses** | **Single use (1 person)**, **Limited uses** (nhập số lượt) hoặc **Unlimited (everyone can redeem)**. |
@@ -30,30 +30,28 @@ Tạo gift code (mã đổi quà) cho game và cho người chơi đổi mã tro
 
 3. Lưu mã.
 
-![Form Create Gift Code đã điền ví dụ](/tutorial-guides/gift-codes/create-form.png)
+![Form Create Gift Code đã điền ví dụ](/tutorial-guides/gift-codes/create-form.png =544x)
+
+![Giới hạn lượt dùng, thời gian hiệu lực và nút Create](/tutorial-guides/gift-codes/create-form-save.png =560x)
 
 
 **Kết quả mong đợi:** mã xuất hiện trong **Game Giftcodes** với trạng thái **Active**, **Scheduled** (Active At ở tương lai), **Inactive**, **Expired** hoặc **Depleted** (đã hết lượt).
 
-![Danh sách Game Giftcodes với nhãn trạng thái](/tutorial-guides/gift-codes/status-list.png)
+![Danh sách Game Giftcodes với nhãn trạng thái](/tutorial-guides/gift-codes/status-list.png =1495x)
 
 
 ## Bước 2: Đổi mã trong Unity
 
 1. Vào **Play Mode** và đăng nhập bằng một người chơi.
-2. Chọn component `GiftCodeRedeemer` dưới object `SaiServer`.
+2. Chọn **SaiServer > Item** trong Hierarchy rồi mở component `GiftCodeRedeemer` trong Inspector.
 3. Nhập mã vào **Default Gift Code** và nhấn **Redeem Gift Code**.
 
-> 🖼️ **CHỖ ĐẶT ẢNH** · `/tutorial-guides/gift-codes/redeemer-inspector.png`  
-> Cần chụp: component `GiftCodeRedeemer` trong Inspector ở Play Mode, đã nhập `SUMMER2024` vào **Default Gift Code**.  
-> ⚙️ **Cần chụp trong Unity:** bạn chụp thủ công trong Unity Editor (Play Mode).
+![Gift Code Redeemer trong Unity Play Mode với mã ví dụ](/tutorial-guides/gift-codes/redeemer-inspector.png =808x)
 
 
-**Kết quả mong đợi:** Inspector hiện **Total Items Granted** và **Total Gacha Rolls** cùng kết quả gacha. Phần thưởng được giao vào Mailbox hoặc inventory tùy reward destination của từng pack.
+**Kết quả mong đợi:** Inspector hiện **Total Items Granted** và **Total Gacha Rolls**. Phần thưởng được giao vào Mailbox hoặc inventory tùy reward destination của từng pack.
 
-> 🖼️ **CHỖ ĐẶT ẢNH** · `/tutorial-guides/gift-codes/redeem-result.png`  
-> Cần chụp: Inspector sau khi đổi mã thành công, hiện **Total Items Granted**, **Total Gacha Rolls** và kết quả gacha.  
-> ⚙️ **Cần chụp trong Unity:** bạn chụp thủ công trong Unity Editor (Play Mode).
+![Đổi WELCOME2026 thành công trong Unity với log onSuccess trong Console và một vật phẩm được cấp](/tutorial-guides/gift-codes/redeem-result.png =1059x)
 
 
 Bằng code, ví dụ từ nút "Đổi mã" trong màn hình cài đặt:
@@ -75,13 +73,13 @@ public class RedeemCodeButton : MonoBehaviour
 }
 ```
 
-Mã được so khớp **chính xác**, nên `summer2024` và `SUMMER2024` là hai mã khác nhau. Hãy hướng dẫn người chơi cách nhập, hoặc chuyển chuỗi nhập vào cho khớp với cách bạn tạo mã.
+Mã được so khớp **chính xác**, nên `welcome2026` và `WELCOME2026` là hai mã khác nhau. Hãy hướng dẫn người chơi cách nhập, hoặc chuyển chuỗi nhập vào cho khớp với cách bạn tạo mã.
 
 ## Bước 3: Xem ai đã đổi mã
 
 Mở mã trong tab **Giftcodes** và xem **redemptions**. Mỗi dòng gồm người chơi và thời điểm đổi. Số lượt đã dùng cho biết còn bao nhiêu lượt.
 
-![Hộp thoại Giftcode Redemptions](/tutorial-guides/gift-codes/redemptions.png)
+![Hộp thoại Giftcode Redemptions](/tutorial-guides/gift-codes/redemptions.png =840x)
 
 
 Mã đã được đổi ít nhất một lần thì không xóa được. Hãy chuyển sang inactive hoặc để mã hết hạn.

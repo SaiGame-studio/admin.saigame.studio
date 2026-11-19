@@ -15,13 +15,13 @@
 
 1. ゲームのダッシュボードで **Items** を開き、**Giftcodes** タブを選択します。
 
-![Items ページの Giftcodes タブ](/tutorial-guides/gift-codes/giftcodes-tab.png)
+![Items ページの Giftcodes タブ](/tutorial-guides/gift-codes/giftcodes-tab.png =1500x)
 
 2. 新しいコードを作成し、フォームに入力します。
 
 | フィールド | 説明 |
 |---|---|
-| **Code** | プレイヤーが入力する文字列（例：`SUMMER2024`）。作成後は変更できません。 |
+| **Code** | プレイヤーが入力する文字列（例：`WELCOME2026`）。作成後は変更できません。 |
 | **Description** | チーム用の内部メモ |
 | **Linked Gacha Packs** | 引き換え時に開かれるパック。鍵の要件はスキップされるため、プレイヤーは鍵を必要としません。 |
 | **Max Uses** | **Single use (1 person)**、**Limited uses**（回数を入力）、**Unlimited (everyone can redeem)** |
@@ -30,30 +30,28 @@
 
 3. コードを保存します。
 
-![例を入力した Create Gift Code フォーム](/tutorial-guides/gift-codes/create-form.png)
+![例を入力した Create Gift Code フォーム](/tutorial-guides/gift-codes/create-form.png =544x)
+
+![使用回数、有効期間と Create ボタン](/tutorial-guides/gift-codes/create-form-save.png =560x)
 
 
 **期待される結果：** **Game Giftcodes** にコードが表示され、ステータスは **Active**、**Scheduled**（Active At が未来）、**Inactive**、**Expired**、**Depleted**（使用回数をすべて消化）のいずれかになります。
 
-![ステータスバッジ付きの Game Giftcodes 一覧](/tutorial-guides/gift-codes/status-list.png)
+![ステータスバッジ付きの Game Giftcodes 一覧](/tutorial-guides/gift-codes/status-list.png =1495x)
 
 
 ## ステップ 2：Unity でコードを引き換える
 
 1. **Play モード** に入り、プレイヤーでログインします。
-2. `SaiServer` オブジェクト配下の `GiftCodeRedeemer` コンポーネントを選択します。
+2. Hierarchy で **SaiServer > Item** を選択し、インスペクターの `GiftCodeRedeemer` コンポーネントを展開します。
 3. **Default Gift Code** にコードを入力し、**Redeem Gift Code** をクリックします。
 
-> 🖼️ **画像プレースホルダー** · `/tutorial-guides/gift-codes/redeemer-inspector.png`  
-> 撮影内容：Play モード中のインスペクターの `GiftCodeRedeemer`、**Default Gift Code** に `SUMMER2024` を入力した状態。  
-> ⚙️ **Unity での撮影が必要：** Unity エディター（Play モード）で手動撮影してください。
+![Unity Play モードでコードを入力した Gift Code Redeemer](/tutorial-guides/gift-codes/redeemer-inspector.png =808x)
 
 
-**期待される結果：** インスペクターに **Total Items Granted** と **Total Gacha Rolls**、ガチャの結果が表示されます。報酬は各パックの配送先に応じて、プレイヤーの Mailbox またはインベントリに届きます。
+**期待される結果：** インスペクターに **Total Items Granted** と **Total Gacha Rolls** が表示されます。報酬は各パックの配送先に応じて、プレイヤーの Mailbox またはインベントリに届きます。
 
-> 🖼️ **画像プレースホルダー** · `/tutorial-guides/gift-codes/redeem-result.png`  
-> 撮影内容：引き換え成功後のインスペクター（**Total Items Granted**、**Total Gacha Rolls**、ガチャ結果）。  
-> ⚙️ **Unity での撮影が必要：** Unity エディター（Play モード）で手動撮影してください。
+![Unity で WELCOME2026 の引き換え成功：Console の onSuccess ログと付与されたアイテム 1 個](/tutorial-guides/gift-codes/redeem-result.png =1059x)
 
 
 コードから呼ぶ例（設定画面の「引き換え」ボタンなど）：
@@ -75,13 +73,13 @@ public class RedeemCodeButton : MonoBehaviour
 }
 ```
 
-コードは **完全一致** で照合されるため、`summer2024` と `SUMMER2024` は別のコードです。入力方法をプレイヤーに案内するか、作成したコードの形式に合わせて入力を変換してください。
+コードは **完全一致** で照合されるため、`welcome2026` と `WELCOME2026` は別のコードです。入力方法をプレイヤーに案内するか、作成したコードの形式に合わせて入力を変換してください。
 
 ## ステップ 3：引き換えたプレイヤーを確認する
 
 **Giftcodes** タブでコードを開き、**redemptions** を確認します。各行にプレイヤーと引き換え日時が表示されます。使用回数で、何回分が使われたかがわかります。
 
-![Giftcode Redemptions ダイアログ](/tutorial-guides/gift-codes/redemptions.png)
+![Giftcode Redemptions ダイアログ](/tutorial-guides/gift-codes/redemptions.png =840x)
 
 
 一度でも引き換えられたコードは削除できません。代わりに無効化するか、期限切れにしてください。
