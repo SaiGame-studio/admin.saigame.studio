@@ -16,9 +16,7 @@ Let players sign in to your Unity game with their Google account through Sai Ser
 2. Sai Server returns a sign-in URL and Unity opens it in the browser.
 3. The player signs in with Google in the browser. If the account uses two-factor authentication, the browser page asks for the 2FA code too.
 
-> 🖼️ **IMAGE PLACEHOLDER** · `/tutorial-guides/unity-google-login/2fa-browser-page.png`  
-> Capture: the browser page asking for the 6-digit 2FA code after Google sign-in, for an account with 2FA enabled.  
-> ⚙️ **Needs Unity:** this page only appears after clicking **Start Login** in Unity; capture it manually.
+![Sai Server browser page requesting an Authenticator code](/tutorial-guides/unity-google-login/2fa-browser-page.png =520x)
 
 4. Unity checks the session every few seconds. When the login is complete, Unity receives the access and refresh tokens.
 5. The tokens are passed to `SaiAuth`, so every other Sai Server call works as if the player had logged in with a password.
@@ -30,20 +28,23 @@ Sai Server matches the Google account by email. It signs in to the existing acco
 1. Enter **Play Mode**.
 2. Select the `GoogleBackendLogin` component on the `SaiServer` object.
 3. Click **Start Login**. The browser opens the Google sign-in page.
-4. Sign in with Google in the browser.
+4. Sign in with Google in the browser. If Sai Server asks for an Authenticator code, complete verification there.
+5. When the browser shows **SIGN-IN COMPLETE**, return to Unity.
 
-![GoogleBackendLogin component in the Inspector](/tutorial-guides/unity-google-login/step-01.jpg)
+![GoogleBackendLogin in Unity Play Mode with the Start Login button](/tutorial-guides/unity-google-login/google-login-inspector.png =1085x)
 
-> 🖼️ **IMAGE PLACEHOLDER** · `/tutorial-guides/unity-google-login/google-signin-page.png`  
-> Capture: the Google sign-in page opened in the system browser after clicking **Start Login** (hide the real email address).  
-> ⚙️ **Needs Unity:** this page only appears after clicking **Start Login** in Unity; capture it manually.
+![Google account chooser opened from Unity; account details hidden](/tutorial-guides/unity-google-login/google-signin-page.png =1060x)
+
+![Browser confirmation that Google sign-in and two-factor verification are complete](/tutorial-guides/unity-google-login/browser-login-success.png =520x)
 
 
 **Expected result:** the component shows the access token and user data, and `SaiAuth` is logged in. Click **Get Me** on `SaiAuth` to confirm the user.
 
-> 🖼️ **IMAGE PLACEHOLDER** · `/tutorial-guides/unity-google-login/login-success.png`  
-> Capture: `GoogleBackendLogin` in the Inspector after a successful login (token and user data filled, token partly blurred) plus the Console log from **Get Me**.  
-> ⚙️ **Needs Unity:** capture manually in the Unity Editor (Play Mode).
+![GoogleBackendLogin after successful sign-in; tokens hidden](/tutorial-guides/unity-google-login/login-success.png =808x)
+
+![SaiAuth showing Is Login enabled after Google sign-in; tokens hidden](/tutorial-guides/unity-google-login/saiauth-login-success.png =808x)
+
+Account details and tokens are hidden in these screenshots.
 
 
 Other buttons:

@@ -16,9 +16,7 @@ Cho người chơi đăng nhập vào game Unity bằng tài khoản Google thô
 2. Sai Server trả về URL đăng nhập, Unity mở URL đó trên trình duyệt.
 3. Người chơi đăng nhập Google trên trình duyệt. Nếu tài khoản bật xác thực hai lớp, trang này sẽ hỏi thêm mã 2FA.
 
-> 🖼️ **CHỖ ĐẶT ẢNH** · `/tutorial-guides/unity-google-login/2fa-browser-page.png`  
-> Cần chụp: trang trình duyệt hỏi mã 2FA 6 số sau khi đăng nhập Google, với tài khoản đã bật 2FA.  
-> ⚙️ **Cần chụp trong Unity:** trang này chỉ hiện sau khi nhấn **Start Login** trong Unity, bạn chụp thủ công.
+![Trang web Sai Server yêu cầu mã Authenticator](/tutorial-guides/unity-google-login/2fa-browser-page.png =520x)
 
 4. Unity kiểm tra phiên vài giây một lần. Khi đăng nhập xong, Unity nhận access token và refresh token.
 5. Token được chuyển cho `SaiAuth`, nên mọi lệnh gọi Sai Server khác hoạt động như khi đăng nhập bằng mật khẩu.
@@ -30,20 +28,23 @@ Sai Server khớp tài khoản Google theo email: nếu đã có tài khoản d�
 1. Vào **Play Mode**.
 2. Chọn component `GoogleBackendLogin` trên object `SaiServer`.
 3. Nhấn **Start Login**. Trình duyệt mở trang đăng nhập Google.
-4. Đăng nhập Google trên trình duyệt.
+4. Đăng nhập Google trên trình duyệt. Nếu Sai Server yêu cầu mã Authenticator, hoàn tất xác thực tại đây.
+5. Khi trình duyệt hiện **SIGN-IN COMPLETE**, quay lại Unity.
 
-![Component GoogleBackendLogin trong Inspector](/tutorial-guides/unity-google-login/step-01.jpg)
+![GoogleBackendLogin trong Unity Play Mode với nút Start Login](/tutorial-guides/unity-google-login/google-login-inspector.png =1085x)
 
-> 🖼️ **CHỖ ĐẶT ẢNH** · `/tutorial-guides/unity-google-login/google-signin-page.png`  
-> Cần chụp: trang đăng nhập Google mở trên trình duyệt hệ thống sau khi nhấn **Start Login** (che email thật).  
-> ⚙️ **Cần chụp trong Unity:** trang này chỉ hiện sau khi nhấn **Start Login** trong Unity, bạn chụp thủ công.
+![Trang chọn tài khoản Google mở từ Unity; thông tin tài khoản đã được che](/tutorial-guides/unity-google-login/google-signin-page.png =1060x)
+
+![Trình duyệt xác nhận đăng nhập Google và xác thực hai lớp đã hoàn tất](/tutorial-guides/unity-google-login/browser-login-success.png =520x)
 
 
 **Kết quả mong đợi:** component hiển thị access token và thông tin user, `SaiAuth` đã ở trạng thái đăng nhập. Nhấn **Get Me** trên `SaiAuth` để kiểm tra.
 
-> 🖼️ **CHỖ ĐẶT ẢNH** · `/tutorial-guides/unity-google-login/login-success.png`  
-> Cần chụp: `GoogleBackendLogin` trong Inspector sau khi đăng nhập thành công (đã có token và user data, làm mờ một phần token) cùng log **Get Me** trong Console.  
-> ⚙️ **Cần chụp trong Unity:** bạn chụp thủ công trong Unity Editor (Play Mode).
+![GoogleBackendLogin sau khi đăng nhập thành công; token đã được che](/tutorial-guides/unity-google-login/login-success.png =808x)
+
+![SaiAuth hiển thị Is Login được bật sau khi đăng nhập Google; token đã được che](/tutorial-guides/unity-google-login/saiauth-login-success.png =808x)
+
+Thông tin tài khoản và token đã được che trong các ảnh minh họa.
 
 
 Các nút khác:

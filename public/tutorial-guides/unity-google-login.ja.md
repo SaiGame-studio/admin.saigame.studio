@@ -16,9 +16,7 @@ Sai Server を通じて、プレイヤーが Google アカウントで Unity ゲ
 2. Sai Server がサインイン URL を返し、Unity がブラウザで開きます。
 3. プレイヤーがブラウザで Google にサインインします。アカウントで二要素認証が有効な場合は、ブラウザのページで 2FA コードも求められます。
 
-> 🖼️ **画像プレースホルダー** · `/tutorial-guides/unity-google-login/2fa-browser-page.png`  
-> 撮影内容：2FA を有効にしたアカウントで Google サインイン後に表示される、6 桁の 2FA コード入力ページ。  
-> ⚙️ **Unity での撮影が必要：** このページは Unity で **Start Login** を押した後にのみ表示されます。手動で撮影してください。
+![Authenticator コードを求める Sai Server のブラウザ画面](/tutorial-guides/unity-google-login/2fa-browser-page.png =520x)
 
 4. Unity は数秒ごとにセッションを確認します。ログインが完了すると、アクセストークンとリフレッシュトークンを受け取ります。
 5. トークンは `SaiAuth` に渡されるため、他の Sai Server 呼び出しはパスワードでログインした場合と同じように動作します。
@@ -30,20 +28,23 @@ Sai Server は Google アカウントをメールアドレスで照合します�
 1. **Play モード** に入ります。
 2. `SaiServer` オブジェクト上の `GoogleBackendLogin` コンポーネントを選択します。
 3. **Start Login** をクリックします。ブラウザで Google のサインインページが開きます。
-4. ブラウザで Google にサインインします。
+4. ブラウザで Google にサインインします。Sai Server が Authenticator コードを求めた場合は、その画面で認証を完了します。
+5. ブラウザに **SIGN-IN COMPLETE** と表示されたら Unity に戻ります。
 
-![インスペクターの GoogleBackendLogin コンポーネント](/tutorial-guides/unity-google-login/step-01.jpg)
+![Unity Play モードの GoogleBackendLogin と Start Login ボタン](/tutorial-guides/unity-google-login/google-login-inspector.png =1085x)
 
-> 🖼️ **画像プレースホルダー** · `/tutorial-guides/unity-google-login/google-signin-page.png`  
-> 撮影内容：**Start Login** クリック後にシステムブラウザで開いた Google サインインページ（実際のメールアドレスは隠す）。  
-> ⚙️ **Unity での撮影が必要：** このページは Unity で **Start Login** を押した後にのみ表示されます。手動で撮影してください。
+![Unity から開いた Google アカウント選択画面（アカウント情報は非表示）](/tutorial-guides/unity-google-login/google-signin-page.png =1060x)
+
+![Google サインインと二要素認証の完了を示すブラウザ画面](/tutorial-guides/unity-google-login/browser-login-success.png =520x)
 
 
 **期待される結果：** コンポーネントにアクセストークンとユーザーデータが表示され、`SaiAuth` がログイン状態になります。`SaiAuth` の **Get Me** で確認してください。
 
-> 🖼️ **画像プレースホルダー** · `/tutorial-guides/unity-google-login/login-success.png`  
-> 撮影内容：ログイン成功後のインスペクターの `GoogleBackendLogin`（トークンとユーザーデータが入った状態、トークンは一部ぼかす）と **Get Me** の Console ログ。  
-> ⚙️ **Unity での撮影が必要：** Unity エディター（Play モード）で手動撮影してください。
+![サインイン成功後の GoogleBackendLogin（トークンは非表示）](/tutorial-guides/unity-google-login/login-success.png =808x)
+
+![Google サインイン後に Is Login が有効になった SaiAuth（トークンは非表示）](/tutorial-guides/unity-google-login/saiauth-login-success.png =808x)
+
+これらの画像では、アカウント情報とトークンを隠しています。
 
 
 その他のボタン：
