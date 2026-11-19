@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { preprocessImgSize } from "@/lib/tutorials/markdown";
+import { tutorialMarkdownComponents } from "@/lib/tutorials/markdown-components";
 import { useTheme } from "next-themes";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { SUPPORT_CHAT_OPEN_EVENT } from "@/components/support-chat-widget";
@@ -160,7 +161,7 @@ export function StaticArticlesPanel({ section, selectedSlug, onSelect }: {
         <div id={`${id}-article`} className={cn(section.bordered && "border rounded-lg p-4 sm:p-6")}>
           <h2 id={`${id}-title`} className="text-2xl font-bold break-words mb-4 sm:text-3xl lg:text-4xl">{title}</h2>
           {body !== null ? (<div id={`${id}-body`} className={cn("prose prose-sm max-w-none", resolvedTheme?.includes("dark") && "prose-invert")}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{preprocessImgSize(body)}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={tutorialMarkdownComponents}>{preprocessImgSize(body)}</ReactMarkdown>
               {article.supportChat && canChat && (<SupportChatLine id={`${id}-chat-${article.slug}`}/>)}
             </div>) : failed ? (<p id={`${id}-error`} className="text-muted-foreground text-sm">{t(section.loadFailedKey)}</p>) : (<div id={`${id}-loading`} className="flex items-center gap-2 text-muted-foreground">
               <Loader2 id={`${id}-loading-icon`} className="h-4 w-4 animate-spin"/>

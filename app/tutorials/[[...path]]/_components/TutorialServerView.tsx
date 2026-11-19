@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { preprocessImgSize } from "@/lib/tutorials/markdown";
+import { tutorialMarkdownComponents } from "@/lib/tutorials/markdown-components";
 import type { ResolvedTutorial } from "@/lib/tutorials/server";
 import type { Category } from "@/lib/tutorials/types";
 import { getActiveChildren } from "@/lib/tutorials/categories";
@@ -34,7 +35,7 @@ export function TutorialServerView({ data }: { data: ServerViewData }) {
         return (<article id="tutorials-server-article" className="border rounded-lg p-4 sm:p-6">
         <h2 id="tutorials-server-article-title" className="text-2xl font-bold break-words mb-4 sm:text-3xl lg:text-4xl">{content.title}</h2>
         {content.body && (<div id="tutorials-server-article-body" className={PROSE}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{preprocessImgSize(content.body)}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={tutorialMarkdownComponents}>{preprocessImgSize(content.body)}</ReactMarkdown>
           </div>)}
       </article>);
     }
@@ -42,7 +43,7 @@ export function TutorialServerView({ data }: { data: ServerViewData }) {
         return (<article id="tutorials-server-static" className={data.bordered ? "border rounded-lg p-4 sm:p-6" : undefined}>
         <h2 id="tutorials-server-static-title" className="text-2xl font-bold break-words mb-4 sm:text-3xl lg:text-4xl">{data.title}</h2>
         <div id="tutorials-server-static-body" className={PROSE}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{preprocessImgSize(data.body)}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={tutorialMarkdownComponents}>{preprocessImgSize(data.body)}</ReactMarkdown>
         </div>
       </article>);
     }
