@@ -57,6 +57,7 @@ export const GUIDES_SECTION: StaticSection = {
     articles: [
         { slug: "create-a-studio", titleKey: "tutorials.guides.createAStudio", group: "get-started" },
         { slug: "import-unity-package", titleKey: "tutorials.guides.importUnityPackage", group: "get-started" },
+        { slug: "unity-google-login", titleKey: "tutorials.guides.unity-google-login", group: "get-started" },
         ...BASIC_GUIDE_ARTICLES,
     ],
 };

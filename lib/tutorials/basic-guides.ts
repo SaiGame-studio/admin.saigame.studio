@@ -113,6 +113,11 @@ export const BASIC_GUIDE_ARTICLES: StaticArticle[] = [
         "group": "gacha-lootbox"
     },
     {
+        "slug": "gift-codes",
+        "titleKey": "tutorials.guides.gift-codes",
+        "group": "gacha-lootbox"
+    },
+    {
         "slug": "what-is-item-generator",
         "titleKey": "tutorials.guides.what-is-item-generator",
         "group": "item-generator"

@@ -1,78 +1,128 @@
-Bản hướng dẫn này phác thảo các bước thiết lập ban đầu để tích hợp SaiGame SDK vào dự án Unity của bạn.
+Kết nối dự án Unity với backend Sai Server. Bạn sẽ cài SaiGame Unity SDK, thêm prefab `SaiServer`, nhập Game ID, kiểm tra kết nối và đăng nhập. Xong bài này, Unity đã giao tiếp được với game của bạn trên Sai Server.
 
-### 1. Điều kiện tiên quyết & Cài đặt
+**Trong bài này bạn sẽ:**
+- cài SaiGame Unity package,
+- cấu hình prefab `SaiServer` với Game ID,
+- (tùy chọn) nạp cấu hình từ file `.env`,
+- kiểm tra kết nối và đăng nhập bằng `SaiAuth`.
 
-* **Đăng ký Game:** Đảm bảo trò chơi của bạn đã được khởi tạo trong hệ thống SaiGame.
-* **Phiên bản Unity:**
-    * Khuyên dùng: **Unity 6.x** hoặc mới hơn.
-    * Phiên bản cũ: Nếu bạn đang sử dụng phiên bản cũ hơn và gặp lỗi, vui lòng [liên hệ **Sai** để được hỗ trợ](https://discord.gg/UU3YarmVde).
-* **Thiết lập SDK:**
-  1. Tải về **Unity Package** mới nhất từ [liên kết này](https://github.com/SaiGame-studio/ss-unity/releases).
-![alt](/tutorial-guides/import-unity-package/step-01.png)
+## Chuẩn bị
 
-  2. Import package vào dự án của bạn.
-  3. Kéo prefab `SaiServer` trong thư mục `Assets/SaiGame/Prefabs` vào scene. Tất cả các dịch vụ (xác thực, vật phẩm, nhiệm vụ, chiến đấu…) đã được gắn sẵn bên trong.
-![alt](/tutorial-guides/import-unity-package/step-02.png)
+- Một game đã tạo trên Sai Server và **Game ID** của nó (xem [Tạo Studio](/tutorials/guides/create-a-studio)).
+- **Unity 6.x trở lên** (khuyến nghị). Nếu dùng phiên bản cũ hơn và gặp lỗi, hãy [hỏi Sai trên Discord](https://discord.gg/UU3YarmVde).
 
----
+## Bước 1: Cài SaiGame Unity package
 
-### 2. Cấu hình
+1. Tải Unity package mới nhất tại [trang release của SaiGame SDK](https://github.com/SaiGame-studio/ss-unity/releases).
+2. Import package vào dự án Unity.
+3. Kéo prefab `SaiServer` từ `Assets/SaiGame/Prefabs` vào scene. Mọi dịch vụ (xác thực, cloud save, vật phẩm, nhiệm vụ, battle…) đã được nối sẵn bên trong.
 
-Chọn object `SaiServer` trong cửa sổ Hierarchy. Inspector của nó chứa mọi thiết lập cần thiết để kết nối dự án với backend.
+![Tải SaiGame Unity package](/tutorial-guides/import-unity-package/step-01.png)
 
-#### Server Endpoint
-Đặt **Server Endpoint** thành `Production API (HTTPS) - api.saigame.studio` để đảm bảo bạn đang tương tác với dữ liệu thực tế (live data). Đây là giá trị mặc định.
-![alt](/tutorial-guides/import-unity-package/step-03.png)
+![Prefab SaiServer trong scene](/tutorial-guides/import-unity-package/step-02.png)
 
-#### Định danh Game
-1. Đi tới trang **Game Detail** trên dashboard và sao chép **Game ID**.
-![alt](/tutorial-guides/import-unity-package/step-04.png)
-2. Trong cửa sổ Unity Inspector, chọn component `SaiServer`.
-3. Dán ID vào trường **Game ID**.
-![alt](/tutorial-guides/import-unity-package/step-05.png)
+Tên package và phiên bản hiển thị ở đầu Inspector của `SaiServer`. Hãy cho biết phiên bản này khi cần hỗ trợ.
 
-#### Tuỳ chọn: Dùng file `.env`
-Thay vì nhập Game ID và tài khoản test trực tiếp vào Inspector, bạn có thể lưu chúng trong file `.env`:
-1. Trong Inspector của `SaiServer`, nhấn **Create .env**. Thao tác này sao chép `Assets/SaiGame/env.txt` thành file `.env` ở thư mục gốc của dự án.
-2. Mở `.env` và điền `GAME_ID`, `USERNAME` và `PASSWORD`.
-3. Bật **Load .env on Play**. Khi vào Play Mode, Game ID sẽ được áp dụng cho `SaiServer` và thông tin đăng nhập cho `SaiAuth`.
+## Bước 2: Đặt Server Endpoint và Game ID
 
-> **Lưu ý:** Tuyệt đối không commit file `.env` lên source control. Thông tin đăng nhập đọc từ file này chỉ được lưu trong PlayerPrefs, không lưu vào file scene.
+Chọn object `SaiServer` trong Hierarchy.
 
-![alt](/tutorial-guides/import-unity-package/step-06.jpg)
+1. **Server Endpoint:** giữ mặc định **Production API (HTTPS) - api.saigame.studio**.
+2. **Game ID:** mở trang **Game Detail** của game trong trang quản trị, sao chép Game ID và dán vào ô **Game ID**.
 
-#### Kiểm tra kết nối
-Nhấn **Test Connection** trong Inspector của `SaiServer`. Thông báo `✓ Connection test passed!` trong Console xác nhận Unity đã kết nối được tới server. Nút **Show Service Info** sẽ in ra base URL hiện tại và trạng thái đăng nhập.
+Khi Game ID hợp lệ, ô chỉ-đọc **Game Name** sẽ hiện tên game. Nhấn **Refresh** bên cạnh để tải lại tên.
 
----
+![Cài đặt Server Endpoint](/tutorial-guides/import-unity-package/step-03.png)
 
-### 3. Xác thực & Kiểm thử
+![Sao chép Game ID ở trang Game Detail](/tutorial-guides/import-unity-package/step-04.png)
 
-Chuyển Unity sang **Play Mode** để bắt đầu kiểm tra việc tích hợp.
+![Dán Game ID vào component SaiServer](/tutorial-guides/import-unity-package/step-05.png)
 
-#### Xác thực người dùng
-Sử dụng component `SaiAuth` để thực hiện các hành động sau:
-* **Register** để tạo tài khoản mới.
-* **Login** với thông tin đã có.
-* **Get Me** để tải thông tin người dùng hiện tại, **Refresh Token** và **Logout**.
-![alt](/tutorial-guides/import-unity-package/step-07.png)
+## Bước 3 (tùy chọn): Lưu cấu hình trong file .env
 
-#### Đăng nhập Google (Tuỳ chọn)
-Người chơi cũng có thể đăng nhập bằng Google thông qua component `GoogleBackendLogin`:
-1. Nhấn **Start Login**. Trình duyệt sẽ mở trang đăng nhập Google.
-2. Hoàn tất đăng nhập trên trình duyệt. Unity sẽ kiểm tra trạng thái với server và khi đăng nhập thành công, token sẽ tự động được chuyển sang `SaiAuth`.
-3. Dùng **Cancel Login** để huỷ, hoặc **Open Auth URL** nếu trình duyệt không tự mở.
+File `.env` giúp Game ID và tài khoản test không bị lưu vào file scene.
 
-![alt](/tutorial-guides/import-unity-package/step-08.jpg)
+1. Trong mục **Environment** của Inspector `SaiServer`, nhấn **Create .env**. Unity sẽ sao chép `Assets/SaiGame/env.example.txt` thành file `.env` ở thư mục gốc dự án (cạnh thư mục `Assets`). Nút này bị tắt nếu `.env` đã tồn tại.
+2. Mở `.env` và điền các khóa cần dùng:
 
-#### Debug & Triển khai
-Inspector có sẵn các nút hỗ trợ để kiểm tra nhanh.
-* **Console Shortcuts:** Mỗi khi bạn nhấn một nút test, một dòng **Color Log** sẽ xuất hiện trong Console.
-* **Điều hướng Code:** Nhấp vào dòng log sẽ dẫn bạn trực tiếp đến hàm xử lý logic đó. Bạn có thể sử dụng các hàm này làm tham khảo khi viết script riêng cho game của mình.
-![alt](/tutorial-guides/import-unity-package/step-09.png)
----
+```ini
+GAME_ID=your-game-id-here
+USERNAME=your-username-here
+PASSWORD=your-password-here
+# Optional. Leave empty to keep the Server Endpoint option.
+SERVER_ENDPOINT=
+```
 
-### 4. Các bước tiếp theo
-* Việc đăng nhập hoặc tạo tài khoản thành công chỉ mới tạo ra một người dùng hệ thống, nó không tự động đăng ký họ thành "Player" (Người chơi) trong trò chơi cụ thể của bạn.
-* Chúng ta sẽ tìm hiểu logic để chuyển đổi một người dùng thành một Người chơi thực thụ trong **bài hướng dẫn tiếp theo**.
-* Trong các component `SaiServer` và `SaiAuth` còn rất nhiều thứ bạn có thể tìm hiểu, cứ tự nhiên khám phá chúng theo tốc độ của riêng mình.
+3. Bật **Load .env on Play**. Ba công tắc quyết định giá trị nào được áp dụng khi vào Play Mode, cả ba đều bật mặc định:
+   - **Override server endpoint** – dùng `SERVER_ENDPOINT` cho phiên chơi hiện tại.
+   - **Override game id** – dùng `GAME_ID`.
+   - **Override credentials** – gửi `USERNAME` và `PASSWORD` cho `SaiAuth`.
+
+![Cài đặt Load .env on Play](/tutorial-guides/import-unity-package/step-06.jpg)
+
+> **Bảo mật:** không bao giờ commit `.env` lên source control. Thông tin đăng nhập từ file này chỉ được lưu trong PlayerPrefs, không lưu vào file scene.
+
+**Khi build:** mục **Load .env.build on build** hoạt động tương tự. Nhấn **Create .env.build** và điền `GAME_ID`. Khi bật **Override game id**, Game ID chỉ được ghi vào bản build, scene gốc không bị thay đổi.
+
+## Bước 4: Kiểm tra kết nối
+
+Nhấn **Test Connection** trong Inspector `SaiServer`.
+
+**Kết quả mong đợi:** Console hiện `✓ Connection test passed!`. **Show Service Info** in ra base URL hiện tại và trạng thái đăng nhập.
+
+Nếu thấy `✗ Connection test failed!`, xem phần "Lỗi thường gặp" bên dưới.
+
+## Bước 5: Đăng nhập bằng SaiAuth
+
+Vào **Play Mode**, rồi dùng component `SaiAuth`:
+
+- **Register** – tạo tài khoản mới (email, username, password).
+- **Login (Check 2FA)** – đăng nhập bằng username và password.
+- **2FA Login** – nếu tài khoản bật xác thực hai lớp, Console sẽ cảnh báo cần mã. Nhập mã 6 số vào **2FA Code** rồi nhấn **2FA Login**.
+- **Get Me** – tải thông tin user hiện tại. **Refresh Token** – làm mới access token. **Logout** – đăng xuất.
+
+![Các nút đăng nhập và đăng ký của SaiAuth](/tutorial-guides/import-unity-package/step-07.png)
+
+Gọi tương tự bằng code:
+
+```csharp
+using SaiGame.Services;
+
+SaiServer.Instance.SaiAuth.Login(
+    "username", "password",
+    response => Debug.Log($"Logged in as {response.user.username}"),
+    error => Debug.LogError(error));
+```
+
+**Kết quả mong đợi:** Console ghi `Login successful.` và **Get Me** in ra username của bạn.
+
+Người chơi cũng có thể đăng nhập bằng Google. Xem [Đăng nhập Google trong Unity](/tutorials/guides/unity-google-login).
+
+## Dùng log trong Inspector để tìm code
+
+Mỗi nút test đều ghi một **log có màu** vào Console. Nhấn vào log để mở hàm xử lý tương ứng, rồi dùng các hàm này làm mẫu khi viết script cho game.
+
+![Log có màu dẫn tới mã nguồn](/tutorial-guides/import-unity-package/step-09.png)
+
+## Lỗi thường gặp
+
+- **Connection test failed.** Kiểm tra Server Endpoint. Nếu bật **Override server endpoint**, kiểm tra `SERVER_ENDPOINT` trong `.env` hoặc để trống.
+- **Game Name để trống.** Game ID sai hoặc thuộc game khác. Sao chép lại từ trang Game Detail.
+- **Giá trị trong .env không được áp dụng.** Đảm bảo `.env` nằm ở thư mục gốc dự án (không nằm trong `Assets`) và đã bật **Load .env on Play**.
+- **Đăng nhập đòi mã 2FA.** Tài khoản đã bật 2FA. Dùng **2FA Code** và **2FA Login**.
+
+## Câu hỏi thường gặp
+
+### Sai Server SDK hỗ trợ Unity phiên bản nào?
+Khuyến nghị Unity 6.x trở lên.
+
+### Đăng nhập có phải là đã trở thành người chơi của game không?
+Không. Đăng nhập chỉ tạo hoặc tải user Sai Server. User trở thành **người chơi** của game khi bạn tạo Gamer Progress cho họ, nội dung của bài tiếp theo.
+
+### Có thể trỏ Unity tới server khác để test không?
+Có. Đặt `SERVER_ENDPOINT` trong `.env` và bật **Override server endpoint**. Giá trị này chỉ áp dụng cho phiên chơi hiện tại.
+
+## Bước tiếp theo
+
+- [Đăng nhập Google trong Unity](/tutorials/guides/unity-google-login)
+- [Tạo Gamer Progress](/tutorials/guides/create-gamer-progress)

@@ -4292,8 +4292,9 @@
     "guides": {
       "createAStudio": "Tạo Studio",
       "importUnityPackage": "Cài Unity Package",
+      "unity-google-login": "Đăng nhập Google trong Unity",
       "create-gamer-progress": "Create Gamer Progress",
-      "cross-platform-save": "Cross platform save",
+      "cross-platform-save": "Lưu game đám mây đa nền tảng",
       "what-is-item-definition": "What is Item Definition?",
       "5b-send-an-item-to-a-player": "Send an item to a player",
       "what-is-container": "What is Container?",
@@ -4303,6 +4304,7 @@
       "item-swap": "Item Swap",
       "what-is-gacha-pack": "What is Gacha Pack?",
       "open-gacha-pack": "Open Gacha Pack",
+      "gift-codes": "Tạo và đổi Gift Code",
       "what-is-item-generator": "What is Item Generator?",
       "claim-resources-from-generator": "Claim Resources from Generator",
       "equipment-slots-definitions": "Equipment Slots Definitions",

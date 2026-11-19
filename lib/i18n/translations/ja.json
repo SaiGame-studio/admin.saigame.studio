@@ -4285,8 +4285,9 @@
     "guides": {
       "createAStudio": "ゲームスタジオ作成",
       "importUnityPackage": "Unity Packageのインポート",
+      "unity-google-login": "UnityでのGoogleログイン",
       "create-gamer-progress": "Create Gamer Progress",
-      "cross-platform-save": "Cross platform save",
+      "cross-platform-save": "クロスプラットフォームのクラウドセーブ",
       "what-is-item-definition": "What is Item Definition?",
       "5b-send-an-item-to-a-player": "Send an item to a player",
       "what-is-container": "What is Container?",
@@ -4296,6 +4297,7 @@
       "item-swap": "Item Swap",
       "what-is-gacha-pack": "What is Gacha Pack?",
       "open-gacha-pack": "Open Gacha Pack",
+      "gift-codes": "ギフトコードの作成と引き換え",
       "what-is-item-generator": "What is Item Generator?",
       "claim-resources-from-generator": "Claim Resources from Generator",
       "equipment-slots-definitions": "Equipment Slots Definitions",
