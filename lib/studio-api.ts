@@ -1,3 +1,4 @@
+import { trackEvent } from "@/lib/analytics";
 import type { ApiResponse, Studio } from "@/types/studio";
 import type { TwoFactorProof } from "@/lib/two-factor-api";
 import type { Game } from "@/types/game";
@@ -35,7 +36,7 @@ export async function fetchUserStudios(): Promise<Studio[]> {
  */
 export async function fetchStudio(id: string): Promise<Studio> {
     const data = await api.get(`/api/v1/studios/${id}`);
-    // API trả về trực tiếp studio object
+    // The API returns the studio object directly.
     return data;
 }
 
@@ -72,7 +73,8 @@ export async function createStudio(studioData: {
     name: string;
 }): Promise<Studio> {
     const data = await api.post("/api/v1/studios", studioData);
-    // API trả về trực tiếp studio object
+    if (data?.id) trackEvent("create_studio");
+    // The API returns the studio object directly.
     return data;
 }
 /**
@@ -109,6 +111,7 @@ export async function createGame(studioId: string, gameData: {
         }
     };
     const data = await api.post(`/api/v1/studios/${studioId}/games`, requestData);
+    if (data?.id) trackEvent("create_game");
     return data;
 }
 /**

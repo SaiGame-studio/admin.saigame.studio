@@ -1,4 +1,6 @@
 "use client";
+import { trackEvent } from "@/lib/analytics";
+import { getAuthPageUrl } from "@/lib/auth-redirect";
 import type React from "react";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
@@ -63,7 +65,7 @@ export function RegisterForm() {
                 throw new Error(data.message || "Google sign-in failed");
             }
             if (data.access_token) {
-                login(data.access_token, data.refresh_token);
+                login(data.access_token, data.refresh_token, "google");
                 toast({ title: "Welcome!", description: `Signed in as ${data.user?.username || data.user?.email || "User"}!` });
             }
             else {
@@ -118,6 +120,7 @@ export function RegisterForm() {
                 }
                 throw new Error(data.message || "Registration failed. Please try again.");
             }
+            trackEvent("sign_up", { method: "password" });
             // Save the email for future logins
             safeSetItem(REMEMBERED_EMAIL_KEY, email);
             // Registration successful - show success message and redirect to login
@@ -127,7 +130,7 @@ export function RegisterForm() {
             });
             // Redirect to login page after a short delay
             setTimeout(() => {
-                router.push("/login");
+                router.push(getAuthPageUrl("/login"));
             }, 1500);
         }
         catch (err) {
@@ -190,7 +193,7 @@ export function RegisterForm() {
             </>)}
           <div className="text-center text-sm">
             Already have an account?{" "}
-            <Button variant="link" className="p-0 font-normal" onClick={() => router.push("/login")}>
+            <Button variant="link" className="p-0 font-normal" onClick={() => router.push(getAuthPageUrl("/login"))}>
               Sign in
             </Button>
           </div>

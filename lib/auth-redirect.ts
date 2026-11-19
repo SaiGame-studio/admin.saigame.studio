@@ -47,3 +47,9 @@ export function getCurrentRelativeUrl(): string {
 
     return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
+
+/** Keep only the validated destination when switching between authentication forms. */
+export function getAuthPageUrl(path: "/login" | "/register"): string {
+    const returnTo = getReturnToFromLocation();
+    return returnTo === "/" ? path : `${path}?${LOGIN_RETURN_TO_PARAM}=${encodeURIComponent(returnTo)}`;
+}
